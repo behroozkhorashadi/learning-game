@@ -26,6 +26,7 @@ from app.models.attempt import Attempt, AttemptCreate, AttemptRead
 from app.models.enums import EventType
 from app.models.item import Item
 from app.models.profile import Profile
+from app.services.loop_a_service import choose_next_item_level, process_attempt
 
 
 @asynccontextmanager
@@ -61,15 +62,21 @@ def get_next_item(profile_id: int, game_id: str, session: Session = Depends(get_
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    level = get_current_level(session, profile_id, game_id)
-    item = game.generate_item(level, Random())
+    directive = choose_next_item_level(
+        session,
+        profile_id=profile_id,
+        game_id=game_id,
+        max_level=game.metadata.max_level,
+        rng=Random(),
+    )
+    item = game.generate_item(directive.level, Random())
 
     append_event(
         session,
         profile_id=profile_id,
         game_id=game_id,
         event_type=EventType.ITEM_SHOWN,
-        payload=item.model_dump(),
+        payload={**item.model_dump(), "pacing": directive.kind.value},
     )
     return item
 
@@ -78,13 +85,19 @@ def get_next_item(profile_id: int, game_id: str, session: Session = Depends(get_
 def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)) -> AttemptRead:
     if session.get(Profile, payload.profile_id) is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
+    try:
+        game = get_game(payload.game_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    level = get_current_level(session, payload.profile_id, payload.game_id)
     attempt = Attempt(
         item_id=payload.item_id,
         profile_id=payload.profile_id,
         game_id=payload.game_id,
         variant_id=payload.variant_id,
         session_id=payload.session_id,
+        level=level,
         correct=payload.telemetry.correct,
         score=payload.telemetry.score,
         hints_used=payload.telemetry.hints_used,
@@ -103,6 +116,7 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
         payload={
             "attempt_id": attempt.id,
             "item_id": attempt.item_id,
+            "level": attempt.level,
             "correct": attempt.correct,
             "score": attempt.score,
             "hints_used": attempt.hints_used,
@@ -112,6 +126,10 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
         session_id=payload.session_id,
     )
 
+    _decision, hint_offered = process_attempt(
+        session, attempt=attempt, max_level=game.metadata.max_level
+    )
+
     return AttemptRead(
         id=attempt.id,
         correct=attempt.correct,
@@ -119,4 +137,5 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
         hints_used=attempt.hints_used,
         time_ms=attempt.time_ms,
         event_id=event.event_id,
+        hint_offered=hint_offered,
     )
