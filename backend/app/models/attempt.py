@@ -46,7 +46,12 @@ class AttemptCreate(BaseModel):
 
 class Attempt(SQLModel, table=True):
     """Persisted attempt. Telemetry-core fields are flattened onto columns for
-    queryability; `details` keeps the free-form envelope contents."""
+    queryability; `details` keeps the free-form envelope contents.
+
+    `level` is the difficulty level in effect when this attempt was made
+    (server-set, not client-supplied). Loop A's mastery window (PRD §5.1) is
+    reconstructed by querying attempts at the profile/game's current level —
+    see `app.services.loop_a_service`."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
     item_id: str
@@ -54,6 +59,7 @@ class Attempt(SQLModel, table=True):
     game_id: str
     variant_id: Optional[str] = None
     session_id: Optional[str] = None
+    level: int
     correct: Optional[bool] = None
     score: Optional[float] = None
     hints_used: int
@@ -71,3 +77,7 @@ class AttemptRead(BaseModel):
     hints_used: int
     time_ms: int
     event_id: str
+    hint_offered: bool
+    """Loop A frustration guard (PRD §5.1): true if this attempt was the
+    second consecutive wrong answer at the current level. Immediate,
+    real-time signal for the client — never a level change."""

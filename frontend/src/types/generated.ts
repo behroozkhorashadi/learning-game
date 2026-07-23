@@ -82,6 +82,7 @@ export interface Attempt {
   game_id: string;
   variant_id?: string | null;
   session_id?: string | null;
+  level: number;
   correct?: boolean | null;
   score?: number | null;
   hints_used: number;
@@ -97,6 +98,7 @@ export interface AttemptRead {
   hints_used: number;
   time_ms: number;
   event_id: string;
+  hint_offered: boolean;
 }
 
 export type EventType = "session_start" | "session_complete" | "session_abandoned" | "item_shown" | "attempt" | "hint_used" | "difficulty_changed" | "replay_chosen" | "game_switched" | "quick_quit" | "rating_given" | "verification_completed";
