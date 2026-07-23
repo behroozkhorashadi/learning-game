@@ -1,12 +1,12 @@
 """FastAPI app — PRD §9, §16 step 3.
 
-Two endpoints only, per this task's scope:
+- GET  /api/profiles     : read-only listing for the profile-picker screen.
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
 - POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
 
 No accounts/auth (PRD §2 non-goals). A single demo profile is seeded on startup
-so there's something to point the placeholder frontend and curl at; real
-profile management is out of scope here.
+so there's something to point the frontend and curl at; real profile
+management (creation/editing) is out of scope here.
 """
 
 from contextlib import asynccontextmanager
@@ -15,7 +15,7 @@ from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
 from app.db import create_db_and_tables, engine, get_session
@@ -51,6 +51,12 @@ def _seed_demo_profile(session: Session) -> None:
     if session.get(Profile, 1) is None:
         session.add(Profile(id=1, name="Demo Kid", avatar="fox", birth_year=2020))
         session.commit()
+
+
+@app.get("/api/profiles", response_model=list[Profile])
+def list_profiles(session: Session = Depends(get_session)) -> list[Profile]:
+    """Read-only listing for the profile-picker screen. No auth (PRD §2 non-goals)."""
+    return list(session.exec(select(Profile)).all())
 
 
 @app.get("/api/items/next", response_model=Item)

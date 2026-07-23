@@ -1,0 +1,132 @@
+/* ============================================================
+   Design system tokens, ported from the Claude Design handoff
+   bundle (_ds/den-design-system-*/colors_and_type.css).
+
+   Font files: the source tokens specify "Averta Std" and "Circular
+   Std", which are Otter proprietary commercial fonts. Those files
+   are not included in the handoff and are not ours to redistribute,
+   so --font-sans and --font-display fall back to an open stack at
+   the same sizes and weights instead.
+   ============================================================ */
+
+:root {
+  /* ----- Font families ----- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+
+  /* ----- Color palette (base swatches) ----- */
+  --gray-50: #fcfcfd;
+  --gray-100: #f6f7f9;
+  --gray-200: #e7eaee;
+  --gray-300: #d3d8df;
+  --gray-400: #bec5d0;
+  --gray-500: #a6b0bf;
+  --gray-600: #8896aa;
+  --gray-700: #64748b;
+  --gray-800: #515e71;
+  --gray-900: #37404d;
+  --gray-1000: #22282f;
+
+  --blue-100: #f0f4ff;
+  --blue-200: #dbe4ff;
+  --blue-300: #c2d1ff;
+  --blue-400: #a3baff;
+  --blue-600: #5c85ff;
+  --blue-700: #144fff; /* brand blue */
+  --blue-800: #0037db;
+  --blue-900: #00289e;
+
+  --orange-200: #fdecce;
+  --orange-400: #fad38e;
+  --orange-600: #f7b23b;
+  --orange-700: #f59e0b;
+  --orange-800: #c98208;
+  --orange-900: #7f5305;
+
+  --green-200: #dbf5d1;
+  --green-400: #a1e486;
+  --green-600: #5bcc2d;
+  --green-800: #419220;
+  --green-900: #2c6416;
+
+  --purple-200: #ebdcfe;
+  --purple-300: #cba6fc;
+  --purple-700: #6107d8;
+  --purple-800: #5006b2;
+
+  --pink-600: #e057b0;
+
+  /* ----- Semantic tokens ----- */
+  --surface-app: #fff6ea;
+  --surface-default: #ffffff;
+  --surface-subtle: #fbf8f2;
+  --surface-tray: #fbf8f2;
+
+  --fg-primary: #22282f;
+  --fg-secondary: #515e71;
+  --fg-tertiary: #8896aa;
+  --fg-disabled: #a6b0bf;
+  --fg-inverse: #ffffff;
+  --fg-brand: #144fff;
+  --fg-positive: #2c6416;
+  --fg-warning: #7f5305;
+
+  --border-subtle: #f1ece0;
+  --border-default: #e7e2d6;
+  --border-tray: #eee4d2;
+
+  --status-positive-bg: #f0fbea;
+  --status-positive-border: #a1e486;
+  --status-warning-bg: #fef9f0;
+  --status-warning-border: #fad38e;
+
+  /* ----- Radius ----- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+
+  /* ----- Spacing (4pt base) ----- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* ----- Elevation ----- */
+  --elevation-300: 0px 10px 24px -14px rgba(0, 13, 51, 0.12);
+  --elevation-600: 0px 22px 44px -16px rgba(0, 13, 51, 0.14), 0px 2px 0 rgba(0, 13, 51, 0.03);
+
+  /* ----- Typography scale ----- */
+  --fs-sm: 14px;
+  --lh-sm: 20px;
+  --fs-md: 16px;
+  --lh-md: 24px;
+  --fs-xl: 20px;
+  --lh-xl: 28px;
+  --fs-2xl: 24px;
+  --lh-2xl: 32px;
+  --fs-3xl: 30px;
+  --lh-3xl: 36px;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--fg-primary);
+  background: var(--surface-app);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
