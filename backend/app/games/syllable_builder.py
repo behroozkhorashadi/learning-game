@@ -22,6 +22,10 @@ WORD_BANK: dict[int, list[tuple[str, list[str]]]] = {
         ("rabbit", ["rab", "bit"]),
         ("candle", ["can", "dle"]),
         ("pencil", ["pen", "cil"]),
+        ("turtle", ["tur", "tle"]),
+        ("napkin", ["nap", "kin"]),
+        ("wagon", ["wag", "on"]),
+        ("basket", ["bas", "ket"]),
     ],
     3: [
         ("elephant", ["el", "e", "phant"]),
@@ -29,12 +33,19 @@ WORD_BANK: dict[int, list[tuple[str, list[str]]]] = {
         ("dinosaur", ["di", "no", "saur"]),
         ("butterfly", ["but", "ter", "fly"]),
         ("umbrella", ["um", "brel", "la"]),
+        ("banana", ["ba", "na", "na"]),
+        ("octopus", ["oc", "to", "pus"]),
+        ("tomato", ["to", "ma", "to"]),
+        ("gorilla", ["go", "ril", "la"]),
     ],
     4: [
         ("alligator", ["al", "li", "ga", "tor"]),
         ("helicopter", ["hel", "i", "cop", "ter"]),
         ("watermelon", ["wa", "ter", "mel", "on"]),
         ("caterpillar", ["ca", "ter", "pil", "lar"]),
+        ("escalator", ["es", "ca", "la", "tor"]),
+        ("vegetable", ["veg", "e", "ta", "ble"]),
+        ("television", ["tel", "e", "vi", "sion"]),
     ],
 }
 

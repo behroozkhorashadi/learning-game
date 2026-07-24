@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
-import { ArrowLeftIcon, ImagePlaceholderIcon, SpeakerIcon } from '../components/icons'
+import { ImagePlaceholderIcon, SpeakerIcon } from '../components/icons'
+import { ProgressBar } from '../components/ProgressBar'
+import { SessionComplete } from '../components/SessionComplete'
 import { speakWord } from '../lib/speech'
 
 /**
@@ -12,6 +14,9 @@ import { speakWord } from '../lib/speech'
  */
 
 const GAME_ID = 'syllable_builder'
+// PRD §"Session flow": "a set number of items", left as an implementation
+// detail — matches the Claude Design handoff's "make five words" session.
+const SESSION_LENGTH = 5
 
 function WordPicture({ word }: { word: string }) {
   const [broken, setBroken] = useState(false)
@@ -65,7 +70,11 @@ function toTileAssemblyItem(item: Item): TileAssemblyItem {
     spoken: targetWord,
     slots: correctSyllables.length,
     answer: correctSyllables,
-    tiles: tiles.map((syllable) => ({ id: syllable, label: syllable })),
+    // `id` must be unique per tile even when the syllable text repeats within
+    // a word (e.g. "tomato" → to-ma-to) — TileAssembly tracks tiles by `id` in
+    // Sets/objects, so two tiles sharing an id become indistinguishable and
+    // placing one makes both vanish from the tray.
+    tiles: tiles.map((syllable, i) => ({ id: `${syllable}-${i}`, label: syllable })),
   }
 }
 
@@ -80,9 +89,23 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   const [posting, setPosting] = useState(false)
   const [lastResult, setLastResult] = useState<AttemptRead | null>(null)
   const [startedAt, setStartedAt] = useState<number>(0)
-  // Generated once per mount (i.e. per play session) so the server can avoid
-  // repeating a word already shown within this session.
-  const [sessionId] = useState<string>(() => crypto.randomUUID())
+  // Regenerated whenever a session restarts (mount, or "Play again" after
+  // wrap-up) so the server can avoid repeating a word already shown within
+  // that session — see `repeat_key` in the syllable_builder game module.
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
+  const [completedWords, setCompletedWords] = useState<string[]>([])
+  const [sessionComplete, setSessionComplete] = useState(false)
+  // Item ids already counted toward `completedWords`, guarding against a
+  // double-submit of the same item rather than deduping by word text — the
+  // word bank is small enough that the same word can legitimately reappear
+  // later in a session (see `generate_item`'s exhausted-pool fallback), and
+  // that repeat must still count toward the session.
+  const countedItemIds = useRef<Set<string>>(new Set())
+  // React StrictMode intentionally double-invokes effects in dev, which would
+  // otherwise fire `fetchItem` twice for the same session and burn an extra
+  // slot from the (small) no-repeat word pool before the player even answers
+  // one item. Guard so each session id only ever triggers one real fetch.
+  const fetchedForSession = useRef<string | null>(null)
 
   // `item` changes reference every time SyllableBuilder re-renders while
   // posting an attempt (setPosting/setLastResult). TileAssembly resets its
@@ -108,11 +131,32 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   }, [profileId, sessionId])
 
   useEffect(() => {
+    if (fetchedForSession.current === sessionId) return
+    fetchedForSession.current = sessionId
     fetchItem()
-  }, [fetchItem])
+  }, [sessionId, fetchItem])
+
+  function playAgainSession() {
+    setCompletedWords([])
+    setSessionComplete(false)
+    countedItemIds.current = new Set()
+    setSessionId(crypto.randomUUID())
+  }
 
   async function handleResult(result: TileResult) {
     if (!item) return
+    if (result.correct && !countedItemIds.current.has(item.item_id)) {
+      countedItemIds.current.add(item.item_id)
+      const word = item.payload['target_word'] as string
+      setCompletedWords((prev) => {
+        const next = [...prev, word]
+        // Small delay so the "You built it!" feedback banner is visible
+        // before the wrap-up screen replaces the whole card (PRD: "a
+        // satisfying wrap-up").
+        if (next.length >= SESSION_LENGTH) setTimeout(() => setSessionComplete(true), 900)
+        return next
+      })
+    }
     setPosting(true)
     setError(null)
     const timeMs = Math.round(performance.now() - startedAt)
@@ -142,23 +186,29 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
       <div style={{ width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 26 }}>
-          <button
-            type="button"
-            aria-label="Back"
-            title="Back"
-            onClick={onBack}
-            style={{ width: 52, height: 52, borderRadius: 9999, border: '2px solid var(--border-default)', background: '#FFFFFF', color: 'var(--fg-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-          >
-            <ArrowLeftIcon />
-          </button>
-        </div>
+        {!sessionComplete && (
+          <div style={{ marginBottom: 26 }}>
+            <ProgressBar total={SESSION_LENGTH} currentIndex={completedWords.length} onBack={onBack} />
+          </div>
+        )}
 
         {error && (
           <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>
         )}
 
-        {item && (
+        {sessionComplete && (
+          <SessionComplete
+            headline="You built them all!"
+            subtitle="Five words, all put together. Nice work sounding them out."
+            badgeSrc={`/images/badges/${GAME_ID}.png`}
+            badgeTitle="Word Wizard badge"
+            words={completedWords}
+            onPlayAgain={playAgainSession}
+            onAllDone={onBack}
+          />
+        )}
+
+        {!sessionComplete && item && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 24, padding: '24px 28px', boxShadow: 'var(--elevation-300)' }}>
             <WordPicture key={item.payload['target_word'] as string} word={item.payload['target_word'] as string} />
             <div style={{ flex: 1, minWidth: 220 }}>
@@ -184,7 +234,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           </div>
         )}
 
-        {item && tileAssemblyItem && (
+        {!sessionComplete && item && tileAssemblyItem && (
           <div style={{ marginTop: 28 }}>
             <TileAssembly
               key={item.item_id}
@@ -197,8 +247,8 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           </div>
         )}
 
-        {posting && <p style={{ color: 'var(--fg-tertiary)' }}>Saving...</p>}
-        {lastResult && !posting && (
+        {!sessionComplete && posting && <p style={{ color: 'var(--fg-tertiary)' }}>Saving...</p>}
+        {!sessionComplete && lastResult && !posting && (
           <p style={{ color: 'var(--fg-tertiary)', fontSize: 14 }}>
             Recorded (event {lastResult.event_id.slice(0, 8)}) — level stays server-owned for the next item.
           </p>
