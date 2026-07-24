@@ -186,7 +186,14 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
 
         {item && tileAssemblyItem && (
           <div style={{ marginTop: 28 }}>
-            <TileAssembly key={item.item_id} item={tileAssemblyItem} onResult={handleResult} embedded showAudio={false} />
+            <TileAssembly
+              key={item.item_id}
+              item={tileAssemblyItem}
+              onResult={handleResult}
+              onPlayAgain={fetchItem}
+              embedded
+              showAudio={false}
+            />
           </div>
         )}
 

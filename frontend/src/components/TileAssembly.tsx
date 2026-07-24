@@ -38,6 +38,10 @@ interface Props {
   onResult: (result: TileResult) => void
   embedded?: boolean
   showAudio?: boolean
+  /** Called instead of the internal same-item reset when "Play again" is
+   * clicked after a correct answer — lets the caller fetch a new item. If
+   * omitted, "Play again" just replays the current item. */
+  onPlayAgain?: () => void
 }
 
 const THEMES = [
@@ -54,7 +58,7 @@ function tileTheme(index: number): (typeof THEMES)[number] {
   return THEMES[((index % THEMES.length) + THEMES.length) % THEMES.length]
 }
 
-export function TileAssembly({ item, onResult, embedded = false, showAudio = true }: Props) {
+export function TileAssembly({ item, onResult, embedded = false, showAudio = true, onPlayAgain }: Props) {
   const [placements, setPlacements] = useState<(string | null)[]>(() => Array(item.slots).fill(null))
   const [history, setHistory] = useState<number[]>([])
   const [hintOn, setHintOn] = useState(false)
@@ -248,6 +252,10 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
   }
 
   function playAgain() {
+    if (onPlayAgain) {
+      onPlayAgain()
+      return
+    }
     setPlacements(Array(item.slots).fill(null))
     setHistory([])
     setFeedback('none')
