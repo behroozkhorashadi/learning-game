@@ -21,10 +21,11 @@ import app.games  # noqa: F401  (populates the game registry on import)
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
 from app.events.log import append_event
-from app.games.registry import get_game
+from app.games.registry import all_games, get_game
 from app.models.attempt import Attempt, AttemptCreate, AttemptRead
 from app.models.enums import EventType
 from app.models.event import Event
+from app.models.game import GameMetadata
 from app.models.item import Item
 from app.models.profile import Profile
 from app.services.loop_a_service import choose_next_item_level, process_attempt
@@ -58,6 +59,12 @@ def _seed_demo_profile(session: Session) -> None:
 def list_profiles(session: Session = Depends(get_session)) -> list[Profile]:
     """Read-only listing for the profile-picker screen. No auth (PRD §2 non-goals)."""
     return list(session.exec(select(Profile)).all())
+
+
+@app.get("/api/games", response_model=list[GameMetadata])
+def list_games() -> list[GameMetadata]:
+    """Backs the Game Picker screen — lists every registered game module."""
+    return [game.metadata for game in all_games()]
 
 
 @app.get("/api/items/next", response_model=Item)

@@ -57,6 +57,7 @@ class SyllableBuilderGame(GameModule):
     metadata = GameMetadata(
         id="syllable_builder",
         title="Syllable Builder",
+        tagline="Slide the sounds",
         skill_ids=["phonics"],
         min_age=5,
         max_age=8,
