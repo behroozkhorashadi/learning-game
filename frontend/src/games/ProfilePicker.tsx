@@ -15,7 +15,7 @@ const RING_THEMES = [
 ]
 
 interface Props {
-  onSelect: (profileId: number) => void
+  onSelect: (profile: Profile) => void
 }
 
 export function ProfilePicker({ onSelect }: Props) {
@@ -51,7 +51,7 @@ export function ProfilePicker({ onSelect }: Props) {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => p.id != null && onSelect(p.id)}
+                onClick={() => p.id != null && onSelect(p)}
                 aria-label={`Play as ${p.name}`}
                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 8 }}
               >

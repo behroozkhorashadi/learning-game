@@ -26,6 +26,7 @@ export interface Skill {
 export interface GameMetadata {
   id: string;
   title: string;
+  tagline: string;
   skill_ids: string[];
   min_age: number;
   max_age: number;

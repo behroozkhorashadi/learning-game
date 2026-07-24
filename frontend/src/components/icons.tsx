@@ -77,6 +77,20 @@ export function SparklesIcon({ size = 24 }: IconProps) {
   )
 }
 
+export function SwitchIcon({ size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.75 13M9.75 13H19.25"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function ImagePlaceholderIcon({ size = 32 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">

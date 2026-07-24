@@ -20,6 +20,7 @@ class GameMetadata(BaseModel):
 
     id: str
     title: str
+    tagline: str
     skill_ids: list[str]
     min_age: int
     max_age: int

@@ -1,14 +1,28 @@
 import { useState } from 'react'
 import { ProfilePicker } from './games/ProfilePicker'
+import { GamePicker } from './games/GamePicker'
 import { SyllableBuilder } from './games/SyllableBuilder'
+import type { Profile } from './types/generated'
 
 function App() {
-  const [profileId, setProfileId] = useState<number | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [gameId, setGameId] = useState<string | null>(null)
 
-  if (profileId == null) {
-    return <ProfilePicker onSelect={setProfileId} />
+  if (profile == null) {
+    return <ProfilePicker onSelect={setProfile} />
   }
-  return <SyllableBuilder profileId={profileId} onBack={() => setProfileId(null)} />
+
+  if (gameId == null) {
+    return (
+      <GamePicker
+        profile={profile}
+        onSelectGame={setGameId}
+        onSwitchProfile={() => setProfile(null)}
+      />
+    )
+  }
+
+  return <SyllableBuilder profileId={profile.id!} onBack={() => setGameId(null)} />
 }
 
 export default App
