@@ -224,7 +224,9 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
   }
 
   function isCorrect(p: (string | null)[]) {
-    return p.length === item.answer.length && p.every((id, i) => id === item.answer[i])
+    // Compare by label, not raw tile id: two tiles can share a label (e.g.
+    // "tomato" has two "to" tiles) while still having distinct ids.
+    return p.length === item.answer.length && p.every((id, i) => (id ? byId[id]?.label : undefined) === item.answer[i])
   }
 
   function check() {
@@ -243,7 +245,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
 
   function tryAgain() {
     setPlacements((prev) => {
-      const p = prev.map((id, i) => (id === item.answer[i] ? id : null))
+      const p = prev.map((id, i) => (id && byId[id]?.label === item.answer[i] ? id : null))
       setHistory((h) => h.filter((i) => p[i]))
       return p
     })
@@ -441,11 +443,11 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                       feedback === 'correct'
                         ? '0 0 0 4px #5BCC2D, 0 10px 20px rgba(91,204,45,0.32)'
                         : feedback === 'tryagain'
-                          ? tid === item.answer[i]
+                          ? byId[tid]?.label === item.answer[i]
                             ? '0 0 0 4px #A1E486'
                             : '0 0 0 4px #F7B23B'
                           : undefined,
-                    animation: feedback === 'tryagain' && tid !== item.answer[i] ? 'softNudge 0.4s ease' : undefined,
+                    animation: feedback === 'tryagain' && byId[tid]?.label !== item.answer[i] ? 'softNudge 0.4s ease' : undefined,
                   }
               return (
                 <div key={i} data-slot-index={i} style={boxStyle}>
@@ -512,6 +514,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           {item.kind === 'word' ? 'Sound tiles' : 'Number tiles'}
         </div>
         <div
+          data-testid="tile-tray"
           style={{
             display: 'flex',
             gap: 16,

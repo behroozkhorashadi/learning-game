@@ -16,6 +16,30 @@ const CARD_THEMES = [
   { icon: '#DBF5D1', ring: '#A1E486', text: '#2C6416' },
 ]
 
+function GameIcon({ gameId, emoji, background }: { gameId: string; emoji: string; background: string }) {
+  const [broken, setBroken] = useState(false)
+  const boxStyle = { flex: 'none' as const, width: 108, height: 108, borderRadius: 22, background, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
+
+  if (broken) {
+    return (
+      <div style={boxStyle}>
+        <span style={{ fontSize: 44 }}>{emoji}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={boxStyle}>
+      <img
+        src={`/images/games/${gameId}.png`}
+        alt=""
+        onError={() => setBroken(true)}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    </div>
+  )
+}
+
 interface Props {
   profile: Profile
   onSelectGame: (gameId: string) => void
@@ -78,9 +102,7 @@ export function GamePicker({ profile, onSelectGame, onSwitchProfile }: Props) {
                 onClick={() => onSelectGame(game.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: 20, textAlign: 'left', padding: 22, borderRadius: 26, background: '#FFFFFF', border: '1px solid #F1ECE0', boxShadow: '0 10px 22px -16px rgba(0,13,51,0.18)', cursor: 'pointer' }}
               >
-                <div style={{ flex: 'none', width: 108, height: 108, borderRadius: 22, background: theme.icon, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 44 }}>{game.icon}</span>
-                </div>
+                <GameIcon gameId={game.id} emoji={game.icon} background={theme.icon} />
                 <div>
                   <div style={{ fontWeight: 800, fontSize: 23, lineHeight: 1.15, color: '#2A2E37' }}>{game.title}</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#8B94A3', marginTop: 4 }}>{game.tagline}</div>
