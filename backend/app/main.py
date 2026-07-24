@@ -11,7 +11,7 @@ management (creation/editing) is out of scope here.
 
 from contextlib import asynccontextmanager
 from random import Random
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +24,7 @@ from app.events.log import append_event
 from app.games.registry import get_game
 from app.models.attempt import Attempt, AttemptCreate, AttemptRead
 from app.models.enums import EventType
+from app.models.event import Event
 from app.models.item import Item
 from app.models.profile import Profile
 from app.services.loop_a_service import choose_next_item_level, process_attempt
@@ -60,7 +61,12 @@ def list_profiles(session: Session = Depends(get_session)) -> list[Profile]:
 
 
 @app.get("/api/items/next", response_model=Item)
-def get_next_item(profile_id: int, game_id: str, session: Session = Depends(get_session)) -> Item:
+def get_next_item(
+    profile_id: int,
+    game_id: str,
+    session_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+) -> Item:
     if session.get(Profile, profile_id) is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
     try:
@@ -75,7 +81,30 @@ def get_next_item(profile_id: int, game_id: str, session: Session = Depends(get_
         max_level=game.metadata.max_level,
         rng=Random(),
     )
-    item = game.generate_item(directive.level, Random())
+
+    # No-repeat-within-a-session (client passes a session_id it generates once
+    # per play session): derive already-shown items from the event log rather
+    # than tracking new mutable state, per the event-sourcing pattern elsewhere.
+    exclude: set[str] = set()
+    if session_id:
+        shown = session.exec(
+            select(Event).where(
+                Event.profile_id == profile_id,
+                Event.game_id == game_id,
+                Event.session_id == session_id,
+                Event.event_type == EventType.ITEM_SHOWN,
+            )
+        ).all()
+        # `Event.payload` is `{**item.model_dump(), "pacing": ...}`, so the
+        # item's own payload dict (where repeat_key looks) is nested one level
+        # deeper, under the "payload" key.
+        exclude = {
+            key
+            for event in shown
+            if (key := game.repeat_key(event.payload.get("payload", {}))) is not None
+        }
+
+    item = game.generate_item(directive.level, Random(), exclude=frozenset(exclude))
 
     append_event(
         session,
@@ -83,6 +112,7 @@ def get_next_item(profile_id: int, game_id: str, session: Session = Depends(get_
         game_id=game_id,
         event_type=EventType.ITEM_SHOWN,
         payload={**item.model_dump(), "pacing": directive.kind.value},
+        session_id=session_id,
     )
     return item
 

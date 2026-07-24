@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
+import { ArrowLeftIcon, ImagePlaceholderIcon, SpeakerIcon } from '../components/icons'
+import { speakWord } from '../lib/speech'
 
 /**
  * Syllable Builder item screen — ported from the Claude Design handoff
@@ -10,6 +12,48 @@ import { TileAssembly, type TileAssemblyItem, type TileResult } from '../compone
  */
 
 const GAME_ID = 'syllable_builder'
+
+function WordPicture({ word }: { word: string }) {
+  const [broken, setBroken] = useState(false)
+  const boxStyle = {
+    flex: 'none',
+    width: 132,
+    height: 132,
+    borderRadius: 22,
+    background: 'var(--surface-subtle)',
+    border: '2px dashed var(--border-tray)',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    color: 'var(--fg-disabled)',
+    boxSizing: 'border-box' as const,
+    padding: 8,
+    overflow: 'hidden',
+  }
+
+  if (broken) {
+    return (
+      <div style={boxStyle}>
+        <ImagePlaceholderIcon size={32} />
+        <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>No picture yet</span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={boxStyle}>
+      <img
+        key={word}
+        src={`/images/words/${word}.png`}
+        alt={word}
+        onError={() => setBroken(true)}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+    </div>
+  )
+}
 
 function toTileAssemblyItem(item: Item): TileAssemblyItem {
   const targetWord = item.payload['target_word'] as string
@@ -36,12 +80,24 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   const [posting, setPosting] = useState(false)
   const [lastResult, setLastResult] = useState<AttemptRead | null>(null)
   const [startedAt, setStartedAt] = useState<number>(0)
+  // Generated once per mount (i.e. per play session) so the server can avoid
+  // repeating a word already shown within this session.
+  const [sessionId] = useState<string>(() => crypto.randomUUID())
+
+  // `item` changes reference every time SyllableBuilder re-renders while
+  // posting an attempt (setPosting/setLastResult). TileAssembly resets its
+  // feedback state whenever its `item` prop reference changes, so this must
+  // stay stable across those re-renders or the "correct" banner gets wiped
+  // the instant Check is clicked, before it's ever visible.
+  const tileAssemblyItem = useMemo(() => (item ? toTileAssemblyItem(item) : null), [item])
 
   const fetchItem = useCallback(async () => {
     setError(null)
     setLastResult(null)
     try {
-      const res = await fetch(`/api/items/next?profile_id=${profileId}&game_id=${GAME_ID}`)
+      const res = await fetch(
+        `/api/items/next?profile_id=${profileId}&game_id=${GAME_ID}&session_id=${sessionId}`,
+      )
       if (!res.ok) throw new Error(`GET /api/items/next -> ${res.status}`)
       const next: Item = await res.json()
       setItem(next)
@@ -49,7 +105,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
     } catch (err) {
       setError(String(err))
     }
-  }, [profileId])
+  }, [profileId, sessionId])
 
   useEffect(() => {
     fetchItem()
@@ -64,6 +120,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
       item_id: item.item_id,
       profile_id: profileId,
       game_id: item.game_id,
+      session_id: sessionId,
       telemetry: { correct: result.correct, hints_used: result.hintsUsed, time_ms: timeMs },
       details: { assembled: result.placement },
     }
@@ -93,7 +150,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
             onClick={onBack}
             style={{ width: 52, height: 52, borderRadius: 9999, border: '2px solid var(--border-default)', background: '#FFFFFF', color: 'var(--fg-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
-            ←
+            <ArrowLeftIcon />
           </button>
         </div>
 
@@ -103,9 +160,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
 
         {item && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 24, padding: '24px 28px', boxShadow: 'var(--elevation-300)' }}>
-            <div style={{ flex: 'none', width: 132, height: 132, borderRadius: 22, overflow: 'hidden', background: 'var(--surface-subtle)', border: '1px solid var(--border-tray)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
-              🧩
-            </div>
+            <WordPicture key={item.payload['target_word'] as string} word={item.payload['target_word'] as string} />
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: 'var(--fg-tertiary)', marginBottom: 8 }}>
                 Listen, then build the word
@@ -113,19 +168,12 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    try {
-                      window.speechSynthesis?.cancel()
-                      window.speechSynthesis?.speak(new SpeechSynthesisUtterance(item.payload['target_word'] as string))
-                    } catch {
-                      // speech synthesis is a nice-to-have; ignore if unavailable
-                    }
-                  }}
+                  onClick={() => speakWord(item.payload['target_word'] as string)}
                   aria-label="Hear the word"
                   title="Hear the word"
                   style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #C2D1FF', background: '#F0F4FF', color: '#144FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
                 >
-                  🔊
+                  <SpeakerIcon size={26} />
                 </button>
                 <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, color: 'var(--fg-primary)' }}>Tap to hear the word</span>
               </div>
@@ -136,9 +184,9 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           </div>
         )}
 
-        {item && (
+        {item && tileAssemblyItem && (
           <div style={{ marginTop: 28 }}>
-            <TileAssembly key={item.item_id} item={toTileAssemblyItem(item)} onResult={handleResult} embedded showAudio={false} />
+            <TileAssembly key={item.item_id} item={tileAssemblyItem} onResult={handleResult} embedded showAudio={false} />
           </div>
         )}
 

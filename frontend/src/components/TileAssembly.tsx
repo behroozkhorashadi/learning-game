@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { CircleCheckIcon, HelpCircleIcon, SparklesIcon, SpeakerIcon, UndoIcon } from './icons'
+import { speakWord } from '../lib/speech'
 
 /**
  * Tile-assembly primitive — ported from the Claude Design handoff bundle
@@ -50,20 +52,6 @@ type Feedback = 'none' | 'correct' | 'tryagain'
 
 function tileTheme(index: number): (typeof THEMES)[number] {
   return THEMES[((index % THEMES.length) + THEMES.length) % THEMES.length]
-}
-
-function speak(text: string) {
-  try {
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance(text)
-      u.rate = 0.85
-      u.pitch = 1.1
-      window.speechSynthesis.cancel()
-      window.speechSynthesis.speak(u)
-    }
-  } catch {
-    // speech synthesis is a nice-to-have; ignore if unavailable
-  }
 }
 
 export function TileAssembly({ item, onResult, embedded = false, showAudio = true }: Props) {
@@ -228,7 +216,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
     setHintOn(true)
     setFeedback('none')
     setHintsUsed((n) => n + 1)
-    speak(item.spoken || item.instruction)
+    speakWord(item.spoken || item.instruction)
   }
 
   function isCorrect(p: (string | null)[]) {
@@ -491,7 +479,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           <div style={{ display: 'flex', justifyContent: 'center', margin: '-18px 0 26px' }}>
             <button
               type="button"
-              onClick={() => speak(item.spoken || item.instruction)}
+              onClick={() => speakWord(item.spoken || item.instruction)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -507,7 +495,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                 cursor: 'pointer',
               }}
             >
-              🔊 {item.kind === 'word' ? 'Which sound comes first? Tap to hear it' : 'What comes first? Tap to hear it'}
+              <SpeakerIcon size={20} /> {item.kind === 'word' ? 'Which sound comes first? Tap to hear it' : 'What comes first? Tap to hear it'}
             </button>
           </div>
         )}
@@ -542,7 +530,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           {feedback === 'correct' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', background: 'var(--status-positive-bg)', border: '2px solid var(--status-positive-border)', borderRadius: 18 }}>
               <span style={{ flex: 'none', width: 40, height: 40, borderRadius: 9999, background: '#5BCC2D', color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                ✓
+                <CircleCheckIcon size={22} />
               </span>
               <span style={{ flex: 1, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 21, color: 'var(--fg-positive)' }}>You built it!</span>
               <button
@@ -557,7 +545,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           {feedback === 'tryagain' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', background: 'var(--status-warning-bg)', border: '2px solid var(--status-warning-border)', borderRadius: 18 }}>
               <span style={{ flex: 'none', width: 40, height: 40, borderRadius: 9999, background: '#FDECCE', color: '#C98208', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                ?
+                <HelpCircleIcon size={22} />
               </span>
               <span style={{ flex: 1, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, color: 'var(--fg-warning)' }}>Almost! Take another look.</span>
               <button
@@ -580,26 +568,26 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                     title="Hint"
                     style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #EBDCFE', background: '#F6F0FF', color: '#6107D8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
                   >
-                    ?
+                    <HelpCircleIcon size={26} />
                   </button>
                 )}
                 <button type="button" onClick={undo} disabled={undoDisabled} style={undoStyle}>
-                  ↩ Undo
+                  <UndoIcon size={20} /> Undo
                 </button>
               </div>
               {showAudio && (
                 <button
                   type="button"
-                  onClick={() => speak(item.spoken || item.instruction)}
+                  onClick={() => speakWord(item.spoken || item.instruction)}
                   aria-label="Hear it"
                   title="Hear it"
                   style={{ width: 52, height: 52, borderRadius: 9999, border: '2px solid #C2D1FF', background: '#F0F4FF', color: '#144FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
                 >
-                  🔊
+                  <SpeakerIcon size={24} />
                 </button>
               )}
               <button type="button" onClick={check} disabled={!allFilled} style={checkStyle}>
-                ✨ Check it
+                <SparklesIcon size={20} /> Check it
               </button>
             </div>
           )}

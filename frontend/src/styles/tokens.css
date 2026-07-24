@@ -1,6 +1,7 @@
 /* ============================================================
    Design system tokens, ported from the Claude Design handoff
-   bundle (_ds/den-design-system-*/colors_and_type.css).
+   bundle (see the den-design-system folder under _ds in that
+   project for the original colors_and_type.css).
 
    Font files: the source tokens specify "Averta Std" and "Circular
    Std", which are Otter proprietary commercial fonts. Those files

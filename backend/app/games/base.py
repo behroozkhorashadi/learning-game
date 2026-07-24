@@ -7,7 +7,7 @@ posts back an `AttemptCreate` whose telemetry core the contract requires.
 
 from abc import ABC, abstractmethod
 from random import Random
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -29,9 +29,18 @@ class GameModule(ABC):
     metadata: GameMetadata
 
     @abstractmethod
-    def generate_item(self, level: int, rng: Random) -> Item:
-        """Server-side. Deterministic given the same rng seed — PRD §6, §11."""
+    def generate_item(self, level: int, rng: Random, exclude: frozenset[str] = frozenset()) -> Item:
+        """Server-side. Deterministic given the same rng seed — PRD §6, §11.
+
+        `exclude` holds `repeat_key()` values already shown this session; a
+        game should avoid reselecting them when it has enough pool left to."""
         raise NotImplementedError
+
+    def repeat_key(self, item_payload: dict[str, Any]) -> Optional[str]:
+        """Identifies what makes two items "the same" for no-repeat-within-
+        session purposes. None (the default) means this game has no such
+        concept and no session-level exclusion is applied."""
+        return None
 
     def score_attempt(self, item: Item, response: dict[str, Any]) -> GradedResult:
         """Writing-only scoring seam via the model-provider layer (PRD §9.1,
