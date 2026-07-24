@@ -1,4 +1,4 @@
-.PHONY: serve test gen-types frontend install-backend install-frontend
+.PHONY: serve test gen-types gen-audio gen-images frontend install-backend install-frontend
 
 install-backend:
 	cd backend && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -14,6 +14,12 @@ test:
 
 gen-types:
 	cd backend && .venv/bin/python scripts/generate_ts_types.py
+
+gen-audio:
+	cd backend && .venv/bin/python scripts/generate_word_audio.py
+
+gen-images:
+	cd backend && .venv/bin/python scripts/generate_word_images.py
 
 frontend:
 	cd frontend && npm run dev

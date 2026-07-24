@@ -8,6 +8,7 @@ open; a fixed list is fine for this stub).
 """
 
 from random import Random
+from typing import Any, Optional
 
 from app.games.base import GameModule
 from app.games.registry import register
@@ -63,9 +64,13 @@ class SyllableBuilderGame(GameModule):
         max_level=10,
     )
 
-    def generate_item(self, level: int, rng: Random) -> Item:
+    def generate_item(self, level: int, rng: Random, exclude: frozenset[str] = frozenset()) -> Item:
         syllable_count = _syllable_count_for_level(level)
-        word, syllables = rng.choice(WORD_BANK[syllable_count])
+        pool = WORD_BANK[syllable_count]
+        # Fall back to the full pool once every word at this syllable count has
+        # already been shown this session, rather than refusing to produce an item.
+        available = [pair for pair in pool if pair[0] not in exclude] or pool
+        word, syllables = rng.choice(available)
 
         distractor_pool = [s for s in _ALL_SYLLABLES if s not in syllables]
         distractor_count = min(2 + level // 4, len(distractor_pool))
@@ -85,6 +90,9 @@ class SyllableBuilderGame(GameModule):
                 "tiles": tiles,
             },
         )
+
+    def repeat_key(self, item_payload: dict[str, Any]) -> Optional[str]:
+        return item_payload.get("target_word")
 
 
 register(SyllableBuilderGame())
