@@ -8,9 +8,22 @@ from datetime import datetime
 from typing import Optional
 
 from app.util import utcnow
+from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Field, SQLModel
 
 from app.models.enums import RatingScale
+
+
+class RatingCreate(BaseModel):
+    """Inbound POST body for /api/ratings. Not a table — `Rating` is the
+    persisted shape. `value` is bounded to 1-5 for both scales currently
+    defined (RatingScale.FACES and .STARS_1_5 are both 5-point scales)."""
+
+    profile_id: int
+    game_id: str
+    variant_id: Optional[str] = None
+    scale: RatingScale
+    value: int = PydanticField(ge=1, le=5)
 
 
 class Rating(SQLModel, table=True):

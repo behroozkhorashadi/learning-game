@@ -61,3 +61,47 @@ def test_valid_attempt_appends_exactly_one_event(client):
     assert response.status_code == 201
     after = _attempt_event_count(profile_id=1)
     assert after - before == 1
+
+
+def _rating_event_count(profile_id: int) -> int:
+    with Session(engine) as session:
+        rows = session.exec(
+            select(Event).where(
+                Event.profile_id == profile_id, Event.event_type == EventType.RATING_GIVEN
+            )
+        ).all()
+        return len(rows)
+
+
+def test_rating_out_of_range_is_rejected(client):
+    response = client.post(
+        "/api/ratings",
+        json={"profile_id": 1, "game_id": "syllable_builder", "scale": "stars_1_5", "value": 6},
+    )
+
+    assert response.status_code == 422
+
+
+def test_rating_for_unknown_profile_is_rejected(client):
+    response = client.post(
+        "/api/ratings",
+        json={"profile_id": 999, "game_id": "syllable_builder", "scale": "stars_1_5", "value": 5},
+    )
+
+    assert response.status_code == 404
+
+
+def test_valid_rating_appends_exactly_one_event(client):
+    before = _rating_event_count(profile_id=1)
+
+    response = client.post(
+        "/api/ratings",
+        json={"profile_id": 1, "game_id": "syllable_builder", "scale": "stars_1_5", "value": 4},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["value"] == 4
+    assert body["scale"] == "stars_1_5"
+    after = _rating_event_count(profile_id=1)
+    assert after - before == 1

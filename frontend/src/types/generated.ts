@@ -143,3 +143,11 @@ export interface Rating {
   created_at?: string;
 }
 
+export interface RatingCreate {
+  profile_id: number;
+  game_id: string;
+  variant_id?: string | null;
+  scale: RatingScale;
+  value: number;
+}
+
