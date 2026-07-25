@@ -127,7 +127,14 @@ export interface PlaySession {
 export interface Verification {
   id?: number | null;
   attempt_id: number;
+  correct: boolean;
   verified_at?: string;
+  verified_by?: string;
+}
+
+export interface VerificationCreate {
+  attempt_id: number;
+  correct: boolean;
   verified_by?: string;
 }
 

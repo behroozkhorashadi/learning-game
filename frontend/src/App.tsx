@@ -22,7 +22,7 @@ function App() {
     )
   }
 
-  return <SyllableBuilder profileId={profile.id!} onBack={() => setGameId(null)} />
+  return <SyllableBuilder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
 }
 
 export default App
