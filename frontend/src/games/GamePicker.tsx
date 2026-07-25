@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GameMetadata, Profile } from '../types/generated'
-import { SwitchIcon } from '../components/icons'
+import { BadgeIcon, SwitchIcon } from '../components/icons'
 
 /**
  * Game picker — ported from the Claude Design handoff bundle
@@ -44,9 +44,10 @@ interface Props {
   profile: Profile
   onSelectGame: (gameId: string) => void
   onSwitchProfile: () => void
+  onViewBadges: () => void
 }
 
-export function GamePicker({ profile, onSelectGame, onSwitchProfile }: Props) {
+export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadges }: Props) {
   const [games, setGames] = useState<GameMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,15 +78,26 @@ export function GamePicker({ profile, onSelectGame, onSwitchProfile }: Props) {
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, color: '#2A2E37' }}>Pick a game</div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onSwitchProfile}
-            aria-label="Switch player"
-            title="Switch player"
-            style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
-          >
-            <SwitchIcon />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              type="button"
+              onClick={onViewBadges}
+              aria-label="View badges"
+              title="View badges"
+              style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
+            >
+              <BadgeIcon />
+            </button>
+            <button
+              type="button"
+              onClick={onSwitchProfile}
+              aria-label="Switch player"
+              title="Switch player"
+              style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
+            >
+              <SwitchIcon />
+            </button>
+          </div>
         </div>
 
         {error && (

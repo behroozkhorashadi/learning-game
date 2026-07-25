@@ -248,6 +248,7 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
             sessionLength={SESSION_LENGTH}
             heroSrc={`/images/badges/${GAME_ID}.png`}
             onStart={() => setPhase('playing')}
+            onBack={onBack}
           />
         )}
 
