@@ -23,8 +23,10 @@ OUTPUT_DIR = BACKEND_ROOT.parent / "frontend" / "public" / "images" / "words"
 MODEL = "gpt-image-1"
 SIZE = "1024x1024"
 PROMPT_TEMPLATE = (
-    "A simple, friendly flashcard illustration of a single {word} for a young "
-    "child learning to read. Flat vector style, bold clean outlines, bright "
+    "A playful, funny cartoon illustration of a single {word} for a young "
+    "child learning to read — give it a silly, exaggerated personality (big "
+    "expressive eyes, a goofy grin, a fun pose) while staying instantly "
+    "recognizable as a {word}. Flat vector style, bold clean outlines, bright "
     "solid colors, centered on a plain white background, no text or letters."
 )
 
