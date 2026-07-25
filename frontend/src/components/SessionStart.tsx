@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SpeakerIcon, PlayIcon, SparklesIcon } from './icons'
+import { ArrowLeftIcon, SpeakerIcon, PlayIcon, SparklesIcon } from './icons'
 import { speakText } from '../lib/speech'
 
 /**
@@ -15,6 +15,7 @@ interface Props {
   sessionLength: number
   heroSrc: string
   onStart: () => void
+  onBack: () => void
 }
 
 function HeroArt({ src }: { src: string }) {
@@ -48,9 +49,21 @@ function HeroArt({ src }: { src: string }) {
   )
 }
 
-export function SessionStart({ eyebrow, headline, subtitle, sessionLength, heroSrc, onStart }: Props) {
+export function SessionStart({ eyebrow, headline, subtitle, sessionLength, heroSrc, onStart, onBack }: Props) {
   return (
     <div style={{ position: 'relative', background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '48px 40px 44px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', textAlign: 'center', overflow: 'hidden', boxSizing: 'border-box' }}>
+      <div style={{ position: 'absolute', top: 26, left: 26 }}>
+        <button
+          type="button"
+          aria-label="Back"
+          title="Back"
+          onClick={onBack}
+          style={{ width: 52, height: 52, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
+        >
+          <ArrowLeftIcon />
+        </button>
+      </div>
+
       <div style={{ position: 'absolute', top: 26, right: 26 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 9999, background: '#FDECCE', color: '#7F5305', fontWeight: 700, fontSize: 15 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">

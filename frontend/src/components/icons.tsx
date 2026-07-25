@@ -16,6 +16,23 @@ export function ArrowLeftIcon({ size = 24 }: IconProps) {
   )
 }
 
+export function ArrowRightIcon({ size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M13.75 6.75L19.25 12L13.75 17.25M4.75 12H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function BadgeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="9" r="5.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M9 13.5L7.5 19.25L12 16.75L16.5 19.25L15 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function UndoIcon({ size = 24 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
