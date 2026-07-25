@@ -4,6 +4,7 @@
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
 - POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
 - POST /api/ratings      : persists an explicit kid-provided rating, logs `rating_given`.
+- POST /api/verifications: persists a parent's PIN-gated write-out check, logs `verification_completed`.
 
 No accounts/auth (PRD §2 non-goals). A single demo profile is seeded on startup
 so there's something to point the frontend and curl at; real profile
@@ -30,6 +31,7 @@ from app.models.game import GameMetadata
 from app.models.item import Item
 from app.models.profile import Profile
 from app.models.rating import Rating, RatingCreate
+from app.models.verification import Verification, VerificationCreate
 from app.services.loop_a_service import choose_next_item_level, process_attempt
 
 
@@ -217,3 +219,34 @@ def post_rating(payload: RatingCreate, session: Session = Depends(get_session)) 
     # dict directly, so without this it would silently respond with `{}`.
     session.refresh(rating)
     return rating
+
+
+@app.post("/api/verifications", response_model=Verification, status_code=201)
+def post_verification(payload: VerificationCreate, session: Session = Depends(get_session)) -> Verification:
+    attempt = session.get(Attempt, payload.attempt_id)
+    if attempt is None:
+        raise HTTPException(status_code=404, detail=f"no attempt with id {payload.attempt_id}")
+
+    verification = Verification(
+        attempt_id=payload.attempt_id,
+        correct=payload.correct,
+        verified_by=payload.verified_by,
+    )
+    session.add(verification)
+    session.commit()
+    session.refresh(verification)
+
+    append_event(
+        session,
+        profile_id=attempt.profile_id,
+        game_id=attempt.game_id,
+        event_type=EventType.VERIFICATION_COMPLETED,
+        payload={"verification_id": verification.id, "attempt_id": attempt.id, "correct": verification.correct},
+        variant_id=attempt.variant_id,
+        session_id=attempt.session_id,
+    )
+
+    # See the matching comment in post_rating: append_event's commit expires
+    # every session-tracked object, including `verification`.
+    session.refresh(verification)
+    return verification

@@ -6,7 +6,7 @@ from app.models.item import Item
 from app.models.attempt import Attempt, AttemptCreate, AttemptRead, TelemetryCore
 from app.models.event import Event
 from app.models.session import PlaySession
-from app.models.verification import Verification
+from app.models.verification import Verification, VerificationCreate
 from app.models.rating import Rating, RatingCreate
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "Event",
     "PlaySession",
     "Verification",
+    "VerificationCreate",
     "Rating",
     "RatingCreate",
 ]

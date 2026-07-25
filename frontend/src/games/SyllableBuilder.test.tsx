@@ -69,6 +69,9 @@ describe('SyllableBuilder session flow', () => {
           }),
         } as Response)
       }
+      if (url.startsWith('/api/verifications')) {
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({}) } as Response)
+      }
       throw new Error(`unexpected fetch: ${url}`)
     }) as unknown as typeof fetch
   })
@@ -92,6 +95,15 @@ describe('SyllableBuilder session flow', () => {
       await waitForElementToBeRemoved(() => screen.queryByText('You built it!'))
     }
     await placeAndCheck()
+
+    const wroteItButton = await screen.findByRole('button', { name: /i wrote it/i }, { timeout: 2000 })
+    fireEvent.click(wroteItButton)
+
+    for (const digit of ['1', '2', '3', '4']) {
+      fireEvent.click(screen.getByRole('button', { name: digit }))
+    }
+    const correctButton = await screen.findByRole('button', { name: /correct/i })
+    fireEvent.click(correctButton)
 
     const banner = await screen.findByText('You built them all!', undefined, { timeout: 2000 })
     expect(banner).toBeTruthy()

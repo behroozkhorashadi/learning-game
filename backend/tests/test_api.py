@@ -105,3 +105,55 @@ def test_valid_rating_appends_exactly_one_event(client):
     assert body["scale"] == "stars_1_5"
     after = _rating_event_count(profile_id=1)
     assert after - before == 1
+
+
+def _verification_event_count(profile_id: int) -> int:
+    with Session(engine) as session:
+        rows = session.exec(
+            select(Event).where(
+                Event.profile_id == profile_id,
+                Event.event_type == EventType.VERIFICATION_COMPLETED,
+            )
+        ).all()
+        return len(rows)
+
+
+def _post_attempt(client) -> dict:
+    item = _get_item(client)
+    response = client.post(
+        "/api/attempts",
+        json={
+            "item_id": item["item_id"],
+            "profile_id": 1,
+            "game_id": "syllable_builder",
+            "telemetry": {"correct": True, "hints_used": 0, "time_ms": 3000},
+            "details": {"assembled": item["payload"]["correct_syllables"]},
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_verification_for_unknown_attempt_is_rejected(client):
+    response = client.post(
+        "/api/verifications", json={"attempt_id": 999999, "correct": True}
+    )
+
+    assert response.status_code == 404
+
+
+def test_valid_verification_appends_exactly_one_event(client):
+    attempt = _post_attempt(client)
+    before = _verification_event_count(profile_id=1)
+
+    response = client.post(
+        "/api/verifications", json={"attempt_id": attempt["id"], "correct": True}
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["attempt_id"] == attempt["id"]
+    assert body["correct"] is True
+    assert body["verified_by"] == "parent"
+    after = _verification_event_count(profile_id=1)
+    assert after - before == 1

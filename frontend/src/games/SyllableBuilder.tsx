@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
+import type { AttemptCreate, AttemptRead, Item, VerificationCreate } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ImagePlaceholderIcon, SpeakerIcon } from '../components/icons'
 import { ProgressBar } from '../components/ProgressBar'
 import { RatingPrompt } from '../components/RatingPrompt'
+import { HandoffPencil } from '../components/HandoffPencil'
+import { ParentVerify } from '../components/ParentVerify'
 import { SessionComplete } from '../components/SessionComplete'
 import { speakWord } from '../lib/speech'
 
@@ -79,12 +81,15 @@ function toTileAssemblyItem(item: Item): TileAssemblyItem {
   }
 }
 
+type Phase = 'playing' | 'handoff' | 'verify' | 'complete'
+
 interface Props {
   profileId: number
+  profileName?: string
   onBack: () => void
 }
 
-export function SyllableBuilder({ profileId, onBack }: Props) {
+export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
   const [item, setItem] = useState<Item | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
@@ -95,7 +100,12 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   // that session — see `repeat_key` in the syllable_builder game module.
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
   const [completedWords, setCompletedWords] = useState<string[]>([])
-  const [sessionComplete, setSessionComplete] = useState(false)
+  const [phase, setPhase] = useState<Phase>('playing')
+  // The word and attempt id from the session's last item — carried through
+  // the paper handoff and parent-verify steps (PRD §4, §6: once per session,
+  // after the last word).
+  const [finalWord, setFinalWord] = useState<string | null>(null)
+  const [finalAttemptId, setFinalAttemptId] = useState<number | null>(null)
   const [ratingHandled, setRatingHandled] = useState(false)
   // Item ids already counted toward `completedWords`, guarding against a
   // double-submit of the same item rather than deduping by word text — the
@@ -140,7 +150,9 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
 
   function playAgainSession() {
     setCompletedWords([])
-    setSessionComplete(false)
+    setPhase('playing')
+    setFinalWord(null)
+    setFinalAttemptId(null)
     setRatingHandled(false)
     countedItemIds.current = new Set()
     setSessionId(crypto.randomUUID())
@@ -155,17 +167,26 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
     }).catch((err) => setError(String(err)))
   }
 
+  function submitVerification(correct: boolean) {
+    if (finalAttemptId == null) return
+    setPhase('complete')
+    const payload: VerificationCreate = { attempt_id: finalAttemptId, correct }
+    fetch('/api/verifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch((err) => setError(String(err)))
+  }
+
   async function handleResult(result: TileResult) {
     if (!item) return
+    let justCompletedSession = false
+    const word = item.payload['target_word'] as string
     if (result.correct && !countedItemIds.current.has(item.item_id)) {
       countedItemIds.current.add(item.item_id)
-      const word = item.payload['target_word'] as string
       setCompletedWords((prev) => {
         const next = [...prev, word]
-        // Small delay so the "You built it!" feedback banner is visible
-        // before the wrap-up screen replaces the whole card (PRD: "a
-        // satisfying wrap-up").
-        if (next.length >= SESSION_LENGTH) setTimeout(() => setSessionComplete(true), 900)
+        justCompletedSession = next.length >= SESSION_LENGTH
         return next
       })
     }
@@ -187,7 +208,16 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
         body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error(`POST /api/attempts -> ${res.status}`)
-      setLastResult(await res.json())
+      const attemptResult: AttemptRead = await res.json()
+      setLastResult(attemptResult)
+      if (justCompletedSession) {
+        setFinalWord(word)
+        setFinalAttemptId(attemptResult.id)
+        // Small delay so the "You built it!" feedback banner is visible
+        // before the handoff screen replaces the whole card (PRD: "a
+        // satisfying wrap-up").
+        setTimeout(() => setPhase('handoff'), 900)
+      }
     } catch (err) {
       setError(String(err))
     } finally {
@@ -198,7 +228,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
       <div style={{ width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column' }}>
-        {!sessionComplete && (
+        {phase === 'playing' && (
           <div style={{ marginBottom: 26 }}>
             <ProgressBar total={SESSION_LENGTH} currentIndex={completedWords.length} onBack={onBack} />
           </div>
@@ -208,7 +238,15 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>
         )}
 
-        {sessionComplete && (
+        {phase === 'handoff' && finalWord && (
+          <HandoffPencil word={finalWord} onWroteIt={() => setPhase('verify')} />
+        )}
+
+        {phase === 'verify' && finalWord && (
+          <ParentVerify word={finalWord} kidName={profileName} onResult={submitVerification} />
+        )}
+
+        {phase === 'complete' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {!ratingHandled && <RatingPrompt onRate={submitRating} onDismiss={() => setRatingHandled(true)} />}
             <SessionComplete
@@ -223,7 +261,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           </div>
         )}
 
-        {!sessionComplete && item && (
+        {phase === 'playing' && item && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 24, padding: '24px 28px', boxShadow: 'var(--elevation-300)' }}>
             <WordPicture key={item.payload['target_word'] as string} word={item.payload['target_word'] as string} />
             <div style={{ flex: 1, minWidth: 220 }}>
@@ -249,7 +287,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           </div>
         )}
 
-        {!sessionComplete && item && tileAssemblyItem && (
+        {phase === 'playing' && item && tileAssemblyItem && (
           <div style={{ marginTop: 28 }}>
             <TileAssembly
               key={item.item_id}
@@ -262,8 +300,8 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
           </div>
         )}
 
-        {!sessionComplete && posting && <p style={{ color: 'var(--fg-tertiary)' }}>Saving...</p>}
-        {!sessionComplete && lastResult && !posting && (
+        {phase === 'playing' && posting && <p style={{ color: 'var(--fg-tertiary)' }}>Saving...</p>}
+        {phase === 'playing' && lastResult && !posting && (
           <p style={{ color: 'var(--fg-tertiary)', fontSize: 14 }}>
             Recorded (event {lastResult.event_id.slice(0, 8)}) — level stays server-owned for the next item.
           </p>
