@@ -3,6 +3,7 @@ import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ImagePlaceholderIcon, SpeakerIcon } from '../components/icons'
 import { ProgressBar } from '../components/ProgressBar'
+import { RatingPrompt } from '../components/RatingPrompt'
 import { SessionComplete } from '../components/SessionComplete'
 import { speakWord } from '../lib/speech'
 
@@ -95,6 +96,7 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
   const [completedWords, setCompletedWords] = useState<string[]>([])
   const [sessionComplete, setSessionComplete] = useState(false)
+  const [ratingHandled, setRatingHandled] = useState(false)
   // Item ids already counted toward `completedWords`, guarding against a
   // double-submit of the same item rather than deduping by word text — the
   // word bank is small enough that the same word can legitimately reappear
@@ -139,8 +141,18 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
   function playAgainSession() {
     setCompletedWords([])
     setSessionComplete(false)
+    setRatingHandled(false)
     countedItemIds.current = new Set()
     setSessionId(crypto.randomUUID())
+  }
+
+  function submitRating(value: number) {
+    setRatingHandled(true)
+    fetch('/api/ratings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile_id: profileId, game_id: GAME_ID, scale: 'stars_1_5', value }),
+    }).catch((err) => setError(String(err)))
   }
 
   async function handleResult(result: TileResult) {
@@ -197,15 +209,18 @@ export function SyllableBuilder({ profileId, onBack }: Props) {
         )}
 
         {sessionComplete && (
-          <SessionComplete
-            headline="You built them all!"
-            subtitle="Five words, all put together. Nice work sounding them out."
-            badgeSrc={`/images/badges/${GAME_ID}.png`}
-            badgeTitle="Word Wizard badge"
-            words={completedWords}
-            onPlayAgain={playAgainSession}
-            onAllDone={onBack}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {!ratingHandled && <RatingPrompt onRate={submitRating} onDismiss={() => setRatingHandled(true)} />}
+            <SessionComplete
+              headline="You built them all!"
+              subtitle="Five words, all put together. Nice work sounding them out."
+              badgeSrc={`/images/badges/${GAME_ID}.png`}
+              badgeTitle="Word Wizard badge"
+              words={completedWords}
+              onPlayAgain={playAgainSession}
+              onAllDone={onBack}
+            />
+          </div>
         )}
 
         {!sessionComplete && item && (

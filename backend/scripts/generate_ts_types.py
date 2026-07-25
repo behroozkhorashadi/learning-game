@@ -20,7 +20,7 @@ from app.models.event import Event  # noqa: E402
 from app.models.game import GameMetadata, Level, Variant  # noqa: E402
 from app.models.item import Item  # noqa: E402
 from app.models.profile import Profile, SkillState  # noqa: E402
-from app.models.rating import Rating  # noqa: E402
+from app.models.rating import Rating, RatingCreate  # noqa: E402
 from app.models.session import PlaySession  # noqa: E402
 from app.models.skill import Skill  # noqa: E402
 from app.models.verification import Verification  # noqa: E402
@@ -42,6 +42,7 @@ MODELS = [
     PlaySession,
     Verification,
     Rating,
+    RatingCreate,
 ]
 
 OUTPUT_PATH = BACKEND_ROOT.parent / "frontend" / "src" / "types" / "generated.ts"

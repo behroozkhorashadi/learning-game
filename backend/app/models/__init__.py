@@ -7,7 +7,7 @@ from app.models.attempt import Attempt, AttemptCreate, AttemptRead, TelemetryCor
 from app.models.event import Event
 from app.models.session import PlaySession
 from app.models.verification import Verification
-from app.models.rating import Rating
+from app.models.rating import Rating, RatingCreate
 
 __all__ = [
     "EventType",
@@ -27,4 +27,5 @@ __all__ = [
     "PlaySession",
     "Verification",
     "Rating",
+    "RatingCreate",
 ]

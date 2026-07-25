@@ -3,6 +3,7 @@
 - GET  /api/profiles     : read-only listing for the profile-picker screen.
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
 - POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
+- POST /api/ratings      : persists an explicit kid-provided rating, logs `rating_given`.
 
 No accounts/auth (PRD §2 non-goals). A single demo profile is seeded on startup
 so there's something to point the frontend and curl at; real profile
@@ -28,6 +29,7 @@ from app.models.event import Event
 from app.models.game import GameMetadata
 from app.models.item import Item
 from app.models.profile import Profile
+from app.models.rating import Rating, RatingCreate
 from app.services.loop_a_service import choose_next_item_level, process_attempt
 
 
@@ -182,3 +184,36 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
         event_id=event.event_id,
         hint_offered=hint_offered,
     )
+
+
+@app.post("/api/ratings", response_model=Rating, status_code=201)
+def post_rating(payload: RatingCreate, session: Session = Depends(get_session)) -> Rating:
+    if session.get(Profile, payload.profile_id) is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
+
+    rating = Rating(
+        profile_id=payload.profile_id,
+        game_id=payload.game_id,
+        variant_id=payload.variant_id,
+        scale=payload.scale,
+        value=payload.value,
+    )
+    session.add(rating)
+    session.commit()
+    session.refresh(rating)
+
+    append_event(
+        session,
+        profile_id=payload.profile_id,
+        game_id=payload.game_id,
+        event_type=EventType.RATING_GIVEN,
+        payload={"rating_id": rating.id, "scale": rating.scale.value, "value": rating.value},
+        variant_id=payload.variant_id,
+    )
+
+    # `append_event`'s own commit expires every object in the session
+    # (SQLAlchemy's default `expire_on_commit`), which clears `rating`'s
+    # instance `__dict__` — and FastAPI's response serialization reads that
+    # dict directly, so without this it would silently respond with `{}`.
+    session.refresh(rating)
+    return rating
