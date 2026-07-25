@@ -7,6 +7,7 @@ import { RatingPrompt } from '../components/RatingPrompt'
 import { HandoffPencil } from '../components/HandoffPencil'
 import { ParentVerify } from '../components/ParentVerify'
 import { SessionComplete } from '../components/SessionComplete'
+import { SessionStart } from '../components/SessionStart'
 import { speakWord } from '../lib/speech'
 
 /**
@@ -81,7 +82,7 @@ function toTileAssemblyItem(item: Item): TileAssemblyItem {
   }
 }
 
-type Phase = 'playing' | 'handoff' | 'verify' | 'complete'
+type Phase = 'start' | 'playing' | 'handoff' | 'verify' | 'complete'
 
 interface Props {
   profileId: number
@@ -100,7 +101,7 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
   // that session — see `repeat_key` in the syllable_builder game module.
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
   const [completedWords, setCompletedWords] = useState<string[]>([])
-  const [phase, setPhase] = useState<Phase>('playing')
+  const [phase, setPhase] = useState<Phase>('start')
   // The word and attempt id from the session's last item — carried through
   // the paper handoff and parent-verify steps (PRD §4, §6: once per session,
   // after the last word).
@@ -143,14 +144,15 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
   }, [profileId, sessionId])
 
   useEffect(() => {
+    if (phase !== 'playing') return
     if (fetchedForSession.current === sessionId) return
     fetchedForSession.current = sessionId
     fetchItem()
-  }, [sessionId, fetchItem])
+  }, [phase, sessionId, fetchItem])
 
   function playAgainSession() {
     setCompletedWords([])
-    setPhase('playing')
+    setPhase('start')
     setFinalWord(null)
     setFinalAttemptId(null)
     setRatingHandled(false)
@@ -236,6 +238,17 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
 
         {error && (
           <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>
+        )}
+
+        {phase === 'start' && (
+          <SessionStart
+            eyebrow="Word building"
+            headline="Let's build some words"
+            subtitle="Slide the sounds together to make five words. Take your time — there's no clock."
+            sessionLength={SESSION_LENGTH}
+            heroSrc={`/images/badges/${GAME_ID}.png`}
+            onStart={() => setPhase('playing')}
+          />
         )}
 
         {phase === 'handoff' && finalWord && (

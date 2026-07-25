@@ -84,14 +84,20 @@ describe('SyllableBuilder session flow', () => {
   it('reaches the wrap-up screen after 5 correct answers, even with a repeated word', async () => {
     render(<SyllableBuilder profileId={1} onBack={() => {}} />)
 
+    async function startRound() {
+      const startButton = await screen.findByRole('button', { name: /^start$/i })
+      fireEvent.click(startButton)
+    }
+
+    await startRound()
+
     for (let round = 0; round < WORDS.length - 1; round++) {
       await placeAndCheck()
       const playAgain = screen.getByRole('button', { name: /play again/i })
       fireEvent.click(playAgain)
-      // The old TileAssembly (still showing the "correct" banner for the item
-      // just answered) only unmounts once the next item's fetch resolves and
-      // a fresh `key={item_id}` remounts it — wait for that swap so the next
-      // round's tile queries can't grab the stale, already-answered instance.
+      // The old TileAssembly instance (still showing the "correct" banner)
+      // stays mounted until the next item finishes fetching and its key
+      // changes — wait for it to go away so we don't click its stale tiles.
       await waitForElementToBeRemoved(() => screen.queryByText('You built it!'))
     }
     await placeAndCheck()

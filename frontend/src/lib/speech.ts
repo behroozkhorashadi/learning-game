@@ -19,6 +19,12 @@ function fallbackSpeak(text: string) {
   }
 }
 
+/** Speaks arbitrary text (e.g. instructions) via the browser's speechSynthesis
+ * directly — no pre-recorded clip lookup, unlike `speakWord`. */
+export function speakText(text: string) {
+  fallbackSpeak(text)
+}
+
 export function speakWord(word: string) {
   const slug = word.trim().toLowerCase().replace(/[^a-z]/g, '')
   if (!slug) return

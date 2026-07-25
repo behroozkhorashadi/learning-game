@@ -91,6 +91,14 @@ export function SwitchIcon({ size = 24 }: IconProps) {
   )
 }
 
+export function PlayIcon({ size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M7.75 5.5L18.25 12L7.75 18.5V5.5Z" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function ImagePlaceholderIcon({ size = 32 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
