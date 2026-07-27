@@ -1,4 +1,4 @@
-import { SpeakerIcon } from './icons'
+import { DenButton } from './den/DenButton'
 import { speakWord } from '../lib/speech'
 
 /**
@@ -8,13 +8,9 @@ import { speakWord } from '../lib/speech'
  * `ParentVerify` step.
  */
 
-function ArrowRightIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M4.75 12H19.25M13.75 6.75L19.25 12L13.75 17.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
+const SPEAKER_ICON = [
+  'M15.75 10.75C15.75 10.75 16.25 11.234 16.25 12C16.25 12.766 15.75 13.25 15.75 13.25M17.75 7.75C17.75 7.75 19.25 9 19.25 11.999C19.25 14.997 17.75 16.25 17.75 16.25M13.25 4.75L8.5 8.75H5.75C5.48478 8.75 5.23043 8.85536 5.04289 9.04289C4.85536 9.23043 4.75 9.48478 4.75 9.75V14.25C4.75 14.5152 4.85536 14.7696 5.04289 14.9571C5.23043 15.1446 5.48478 15.25 5.75 15.25H8.5L13.25 19.25V4.75Z',
+]
 
 interface Props {
   word: string
@@ -55,23 +51,17 @@ export function HandoffPencil({ word, onWroteIt }: Props) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 30, flexWrap: 'wrap' }}>
-        <button
-          type="button"
+        <DenButton
+          label="Hear the word"
+          variant="softBlue"
+          shape="pill"
+          size="lg"
+          iconOnly
+          iconSize={28}
+          iconPaths={SPEAKER_ICON}
           onClick={() => speakWord(word)}
-          aria-label="Hear the word"
-          title="Hear the word"
-          style={{ width: 60, height: 60, borderRadius: 9999, border: '2px solid #C2D1FF', background: '#F0F4FF', color: '#144FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
-        >
-          <SpeakerIcon size={28} />
-        </button>
-        <button
-          type="button"
-          onClick={onWroteIt}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 10, height: 60, padding: '0 32px', borderRadius: 9999, background: '#144FFF', border: 'none', color: '#FFFFFF', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, cursor: 'pointer', boxShadow: '0 6px 0 #0037DB' }}
-        >
-          I wrote it
-          <ArrowRightIcon />
-        </button>
+        />
+        <DenButton label="I wrote it" variant="blue" shape="pill" size="lg" lipColor="#0037DB" onClick={onWroteIt} />
       </div>
     </div>
   )

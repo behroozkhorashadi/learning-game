@@ -1,10 +1,13 @@
-import { ArrowLeftIcon, CircleCheckIcon } from './icons'
+import { CircleCheckIcon } from './icons'
+import { DenButton } from './den/DenButton'
 
 /**
  * Session progress bar — ported from the Claude Design handoff bundle
  * (`Session Flow.dc.html`, "PROGRESS" section). Shows one dot per item in
  * the session: done (green check), current (pulsing blue), upcoming (gray).
  */
+
+const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 
 interface Props {
   total: number
@@ -17,15 +20,7 @@ export function ProgressBar({ total, currentIndex, onBack }: Props) {
   return (
     <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 28, padding: '22px 24px', boxShadow: '0 10px 24px -14px rgba(0,13,51,0.12)', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-        <button
-          type="button"
-          aria-label="Back"
-          title="Back"
-          onClick={onBack}
-          style={{ width: 52, height: 52, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
-        >
-          <ArrowLeftIcon />
-        </button>
+        <DenButton label="Back" variant="quiet" shape="pill" size="md" iconOnly iconPaths={BACK_ICON} onClick={onBack} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} aria-label={`Item ${currentIndex + 1} of ${total}`}>
           {Array.from({ length: total }, (_, i) => {

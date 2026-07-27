@@ -19,6 +19,11 @@ class EventType(str, Enum):
     QUICK_QUIT = "quick_quit"
     RATING_GIVEN = "rating_given"
     VERIFICATION_COMPLETED = "verification_completed"
+    PIECE_CREATED = "piece_created"
+    PIECE_REVISED = "piece_revised"
+    PIECE_DELETED = "piece_deleted"
+    ILLUSTRATION_ADDED = "illustration_added"
+    BADGE_AWARDED = "badge_awarded"
 
 
 class RatingScale(str, Enum):
@@ -26,3 +31,11 @@ class RatingScale(str, Enum):
 
     FACES = "faces"
     STARS_1_5 = "stars_1_5"
+
+
+class TurnAuthor(str, Enum):
+    """Who wrote a given `TurnLine` in the Tag-Team Story game — HANDOFF.md §4.
+    Tag-Team turns are one line at a time; the kid writes most of them."""
+
+    KID = "kid"
+    AI = "ai"

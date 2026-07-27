@@ -1,5 +1,11 @@
 import { useState } from 'react'
 import { SparklesIcon } from './icons'
+import { DenButton } from './den/DenButton'
+
+const REPLAY_ICON = ['M4.75 12C4.75 8 8 4.75 12 4.75C15.5 4.75 17.5 6.5 18.5 8M19.25 5.5V8H16.75M19.25 12C19.25 16 16 19.25 12 19.25C8.5 19.25 6.5 17.5 5.5 16M4.75 18.5V16H7.25']
+const DONE_ICON = [
+  'M6 12.25L10.5 5.75C10.5 5.75 11 4.75 12.5 5.25C14 5.75 13.5 8 13.25 9.25C13.15 9.75 13 10.25 13 10.25H18C18.5 10.25 19.5 10.5 19.25 12C19 13.5 18 17.5 17.5 18.75C17 20 16 19.25 15.5 19.25H7.5M6 12.25H4.75V19.25H6M6 12.25V19.25M7.5 19.25L6 19.25',
+]
 
 /**
  * Session wrap-up — ported from the Claude Design handoff bundle
@@ -88,20 +94,8 @@ export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, word
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 28, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={onPlayAgain}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 10, height: 60, padding: '0 26px', borderRadius: 9999, background: '#FFFFFF', border: '2px solid #E7E2D6', color: '#515E71', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 18, cursor: 'pointer' }}
-        >
-          Play again
-        </button>
-        <button
-          type="button"
-          onClick={onAllDone}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 10, height: 60, padding: '0 36px', borderRadius: 9999, background: '#144FFF', border: 'none', color: '#FFFFFF', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, cursor: 'pointer', boxShadow: '0 6px 0 #0037DB' }}
-        >
-          All done
-        </button>
+        <DenButton label="Play again" variant="quiet" shape="pill" size="lg" iconPaths={REPLAY_ICON} onClick={onPlayAgain} />
+        <DenButton label="All done" variant="blue" shape="pill" size="lg" lipColor="#0037DB" iconPaths={DONE_ICON} onClick={onAllDone} />
       </div>
     </div>
   )

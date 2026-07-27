@@ -102,7 +102,7 @@ export interface AttemptRead {
   hint_offered: boolean;
 }
 
-export type EventType = "session_start" | "session_complete" | "session_abandoned" | "item_shown" | "attempt" | "hint_used" | "difficulty_changed" | "replay_chosen" | "game_switched" | "quick_quit" | "rating_given" | "verification_completed";
+export type EventType = "session_start" | "session_complete" | "session_abandoned" | "item_shown" | "attempt" | "hint_used" | "difficulty_changed" | "replay_chosen" | "game_switched" | "quick_quit" | "rating_given" | "verification_completed" | "piece_created" | "piece_revised" | "piece_deleted" | "illustration_added" | "badge_awarded";
 
 export interface Event {
   event_id?: string;
@@ -156,5 +156,121 @@ export interface RatingCreate {
   variant_id?: string | null;
   scale: RatingScale;
   value: number;
+}
+
+export interface BadgeStatus {
+  key: string;
+  name: string;
+  description: string;
+  art_url: string;
+  earned: boolean;
+  awarded_at?: string | null;
+}
+
+export interface ProfileStats {
+  total_stars: number;
+  day_streak: number;
+  minutes_this_week: number;
+  most_played_game?: string | null;
+  avg_rating?: number | null;
+  last_session_at?: string | null;
+  progress_delta_pct?: number | null;
+}
+
+export interface PieceCreate {
+  profile_id: number;
+  game_id: string;
+  session_id?: string | null;
+  title?: string | null;
+  body?: string;
+  constraints?: string[];
+  art_style?: string | null;
+}
+
+export interface PieceUpdate {
+  title?: string | null;
+  body?: string | null;
+}
+
+export interface Piece {
+  id?: string;
+  profile_id: number;
+  game_id: string;
+  session_id?: string | null;
+  title?: string | null;
+  body?: string;
+  word_count?: number;
+  constraints?: string[];
+  art_style?: string | null;
+  created_at?: string;
+  revised_at?: string | null;
+}
+
+export interface IllustrationCreate {
+  prompt_excerpt: string;
+  image_url: string;
+  order?: number;
+  is_hero?: boolean;
+}
+
+export interface IllustrationGenerateRequest {
+  prompt_excerpt: string;
+  order?: number;
+  is_hero?: boolean;
+}
+
+export interface Illustration {
+  id?: number | null;
+  piece_id: string;
+  prompt_excerpt: string;
+  image_url: string;
+  order?: number;
+  is_hero?: boolean;
+  created_at?: string;
+}
+
+export interface RevisionPassCreate {
+  questions_asked?: string[];
+  changed?: boolean;
+}
+
+export interface RevisionPass {
+  id?: number | null;
+  piece_id: string;
+  questions_asked?: string[];
+  changed?: boolean;
+  completed_at?: string;
+}
+
+export interface RemixVersionCreate {
+  style_key: string;
+  body: string;
+  is_favourite?: boolean;
+}
+
+export interface RemixVersion {
+  id?: number | null;
+  piece_id: string;
+  style_key: string;
+  body: string;
+  is_favourite?: boolean;
+  created_at?: string;
+}
+
+export type TurnAuthor = "kid" | "ai";
+
+export interface TurnLineCreate {
+  author: TurnAuthor;
+  text: string;
+  order?: number;
+}
+
+export interface TurnLine {
+  id?: number | null;
+  piece_id: string;
+  author: TurnAuthor;
+  text: string;
+  order?: number;
+  created_at?: string;
 }
 

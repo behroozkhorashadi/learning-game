@@ -8,6 +8,7 @@ export default defineConfig({
     host: '0.0.0.0', // LAN-reachable, per PRD §9
     proxy: {
       '/api': 'http://localhost:8000',
+      '/static': 'http://localhost:8000',
     },
   },
 })

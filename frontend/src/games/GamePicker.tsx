@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { GameMetadata, Profile } from '../types/generated'
-import { BadgeIcon, SwitchIcon } from '../components/icons'
+import { BadgeIcon } from '../components/icons'
+import { DenButton } from '../components/den/DenButton'
+import { StorybookEntryCard } from '../components/StorybookEntryCard'
+
+const SWITCH_ICON = ['M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.75 13M9.75 13H19.25']
 
 /**
  * Game picker — ported from the Claude Design handoff bundle
@@ -45,9 +49,10 @@ interface Props {
   onSelectGame: (gameId: string) => void
   onSwitchProfile: () => void
   onViewBadges: () => void
+  onOpenStorybook: () => void
 }
 
-export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadges }: Props) {
+export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadges, onOpenStorybook }: Props) {
   const [games, setGames] = useState<GameMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -88,21 +93,26 @@ export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadge
             >
               <BadgeIcon />
             </button>
-            <button
-              type="button"
+            <DenButton
+              label="Switch player"
+              variant="quiet"
+              shape="pill"
+              size="md"
+              iconOnly
+              boxSize={56}
+              iconPaths={SWITCH_ICON}
               onClick={onSwitchProfile}
-              aria-label="Switch player"
-              title="Switch player"
-              style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
-            >
-              <SwitchIcon />
-            </button>
+            />
           </div>
         </div>
 
         {error && (
           <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>Error: {error}</pre>
         )}
+
+        <div style={{ marginBottom: 22 }}>
+          <StorybookEntryCard profileId={profile.id!} onOpen={onOpenStorybook} />
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 22 }}>
           {(games ?? []).map((game, i) => {

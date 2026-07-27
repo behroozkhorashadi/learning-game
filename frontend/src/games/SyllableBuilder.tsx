@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AttemptCreate, AttemptRead, Item, VerificationCreate } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
-import { ImagePlaceholderIcon, SpeakerIcon } from '../components/icons'
+import { ImagePlaceholderIcon } from '../components/icons'
+import { DenButton } from '../components/den/DenButton'
 import { ProgressBar } from '../components/ProgressBar'
 import { RatingPrompt } from '../components/RatingPrompt'
 import { HandoffPencil } from '../components/HandoffPencil'
@@ -16,6 +17,10 @@ import { speakWord } from '../lib/speech'
  * server hands back and posts a full telemetry-core Attempt; it does not
  * decide difficulty or generate items itself (PRD §6).
  */
+
+const SPEAKER_ICON = [
+  'M15.75 10.75C15.75 10.75 16.25 11.234 16.25 12C16.25 12.766 15.75 13.25 15.75 13.25M17.75 7.75C17.75 7.75 19.25 9 19.25 11.999C19.25 14.997 17.75 16.25 17.75 16.25M13.25 4.75L8.5 8.75H5.75C5.48478 8.75 5.23043 8.85536 5.04289 9.04289C4.85536 9.23043 4.75 9.48478 4.75 9.75V14.25C4.75 14.5152 4.85536 14.7696 5.04289 14.9571C5.23043 15.1446 5.48478 15.25 5.75 15.25H8.5L13.25 19.25V4.75Z',
+]
 
 const GAME_ID = 'syllable_builder'
 // PRD §"Session flow": "a set number of items", left as an implementation
@@ -283,15 +288,17 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
                 Listen, then build the word
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
+                <DenButton
+                  label="Hear the word"
+                  variant="softBlue"
+                  shape="pill"
+                  size="md"
+                  iconOnly
+                  boxSize={56}
+                  iconSize={26}
+                  iconPaths={SPEAKER_ICON}
                   onClick={() => speakWord(item.payload['target_word'] as string)}
-                  aria-label="Hear the word"
-                  title="Hear the word"
-                  style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #C2D1FF', background: '#F0F4FF', color: '#144FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
-                >
-                  <SpeakerIcon size={26} />
-                </button>
+                />
                 <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, color: 'var(--fg-primary)' }}>Tap to hear the word</span>
               </div>
               <div style={{ marginTop: 10, fontSize: 16, lineHeight: '22px', color: 'var(--fg-tertiary)' }}>
