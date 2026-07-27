@@ -1,7 +1,7 @@
 .PHONY: serve test gen-types gen-audio gen-images gen-game-assets frontend install-backend install-frontend
 
 install-backend:
-	cd backend && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+	cd backend && uv venv --python 3.12 .venv && uv pip install --python .venv -r requirements.txt
 
 install-frontend:
 	cd frontend && npm install
