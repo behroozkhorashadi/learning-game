@@ -16,13 +16,29 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.models.attempt import Attempt, AttemptCreate, AttemptRead, TelemetryCore  # noqa: E402
+from app.models.badge import BadgeStatus  # noqa: E402
 from app.models.event import Event  # noqa: E402
 from app.models.game import GameMetadata, Level, Variant  # noqa: E402
 from app.models.item import Item  # noqa: E402
+from app.models.piece import (  # noqa: E402
+    Illustration,
+    IllustrationCreate,
+    IllustrationGenerateRequest,
+    Piece,
+    PieceCreate,
+    PieceUpdate,
+    RemixVersion,
+    RemixVersionCreate,
+    RevisionPass,
+    RevisionPassCreate,
+    TurnLine,
+    TurnLineCreate,
+)
 from app.models.profile import Profile, SkillState  # noqa: E402
 from app.models.rating import Rating, RatingCreate  # noqa: E402
 from app.models.session import PlaySession  # noqa: E402
 from app.models.skill import Skill  # noqa: E402
+from app.models.stats import ProfileStats  # noqa: E402
 from app.models.verification import Verification, VerificationCreate  # noqa: E402
 
 # The exported surface: every model the frontend contract touches.
@@ -44,6 +60,20 @@ MODELS = [
     VerificationCreate,
     Rating,
     RatingCreate,
+    BadgeStatus,
+    ProfileStats,
+    PieceCreate,
+    PieceUpdate,
+    Piece,
+    IllustrationCreate,
+    IllustrationGenerateRequest,
+    Illustration,
+    RevisionPassCreate,
+    RevisionPass,
+    RemixVersionCreate,
+    RemixVersion,
+    TurnLineCreate,
+    TurnLine,
 ]
 
 OUTPUT_PATH = BACKEND_ROOT.parent / "frontend" / "src" / "types" / "generated.ts"

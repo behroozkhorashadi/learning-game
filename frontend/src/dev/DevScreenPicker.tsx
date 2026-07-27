@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ProfilePicker } from '../games/ProfilePicker'
 import { GamePicker } from '../games/GamePicker'
 import { SyllableBuilder } from '../games/SyllableBuilder'
@@ -10,6 +10,12 @@ import { HandoffPencil } from '../components/HandoffPencil'
 import { ParentVerify } from '../components/ParentVerify'
 import { RatingPrompt } from '../components/RatingPrompt'
 import { SessionComplete } from '../components/SessionComplete'
+import { WritingSurface } from '../components/WritingSurface'
+import { CoachPanel, type CoachQuestion } from '../components/CoachPanel'
+import { ModifierDeck, ModifierRuleBar, type ModifierCard } from '../components/ModifierDeck'
+import { IllustrationReveal, IllustrationArrival } from '../components/IllustrationReveal'
+import { Storybook } from '../components/Storybook'
+import { StorybookEntryCard } from '../components/StorybookEntryCard'
 import type { Profile } from '../types/generated'
 
 /**
@@ -34,10 +40,89 @@ const TILE_ITEM: TileAssemblyItem = {
   ],
 }
 
-function CardWrapper({ children }: { children: ReactNode }) {
+const MOCK_QUESTIONS: CoachQuestion[] = [
+  { id: 'opening', kind: 'opening', text: "Your story starts fast — I'm already on the stairs. What did the inside of the lighthouse look like when she opened the door?", answered: true },
+  { id: 'word-choice', kind: 'wordChoice', text: 'You used "nice" twice. What kind of nice was it — quiet? cold? lonely? Got a stronger word?', answered: true },
+  { id: 'feeling', kind: 'feeling', text: 'You told me she promised. How did her voice sound when she said it out loud?', answered: false },
+]
+
+function WritingSurfaceDemo() {
+  const [value, setValue] = useState(
+    'The lighthouse had been dark for eleven years, and Nell was the only one on the island who still climbed it. Every Tuesday she carried a jar of oil up the ninety-six steps, even though there was nothing left to light.',
+  )
+  return (
+    <WritingSurface
+      briefTitle="Write a story about someone who keeps a promise nobody is watching them keep."
+      briefBody="You have three ingredients to work in. Use them however you like — you don't have to use them in order."
+      briefChips={['a lighthouse', 'eleven years', 'one jar of oil']}
+      value={value}
+      onChange={setValue}
+      wordGoal={40}
+      onPolish={() => console.log('onPolish')}
+      onKeepWriting={() => console.log('onKeepWriting')}
+    />
+  )
+}
+
+function CoachPanelDemo() {
+  const [value, setValue] = useState(
+    'The lighthouse had been dark for eleven years, and Nell was the only one on the island who still climbed it. Every Tuesday she carried a jar of oil up the ninety-six steps, even though there was nothing left to light.',
+  )
+  return (
+    <CoachPanel
+      pieceTitle="The Ninety-Six Steps"
+      value={value}
+      onChange={setValue}
+      status="questions"
+      questions={MOCK_QUESTIONS}
+      onHappy={() => console.log('onHappy')}
+    />
+  )
+}
+
+const MOCK_MODIFIER_CARD: ModifierCard = {
+  id: 'second',
+  tier: 'twist',
+  name: 'Second Person',
+  meaning: 'Tell it as "you". The reader is the one doing it.',
+  example: "You climb anyway, even though you promised you wouldn't.",
+  iconPaths: [
+    'M12 3.75V8.25M12 8.25L9.75 6.25M12 8.25L14.25 6.25',
+    'M18.25 13.5C18.25 16.9518 15.4518 19.75 12 19.75C8.54822 19.75 5.75 16.9518 5.75 13.5C5.75 10.0482 8.54822 7.25 12 7.25C15.4518 7.25 18.25 10.0482 18.25 13.5Z',
+    'M13 13.5C13 14.0523 12.5523 14.5 12 14.5C11.4477 14.5 11 14.0523 11 13.5C11 12.9477 11.4477 12.5 12 12.5C12.5523 12.5 13 12.9477 13 13.5Z',
+  ],
+}
+
+function ModifierRuleBarDemo() {
+  return <ModifierRuleBar card={MOCK_MODIFIER_CARD} onRedraw={() => console.log('onRedraw')} onKeepWriting={() => console.log('onKeepWriting')} />
+}
+
+const MOCK_MOMENTS = ['The lighthouse had been dark for eleven years.', "She promised — out loud, at the funeral, in front of everyone."]
+
+function IllustrationRevealDemo() {
+  return (
+    <IllustrationReveal
+      pieceId="dev-demo"
+      pieceTitle="The Ninety-Six Steps"
+      wordCount={151}
+      heroExcerpt="The steps smelled of cold salt and rust, and the ninety-sixth one always groaned like it was tired of her."
+      moments={MOCK_MOMENTS}
+      onReadItBack={() => console.log('onReadItBack')}
+      onWriteSomethingElse={() => console.log('onWriteSomethingElse')}
+    />
+  )
+}
+
+const MOCK_ARRIVAL: { kicker: string; quote: string }[] = [
+  { kicker: 'Arrived first · the hero', quote: 'The steps smelled of cold salt and rust.' },
+  { kicker: 'Then, a moment later', quote: 'The lighthouse had been dark for eleven years.' },
+  { kicker: 'And the last one', quote: 'She promised — out loud, at the funeral.' },
+]
+
+function CardWrapper({ children, wide }: { children: ReactNode; wide?: boolean }) {
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
-      <div style={{ width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 24 }}>{children}</div>
+      <div style={{ width: '100%', maxWidth: wide ? 1180 : 760, display: 'flex', flexDirection: 'column', gap: 24 }}>{children}</div>
     </div>
   )
 }
@@ -63,6 +148,7 @@ const SCREENS: ScreenEntry[] = [
         onSelectGame={(id) => console.log('onSelectGame', id)}
         onSwitchProfile={() => console.log('onSwitchProfile')}
         onViewBadges={() => console.log('onViewBadges')}
+        onOpenStorybook={() => console.log('onOpenStorybook')}
       />
     ),
   },
@@ -74,7 +160,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'badges',
     label: 'Badges & Accomplishments',
-    render: () => <BadgesAccomplishments kidName="Mia" onBack={() => console.log('onBack')} />,
+    render: () => <BadgesAccomplishments profileId={1} kidName="Mia" onBack={() => console.log('onBack')} />,
   },
   {
     id: 'session-start',
@@ -152,6 +238,74 @@ const SCREENS: ScreenEntry[] = [
           onPlayAgain={() => console.log('onPlayAgain')}
           onAllDone={() => console.log('onAllDone')}
         />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'writing-surface',
+    label: 'Writing surface (drafting)',
+    render: () => (
+      <CardWrapper wide>
+        <WritingSurfaceDemo />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'coach-panel',
+    label: 'Coach panel (revise & coach)',
+    render: () => (
+      <CardWrapper wide>
+        <CoachPanelDemo />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'modifier-deck',
+    label: 'Modifier deck (draw + browse)',
+    render: () => (
+      <CardWrapper wide>
+        <ModifierDeck onSelectCard={(c) => console.log('onSelectCard', c)} />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'modifier-rule-bar',
+    label: 'Modifier rule bar (pinned while writing)',
+    render: () => (
+      <CardWrapper wide>
+        <ModifierRuleBarDemo />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'illustration-reveal',
+    label: 'Illustration reveal (painting → hero → done)',
+    render: () => (
+      <CardWrapper>
+        <IllustrationRevealDemo />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'illustration-arrival',
+    label: 'Illustration arrival (extra pictures for longer pieces)',
+    render: () => (
+      <CardWrapper>
+        <IllustrationArrival items={MOCK_ARRIVAL} />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'storybook',
+    label: 'Storybook (live — hits the backend)',
+    render: () => <Storybook profileId={1} profileName="Mia" onBack={() => console.log('onBack')} onWriteNew={() => console.log('onWriteNew')} />,
+  },
+  {
+    id: 'storybook-entry-card',
+    label: 'Storybook entry card (live — hits the backend)',
+    render: () => (
+      <CardWrapper>
+        <StorybookEntryCard profileId={1} onOpen={() => console.log('onOpen')} />
       </CardWrapper>
     ),
   },

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { DenButton } from './den/DenButton'
 
 /**
  * Star-rating prompt — ported from the Claude Design handoff bundle
@@ -124,13 +125,7 @@ export function RatingPrompt({ onRate, onDismiss }: Props) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
-        <button
-          type="button"
-          onClick={onDismiss}
-          style={{ background: 'none', border: 'none', color: '#8896AA', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: '8px 12px' }}
-        >
-          Not now
-        </button>
+        <DenButton label="Not now" variant="ghost" size="sm" onClick={onDismiss} />
       </div>
     </div>
   )

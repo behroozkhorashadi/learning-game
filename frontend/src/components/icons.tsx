@@ -33,6 +33,20 @@ export function BadgeIcon({ size = 24 }: IconProps) {
   )
 }
 
+export function TrashIcon({ size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M5.75 7.25H18.25M9.75 7.25V5.75C9.75 5.19772 10.1977 4.75 10.75 4.75H13.25C13.8023 4.75 14.25 5.19772 14.25 5.75V7.25M16.75 7.25V18.25C16.75 18.8023 16.3023 19.25 15.75 19.25H8.25C7.69772 19.25 7.25 18.8023 7.25 18.25V7.25M10.25 10.75V15.75M13.75 10.75V15.75"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function UndoIcon({ size = 24 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">

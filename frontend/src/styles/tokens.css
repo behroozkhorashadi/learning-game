@@ -58,6 +58,44 @@
 
   --pink-600: #e057b0;
 
+  /* ----- Writing-layer palette (paper surfaces + ink) ----- */
+  --paper-50: #fffdf8;
+  --paper-100: #fbf6ec;
+  --paper-200: #f0e9da;
+  --paper-300: #ede5d5;
+  --paper-400: #e4dcca;
+  --paper-500: #e0d7c4;
+  --paper-600: #c4b79e;
+  --paper-700: #b7ac96;
+  --paper-800: #a99f8b;
+  --paper-900: #9a907c;
+  --paper-1000: #8a8272;
+  --paper-1100: #7c7466;
+  --paper-1200: #6b6455;
+  --paper-1300: #5c5849;
+  --paper-1400: #3b3f49;
+  --paper-1500: #2f333c;
+  --paper-1600: #2a2e37;
+
+  --sky-100: #d9e9f7;
+  --sky-300: #9fd5ff;
+  --sky-500: #6fbef6;
+  --sky-700: #3b82d6;
+
+  --navy-800: #2a3550;
+  --navy-900: #1e2740;
+
+  --purple-100: #f5edff;
+  --purple-600: #9d57fa;
+
+  --pink-100: #fff0f8;
+  --pink-200: #f7dcea;
+  --pink-800: #741553;
+
+  --mint-100: #eaf9e2;
+  --mint-300: #cfeebe;
+  --mint-800: #3f7a22;
+
   /* ----- Semantic tokens ----- */
   --surface-app: #fff6ea;
   --surface-default: #ffffff;
@@ -81,6 +119,23 @@
   --status-positive-border: #a1e486;
   --status-warning-bg: #fef9f0;
   --status-warning-border: #fad38e;
+
+  /* ----- Writing-layer semantic tokens ----- */
+  --surface-paper: var(--paper-50);
+  --surface-paper-wash: var(--paper-100);
+  --surface-paper-sunken: #f7f4ec;
+  --border-paper: var(--paper-300);
+  --border-paper-divider: var(--paper-200);
+  --border-paper-sunken: #e9e2d2;
+
+  --fg-paper-heading: var(--paper-1600);
+  --fg-paper-body: var(--paper-1500);
+  --fg-paper-title: var(--paper-1400);
+  --fg-paper-secondary: var(--paper-1200);
+  --fg-paper-muted: var(--paper-1000);
+  --fg-paper-faint: var(--paper-900);
+  --fg-paper-label: var(--paper-800);
+  --fg-paper-placeholder: var(--paper-700);
 
   /* ----- Radius ----- */
   --radius-sm: 8px;
