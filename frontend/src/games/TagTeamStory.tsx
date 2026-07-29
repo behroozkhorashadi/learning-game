@@ -25,30 +25,104 @@ type Genre = 'ghost' | 'adventure' | 'silly' | 'surprise'
 type RealGenre = 'ghost' | 'adventure' | 'silly'
 type Phase = 'setup' | 'thread' | 'assembly' | 'revising' | 'revealing'
 
-const GENRE_TITLES: Record<RealGenre, string> = {
-  ghost: 'The Eighth Floor',
-  adventure: 'The Long Way Down',
-  silly: 'The Hamster With Seniority',
+interface GenreVariant {
+  title: string
+  lines: string[]
 }
 
-const GENRE_LINES: Record<RealGenre, string[]> = {
+// Each genre has a few complete story variants (title + all four fixed
+// lines) rather than one fixed opener — the later lines are written to
+// follow directly from that variant's specific opener, so randomizing just
+// the first line would leave the rest of the story not making sense.
+// Picking a whole variant keeps every line coherent while still varying
+// what the kid sees each time they play the same genre.
+const GENRE_VARIANTS: Record<RealGenre, GenreVariant[]> = {
   ghost: [
-    'The lift in our building only goes to floor seven, but last night the button for eight was lit.',
-    'The doors opened on a corridor that smelled like a swimming pool.',
-    'Something on the other side knocked twice, politely.',
-    'Whatever answered was already using your name before you said it out loud.',
+    {
+      title: 'The Eighth Floor',
+      lines: [
+        'The lift in our building only goes to floor seven, but last night the button for eight was lit.',
+        'The doors opened on a corridor that smelled like a swimming pool.',
+        'Something on the other side knocked twice, politely.',
+        'Whatever answered was already using your name before you said it out loud.',
+      ],
+    },
+    {
+      title: 'The Mirror That Waited',
+      lines: [
+        "Grandma's hallway mirror had gone silver-green at the edges with age, and lately my reflection was always one blink behind.",
+        "I waved at it twice just to be sure, and the second wave didn't wave back.",
+        'That night the mirror fogged up on its own, and someone wrote a letter in it before I got there.',
+        "The letter spelled my name, but it wasn't in my handwriting — it was in hers.",
+      ],
+    },
+    {
+      title: 'The Bus That Skips a Stop',
+      lines: [
+        "Bus 13 stops at every corner on my street except one, and the driver always slows down there like he's counting something.",
+        'One rainy Tuesday the doors opened at that stop anyway, and nobody I knew got on.',
+        'The seat next to mine stayed cold the rest of the ride, even with the heater running full blast.',
+        "When we pulled up to school, the driver said 'see you tomorrow' to somebody who wasn't there — and it answered back.",
+      ],
+    },
   ],
   adventure: [
-    "The map said there was nothing past the treeline, which is exactly why we walked past it.",
-    'The path forked around a rock shaped like a fist, knuckles and all.',
-    "By the time the sun dropped, we could see smoke from somewhere that wasn't a campfire.",
-    'Whoever built the bridge wanted us to cross it — that was the part that worried me.',
+    {
+      title: 'The Long Way Down',
+      lines: [
+        "The map said there was nothing past the treeline, which is exactly why we walked past it.",
+        'The path forked around a rock shaped like a fist, knuckles and all.',
+        "By the time the sun dropped, we could see smoke from somewhere that wasn't a campfire.",
+        'Whoever built the bridge wanted us to cross it — that was the part that worried me.',
+      ],
+    },
+    {
+      title: 'The Locked Room at the Lighthouse',
+      lines: [
+        "The lighthouse had been dark for twenty years, which made it strange that the top room's light flicked on the night we camped at its base.",
+        'The door up top had seven locks and only six keys taped underneath, so somebody wanted it open just enough.',
+        'Halfway up the spiral stairs, the wind stopped completely, like the whole building was holding its breath with us.',
+        "Whoever left the seventh key wanted us to find what was waiting behind that door — that's the part we didn't plan for.",
+      ],
+    },
+    {
+      title: 'The River With No Bottom',
+      lines: [
+        "The map called it Blue Hollow Creek, but the ferryman just called it 'the one you don't wade in,' and wouldn't say why.",
+        'Our raft caught on something under the surface that felt too smooth to be a rock and too warm to be ice.',
+        "By the second bend, the current started pulling us upstream, which a river isn't supposed to do.",
+        "Whatever lived at the bottom had been steering us the whole time — we just hadn't noticed which way was really downstream.",
+      ],
+    },
   ],
   silly: [
-    'The class hamster escaped during silent reading and nobody noticed for forty whole minutes.',
-    'It had made it as far as the teacher\'s lunch, and the teacher hadn\'t noticed either.',
-    'By recess there were rumors it could talk, and one very confident rumor that it could drive.',
-    'The principal announced over the intercom that the hamster now had seniority.',
+    {
+      title: 'The Hamster With Seniority',
+      lines: [
+        'The class hamster escaped during silent reading and nobody noticed for forty whole minutes.',
+        "It had made it as far as the teacher's lunch, and the teacher hadn't noticed either.",
+        'By recess there were rumors it could talk, and one very confident rumor that it could drive.',
+        'The principal announced over the intercom that the hamster now had seniority.',
+      ],
+    },
+    {
+      title: "The Lunch Lady's Secret Recipe",
+      lines: [
+        "Every Friday the cafeteria served 'Mystery Casserole,' and this Friday the lunch lady accidentally left the recipe card taped to the register.",
+        "The first ingredient was written in crayon, the second in cursive, and the third was just the words 'don't tell the principal.'",
+        'By fourth period the whole school knew ingredient three was extra credit homework nobody had turned in.',
+        "The lunch lady just smiled and said next week's mystery casserole would use everyone's report cards instead.",
+      ],
+    },
+    {
+      title: "The Substitute Who Wasn't",
+      lines: [
+        'Our sub for the day introduced herself as Ms. Nguyen, except the real Ms. Nguyen walked in five minutes later looking very confused.',
+        "The first Ms. Nguyen just shrugged and said there'd clearly been 'a scheduling mixup' and kept teaching fractions.",
+        'By lunch there were three Ms. Nguyens, all grading the same quiz, all giving out full marks.',
+        'The principal gave up trying to figure out which one to fire and just gave all three a parking spot.',
+      ],
+    },
   ],
 }
 
@@ -101,6 +175,7 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
   const [level, setLevel] = useState<Level>(6)
   const [genre, setGenre] = useState<Genre>('ghost')
   const [actualGenre, setActualGenre] = useState<RealGenre>('ghost')
+  const [variantIndex, setVariantIndex] = useState(0)
 
   // -- thread --
   const [turns, setTurns] = useState<Turn[]>([])
@@ -120,12 +195,15 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
   function startStory() {
     const resolvedGenre: RealGenre =
       genre === 'surprise' ? (['ghost', 'adventure', 'silly'] as const)[Math.floor(Math.random() * 3)] : genre
+    const variants = GENRE_VARIANTS[resolvedGenre]
+    const resolvedVariantIndex = Math.floor(Math.random() * variants.length)
     setActualGenre(resolvedGenre)
+    setVariantIndex(resolvedVariantIndex)
     setError(null)
     setPhase('thread')
     setAiThinking(true)
     setTimeout(() => {
-      const line = GENRE_LINES[resolvedGenre][0]
+      const line = variants[resolvedVariantIndex].lines[0]
       setTurns([{ author: 'ai', text: line }])
       setAiThinking(false)
     }, 900)
@@ -137,8 +215,9 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
     if (!isAiTurn || currentIndex === 0 || currentIndex >= level) return
     setAiThinking(true)
     const aiLineIndex = Math.floor(currentIndex / 2)
+    const lines = GENRE_VARIANTS[actualGenre][variantIndex].lines
     const timer = setTimeout(() => {
-      const line = GENRE_LINES[actualGenre][aiLineIndex] ?? GENRE_LINES[actualGenre][GENRE_LINES[actualGenre].length - 1]
+      const line = lines[aiLineIndex] ?? lines[lines.length - 1]
       setTurns((t) => [...t, { author: 'ai', text: line }])
       setAiThinking(false)
     }, 900)
@@ -198,7 +277,7 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
       profile_id: profileId,
       game_id: GAME_ID,
       session_id: sessionId,
-      title: GENRE_TITLES[actualGenre],
+      title: GENRE_VARIANTS[actualGenre][variantIndex].title,
       body: reviseDraft,
       constraints: [],
       art_style: 'storybook',
@@ -479,7 +558,7 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
             </div>
 
             <div style={{ padding: '32px 36px 30px' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, lineHeight: 1.15, color: '#2A2E37', marginBottom: 20 }}>{GENRE_TITLES[actualGenre]}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, lineHeight: 1.15, color: '#2A2E37', marginBottom: 20 }}>{GENRE_VARIANTS[actualGenre][variantIndex].title}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {turns.map((t, i) => {
                   const isKid = t.author === 'kid'
@@ -502,7 +581,7 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
 
         {phase === 'revising' && (
           <CoachPanel
-            pieceTitle={GENRE_TITLES[actualGenre]}
+            pieceTitle={GENRE_VARIANTS[actualGenre][variantIndex].title}
             value={reviseDraft}
             onChange={setReviseDraft}
             status={coachStatus}
