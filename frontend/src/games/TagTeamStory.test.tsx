@@ -22,6 +22,13 @@ function mockFetch() {
 
 beforeEach(() => {
   vi.stubGlobal('fetch', mockFetch())
+  // Pin story-variant selection to the first variant so assertions on
+  // fixed titles/word counts stay deterministic.
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 async function playFourLineGame() {
