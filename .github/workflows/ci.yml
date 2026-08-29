@@ -1,0 +1,38 @@
+name: CI
+
+# Runs the existing backend (pytest) and frontend (vitest) suites on every
+# push to main and every pull request, so a broken change gets a red X on
+# the PR instead of surfacing later. See Makefile / package.json for the
+# same commands run locally (`make test`, `npm test`).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pytest -v
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+      - run: npm ci
+      - run: npm test
