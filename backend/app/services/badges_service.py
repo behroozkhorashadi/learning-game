@@ -81,7 +81,7 @@ def seed_badges(session: Session) -> None:
                 key=entry["key"],
                 name=entry["name"],
                 description=entry["description"],
-                art_url=f"/images/badges/{entry['key']}.png",
+                art_url=f"/images/achievements/{entry['key']}.png",
                 criteria=entry["criteria"],
             )
         )
