@@ -1,4 +1,4 @@
-.PHONY: help serve test gen-types gen-audio gen-images gen-game-assets frontend install-backend install-frontend
+.PHONY: help serve test gen-types gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -27,5 +27,8 @@ gen-audio: ## Regenerate word-bank audio assets
 gen-images: ## Regenerate word-bank image assets
 	cd backend && .venv/bin/python scripts/generate_word_images.py
 
-gen-game-assets: ## Regenerate all game assets
+gen-game-assets: ## Regenerate per-game hero/completion-badge assets
 	cd backend && .venv/bin/python scripts/generate_game_assets.py
+
+gen-badge-assets: ## Regenerate Accomplishments-screen achievement badge assets
+	cd backend && .venv/bin/python scripts/generate_badge_assets.py
