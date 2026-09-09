@@ -16,6 +16,8 @@ import { ModifierDeck, ModifierRuleBar, type ModifierCard } from '../components/
 import { IllustrationReveal, IllustrationArrival } from '../components/IllustrationReveal'
 import { Storybook } from '../components/Storybook'
 import { StorybookEntryCard } from '../components/StorybookEntryCard'
+import { ZombiePOCScene } from './ZombiePOCScene'
+import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
 import type { Profile } from '../types/generated'
 
 /**
@@ -156,6 +158,16 @@ const SCREENS: ScreenEntry[] = [
     id: 'syllable-builder',
     label: 'Syllable Builder (live — hits the backend)',
     render: () => <SyllableBuilder profileId={1} profileName="Mia" onBack={() => console.log('onBack')} />,
+  },
+  {
+    id: 'zombie-3d-poc',
+    label: 'Equation Outbreak 3D character POC',
+    render: () => <ZombiePOCScene />,
+  },
+  {
+    id: 'equation-outbreak-live',
+    label: 'Equation Outbreak (live — hits the backend)',
+    render: () => <ZombieMathBlaster profileId={1} profileName="Mia" onBack={() => console.log('onBack')} />,
   },
   {
     id: 'badges',

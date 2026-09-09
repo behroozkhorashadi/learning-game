@@ -1,4 +1,6 @@
 from app.games import syllable_builder  # noqa: F401  (registers on import)
+from app.games import equation_builder  # noqa: F401  (registers on import)
+from app.games import fact_fluency  # noqa: F401  (registers on import)
 from app.games import prompt_forge  # noqa: F401  (registers on import)
 from app.games import style_remix_lab  # noqa: F401  (registers on import)
 from app.games import tag_team_story  # noqa: F401  (registers on import)

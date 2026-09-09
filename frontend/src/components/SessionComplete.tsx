@@ -28,6 +28,9 @@ interface Props {
   badgeSrc: string
   badgeTitle: string
   words: string[]
+  /** Label above the `words` chips — defaults to Syllable Builder's original
+   * copy; other games pass their own (e.g. "Equations you solved"). */
+  itemsLabel?: string
   onPlayAgain: () => void
   onAllDone: () => void
 }
@@ -63,7 +66,7 @@ function BadgeArt({ src, title }: { src: string; title: string }) {
   )
 }
 
-export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, words, onPlayAgain, onAllDone }: Props) {
+export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, words, itemsLabel = 'Words you built', onPlayAgain, onAllDone }: Props) {
   return (
     <div style={{ position: 'relative', background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '44px 40px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', overflow: 'hidden', boxSizing: 'border-box' }}>
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -83,7 +86,7 @@ export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, word
       </div>
 
       <div style={{ background: '#FBF8F2', border: '1px dashed #EEE4D2', borderRadius: 20, padding: '20px 22px', margin: '30px 0 0' }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3', marginBottom: 12 }}>Words you built</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3', marginBottom: 12 }}>{itemsLabel}</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {words.map((w, i) => (
             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 16px', borderRadius: 9999, background: '#FFFFFF', border: '1px solid #EEE4D2', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#2A2E37' }}>

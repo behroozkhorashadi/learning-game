@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { ProfilePicker } from './games/ProfilePicker'
 import { GamePicker } from './games/GamePicker'
 import { SyllableBuilder } from './games/SyllableBuilder'
+import { EquationBuilder } from './games/EquationBuilder'
+import { ZombieMathBlaster } from './games/ZombieMathBlaster'
 import { PromptForge } from './games/PromptForge'
 import { StyleRemixLab } from './games/StyleRemixLab'
 import { TagTeamStory } from './games/TagTeamStory'
@@ -84,6 +86,10 @@ function App() {
         }}
       />
     )
+  } else if (gameId === 'equation_builder') {
+    content = <EquationBuilder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
+  } else if (gameId === 'fact_fluency') {
+    content = <ZombieMathBlaster profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
   } else if (gameId === 'clue_master') {
     content = (
       <ClueMaster
