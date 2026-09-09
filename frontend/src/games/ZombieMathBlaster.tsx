@@ -42,6 +42,11 @@ const STARTING_LIVES = 3
 const CHARACTER = SCIENTIST_ZOMBIE
 const WEAPON = STARTER_BLASTER
 const WRONG_HIT_SPEED_BOOST = 0.18
+// How much a non-final body shot pushes the hit zombie back along its lane,
+// as a fraction of the full spawn-to-danger-line approach distance. Chosen
+// to read clearly as a knockback without meaningfully extending the round —
+// tune here if playtesting says otherwise.
+const BODY_SHOT_KNOCKBACK = 0.06
 
 // A short beat where the equation fills the screen before the carriers
 // spawn — gives a kid a moment to read the problem before the clock starts.
@@ -82,7 +87,12 @@ function factText(payload: FactPayload): string {
 
 function buildConfig(item: Item): WaveConfig {
   const payload = factPayload(item)
-  return { approachMs: payload.approach_ms, wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST, shotCooldownMs: WEAPON.shotCooldownMs }
+  return {
+    approachMs: payload.approach_ms,
+    wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST,
+    shotCooldownMs: WEAPON.shotCooldownMs,
+    bodyShotKnockback: BODY_SHOT_KNOCKBACK,
+  }
 }
 
 interface Props {
@@ -108,7 +118,12 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
 
   const phaseRef = useRef(phase)
   const waveRef = useRef<WaveState | null>(null)
-  const configRef = useRef<WaveConfig>({ approachMs: 6000, wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST, shotCooldownMs: WEAPON.shotCooldownMs })
+  const configRef = useRef<WaveConfig>({
+    approachMs: 6000,
+    wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST,
+    shotCooldownMs: WEAPON.shotCooldownMs,
+    bodyShotKnockback: BODY_SHOT_KNOCKBACK,
+  })
   const lastFrameRef = useRef<number | null>(null)
   const handledOutcomeRef = useRef(false)
   const fetchedForSessionRef = useRef<string | null>(null)
@@ -341,7 +356,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
 
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
-      <div style={{ width: '100%', maxWidth: 900, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '100%', maxWidth: 'min(1600px, 70vw)', minWidth: 320, display: 'flex', flexDirection: 'column' }}>
         {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>}
 
         <div aria-live="assertive" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
@@ -368,7 +383,8 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
               position: 'relative',
               borderRadius: 24,
               overflow: 'hidden',
-              height: 560,
+              aspectRatio: '900 / 560',
+              maxHeight: '75vh',
               border: '1px solid var(--border-subtle)',
               boxShadow: 'var(--elevation-300)',
               cursor: aimNdc ? 'none' : 'crosshair',

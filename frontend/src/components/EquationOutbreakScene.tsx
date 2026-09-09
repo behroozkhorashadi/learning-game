@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { PerspectiveCamera } from '@react-three/drei'
-import type { ThreeEvent } from '@react-three/fiber'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { ZombieCharacter3D, type ZombieClipRole } from './ZombieCharacter3D'
 import { AnswerLabel3D } from './AnswerLabel3D'
 import { MathBlaster3D } from './MathBlaster3D'
 import type { CharacterDefinition } from '../lib/characterDefinitions'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
-import type { Carrier, HitZone, LastHit } from '../lib/zombieWaveEngine'
+import { HIT_REACTION_LOCK_MS, type Carrier, type HitZone, type LastHit } from '../lib/zombieWaveEngine'
 
 /**
  * The fixed-camera 3D shooting-gallery scene. This component (and its
@@ -36,12 +36,19 @@ export type WavePhase = 'intro' | 'playing' | 'frozen'
 
 const LANE_X = [-2.6, -0.9, 0.9, 2.6]
 const SPAWN_Z = -13
-const DANGER_Z = -2.5
+// Camera sits at z=3 (see PerspectiveCamera below) — 0.5 puts the danger
+// line close enough to loom large at contact, instead of the old -2.5 which
+// left a large, flat-feeling gap before "contact."
+const DANGER_Z = 0.5
 const LANE_COLORS = ['#9D57FA', '#144FFF', '#5BCC2D', '#F59E0B']
 
 function laneToPosition(lane: number, distance: number): [number, number, number] {
   const z = THREE.MathUtils.lerp(SPAWN_Z, DANGER_Z, distance)
   return [LANE_X[lane] ?? 0, 0, z]
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - (1 - t) ** 3
 }
 
 function resolveClipRole(carrier: Carrier, phase: WavePhase, reacting: boolean): ZombieClipRole {
@@ -64,17 +71,54 @@ interface ZombieInstanceProps {
 
 function ZombieInstance({ carrier, character, phase, speedMultiplier, phaseOffsetSeconds, lastHit, onHit }: ZombieInstanceProps) {
   const [reacting, setReacting] = useState(false)
+  const groupRef = useRef<THREE.Group>(null!)
+
+  // The outer group's position is the sole source of truth for where a
+  // zombie sits along its lane — see `laneToPosition`, driven by the wave
+  // engine's authoritative `carrier.distance`. It's set imperatively (via
+  // `useFrame` below) rather than as a declarative `position` prop so a
+  // knockback's backward push can be eased over `HIT_REACTION_LOCK_MS`
+  // instead of teleporting the moment the engine updates `distance`. The
+  // skeletal clip itself never moves this group — see `lib/rootMotion.ts`
+  // for how `Hit_Reaction`'s baked-in lateral root motion is neutralized so
+  // it can't fight this.
+  const visualDistanceRef = useRef(carrier.distance)
+  const knockbackRef = useRef<{ from: number; startedAt: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const [x, y, z] = laneToPosition(carrier.lane, visualDistanceRef.current)
+    groupRef.current.position.set(x, y, z)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (lastHit && lastHit.carrierId === carrier.id && !lastHit.defeated) {
       setReacting(true)
+      if (lastHit.zone === 'body') {
+        // Ease from wherever this zombie was actually rendered (not
+        // `carrier.distance`, which is already the post-knockback value by
+        // the time this effect runs) back to the new, reduced distance.
+        knockbackRef.current = { from: visualDistanceRef.current, startedAt: performance.now() }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastHit])
 
+  useFrame(() => {
+    let visualDistance = carrier.distance
+    const knockback = knockbackRef.current
+    if (knockback) {
+      const t = Math.min(1, (performance.now() - knockback.startedAt) / HIT_REACTION_LOCK_MS)
+      visualDistance = THREE.MathUtils.lerp(knockback.from, carrier.distance, easeOutCubic(t))
+      if (t >= 1) knockbackRef.current = null
+    }
+    visualDistanceRef.current = visualDistance
+    const [x, y, z] = laneToPosition(carrier.lane, visualDistance)
+    groupRef.current.position.set(x, y, z)
+  })
+
   const clipRole = resolveClipRole(carrier, phase, reacting)
   const speed = clipRole === 'approach' ? speedMultiplier : 1
-  const [x, y, z] = laneToPosition(carrier.lane, carrier.distance)
   const canBeHit = carrier.status === 'active'
   const labelColor = LANE_COLORS[carrier.lane % LANE_COLORS.length]
 
@@ -86,7 +130,7 @@ function ZombieInstance({ carrier, character, phase, speedMultiplier, phaseOffse
   }
 
   return (
-    <group position={[x, y, z]}>
+    <group ref={groupRef}>
       <ZombieCharacter3D
         character={character}
         clipRole={clipRole}

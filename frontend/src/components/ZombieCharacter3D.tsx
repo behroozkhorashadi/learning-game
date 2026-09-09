@@ -4,6 +4,7 @@ import { useGLTF, useAnimations } from '@react-three/drei'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { CharacterDefinition } from '../lib/characterDefinitions'
 import { SCIENTIST_ZOMBIE } from '../lib/characterDefinitions'
+import { neutralizeHorizontalRootMotion } from '../lib/rootMotion'
 
 /**
  * Reusable GLB-based character renderer for Equation Outbreak. Takes a
@@ -58,6 +59,14 @@ interface Props {
 export function ZombieCharacter3D({ character, clipRole, speed = 1, phaseOffsetSeconds = 0, onClipFinished, onBonesReady }: Props) {
   const { scene, animations } = useGLTF(character.modelUrl)
   const cloned = useMemo(() => cloneSkeleton(scene) as THREE.Object3D, [scene])
+
+  // `animations` is the one cached clip array shared by every instance of
+  // this model (see useGLTF's URL-keyed cache) — neutralizing here runs once
+  // per clip (guarded internally) and fixes it for all instances at once.
+  useMemo(() => {
+    const hitReactClip = animations.find((clip) => clip.name === character.clips.hitReact)
+    if (hitReactClip) neutralizeHorizontalRootMotion(hitReactClip, character.rootBoneName)
+  }, [animations, character])
   const group = useRef<THREE.Group>(null!)
   const { actions, mixer } = useAnimations(animations, group)
   const activeClipRef = useRef<string | null>(null)

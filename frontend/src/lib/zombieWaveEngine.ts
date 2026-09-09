@@ -36,7 +36,24 @@ export interface Carrier extends CarrierOption {
   status: CarrierRuntimeStatus
   bodyHits: number
   defeatedBy: DefeatedBy
+  /** Set by a non-final body hit to `elapsedMs + HIT_REACTION_LOCK_MS` —
+   * while the wave's `elapsedMs` is still behind this value, `tick` holds
+   * this carrier's `distance` still so the knockback isn't immediately
+   * clawed back by forward approach. Cleared once passed. Null when this
+   * carrier isn't mid-reaction. */
+  reactionLockUntilMs: number | null
 }
+
+/** `distance` a freshly spawned carrier starts at, and the floor knockback
+ * clamps to — "cannot move a zombie behind its valid spawn boundary." */
+export const SPAWN_BOUNDARY_DISTANCE = 0
+
+/** How long (ms) a carrier's forward approach pauses after a non-final body
+ * hit — "the strongest part of the reaction." The renderer
+ * (`EquationOutbreakScene`) uses this same constant to time the visual
+ * backward-knockback tween, so the pose freeze and the position push land
+ * together. */
+export const HIT_REACTION_LOCK_MS = 200
 
 export interface WaveConfig {
   /** Milliseconds to cross from spawn to the danger line at speedMultiplier 1. */
@@ -50,6 +67,11 @@ export interface WaveConfig {
    * the selected weapon's cooldown (see `lib/weaponDefinitions.ts`) enters
    * the engine — as a plain number, never as a weapon-definition import. */
   shotCooldownMs: number
+  /** How much a non-final body shot reduces the hit carrier's `distance`
+   * (same 0..1 scale as `Carrier.distance`) — persistent knockback along its
+   * own lane, away from the player. Does not apply to headshots or the
+   * final (defeating) body shot. */
+  bodyShotKnockback: number
 }
 
 export type WaveOutcome = 'pending' | 'solved' | 'life_lost'
@@ -102,6 +124,7 @@ export function createWave(options: CarrierOption[]): WaveState {
       status: 'active',
       bodyHits: 0,
       defeatedBy: null,
+      reactionLockUntilMs: null,
     })),
     speedMultiplier: 1,
     elapsedMs: 0,
@@ -136,6 +159,13 @@ export function tick(wave: WaveState, dtMs: number, config: WaveConfig): WaveSta
 
   const carriers = wave.carriers.map((carrier) => {
     if (carrier.status !== 'active') return carrier
+    // Hold position while a knockback reaction is still in its "strongest
+    // part" — see HIT_REACTION_LOCK_MS. Once elapsedMs passes the lock, fall
+    // through and resume advancing from the (already reduced) distance.
+    if (carrier.reactionLockUntilMs != null) {
+      if (elapsedMs < carrier.reactionLockUntilMs) return carrier
+      carrier = { ...carrier, reactionLockUntilMs: null }
+    }
     const distance = Math.min(1, carrier.distance + step)
     if (distance >= 1) {
       // Only the first carrier to cross in this tick becomes "the" contact
@@ -190,8 +220,18 @@ export function applyHit(wave: WaveState, carrierId: string, zone: HitZone, conf
   const defeated = zone === 'head' || bodyHits >= 3
   const defeatedBy: DefeatedBy = defeated ? (zone === 'head' ? 'headshot' : 'body') : null
 
+  // Persistent backward knockback applies only to a non-final body shot —
+  // never a headshot (always lethal) and never the third, defeating body
+  // shot (that plays a death animation in place instead). Identical for
+  // correct and incorrect carriers, and scoped to this one carrier only.
+  const isNonFinalBodyHit = zone === 'body' && !defeated
+  const distance = isNonFinalBodyHit ? Math.max(SPAWN_BOUNDARY_DISTANCE, target.distance - config.bodyShotKnockback) : target.distance
+  const reactionLockUntilMs = isNonFinalBodyHit ? wave.elapsedMs + HIT_REACTION_LOCK_MS : target.reactionLockUntilMs
+
   const carriers = wave.carriers.map((c) =>
-    c.id === carrierId ? { ...c, bodyHits, defeatedBy, status: defeated ? ('defeated' as const) : c.status } : c,
+    c.id === carrierId
+      ? { ...c, bodyHits, defeatedBy, distance, reactionLockUntilMs, status: defeated ? ('defeated' as const) : c.status }
+      : c,
   )
   const lastShotAtMs = wave.elapsedMs
   const lastHit: LastHit = { carrierId, zone, defeated }

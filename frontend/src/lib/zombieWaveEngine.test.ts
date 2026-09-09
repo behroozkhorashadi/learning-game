@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, tick, applyHit, registerMiss, canShoot, type CarrierOption, type WaveConfig } from './zombieWaveEngine'
+import {
+  createWave,
+  tick,
+  applyHit,
+  registerMiss,
+  canShoot,
+  HIT_REACTION_LOCK_MS,
+  SPAWN_BOUNDARY_DISTANCE,
+  type CarrierOption,
+  type WaveConfig,
+} from './zombieWaveEngine'
 
 const OPTIONS: CarrierOption[] = [
   { id: 'a', value: 6, correct: false },
@@ -8,7 +18,7 @@ const OPTIONS: CarrierOption[] = [
   { id: 'd', value: 5, correct: false },
 ]
 
-const CONFIG: WaveConfig = { approachMs: 1000, wrongHitSpeedBoost: 0.18, shotCooldownMs: 100 }
+const CONFIG: WaveConfig = { approachMs: 1000, wrongHitSpeedBoost: 0.18, shotCooldownMs: 100, bodyShotKnockback: 0.1 }
 const NO_COOLDOWN: WaveConfig = { ...CONFIG, shotCooldownMs: 0 }
 
 /** Fires three body shots at `carrierId`, advancing past cooldown between
@@ -92,6 +102,111 @@ describe('damage thresholds (identical for correct and incorrect carriers)', () 
     wave = applyHit(wave, 'a', 'body', NO_COOLDOWN)
     expect(wave).toBe(afterDefeat)
     expect(wave.carriers.find((c) => c.id === 'a')!.bodyHits).toBe(0)
+  })
+})
+
+describe('body-shot knockback (persistent, per-carrier)', () => {
+  it('first body shot reduces only the hit carrier’s distance, by bodyShotKnockback', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG) // every carrier at distance 0.5
+    const before = wave.carriers.map((c) => ({ id: c.id, distance: c.distance }))
+
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN)
+
+    const hit = wave.carriers.find((c) => c.id === 'a')!
+    expect(hit.distance).toBeCloseTo(0.5 - CONFIG.bodyShotKnockback)
+
+    for (const other of before) {
+      if (other.id === 'a') continue
+      expect(wave.carriers.find((c) => c.id === other.id)!.distance).toBeCloseTo(other.distance)
+    }
+  })
+
+  it('a second body shot applies another persistent knockback on top of the first', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG)
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN)
+    const afterFirst = wave.carriers.find((c) => c.id === 'a')!.distance
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN)
+    const afterSecond = wave.carriers.find((c) => c.id === 'a')!.distance
+    expect(afterSecond).toBeCloseTo(afterFirst - CONFIG.bodyShotKnockback)
+  })
+
+  it('correct and incorrect carriers receive the identical physical knockback', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG)
+    const wrongWave = applyHit(wave, 'a', 'body', NO_COOLDOWN)
+    const correctWave = applyHit(wave, 'b', 'body', NO_COOLDOWN)
+    expect(wrongWave.carriers.find((c) => c.id === 'a')!.distance).toBeCloseTo(correctWave.carriers.find((c) => c.id === 'b')!.distance)
+  })
+
+  it('knockback cannot move a carrier behind the spawn boundary', () => {
+    // Freshly spawned, distance 0 — a body shot right away should clamp at
+    // SPAWN_BOUNDARY_DISTANCE rather than go negative.
+    const wave = applyHit(createWave(OPTIONS), 'a', 'body', NO_COOLDOWN)
+    expect(wave.carriers.find((c) => c.id === 'a')!.distance).toBe(SPAWN_BOUNDARY_DISTANCE)
+  })
+
+  it('headshots do not apply the non-final body-shot knockback', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG)
+    wave = applyHit(wave, 'a', 'head', NO_COOLDOWN)
+    expect(wave.carriers.find((c) => c.id === 'a')!.distance).toBeCloseTo(0.5)
+  })
+
+  it('the third, defeating body shot does not itself apply knockback', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG)
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN) // -> 0.4
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN) // -> 0.3
+    const beforeFinal = wave.carriers.find((c) => c.id === 'a')!.distance
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN) // defeats it
+    const carrier = wave.carriers.find((c) => c.id === 'a')!
+    expect(carrier.status).toBe('defeated')
+    expect(carrier.distance).toBeCloseTo(beforeFinal)
+  })
+
+  it('a non-final wrong body hit still counts toward wrong-shot telemetry alongside the knockback', () => {
+    const wave = applyHit(createWave(OPTIONS), 'a', 'body', NO_COOLDOWN)
+    expect(wave.wrongShots).toBe(1)
+    expect(wave.carriers.find((c) => c.id === 'a')!.distance).toBe(SPAWN_BOUNDARY_DISTANCE)
+  })
+
+  it('forward approach is paused while the reaction lock is active, then resumes from the knocked-back position', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG) // distance 0.5
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN) // -> 0.4, locked until elapsedMs + HIT_REACTION_LOCK_MS
+    const knockedBackDistance = wave.carriers.find((c) => c.id === 'a')!.distance
+    expect(knockedBackDistance).toBeCloseTo(0.4)
+
+    // Mid-lock: still ticking, but the hit carrier must not have moved —
+    // neither forward nor snapped back to its pre-hit 0.5.
+    wave = tick(wave, HIT_REACTION_LOCK_MS / 2, CONFIG)
+    const midLock = wave.carriers.find((c) => c.id === 'a')!
+    expect(midLock.distance).toBeCloseTo(knockedBackDistance)
+    expect(midLock.distance).not.toBeCloseTo(0.5)
+
+    // Past the lock: resumes advancing from the knocked-back distance, not
+    // from the original pre-hit distance.
+    wave = tick(wave, HIT_REACTION_LOCK_MS, CONFIG)
+    const resumed = wave.carriers.find((c) => c.id === 'a')!
+    expect(resumed.distance).toBeGreaterThan(knockedBackDistance)
+    expect(resumed.reactionLockUntilMs).toBeNull()
+
+    // Other carriers were never locked and kept advancing normally the
+    // whole time — independent per-carrier state.
+    const untouched = wave.carriers.find((c) => c.id === 'b')!
+    expect(untouched.distance).toBeGreaterThan(resumed.distance)
+  })
+
+  it('a resolved wave cannot have its carriers moved by a further body shot', () => {
+    let wave = createWave(OPTIONS)
+    wave = tick(wave, 500, CONFIG)
+    wave = applyHit(wave, 'b', 'head', NO_COOLDOWN) // solves the wave
+    const resolved = wave
+    wave = applyHit(wave, 'a', 'body', NO_COOLDOWN)
+    expect(wave).toBe(resolved)
+    expect(wave.carriers.find((c) => c.id === 'a')!.distance).toBeCloseTo(0.5)
   })
 })
 

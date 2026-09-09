@@ -53,6 +53,10 @@ export interface CharacterDefinition {
   yOffset: number
   headBoneName: string
   torsoBoneName: string
+  /** Skeleton root bone (e.g. hips) — see `lib/rootMotion.ts`, which pins
+   * this bone's horizontal translation in the `hitReact` clip so baked-in
+   * root motion can't slide the character out of its lane. */
+  rootBoneName: string
   clips: CharacterAnimationClips
   hitbox: CharacterHitboxSizing
   /** Y position (final scene units, same space as `hitbox`) where the
@@ -73,6 +77,7 @@ export const SCIENTIST_ZOMBIE: CharacterDefinition = {
   yOffset: 0,
   headBoneName: 'Head',
   torsoBoneName: 'Spine01',
+  rootBoneName: 'Hips',
   clips: {
     idle: 'Happy_Sway_Standing',
     approach: 'Mummy_Stagger',
