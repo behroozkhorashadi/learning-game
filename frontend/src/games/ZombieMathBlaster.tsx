@@ -74,6 +74,9 @@ const CONTACT_HOLD_MS = 700
 // hold) for when the zombie's hand actually connects; nudge it if the
 // sound and the swipe visually drift apart.
 const ZOMBIE_ATTACK_SOUND_DELAY_MS = 450
+// A tiny gap so the body-hit impact cue doesn't land in the exact same
+// instant as the shot sound itself — the two otherwise read as one sound.
+const ZOMBIE_HIT_SOUND_DELAY_MS = 90
 const IMPACT_SHAKE_MS = 200
 const IMPACT_SETTLE_MS = 400
 const IMPACT_TO_FROZEN_MS = 800
@@ -193,6 +196,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
 
   const phaseRef = useRef(phase)
   const feedbackIdRef = useRef(0)
+  const hitSoundTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // The four characters for the whole session — selected once per session
   // (see `startSession`), reused by every wave in it. A ref, not state:
   // nothing renders directly from this — only `waveCharacters` (its
@@ -263,9 +267,14 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     if (!wave?.lastHit) return
     // A physical "that hit" cue for a landed body shot — independent of
     // correct/wrong (that's what the feedback pulses below are for), and
-    // deliberately silent on a headshot.
+    // deliberately silent on a headshot. Delayed slightly so it doesn't
+    // land in the same instant as the shot sound itself — see
+    // ZOMBIE_HIT_SOUND_DELAY_MS. Tracked in a ref rather than this effect's
+    // own cleanup: `wave.lastHit` itself flips back to null one engine tick
+    // later (well under this delay), which would otherwise re-run this
+    // effect and cancel the timer before it ever fires.
     if (wave.lastHit.zone === 'body') {
-      playZombieHitSound()
+      hitSoundTimerRef.current = setTimeout(() => playZombieHitSound(), ZOMBIE_HIT_SOUND_DELAY_MS)
     }
     if (wave.lastHit.correct) {
       triggerFeedback('correctHit')
@@ -281,6 +290,10 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wave?.lastHit])
+  // Unmount-only cleanup for the delayed hit-sound timer above — separate
+  // from the effect itself so the lastHit->null pulse (one tick later)
+  // doesn't cancel a timer that's supposed to outlive it.
+  useEffect(() => () => clearTimeout(hitSoundTimerRef.current), [])
 
   const fetchItem = useCallback(async () => {
     setError(null)

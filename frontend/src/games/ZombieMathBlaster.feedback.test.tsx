@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { ZombieMathBlaster } from './ZombieMathBlaster'
 import type { Item } from '../types/generated'
 
@@ -266,12 +266,12 @@ describe('ZombieMathBlaster — zombie-hit impact sound', () => {
     vi.restoreAllMocks()
   })
 
-  it('plays the impact sound for a correct body shot', async () => {
+  it('plays the impact sound for a correct body shot (after its small delay)', async () => {
     render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
     await start()
 
     await bodyshot(ROUNDS[0].answer)
-    expect(playZombieHitSound).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(playZombieHitSound).toHaveBeenCalledTimes(1))
   })
 
   it('does not play the impact sound for a correct headshot', async () => {
@@ -290,7 +290,7 @@ describe('ZombieMathBlaster — zombie-hit impact sound', () => {
     const wrongValue = round.options.find((v) => v !== round.answer)!
     await bodyshot(wrongValue)
 
-    expect(playZombieHitSound).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(playZombieHitSound).toHaveBeenCalledTimes(1))
   })
 
   it('never plays the impact sound for a headshot, even a wrong one', async () => {
