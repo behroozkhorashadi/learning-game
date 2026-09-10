@@ -9,9 +9,13 @@
  * and the stateful service that wires it up.
  *
  * A wave is one equation with four candidate "carriers" (visually zombies)
- * approaching a danger line. Every carrier — correct or incorrect — uses the
- * same damage model: one headshot, or three cumulative body shots, defeats
- * it. Defeating the correct carrier solves the wave. Defeating a second
+ * approaching a danger line. Every carrier — correct or incorrect — is a
+ * one-shot defeat: any accepted hit, headshot or body shot, defeats it
+ * immediately. `HitZone` is still recorded on the carrier and on `lastHit`
+ * purely as classification data for a future scoring system (headshots are
+ * intended to be worth more points) — it no longer gates *whether* a hit
+ * defeats the carrier, only which death animation and `resolutionReason`
+ * apply. Defeating the correct carrier solves the wave. Defeating a second
  * *incorrect* carrier in the same wave ends it as a life loss (this exists
  * so a kid can't just spray shots at everything). Any carrier reaching the
  * danger line also ends the wave as a life loss. This engine is authoritative
@@ -34,26 +38,8 @@ export interface Carrier extends CarrierOption {
   /** 0 = just spawned, 1 = reached the danger line. */
   distance: number
   status: CarrierRuntimeStatus
-  bodyHits: number
   defeatedBy: DefeatedBy
-  /** Set by a non-final body hit to `elapsedMs + HIT_REACTION_LOCK_MS` —
-   * while the wave's `elapsedMs` is still behind this value, `tick` holds
-   * this carrier's `distance` still so the knockback isn't immediately
-   * clawed back by forward approach. Cleared once passed. Null when this
-   * carrier isn't mid-reaction. */
-  reactionLockUntilMs: number | null
 }
-
-/** `distance` a freshly spawned carrier starts at, and the floor knockback
- * clamps to — "cannot move a zombie behind its valid spawn boundary." */
-export const SPAWN_BOUNDARY_DISTANCE = 0
-
-/** How long (ms) a carrier's forward approach pauses after a non-final body
- * hit — "the strongest part of the reaction." The renderer
- * (`EquationOutbreakScene`) uses this same constant to time the visual
- * backward-knockback tween, so the pose freeze and the position push land
- * together. */
-export const HIT_REACTION_LOCK_MS = 200
 
 export interface WaveConfig {
   /** Milliseconds to cross from spawn to the danger line at speedMultiplier 1. */
@@ -67,11 +53,6 @@ export interface WaveConfig {
    * the selected weapon's cooldown (see `lib/weaponDefinitions.ts`) enters
    * the engine — as a plain number, never as a weapon-definition import. */
   shotCooldownMs: number
-  /** How much a non-final body shot reduces the hit carrier's `distance`
-   * (same 0..1 scale as `Carrier.distance`) — persistent knockback along its
-   * own lane, away from the player. Does not apply to headshots or the
-   * final (defeating) body shot. */
-  bodyShotKnockback: number
 }
 
 export type WaveOutcome = 'pending' | 'solved' | 'life_lost'
@@ -85,11 +66,20 @@ export type ResolutionReason =
   | 'second_wrong_defeated'
   | 'player_contact'
 
+/** One resolved shot's worth of classification data — a discrete event the
+ * renderer's visual-feedback layer keys off of (`ZombieMathBlaster`'s
+ * `correctHit`/`wrongHit` feedback), not a persistent flag: `tick` clears
+ * this back to `null` on the very next frame, so it never stays "on" long
+ * enough for an unrelated render to replay it. Every hit is a one-shot
+ * defeat now, so `defeated` no longer needs representing here — a
+ * `lastHit` only ever exists because *something* was just defeated. `zone`
+ * is preserved for a future scoring system (headshots are intended to be
+ * worth more); `correct` tells the renderer which color to show without
+ * having to re-look-up the carrier. */
 export interface LastHit {
   carrierId: string
   zone: HitZone
-  /** Whether this specific hit defeated the carrier (vs. a non-final body hit). */
-  defeated: boolean
+  correct: boolean
 }
 
 export interface WaveState {
@@ -122,9 +112,7 @@ export function createWave(options: CarrierOption[]): WaveState {
       lane,
       distance: 0,
       status: 'active',
-      bodyHits: 0,
       defeatedBy: null,
-      reactionLockUntilMs: null,
     })),
     speedMultiplier: 1,
     elapsedMs: 0,
@@ -159,13 +147,6 @@ export function tick(wave: WaveState, dtMs: number, config: WaveConfig): WaveSta
 
   const carriers = wave.carriers.map((carrier) => {
     if (carrier.status !== 'active') return carrier
-    // Hold position while a knockback reaction is still in its "strongest
-    // part" — see HIT_REACTION_LOCK_MS. Once elapsedMs passes the lock, fall
-    // through and resume advancing from the (already reduced) distance.
-    if (carrier.reactionLockUntilMs != null) {
-      if (elapsedMs < carrier.reactionLockUntilMs) return carrier
-      carrier = { ...carrier, reactionLockUntilMs: null }
-    }
     const distance = Math.min(1, carrier.distance + step)
     if (distance >= 1) {
       // Only the first carrier to cross in this tick becomes "the" contact
@@ -201,47 +182,31 @@ export function registerMiss(wave: WaveState, config: WaveConfig): WaveState {
   return { ...wave, lastShotAtMs: wave.elapsedMs, lastHit: null }
 }
 
-/** Applies one accepted shot to `carrierId` in `zone`. This is the sole
- * place damage, defeat classification, wrong-shot telemetry, the wave-
- * acceleration-on-first-wrong-defeat rule, and the second-wrong-defeat life
- * loss are decided. No-op if the wave is resolved, the cooldown hasn't
- * elapsed, or the target isn't `active` (defeated carriers cannot be hit
- * again — enforced here, not by the renderer remembering to check). */
+/** Applies one accepted shot to `carrierId` in `zone`. Every accepted hit on
+ * an active carrier is a one-shot defeat, headshot or body shot alike —
+ * this is the sole place defeat classification, wrong-shot telemetry, the
+ * wave-acceleration-on-first-wrong-defeat rule, and the second-wrong-defeat
+ * life loss are decided. No-op if the wave is resolved, the cooldown hasn't
+ * elapsed, or the target isn't `active` (defeated carriers, and carriers
+ * that reached the player, cannot be hit again — enforced here, not by the
+ * renderer remembering to check). */
 export function applyHit(wave: WaveState, carrierId: string, zone: HitZone, config: WaveConfig): WaveState {
   if (!canShoot(wave, config)) return wave
 
   const target = wave.carriers.find((c) => c.id === carrierId)
   if (!target || target.status !== 'active') return wave
 
-  // Headshot always takes precedence over accumulated body damage — two
-  // body hits followed by a headshot is classified as a headshot defeat,
-  // never as "the third hit."
-  const bodyHits = zone === 'body' ? target.bodyHits + 1 : target.bodyHits
-  const defeated = zone === 'head' || bodyHits >= 3
-  const defeatedBy: DefeatedBy = defeated ? (zone === 'head' ? 'headshot' : 'body') : null
-
-  // Persistent backward knockback applies only to a non-final body shot —
-  // never a headshot (always lethal) and never the third, defeating body
-  // shot (that plays a death animation in place instead). Identical for
-  // correct and incorrect carriers, and scoped to this one carrier only.
-  const isNonFinalBodyHit = zone === 'body' && !defeated
-  const distance = isNonFinalBodyHit ? Math.max(SPAWN_BOUNDARY_DISTANCE, target.distance - config.bodyShotKnockback) : target.distance
-  const reactionLockUntilMs = isNonFinalBodyHit ? wave.elapsedMs + HIT_REACTION_LOCK_MS : target.reactionLockUntilMs
-
-  const carriers = wave.carriers.map((c) =>
-    c.id === carrierId
-      ? { ...c, bodyHits, defeatedBy, distance, reactionLockUntilMs, status: defeated ? ('defeated' as const) : c.status }
-      : c,
-  )
+  // Zone is determined before resolving the carrier — it decides which
+  // death animation plays (`defeatedBy`) and which `resolutionReason`
+  // applies, and is carried onto `lastHit` unchanged for a future scoring
+  // system, but it no longer affects *whether* this hit defeats the target:
+  // every accepted hit does.
+  const defeatedBy: DefeatedBy = zone === 'head' ? 'headshot' : 'body'
+  const carriers = wave.carriers.map((c) => (c.id === carrierId ? { ...c, defeatedBy, status: 'defeated' as const } : c))
   const lastShotAtMs = wave.elapsedMs
-  const lastHit: LastHit = { carrierId, zone, defeated }
+  const lastHit: LastHit = { carrierId, zone, correct: target.correct }
 
   if (target.correct) {
-    if (!defeated) {
-      // A non-final body hit on the *correct* carrier: just a hit reaction,
-      // no telemetry or wave-state change — it isn't wrong about anything.
-      return { ...wave, carriers, lastShotAtMs, lastHit }
-    }
     return {
       ...wave,
       carriers,
@@ -253,14 +218,8 @@ export function applyHit(wave: WaveState, carrierId: string, zone: HitZone, conf
     }
   }
 
-  // Incorrect carrier: every accepted hit counts toward wrong-shot
-  // telemetry, including non-final body hits.
+  // Incorrect carrier: every accepted hit counts toward wrong-shot telemetry.
   const wrongShots = wave.wrongShots + 1
-
-  if (!defeated) {
-    return { ...wave, carriers, lastShotAtMs, lastHit, wrongShots }
-  }
-
   const wrongCarriersDefeated = wave.wrongCarriersDefeated + 1
 
   if (wrongCarriersDefeated === 1) {

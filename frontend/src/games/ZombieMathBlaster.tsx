@@ -48,11 +48,6 @@ const STARTING_LIVES = 3
 const ROSTER_SIZE = 4
 const WEAPON = STARTER_BLASTER
 const WRONG_HIT_SPEED_BOOST = 0.18
-// How much a non-final body shot pushes the hit zombie back along its lane,
-// as a fraction of the full spawn-to-danger-line approach distance. Chosen
-// to read clearly as a knockback without meaningfully extending the round —
-// tune here if playtesting says otherwise.
-const BODY_SHOT_KNOCKBACK = 0.06
 
 // A short beat where the equation fills the screen before the carriers
 // spawn — gives a kid a moment to read the problem before the clock starts.
@@ -62,6 +57,18 @@ const CONTACT_HOLD_MS = 700
 const IMPACT_SHAKE_MS = 200
 const IMPACT_SETTLE_MS = 400
 const IMPACT_TO_FROZEN_MS = 800
+
+// Transient answer-feedback vignette (green for a correct defeat, red for a
+// wrong one) — fades in fast, out smooth, well within the suggested
+// 350-500ms window, then this component resets it so the next hit (even
+// the same kind) reliably replays rather than silently no-op'ing because
+// the CSS `animation` value didn't change.
+const ANSWER_FEEDBACK_MS = 420
+// A wrong-answer hit gets a small, brief shake — deliberately much shorter
+// (and, via wrongHitShake's smaller keyframe amplitude in index.css) much
+// weaker than the player-attacked `screenShake` above, so the two never
+// read as the same severity of event.
+const WRONG_HIT_SHAKE_MS = 220
 
 type Phase =
   | 'start'
@@ -104,8 +111,19 @@ function buildConfig(item: Item): WaveConfig {
     approachMs: payload.approach_ms,
     wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST,
     shotCooldownMs: WEAPON.shotCooldownMs,
-    bodyShotKnockback: BODY_SHOT_KNOCKBACK,
   }
+}
+
+/** The three distinct visual-feedback outcomes a resolved shot or a player
+ * attack can produce — kept as a discrete, typed event (with an
+ * incrementing `id`) rather than a shared boolean so React effects can
+ * trigger exactly once per event and never get replayed by an unrelated
+ * render, and so "correct" and "wrong" can never be confused for one
+ * another the way a single ambiguous flag would allow. */
+type FeedbackKind = 'correctHit' | 'wrongHit' | 'playerAttacked'
+interface FeedbackEvent {
+  kind: FeedbackKind
+  id: number
 }
 
 interface Props {
@@ -129,10 +147,15 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   // This wave's character for each lane (index 0..3) — a shuffled view of
   // the session roster below, recomputed once per wave (not per render).
   const [waveCharacters, setWaveCharacters] = useState<CharacterDefinition[]>([])
+  // The current transient answer-feedback pulse (correctHit/wrongHit) or
+  // the player-attacked event — see `triggerFeedback` and the effect that
+  // clears this back to null after ANSWER_FEEDBACK_MS.
+  const [feedbackEvent, setFeedbackEvent] = useState<FeedbackEvent | null>(null)
 
   const reducedMotion = usePrefersReducedMotion()
 
   const phaseRef = useRef(phase)
+  const feedbackIdRef = useRef(0)
   // The four characters for the whole session — selected once per session
   // (see `startSession`), reused by every wave in it. A ref, not state:
   // nothing renders directly from this — only `waveCharacters` (its
@@ -143,7 +166,6 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     approachMs: 6000,
     wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST,
     shotCooldownMs: WEAPON.shotCooldownMs,
-    bodyShotKnockback: BODY_SHOT_KNOCKBACK,
   })
   const lastFrameRef = useRef<number | null>(null)
   const handledOutcomeRef = useRef(false)
@@ -157,6 +179,46 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   useEffect(() => {
     waveRef.current = wave
   }, [wave])
+
+  function triggerFeedback(kind: FeedbackKind) {
+    feedbackIdRef.current += 1
+    setFeedbackEvent({ kind, id: feedbackIdRef.current })
+  }
+
+  // Auto-clears every feedback event after its pulse duration — this is
+  // also what makes the *next* event reliably replay even when it's the
+  // same kind as the last one: the CSS `animation` values below are only
+  // guaranteed to restart when they actually change, and resetting to null
+  // in between guarantees that, rather than risking two consecutive
+  // `wrongHit`s (e.g. across two different waves) silently sharing one
+  // stale animation string.
+  useEffect(() => {
+    if (!feedbackEvent) return
+    const timer = setTimeout(() => setFeedbackEvent(null), ANSWER_FEEDBACK_MS)
+    return () => clearTimeout(timer)
+  }, [feedbackEvent])
+
+  // Fires the correct/wrong answer-feedback pulse for every resolved hit —
+  // `wave.lastHit` is itself already a one-render pulse (zombieWaveEngine's
+  // `tick` clears it back to null on the very next frame), so this effect
+  // naturally fires exactly once per hit and is never replayed by an
+  // unrelated render of the same `wave` object.
+  useEffect(() => {
+    if (!wave?.lastHit) return
+    if (wave.lastHit.correct) {
+      triggerFeedback('correctHit')
+      return
+    }
+    // A wrong defeat that *also* ends the wave (the second wrong carrier)
+    // is already about to get the stronger life-lost overlay from the
+    // wave-outcome effect below — firing the small wrongHit pulse too would
+    // layer two reds and two shakes on top of each other. Only a wrong
+    // defeat that leaves the wave pending gets its own standalone pulse.
+    if (wave.outcome === 'pending') {
+      triggerFeedback('wrongHit')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wave?.lastHit])
 
   const fetchItem = useCallback(async () => {
     setError(null)
@@ -284,6 +346,12 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     if (wave.resolutionReason === 'player_contact') {
       setPhase('contact')
       setLiveMessage('A zombie got through!')
+      // The strong overlay/shake this drives is the existing phase-based
+      // `impact`/`life_lost_frozen` rendering below, not the transient
+      // correctHit/wrongHit pulse — firing the typed event here is purely
+      // so "what just happened" is represented consistently for all three
+      // kinds, not just the two auto-clearing ones.
+      triggerFeedback('playerAttacked')
       const timer = setTimeout(() => setPhase('impact'), CONTACT_HOLD_MS)
       return () => clearTimeout(timer)
     }
@@ -383,6 +451,18 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   const inputEnabled = phase === 'playing'
   const wavePhaseForScene = phase === 'intro' ? 'intro' : 'playing'
 
+  // The container only ever needs one active shake at a time — a wrong hit
+  // that also ends the wave never reaches this as `wrongHit` (see the
+  // lastHit effect above), so `phase === 'impact'` and a live `wrongHit`
+  // event never overlap in practice.
+  const containerAnimation = reducedMotion
+    ? 'none'
+    : phase === 'impact'
+      ? `screenShake ${IMPACT_SHAKE_MS + IMPACT_SETTLE_MS}ms ease-out`
+      : feedbackEvent?.kind === 'wrongHit'
+        ? `wrongHitShake ${WRONG_HIT_SHAKE_MS}ms ease-out`
+        : 'none'
+
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
       <div style={{ width: '100%', maxWidth: 'min(1600px, 70vw)', minWidth: 320, display: 'flex', flexDirection: 'column' }}>
@@ -407,6 +487,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
         {phase !== 'start' && phase !== 'complete' && phase !== 'game_over' && phase !== 'transitioning_to_next_wave' && item && (
           <div
             ref={containerRef}
+            data-testid="game-container"
             onPointerMove={handlePointerMove}
             style={{
               position: 'relative',
@@ -418,7 +499,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
               boxShadow: 'var(--elevation-300)',
               cursor: aimNdc ? 'none' : 'crosshair',
               outline: 'none',
-              animation: phase === 'impact' && !reducedMotion ? `screenShake ${IMPACT_SHAKE_MS + IMPACT_SETTLE_MS}ms ease-out` : 'none',
+              animation: containerAnimation,
             }}
           >
             <Canvas shadows={!reducedMotion} onPointerMissed={handleMiss}>
@@ -429,7 +510,6 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
                   weapon={WEAPON}
                   phase={wavePhaseForScene}
                   speedMultiplier={wave?.speedMultiplier ?? 1}
-                  lastHit={wave?.lastHit ?? null}
                   aimNdc={aimNdc}
                   reducedMotion={reducedMotion}
                   recoilSignal={recoilSignal}
@@ -507,6 +587,35 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
                 ) : null,
               )}
             </div>
+
+            {/* Transient correct/wrong answer-feedback vignette — color
+             * restricted to the outer edge (a wide transparent center) so
+             * it never obscures the equation, answer labels, or the
+             * zombie's own defeat animation. Remounted via `key` on every
+             * new event so the fade-in/out replays even for two
+             * consecutive events of the same kind. Deliberately excludes
+             * `playerAttacked`, which keeps using the stronger, persistent
+             * overlay below instead of this short pulse. */}
+            {feedbackEvent && (feedbackEvent.kind === 'correctHit' || feedbackEvent.kind === 'wrongHit') && (
+              <div
+                key={feedbackEvent.id}
+                aria-hidden="true"
+                data-testid="answer-feedback-vignette"
+                data-feedback-kind={feedbackEvent.kind}
+                data-feedback-id={feedbackEvent.id}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 205,
+                  pointerEvents: 'none',
+                  background:
+                    feedbackEvent.kind === 'correctHit'
+                      ? 'radial-gradient(ellipse at center, transparent 58%, rgba(34,197,94,0.6) 100%)'
+                      : 'radial-gradient(ellipse at center, transparent 55%, rgba(205,42,32,0.5) 100%)',
+                  animation: `vignettePulse ${ANSWER_FEEDBACK_MS}ms ease-out`,
+                }}
+              />
+            )}
 
             {aimNdc && (
               <div

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { PerspectiveCamera } from '@react-three/drei'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
@@ -12,7 +12,7 @@ import { resolveRaycastOutcome } from '../lib/raycastOutcome'
 import { buildLanes, computeLaneLayout, positionAlongLane, type Lane, type Vec3 } from '../lib/laneNavigation'
 import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '../lib/characterDefinitions'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
-import { HIT_REACTION_LOCK_MS, type Carrier, type HitZone, type LastHit } from '../lib/zombieWaveEngine'
+import type { Carrier, HitZone } from '../lib/zombieWaveEngine'
 
 /**
  * The fixed-camera 3D shooting-gallery scene — now dressed as "Outbreak at
@@ -47,14 +47,14 @@ export type WavePhase = 'intro' | 'playing' | 'frozen'
 
 const LANE_COLORS = ['#9D57FA', '#144FFF', '#5BCC2D', '#F59E0B']
 
-function easeOutCubic(t: number): number {
-  return 1 - (1 - t) ** 3
-}
-
-function resolveClipRole(carrier: Carrier, phase: WavePhase, reacting: boolean): ZombieClipRole {
+// 'hitReact' is still a valid clip role a `CharacterDefinition` can map (see
+// `characterDefinitions.ts`) — every current GLB embeds a usable `Hit_Reaction`
+// clip — but with every hit now a one-shot defeat (see `zombieWaveEngine.ts`),
+// there is no "hit but survives" carrier state left to trigger it from during
+// normal gameplay.
+function resolveClipRole(carrier: Carrier, phase: WavePhase): ZombieClipRole {
   if (carrier.status === 'reached_player') return 'reach'
   if (carrier.status === 'defeated') return carrier.defeatedBy === 'headshot' ? 'deadHeadshot' : 'deadBody'
-  if (reacting) return 'hitReact'
   if (phase === 'intro') return 'idle'
   return 'approach'
 }
@@ -66,62 +66,31 @@ interface ZombieInstanceProps {
   phase: WavePhase
   speedMultiplier: number
   phaseOffsetSeconds: number
-  lastHit: LastHit | null
   onHit: (carrierId: string, zone: HitZone) => void
   onMiss: () => void
 }
 
-function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phaseOffsetSeconds, lastHit, onHit, onMiss }: ZombieInstanceProps) {
-  const [reacting, setReacting] = useState(false)
+function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phaseOffsetSeconds, onHit, onMiss }: ZombieInstanceProps) {
   const groupRef = useRef<THREE.Group>(null!)
 
   // The outer group's position is the sole source of truth for where a
   // zombie sits along its lane — see `positionAlongLane`, driven by the
   // wave engine's authoritative `carrier.distance` mapped onto this
-  // carrier's lane path (`laneNavigation.ts`). It's set imperatively (via
-  // `useFrame` below) rather than as a declarative `position` prop so a
-  // knockback's backward push can be eased over `HIT_REACTION_LOCK_MS`
-  // instead of teleporting the moment the engine updates `distance`. The
-  // skeletal clip itself never moves this group — see `lib/rootMotion.ts`
-  // for how `Hit_Reaction`'s baked-in lateral root motion is neutralized so
-  // it can't fight this, and never moves it off the lane's own path, so a
-  // knocked-back zombie always stays on the same valid corridor.
-  const visualDistanceRef = useRef(carrier.distance)
-  const knockbackRef = useRef<{ from: number; startedAt: number } | null>(null)
-
+  // carrier's lane path (`laneNavigation.ts`). Set imperatively (via
+  // `useFrame` below) rather than as a declarative `position` prop to avoid
+  // per-frame React reconciliation on every carrier for the whole approach.
   useLayoutEffect(() => {
-    const [x, y, z] = positionAlongLane(lane, visualDistanceRef.current)
+    const [x, y, z] = positionAlongLane(lane, carrier.distance)
     groupRef.current.position.set(x, y, z)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (lastHit && lastHit.carrierId === carrier.id && !lastHit.defeated) {
-      setReacting(true)
-      if (lastHit.zone === 'body') {
-        // Ease from wherever this zombie was actually rendered (not
-        // `carrier.distance`, which is already the post-knockback value by
-        // the time this effect runs) back to the new, reduced distance.
-        knockbackRef.current = { from: visualDistanceRef.current, startedAt: performance.now() }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastHit])
-
   useFrame(() => {
-    let visualDistance = carrier.distance
-    const knockback = knockbackRef.current
-    if (knockback) {
-      const t = Math.min(1, (performance.now() - knockback.startedAt) / HIT_REACTION_LOCK_MS)
-      visualDistance = THREE.MathUtils.lerp(knockback.from, carrier.distance, easeOutCubic(t))
-      if (t >= 1) knockbackRef.current = null
-    }
-    visualDistanceRef.current = visualDistance
-    const [x, y, z] = positionAlongLane(lane, visualDistance)
+    const [x, y, z] = positionAlongLane(lane, carrier.distance)
     groupRef.current.position.set(x, y, z)
   })
 
-  const clipRole = resolveClipRole(carrier, phase, reacting)
+  const clipRole = resolveClipRole(carrier, phase)
   const speed = clipRole === 'approach' ? speedMultiplier : 1
   const canBeHit = carrier.status === 'active'
   const labelColor = LANE_COLORS[carrier.lane % LANE_COLORS.length]
@@ -143,13 +112,7 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
 
   return (
     <group ref={groupRef}>
-      <ZombieCharacter3D
-        character={character}
-        clipRole={clipRole}
-        speed={speed}
-        phaseOffsetSeconds={phaseOffsetSeconds}
-        onClipFinished={() => setReacting(false)}
-      />
+      <ZombieCharacter3D character={character} clipRole={clipRole} speed={speed} phaseOffsetSeconds={phaseOffsetSeconds} />
 
       {canBeHit && (
         <>
@@ -185,7 +148,6 @@ interface Props {
   weapon: WeaponDefinition
   phase: WavePhase
   speedMultiplier: number
-  lastHit: LastHit | null
   aimNdc: { x: number; y: number } | null
   reducedMotion: boolean
   recoilSignal: number
@@ -202,7 +164,6 @@ export function EquationOutbreakScene({
   weapon,
   phase,
   speedMultiplier,
-  lastHit,
   aimNdc,
   reducedMotion,
   recoilSignal,
@@ -251,7 +212,6 @@ export function EquationOutbreakScene({
           phase={phase}
           speedMultiplier={speedMultiplier}
           phaseOffsetSeconds={phaseOffsets.current[carrier.id] ?? 0}
-          lastHit={lastHit}
           onHit={onHit}
           onMiss={onMiss}
         />

@@ -242,6 +242,40 @@
     transform: translate(0, 0);
   }
 }
+/* Equation Outbreak's correct/wrong answer-feedback vignette: fades in
+   quickly, then out smoothly — used for both the green (correct) and red
+   (wrong) edge glow, whose color comes from the element's own background. */
+@keyframes vignettePulse {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* A wrong-answer hit's shake — noticeably weaker (smaller amplitude, no
+   third bounce) than screenShake above, which is reserved for the player
+   actually being attacked. */
+@keyframes wrongHitShake {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-3px, 2px);
+  }
+  45% {
+    transform: translate(2px, -2px);
+  }
+  70% {
+    transform: translate(-1px, 1px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
 
 * {
   box-sizing: border-box;

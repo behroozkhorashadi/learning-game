@@ -141,20 +141,16 @@ describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {
   )
 
   it(
-    'a correct three-body-shot defeat solves the wave (not just a headshot)',
+    'a correct body shot solves the wave immediately (not just a headshot)',
     async () => {
       render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
       await start()
 
-      const answer = ROUNDS[0].answer
-      await bodyshot(answer)
-      await waitCooldown()
-      await bodyshot(answer)
-      await waitCooldown()
-      await bodyshot(answer)
+      await bodyshot(ROUNDS[0].answer)
 
       expect(await screen.findByText(`headshot ${ROUNDS[1].answer}`, undefined, { timeout: 3000 })).toBeTruthy()
       expect(attemptPayloads).toHaveLength(1)
+      expect((attemptPayloads[0] as { telemetry: { correct: boolean } }).telemetry.correct).toBe(true)
     },
     15000,
   )
@@ -238,15 +234,12 @@ describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {
 
       // The accessible answer list renders one real, mouse-clickable button
       // per active carrier — this exercises the production click handler
-      // directly, rather than the mocked 3D scene's head/body buttons. Each
-      // click fires a body shot, so three clicks (respecting cooldown)
-      // defeat the correct carrier and solve the wave.
+      // directly, rather than the mocked 3D scene's head/body buttons. One
+      // click fires a body shot, which now immediately defeats the correct
+      // carrier and solves the wave.
       const round = ROUNDS[0]
-      for (let i = 0; i < 3; i++) {
-        const answerButton = await screen.findByRole('button', { name: `Zap the zombie carrying ${round.answer}` }, { timeout: 3000 })
-        fireEvent.click(answerButton)
-        await waitCooldown()
-      }
+      const answerButton = await screen.findByRole('button', { name: `Zap the zombie carrying ${round.answer}` }, { timeout: 3000 })
+      fireEvent.click(answerButton)
 
       expect(await screen.findByText(`headshot ${ROUNDS[1].answer}`, undefined, { timeout: 3000 })).toBeTruthy()
       expect(attemptPayloads).toHaveLength(1)
