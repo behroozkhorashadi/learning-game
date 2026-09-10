@@ -13,7 +13,7 @@ import { ZOMBIE_CHARACTER_REGISTRY, type CharacterDefinition } from '../lib/char
 import { selectSessionRoster, shuffle } from '../lib/zombieRoster'
 import { STARTER_BLASTER } from '../lib/weaponDefinitions'
 import { usePrefersReducedMotion } from '../lib/reducedMotion'
-import { isAudioMuted, toggleAudioMuted } from '../lib/gameAudio'
+import { isAudioMuted, playZombieGroan, preloadWeaponAudio, preloadZombieAudio, toggleAudioMuted } from '../lib/gameAudio'
 import {
   applyHit,
   canShoot,
@@ -280,6 +280,9 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
       // appear (that's fixed for the whole session; see `startSession`).
       setWaveCharacters(shuffle(rosterRef.current))
       setPhase('playing')
+      // Every roster member spawns together at the start of a wave — each
+      // gets its own groan, right as it appears.
+      for (const character of rosterRef.current) playZombieGroan(character.groanSoundUrl)
     }, INTRO_MS)
     return () => clearTimeout(timer)
   }, [phase, item])
@@ -439,6 +442,11 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   }
 
   function startSession() {
+    // A real user gesture — safe to create/resume the AudioContext and
+    // start decoding the weapon's .wav files here, well before the intro
+    // beat ends and the first shot is even possible, rather than lazily
+    // inside the first playShotSound() call itself.
+    preloadWeaponAudio()
     setLives(STARTING_LIVES)
     setSolvedFacts([])
     setRatingHandled(false)
@@ -447,6 +455,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     // always gets a fresh random roster — see the module docstring in
     // lib/zombieRoster.ts. Moving to the next question never calls this.
     rosterRef.current = selectSessionRoster(ZOMBIE_CHARACTER_REGISTRY, ROSTER_SIZE)
+    preloadZombieAudio(rosterRef.current.map((character) => character.groanSoundUrl))
     setPhase('playing')
   }
 

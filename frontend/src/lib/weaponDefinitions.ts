@@ -37,8 +37,12 @@ export const STARTER_BLASTER: WeaponDefinition = {
   displayName: 'Starter Blaster',
   rendererId: 'equation_blaster_glb_v1',
   cockingMs: 900,
-  recoilStrength: 0.4,
-  recoilDurationMs: 150,
+  recoilStrength: 1,
+  // Also doubles as how long the reload's dip/arm-slide waits before
+  // starting (see EquationBlaster.tsx's computeVisualCockingProgress) —
+  // long enough that the kick is clearly visible and settled before the
+  // reload motion begins, short enough to still feel snappy.
+  recoilDurationMs: 260,
   muzzleFlashStyle: 'soft_burst',
   projectileStyle: 'hitscan_flash',
   soundEffects: {},

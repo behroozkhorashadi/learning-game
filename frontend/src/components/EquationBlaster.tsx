@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import type { WeaponPhase } from '../lib/zombieWaveEngine'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
-import { playCockingBackSound, playCockingForwardSound, playShotSound } from '../lib/gameAudio'
+import { playReloadSound, playShotSound } from '../lib/gameAudio'
 import {
   AIM_FOLLOW_SMOOTHING,
   EQUATION_BLASTER_URL,
@@ -241,6 +241,26 @@ export function cockingSlideAmount(progress: number): number {
   return half ? eased : 1 - eased
 }
 
+/**
+ * Remaps raw elapsed-in-cocking time onto a *delayed* 0..1 visual progress
+ * that holds at 0 until `recoilSettleMs` has passed, then runs through the
+ * rest of the cocking window — so the dip/arm-slide/sounds only start once
+ * the shot's own recoil kick has finished playing, instead of both
+ * animations firing at once. The gameplay cocking duration (`cockingMs` —
+ * when the second shot actually becomes available) is completely
+ * untouched by this: it only re-sequences the *presentation* within that
+ * same window (compressing the visual motion into
+ * `cockingMs - recoilSettleMs` instead of overlapping the recoil), and
+ * still reaches exactly 1 at `cockingElapsedMs === cockingMs`, matching the
+ * moment the engine itself allows the second shot — no drift, no added
+ * delay to when you can actually fire again.
+ */
+export function computeVisualCockingProgress(cockingElapsedMs: number, cockingMs: number, recoilSettleMs: number): number {
+  const window = Math.max(1, cockingMs - recoilSettleMs)
+  const delayed = Math.max(0, cockingElapsedMs - recoilSettleMs)
+  return THREE.MathUtils.clamp(delayed / window, 0, 1)
+}
+
 /** The left hand's cocking-slide offset (world/recoil-space) at a given
  * overall cocking `progress` (0..1) — always exactly `[0,0,0]` at progress
  * 0 and 1, so resting position is bit-for-bit exact, never an
@@ -301,14 +321,15 @@ export function EquationBlaster({
     playShotSound()
   }
 
-  // Cocking sounds: one at the start (hand pulling back), one at the
-  // midpoint (hand pushing forward, weapon ready). Keyed on the phase
-  // transition itself, not on progress, so each plays exactly once per
-  // cocking sequence regardless of frame rate.
-  const cockingSoundStateRef = useRef<'idle' | 'back-played' | 'forward-played'>('idle')
+  // The reload sound — one continuous clip covering the whole cocking
+  // motion — plays exactly once per cocking sequence, right as the reload
+  // actually starts (once the shot's own recoil has settled). Keyed on the
+  // phase transition itself, not on progress, so it can't replay mid-cycle
+  // regardless of frame rate.
+  const reloadSoundStateRef = useRef<'idle' | 'played'>('idle')
   useEffect(() => {
     if (weaponPhase === 'cocking') {
-      cockingSoundStateRef.current = 'idle'
+      reloadSoundStateRef.current = 'idle'
     }
   }, [weaponPhase])
 
@@ -326,30 +347,37 @@ export function EquationBlaster({
     const swayAmplitude = reducedMotion ? 0 : IDLE_SWAY_AMPLITUDE
     aimGroup.current.position.y = Math.sin(state.clock.elapsedTime * 1.4) * swayAmplitude
 
-    // --- recoil (weapon + both arms move together, via the shared parent) ---
+    // --- recoil (weapon + both arms move together, via the shared parent) —
+    // kicks up+back sharply, then eases back down to rest; see the cocking
+    // block below for why the reload doesn't start until this settles. ---
     let recoil = 0
     if (recoilStartRef.current != null) {
       const elapsed = performance.now() - recoilStartRef.current
       if (elapsed < weapon.recoilDurationMs) {
         const t = elapsed / weapon.recoilDurationMs
         const strength = (reducedMotion ? 0.4 : 1) * weapon.recoilStrength
-        recoil = (1 - t) * strength
+        recoil = (1 - t) * (1 - t) * strength // quick kick, slower ease back to rest
       } else {
         recoilStartRef.current = null
       }
     }
     recoilGroup.current.position.z = recoil * RECOIL_KICK_DISTANCE
-    recoilGroup.current.rotation.x = -recoil * RECOIL_KICK_PITCH_RADIANS
+    recoilGroup.current.rotation.x = recoil * RECOIL_KICK_PITCH_RADIANS
     if (muzzleFlash.current) {
       muzzleFlash.current.visible = recoil > 0.35
     }
 
     // --- cocking: weapon dip/rotate (pump is fused — see
-    // equationBlasterConfig.ts) + left-hand backward/forward slide ---
+    // equationBlasterConfig.ts) + left-hand backward/forward slide.
+    // Delayed by the shot's own recoil duration so the kick-back plays out
+    // cleanly before the reload motion starts, instead of both firing at
+    // once — see computeVisualCockingProgress. ---
     let cockingProgress = 0
+    let cockingSettled = false
     if (weaponPhase === 'cocking' && cockingUntilMs != null) {
       const cockingElapsed = cockingMs - (cockingUntilMs - elapsedMs)
-      cockingProgress = THREE.MathUtils.clamp(cockingElapsed / cockingMs, 0, 1)
+      cockingProgress = computeVisualCockingProgress(cockingElapsed, cockingMs, weapon.recoilDurationMs)
+      cockingSettled = cockingElapsed >= weapon.recoilDurationMs
     }
 
     // The dip is added on top of the weapon's own baseline X rotation, not
@@ -367,15 +395,13 @@ export function EquationBlaster({
       cockingGroup.current.position.z = leftGripScaledPosition[2] + offset[2]
     }
 
-    if (weaponPhase === 'cocking' && cockingUntilMs != null) {
-      const half = cockingProgress < 0.5
-      if (half && cockingSoundStateRef.current === 'idle') {
-        cockingSoundStateRef.current = 'back-played'
-        playCockingBackSound()
-      } else if (!half && cockingSoundStateRef.current === 'back-played') {
-        cockingSoundStateRef.current = 'forward-played'
-        playCockingForwardSound()
-      }
+    // The reload cue only fires once recoil has actually settled —
+    // otherwise it'd play at the same instant as the shot, before any
+    // reload motion is visible, which is the exact overlap this delay
+    // exists to fix.
+    if (weaponPhase === 'cocking' && cockingUntilMs != null && cockingSettled && reloadSoundStateRef.current === 'idle') {
+      reloadSoundStateRef.current = 'played'
+      playReloadSound()
     }
   })
 

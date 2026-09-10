@@ -35,6 +35,7 @@ const {
   applyWeaponRotation,
   cockingSlideAmount,
   computeCockingOffset,
+  computeVisualCockingProgress,
   computeAimRayDirection,
   computeAimQuaternion,
 } = await import('./EquationBlaster')
@@ -178,6 +179,46 @@ describe('cockingSlideAmount', () => {
 
   it('is symmetric around the midpoint (pull-back and return take the same shape)', () => {
     expect(cockingSlideAmount(0.25)).toBeCloseTo(cockingSlideAmount(0.75), 10)
+  })
+})
+
+describe('computeVisualCockingProgress', () => {
+  // Real numbers from the game: a 900ms cocking window, 150ms recoil.
+  const cockingMs = 900
+  const recoilSettleMs = 150
+
+  it('holds at exactly 0 for the entire recoil-settle window — the kick-back plays with no reload motion yet', () => {
+    expect(computeVisualCockingProgress(0, cockingMs, recoilSettleMs)).toBe(0)
+    expect(computeVisualCockingProgress(75, cockingMs, recoilSettleMs)).toBe(0)
+    expect(computeVisualCockingProgress(150, cockingMs, recoilSettleMs)).toBe(0)
+  })
+
+  it('reaches exactly 1 at cockingElapsedMs === cockingMs — no added delay to when the second shot is allowed', () => {
+    expect(computeVisualCockingProgress(cockingMs, cockingMs, recoilSettleMs)).toBe(1)
+  })
+
+  it('is roughly halfway through its own (compressed) window at the midpoint between settle and end', () => {
+    const midpoint = recoilSettleMs + (cockingMs - recoilSettleMs) / 2
+    expect(computeVisualCockingProgress(midpoint, cockingMs, recoilSettleMs)).toBeCloseTo(0.5, 10)
+  })
+
+  it('is monotonically non-decreasing across the whole cocking window', () => {
+    let prev = -Infinity
+    for (let t = 0; t <= cockingMs; t += 15) {
+      const value = computeVisualCockingProgress(t, cockingMs, recoilSettleMs)
+      expect(value).toBeGreaterThanOrEqual(prev)
+      prev = value
+    }
+  })
+
+  it('with zero settle delay, behaves exactly like the un-delayed 0..1 mapping', () => {
+    expect(computeVisualCockingProgress(0, cockingMs, 0)).toBe(0)
+    expect(computeVisualCockingProgress(cockingMs / 2, cockingMs, 0)).toBeCloseTo(0.5, 10)
+    expect(computeVisualCockingProgress(cockingMs, cockingMs, 0)).toBe(1)
+  })
+
+  it('clamps rather than exceeding 1 if elapsed somehow overshoots cockingMs', () => {
+    expect(computeVisualCockingProgress(cockingMs + 500, cockingMs, recoilSettleMs)).toBe(1)
   })
 })
 

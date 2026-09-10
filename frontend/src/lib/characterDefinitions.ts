@@ -84,6 +84,11 @@ export interface CharacterDefinition {
   supportsTint: boolean
   heldProp?: HeldPropInfo
   attribution: CharacterAttribution
+  /** Played once whenever this character spawns into a new wave (see
+   * `ZombieMathBlaster.tsx`'s intro-to-playing transition) — a `.wav` file
+   * in `public/audio/equation-outbreak/zombies/`, played through
+   * `gameAudio.ts`'s generic `playSoundEffect`, same as the weapon cues. */
+  groanSoundUrl: string
 }
 
 /** Every current GLB embeds this exact set of clip names (verified by
@@ -139,6 +144,7 @@ export const SCIENTIST_ZOMBIE: CharacterDefinition = {
   hitbox: MESHY_TEMPLATE_HITBOX,
   answerLabelYOffset: 2.5,
   supportsTint: true,
+  groanSoundUrl: '/audio/equation-outbreak/zombies/groan_scientist.wav',
   attribution: meshyAttribution(
     'frontend/public/models/zombies/equation-outbreak-scientist-rigged.glb',
     '2026-09-09',
@@ -162,6 +168,7 @@ export const HOCKEY_ZOMBIE: CharacterDefinition = {
   answerLabelYOffset: 2.5,
   supportsTint: true,
   heldProp: { label: 'Hockey stick', description: 'Baked into the base mesh — no separate attachable node.' },
+  groanSoundUrl: '/audio/equation-outbreak/zombies/groan_hockey_player.wav',
   attribution: meshyAttribution(
     'frontend/public/models/zombies/equation-outbreak-hockey-rigged.glb',
     '2026-09-10',
@@ -187,6 +194,7 @@ export const SKATER_ZOMBIE: CharacterDefinition = {
   // No `heldProp`: confirmed via the dev POC scene (?screen=zombie-3d-poc)
   // across every clip — despite the filename, this character wears skate
   // gear (beanie, pads, skate shoes) but doesn't actually hold a board.
+  groanSoundUrl: '/audio/equation-outbreak/zombies/groan_skater.wav',
   attribution: meshyAttribution(
     'frontend/public/models/zombies/equation-outbreak-skater-rigged.glb',
     '2026-09-10',
@@ -211,6 +219,7 @@ export const SPORTY_ZOMBIE: CharacterDefinition = {
   supportsTint: true,
   // No `heldProp`: confirmed via the dev POC scene — a backwards cap,
   // backpack straps, and a hoodie, but no held item in either hand.
+  groanSoundUrl: '/audio/equation-outbreak/zombies/groan_sporty.wav',
   attribution: meshyAttribution(
     'frontend/public/models/zombies/equation-outbreak-sporty-rigged.glb',
     '2026-09-10',

@@ -18,6 +18,7 @@ function makeCharacter(id: string, enabled = true): CharacterDefinition {
     hitbox: { headCenterY: 1.4, headRadius: 0.3, torsoCenterY: 0.82, torsoRadius: 0.3, torsoHeight: 0.35 },
     answerLabelYOffset: 2.5,
     supportsTint: true,
+    groanSoundUrl: `/audio/equation-outbreak/zombies/${id}.wav`,
     attribution: { toolOrSource: 'test', license: 'test', licenseUrl: 'test', attributionText: 'test', dateAcquired: '2026-01-01', localPath: 'test' },
   }
 }

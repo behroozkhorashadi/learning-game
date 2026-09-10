@@ -1,25 +1,26 @@
 /**
- * Centralized procedural Web Audio system for Equation Outbreak. Every
- * sound is synthesized at runtime (oscillators, a shared noise buffer, and
- * gain/filter envelopes) — nothing is loaded from a file, so there is
- * nothing here that can fail to *load*; only the AudioContext itself can
- * be unavailable (older browsers, restrictive environments, jsdom in
- * tests), which every exported function treats as a silent no-op.
+ * Centralized Web Audio system for Equation Outbreak. Every cue (the
+ * Equation Blaster's shot/reload, each zombie character's spawn groan)
+ * plays a real recorded `.wav` file, decoded once into an `AudioBuffer` and
+ * cached under `playSoundEffect` — a missing or slow-to-decode file
+ * degrades to silence rather than an error.
  *
  * A single `AudioContext` is created lazily on first use and reused for
  * the lifetime of the page — browsers require a user gesture before audio
- * can actually start, which every caller here already has (a shot or a
- * cock is always the direct result of the player's own click).
- *
- * This module currently implements only the two Equation Blaster sounds
- * (fire, the two halves of cocking) plus mute state. The registry shape
- * (one small exported `play*Sound` function per cue, all going through the
- * same lazy context/mute plumbing) is deliberately how a later task would
- * add zombie groans, defeat stingers, correct/wrong cues, music, or
- * victory/game-over audio — without changing anything exported here.
+ * can actually start, which every caller here already has (a shot, a
+ * reload, and a wave spawning its zombies are all direct results of the
+ * player's own click). Loading of every `.wav` file is kicked off
+ * explicitly via `preloadWeaponAudio`/`preloadZombieAudio` from the same
+ * gesture that starts a session, well before the first shot or the first
+ * wave's spawn can actually happen — decoding an `ArrayBuffer` isn't
+ * instant, and the very first cue of a session shouldn't have a chance of
+ * being silent while it's still loading.
  */
 
 const MUTE_STORAGE_KEY = 'equationOutbreak:audioMuted'
+
+const SHOT_SOUND_URL = '/audio/equation-outbreak/weapons/blaster-shot-01.wav'
+const RELOAD_SOUND_URL = '/audio/equation-outbreak/weapons/blaster-reload-01.wav'
 
 function readMutedPreference(): boolean {
   try {
@@ -40,7 +41,14 @@ function writeMutedPreference(value: boolean): void {
 
 let muted = readMutedPreference()
 let audioContext: AudioContext | null = null
-let noiseBufferCache: AudioBuffer | null = null
+
+/** Decoded buffers, keyed by URL — populated by `preloadWeaponAudio`
+ * (and, as a fallback, lazily by `playBufferedSound` itself if a sound is
+ * ever played before preloading ran). A play call that lands before its
+ * buffer has finished decoding is a silent no-op rather than a queued or
+ * blocking wait — never worth stalling gameplay audio for. */
+const bufferCache = new Map<string, AudioBuffer>()
+const pendingLoads = new Set<string>()
 
 export function isAudioMuted(): boolean {
   return muted
@@ -54,6 +62,16 @@ export function setAudioMuted(value: boolean): void {
 export function toggleAudioMuted(): boolean {
   setAudioMuted(!muted)
   return muted
+}
+
+/** Runs `fn`, swallowing any error — a missing file, a decode failure, or
+ * an unsupported node type must never take gameplay down with it. */
+function safely(fn: () => void): void {
+  try {
+    fn()
+  } catch {
+    // Audio must never break gameplay.
+  }
 }
 
 /** Lazily creates (once) and resumes the shared AudioContext. Never
@@ -74,187 +92,94 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-/** A short cached noise buffer, reused across every shot rather than
- * regenerated each time. */
-function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
-  if (noiseBufferCache && noiseBufferCache.sampleRate === ctx.sampleRate) return noiseBufferCache
-  const duration = 0.3
-  const buffer = ctx.createBuffer(1, Math.max(1, Math.ceil(ctx.sampleRate * duration)), ctx.sampleRate)
-  const data = buffer.getChannelData(0)
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-  noiseBufferCache = buffer
-  return buffer
+function loadBuffer(ctx: AudioContext, url: string): void {
+  if (bufferCache.has(url) || pendingLoads.has(url)) return
+  pendingLoads.add(url)
+  fetch(url)
+    .then((res) => {
+      if (!res.ok) throw new Error(`fetch ${url} -> ${res.status}`)
+      return res.arrayBuffer()
+    })
+    .then((data) => ctx.decodeAudioData(data))
+    .then((decoded) => {
+      bufferCache.set(url, decoded)
+    })
+    .catch(() => {
+      // A missing/corrupt/undecodable file just means this cue stays
+      // silent — never worth breaking gameplay over.
+    })
+    .finally(() => {
+      pendingLoads.delete(url)
+    })
 }
 
-/** Runs `fn`, swallowing any error — a synthesis mistake or an
- * unsupported node type must never take gameplay down with it. */
-function safely(fn: () => void): void {
-  try {
-    fn()
-  } catch {
-    // Audio must never break gameplay.
-  }
+/** Kicks off decoding both weapon `.wav` files — call this once from the
+ * same user-gesture handler that starts a session (well before the intro
+ * beat ends and the first shot becomes possible), not from inside the
+ * play functions themselves, so decode latency never risks a silent first
+ * shot. Safe to call more than once; `loadBuffer` no-ops once a load is
+ * cached or already in flight. */
+export function preloadWeaponAudio(): void {
+  safely(() => {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    loadBuffer(ctx, SHOT_SOUND_URL)
+    loadBuffer(ctx, RELOAD_SOUND_URL)
+  })
 }
 
-/**
- * A brief, child-friendly "science blaster" zap: a short filtered-noise
- * impact, a low electronic pulse, and a quick descending tone, all through
- * one master gain kept conservative — plus a touch of shot-to-shot pitch
- * variation so two shots in a row don't sound identical. Deliberately
- * nothing like a realistic firearm recording, and every gain envelope
- * ramps rather than jumps, so there's no sharp transient.
- */
+/** Same idea as `preloadWeaponAudio`, for the session roster's groan
+ * files — call once per `urls` set from the same start-session gesture,
+ * before the first wave's zombies actually spawn. */
+export function preloadZombieAudio(urls: string[]): void {
+  safely(() => {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    for (const url of urls) loadBuffer(ctx, url)
+  })
+}
+
+/** Plays an already-decoded buffer through its own gain node. Also kicks
+ * off loading if it hasn't happened yet (e.g. the relevant `preload*`
+ * function was never called, or this is a genuinely new cue) — that call
+ * will just be silent this time and ready for the next one. Exported
+ * directly (not just through the `play*Sound` wrappers below) so a future
+ * cue can reuse the same load/cache/mute plumbing without adding another
+ * near-identical wrapper here. */
+export function playSoundEffect(url: string, gain = 0.7): void {
+  if (muted) return
+  safely(() => {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    loadBuffer(ctx, url)
+    const buffer = bufferCache.get(url)
+    if (!buffer) return
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    const gainNode = ctx.createGain()
+    gainNode.gain.value = gain
+    source.connect(gainNode).connect(ctx.destination)
+    source.start(ctx.currentTime)
+  })
+}
+
+/** The Equation Blaster's shot sound. */
 export function playShotSound(): void {
-  if (muted) return
-  safely(() => {
-    const ctx = getAudioContext()
-    if (!ctx) return
-    const now = ctx.currentTime
-    const pitch = 0.94 + Math.random() * 0.12 // ±~6%
-
-    const master = ctx.createGain()
-    master.gain.value = 0.22
-    master.connect(ctx.destination)
-
-    // Brief filtered-noise impact.
-    const noise = ctx.createBufferSource()
-    noise.buffer = getNoiseBuffer(ctx)
-    const noiseFilter = ctx.createBiquadFilter()
-    noiseFilter.type = 'bandpass'
-    noiseFilter.frequency.value = 1800 * pitch
-    noiseFilter.Q.value = 0.8
-    const noiseGain = ctx.createGain()
-    noiseGain.gain.setValueAtTime(0.001, now)
-    noiseGain.gain.linearRampToValueAtTime(0.5, now + 0.005)
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
-    noise.connect(noiseFilter).connect(noiseGain).connect(master)
-    noise.start(now)
-    noise.stop(now + 0.08)
-
-    // Short low electronic pulse.
-    const pulse = ctx.createOscillator()
-    pulse.type = 'square'
-    pulse.frequency.setValueAtTime(180 * pitch, now)
-    const pulseGain = ctx.createGain()
-    pulseGain.gain.setValueAtTime(0.001, now)
-    pulseGain.gain.linearRampToValueAtTime(0.32, now + 0.005)
-    pulseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09)
-    pulse.connect(pulseGain).connect(master)
-    pulse.start(now)
-    pulse.stop(now + 0.1)
-
-    // Quick descending energy tone.
-    const sweep = ctx.createOscillator()
-    sweep.type = 'sawtooth'
-    sweep.frequency.setValueAtTime(1400 * pitch, now + 0.01)
-    sweep.frequency.exponentialRampToValueAtTime(320 * pitch, now + 0.16)
-    const sweepGain = ctx.createGain()
-    sweepGain.gain.setValueAtTime(0.001, now)
-    sweepGain.gain.linearRampToValueAtTime(0.26, now + 0.015)
-    sweepGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
-    sweep.connect(sweepGain).connect(master)
-    sweep.start(now + 0.01)
-    sweep.stop(now + 0.19)
-  })
+  playSoundEffect(SHOT_SOUND_URL, 0.7)
 }
 
-/** The first half of cocking — the left hand racking the pump back: a
- * short filtered-noise slide/friction rasp plus a low mechanical thunk,
- * louder and longer than the original soft click so it actually reads as
- * "reloading" now that the motion driving it is visible. */
-export function playCockingBackSound(): void {
-  if (muted) return
-  safely(() => {
-    const ctx = getAudioContext()
-    if (!ctx) return
-    const now = ctx.currentTime
-    const master = ctx.createGain()
-    master.gain.value = 0.3
-    master.connect(ctx.destination)
-
-    // Mechanical slide/friction rasp — filtered noise sweeping downward.
-    const slide = ctx.createBufferSource()
-    slide.buffer = getNoiseBuffer(ctx)
-    const slideFilter = ctx.createBiquadFilter()
-    slideFilter.type = 'bandpass'
-    slideFilter.Q.value = 1.1
-    slideFilter.frequency.setValueAtTime(1400, now)
-    slideFilter.frequency.exponentialRampToValueAtTime(500, now + 0.14)
-    const slideGain = ctx.createGain()
-    slideGain.gain.setValueAtTime(0.001, now)
-    slideGain.gain.linearRampToValueAtTime(0.4, now + 0.02)
-    slideGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
-    slide.connect(slideFilter).connect(slideGain).connect(master)
-    slide.start(now)
-    slide.stop(now + 0.16)
-
-    // Low mechanical thunk as the pump reaches the back of its travel.
-    const thunk = ctx.createOscillator()
-    thunk.type = 'triangle'
-    thunk.frequency.setValueAtTime(180, now + 0.1)
-    thunk.frequency.exponentialRampToValueAtTime(70, now + 0.2)
-    const thunkGain = ctx.createGain()
-    thunkGain.gain.setValueAtTime(0.001, now + 0.1)
-    thunkGain.gain.linearRampToValueAtTime(0.5, now + 0.11)
-    thunkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24)
-    thunk.connect(thunkGain).connect(master)
-    thunk.start(now + 0.1)
-    thunk.stop(now + 0.25)
-  })
+/** The Equation Blaster's reload sound — one continuous clip covering the
+ * whole cocking motion, played once when the reload actually starts (see
+ * `EquationBlaster.tsx`, after the shot's own recoil has settled), not
+ * split into separate "back"/"forward" cues the way the old procedural
+ * version was. */
+export function playReloadSound(): void {
+  playSoundEffect(RELOAD_SOUND_URL, 0.7)
 }
 
-/** The second half of cocking — the pump slamming forward and locking, plus
- * a short power-up chirp as the weapon becomes ready. Louder/punchier than
- * the original soft click for the same reason as playCockingBackSound. */
-export function playCockingForwardSound(): void {
-  if (muted) return
-  safely(() => {
-    const ctx = getAudioContext()
-    if (!ctx) return
-    const now = ctx.currentTime
-    const master = ctx.createGain()
-    master.gain.value = 0.3
-    master.connect(ctx.destination)
-
-    // Sharp mechanical clunk as the pump locks forward.
-    const clunk = ctx.createOscillator()
-    clunk.type = 'square'
-    clunk.frequency.setValueAtTime(220, now)
-    clunk.frequency.exponentialRampToValueAtTime(90, now + 0.06)
-    const clunkGain = ctx.createGain()
-    clunkGain.gain.setValueAtTime(0.001, now)
-    clunkGain.gain.linearRampToValueAtTime(0.55, now + 0.006)
-    clunkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09)
-    clunk.connect(clunkGain).connect(master)
-    clunk.start(now)
-    clunk.stop(now + 0.1)
-
-    // A brief noise transient layered under the clunk for extra mechanical bite.
-    const snap = ctx.createBufferSource()
-    snap.buffer = getNoiseBuffer(ctx)
-    const snapFilter = ctx.createBiquadFilter()
-    snapFilter.type = 'bandpass'
-    snapFilter.frequency.value = 900
-    snapFilter.Q.value = 0.7
-    const snapGain = ctx.createGain()
-    snapGain.gain.setValueAtTime(0.001, now)
-    snapGain.gain.linearRampToValueAtTime(0.3, now + 0.004)
-    snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
-    snap.connect(snapFilter).connect(snapGain).connect(master)
-    snap.start(now)
-    snap.stop(now + 0.06)
-
-    // Short power-up chirp signaling the weapon is ready to fire again.
-    const chirp = ctx.createOscillator()
-    chirp.type = 'sine'
-    chirp.frequency.setValueAtTime(500, now + 0.08)
-    chirp.frequency.exponentialRampToValueAtTime(1100, now + 0.2)
-    const chirpGain = ctx.createGain()
-    chirpGain.gain.setValueAtTime(0.001, now + 0.08)
-    chirpGain.gain.linearRampToValueAtTime(0.24, now + 0.1)
-    chirpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24)
-    chirp.connect(chirpGain).connect(master)
-    chirp.start(now + 0.08)
-    chirp.stop(now + 0.25)
-  })
+/** A zombie character's spawn groan (`CharacterDefinition.groanSoundUrl`).
+ * Quieter than the weapon cues by default since up to four of these can
+ * play back to back at once when a wave's carriers all spawn together. */
+export function playZombieGroan(url: string): void {
+  playSoundEffect(url, 0.45)
 }

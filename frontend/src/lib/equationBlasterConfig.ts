@@ -127,9 +127,12 @@ export const COCKING_WEAPON_DIP_RADIANS = 0.19
  * per-shot kick is this times the selected weapon's own `recoilStrength`,
  * and its duration comes from that same weapon's `recoilDurationMs` (see
  * `lib/weaponDefinitions.ts`), so recoil *feel* stays a weapon property
- * while these stay this asset's own geometric limits. */
-export const RECOIL_KICK_DISTANCE = 0.05
-export const RECOIL_KICK_PITCH_RADIANS = 0.16
+ * while these stay this asset's own geometric limits. Bumped up from the
+ * original 0.05/0.16 rad, which — combined with the old recoilStrength of
+ * 0.4 — was too small to actually see against the weapon's own large
+ * presentation tilt. */
+export const RECOIL_KICK_DISTANCE = 0.09
+export const RECOIL_KICK_PITCH_RADIANS = 0.32
 
 export const IDLE_SWAY_AMPLITUDE = 0.012
 /** Per-frame `quaternion.slerp` factor the aim-follow uses to smoothly
