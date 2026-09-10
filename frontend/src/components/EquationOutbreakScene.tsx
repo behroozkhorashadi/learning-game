@@ -1,28 +1,39 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { PerspectiveCamera } from '@react-three/drei'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { ZombieCharacter3D, type ZombieClipRole } from './ZombieCharacter3D'
 import { AnswerLabel3D } from './AnswerLabel3D'
 import { MathBlaster3D } from './MathBlaster3D'
+import { ScienceFairEnvironment } from './ScienceFairEnvironment'
+import { LaneDebugOverlay } from './LaneDebugOverlay'
+import { collectRaycastHits } from './EnvironmentCollider'
+import { resolveRaycastOutcome } from '../lib/raycastOutcome'
+import { buildLanes, computeLaneLayout, positionAlongLane, type Lane, type Vec3 } from '../lib/laneNavigation'
 import type { CharacterDefinition } from '../lib/characterDefinitions'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
 import { HIT_REACTION_LOCK_MS, type Carrier, type HitZone, type LastHit } from '../lib/zombieWaveEngine'
 
 /**
- * The fixed-camera 3D shooting-gallery scene. This component (and its
- * children) only render engine state, perform raycasting, and play
- * animations — it never decides whether a shot counts; it just reports what
- * was hit to the parent, which is the only thing allowed to call into
- * `zombieWaveEngine`.
+ * The fixed-camera 3D shooting-gallery scene — now dressed as "Outbreak at
+ * the Science Fair" (see `ScienceFairEnvironment`) — plus the zombies
+ * themselves. This component (and its children) only render engine state,
+ * perform raycasting, and play animations — it never decides whether a
+ * shot counts; it just reports what was hit to the parent, which is the
+ * only thing allowed to call into `zombieWaveEngine`.
  *
  * Raycasting uses React Three Fiber's built-in pointer-event system rather
- * than a hand-rolled `THREE.Raycaster`: each hitbox mesh gets `onPointerDown`,
- * and the `<Canvas>` itself gets `onPointerMissed` for background misses.
- * Both fire from the same real pointer event R3F already tracks, so the
- * crosshair (an HTML overlay sharing the same tracked pointer position) and
- * the raycast are aligned by construction — mouse and touch both work
- * through the same Pointer Events-based mechanism with no special-casing.
+ * than a hand-rolled `THREE.Raycaster`: every hitbox (a zombie's head/body,
+ * or a solid environment prop's invisible collider — see
+ * `EnvironmentCollider.tsx`) is tagged via `userData.raycastKind`, and its
+ * handler calls the same pure `resolveRaycastOutcome` this file's tests and
+ * `raycastOutcome.test.ts` both exercise: whichever tagged object is
+ * nearest along the ray wins, an environment collider in front of a zombie
+ * blocks the shot (treated as a miss — no damage, no telemetry, cooldown
+ * still applies), and untagged/debug geometry never participates. The
+ * `<Canvas>` itself still gets `onPointerMissed` for the "hit literally
+ * nothing" case. Both paths funnel into the same `onHit`/`onMiss` the
+ * parent already uses, so cooldown and telemetry stay single-sourced.
  *
  * Hitboxes are anchored at a fixed local offset within each zombie's own
  * group rather than literally parented to the animated head/torso bones —
@@ -34,18 +45,7 @@ import { HIT_REACTION_LOCK_MS, type Carrier, type HitZone, type LastHit } from '
 
 export type WavePhase = 'intro' | 'playing' | 'frozen'
 
-const LANE_X = [-2.6, -0.9, 0.9, 2.6]
-const SPAWN_Z = -13
-// Camera sits at z=3 (see PerspectiveCamera below) — 0.5 puts the danger
-// line close enough to loom large at contact, instead of the old -2.5 which
-// left a large, flat-feeling gap before "contact."
-const DANGER_Z = 0.5
 const LANE_COLORS = ['#9D57FA', '#144FFF', '#5BCC2D', '#F59E0B']
-
-function laneToPosition(lane: number, distance: number): [number, number, number] {
-  const z = THREE.MathUtils.lerp(SPAWN_Z, DANGER_Z, distance)
-  return [LANE_X[lane] ?? 0, 0, z]
-}
 
 function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3
@@ -61,32 +61,36 @@ function resolveClipRole(carrier: Carrier, phase: WavePhase, reacting: boolean):
 
 interface ZombieInstanceProps {
   carrier: Carrier
+  lane: Lane
   character: CharacterDefinition
   phase: WavePhase
   speedMultiplier: number
   phaseOffsetSeconds: number
   lastHit: LastHit | null
   onHit: (carrierId: string, zone: HitZone) => void
+  onMiss: () => void
 }
 
-function ZombieInstance({ carrier, character, phase, speedMultiplier, phaseOffsetSeconds, lastHit, onHit }: ZombieInstanceProps) {
+function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phaseOffsetSeconds, lastHit, onHit, onMiss }: ZombieInstanceProps) {
   const [reacting, setReacting] = useState(false)
   const groupRef = useRef<THREE.Group>(null!)
 
   // The outer group's position is the sole source of truth for where a
-  // zombie sits along its lane — see `laneToPosition`, driven by the wave
-  // engine's authoritative `carrier.distance`. It's set imperatively (via
+  // zombie sits along its lane — see `positionAlongLane`, driven by the
+  // wave engine's authoritative `carrier.distance` mapped onto this
+  // carrier's lane path (`laneNavigation.ts`). It's set imperatively (via
   // `useFrame` below) rather than as a declarative `position` prop so a
   // knockback's backward push can be eased over `HIT_REACTION_LOCK_MS`
   // instead of teleporting the moment the engine updates `distance`. The
   // skeletal clip itself never moves this group — see `lib/rootMotion.ts`
   // for how `Hit_Reaction`'s baked-in lateral root motion is neutralized so
-  // it can't fight this.
+  // it can't fight this, and never moves it off the lane's own path, so a
+  // knocked-back zombie always stays on the same valid corridor.
   const visualDistanceRef = useRef(carrier.distance)
   const knockbackRef = useRef<{ from: number; startedAt: number } | null>(null)
 
   useLayoutEffect(() => {
-    const [x, y, z] = laneToPosition(carrier.lane, visualDistanceRef.current)
+    const [x, y, z] = positionAlongLane(lane, visualDistanceRef.current)
     groupRef.current.position.set(x, y, z)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -113,7 +117,7 @@ function ZombieInstance({ carrier, character, phase, speedMultiplier, phaseOffse
       if (t >= 1) knockbackRef.current = null
     }
     visualDistanceRef.current = visualDistance
-    const [x, y, z] = laneToPosition(carrier.lane, visualDistance)
+    const [x, y, z] = positionAlongLane(lane, visualDistance)
     groupRef.current.position.set(x, y, z)
   })
 
@@ -122,10 +126,18 @@ function ZombieInstance({ carrier, character, phase, speedMultiplier, phaseOffse
   const canBeHit = carrier.status === 'active'
   const labelColor = LANE_COLORS[carrier.lane % LANE_COLORS.length]
 
-  function handlePointerDown(zone: HitZone) {
-    return (event: ThreeEvent<PointerEvent>) => {
-      event.stopPropagation()
-      onHit(carrier.id, zone)
+  // Both hitbox meshes below share this one handler rather than each
+  // hardcoding their own zone: the true nearest hit (head vs. body, or an
+  // environment collider in front of either) comes from
+  // `resolveRaycastOutcome`, which the two hitboxes could otherwise
+  // disagree with if they geometrically overlap along the ray.
+  function handleHitboxPointerDown(event: ThreeEvent<PointerEvent>) {
+    event.stopPropagation()
+    const outcome = resolveRaycastOutcome(collectRaycastHits(event))
+    if (outcome.type === 'zombie' && outcome.meta) {
+      onHit(outcome.meta.carrierId, outcome.meta.zone)
+    } else if (outcome.type === 'blocked') {
+      onMiss()
     }
   }
 
@@ -141,11 +153,15 @@ function ZombieInstance({ carrier, character, phase, speedMultiplier, phaseOffse
 
       {canBeHit && (
         <>
-          <mesh position={[0, character.hitbox.headCenterY, 0]} onPointerDown={handlePointerDown('head')}>
+          <mesh position={[0, character.hitbox.headCenterY, 0]} userData={{ raycastKind: 'zombie', carrierId: carrier.id, zone: 'head' }} onPointerDown={handleHitboxPointerDown}>
             <sphereGeometry args={[character.hitbox.headRadius, 12, 12]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} />
           </mesh>
-          <mesh position={[0, character.hitbox.torsoCenterY, 0]} onPointerDown={handlePointerDown('body')}>
+          <mesh
+            position={[0, character.hitbox.torsoCenterY, 0]}
+            userData={{ raycastKind: 'zombie', carrierId: carrier.id, zone: 'body' }}
+            onPointerDown={handleHitboxPointerDown}
+          >
             <capsuleGeometry args={[character.hitbox.torsoRadius, character.hitbox.torsoHeight, 4, 8]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} />
           </mesh>
@@ -170,6 +186,10 @@ interface Props {
   reducedMotion: boolean
   recoilSignal: number
   onHit: (carrierId: string, zone: HitZone) => void
+  onMiss: () => void
+  /** Dev-only navigation/collision visualization — see `LaneDebugOverlay`.
+   * Always `false` outside `import.meta.env.DEV`. */
+  debugLanes?: boolean
 }
 
 export function EquationOutbreakScene({
@@ -183,6 +203,8 @@ export function EquationOutbreakScene({
   reducedMotion,
   recoilSignal,
   onHit,
+  onMiss,
+  debugLanes = false,
 }: Props) {
   const phaseOffsets = useRef<Record<string, number>>({})
   for (const carrier of carriers) {
@@ -191,43 +213,43 @@ export function EquationOutbreakScene({
     }
   }
 
+  // Lane spacing (and, mildly, camera FOV) respond to the canvas's own
+  // aspect ratio so all four lanes stay in frame at any viewport size —
+  // see `computeLaneLayout`. This is purely a rendering concern: the wave
+  // engine's `Carrier.lane`/`distance` never change shape here.
+  const { width, height } = useThree((state) => state.size)
+  const aspectRatio = width / height
+  const lanes = useMemo(() => buildLanes(computeLaneLayout(aspectRatio)), [aspectRatio])
+  const fov = THREE.MathUtils.clamp(THREE.MathUtils.lerp(64, 50, (aspectRatio - 0.6) / (1.8 - 0.6)), 50, 64)
+
+  function handleEnvironmentBlocked() {
+    onMiss()
+  }
+
+  const activeCarrierPositions = debugLanes
+    ? carriers.filter((c) => c.status === 'active').map((c) => ({ lane: c.lane, position: positionAlongLane(lanes[c.lane] ?? lanes[0], c.distance) as Vec3 }))
+    : []
+
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 1.55, 3]} fov={55} near={0.1} far={40} />
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[3, 6, 2]} intensity={1.1} castShadow={!reducedMotion} />
-      <hemisphereLight args={['#CBB8F2', '#3B2F5C', 0.5]} />
+      <PerspectiveCamera makeDefault position={[0, 1.55, 3]} fov={fov} near={0.1} far={40} />
 
-      {/* ground */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -6]} receiveShadow>
-        <planeGeometry args={[24, 24]} />
-        <meshStandardMaterial color="#8B7BC9" roughness={0.9} />
-      </mesh>
+      <ScienceFairEnvironment lanes={lanes} reducedMotion={reducedMotion} onBlockedShot={handleEnvironmentBlocked} />
 
-      {/* danger line — a clear player boundary marker */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, DANGER_Z]}>
-        <planeGeometry args={[8, 0.08]} />
-        <meshBasicMaterial color="#FFFFFF" transparent opacity={0.6} />
-      </mesh>
-
-      {/* soft atmospheric backdrop */}
-      <mesh position={[0, 4, SPAWN_Z - 2]}>
-        <planeGeometry args={[30, 14]} />
-        <meshBasicMaterial color="#A98FE0" />
-      </mesh>
-
-      <fog attach="fog" args={['#A98FE0', 8, 22]} />
+      {debugLanes && <LaneDebugOverlay lanes={lanes} activeCarrierPositions={activeCarrierPositions} />}
 
       {carriers.map((carrier) => (
         <ZombieInstance
           key={carrier.id}
           carrier={carrier}
+          lane={lanes[carrier.lane] ?? lanes[0]}
           character={character}
           phase={phase}
           speedMultiplier={speedMultiplier}
           phaseOffsetSeconds={phaseOffsets.current[carrier.id] ?? 0}
           lastHit={lastHit}
           onHit={onHit}
+          onMiss={onMiss}
         />
       ))}
 

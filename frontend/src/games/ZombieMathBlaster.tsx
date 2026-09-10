@@ -85,6 +85,13 @@ function factText(payload: FactPayload): string {
   return `${payload.left} ${payload.operator} ${payload.right} = ${payload.answer}`
 }
 
+/** `?debugLanes=1`, dev-build-only — shows `LaneDebugOverlay`'s navigation
+ * and collision wireframes. Never true in a production build, regardless
+ * of URL, since `import.meta.env.DEV` is statically false there. Read once
+ * at module scope rather than via a hook — this is a static dev toggle for
+ * the whole session, not state that changes while playing. */
+const DEBUG_LANES_ENABLED = import.meta.env.DEV && new URLSearchParams(window.location.search).get('debugLanes') === '1'
+
 function buildConfig(item: Item): WaveConfig {
   const payload = factPayload(item)
   return {
@@ -405,6 +412,8 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
                   reducedMotion={reducedMotion}
                   recoilSignal={recoilSignal}
                   onHit={handleHit}
+                  onMiss={handleMiss}
+                  debugLanes={DEBUG_LANES_ENABLED}
                 />
               </Suspense>
             </Canvas>
