@@ -10,7 +10,7 @@ import { LaneDebugOverlay } from './LaneDebugOverlay'
 import { collectRaycastHits } from './EnvironmentCollider'
 import { resolveRaycastOutcome } from '../lib/raycastOutcome'
 import { buildLanes, computeLaneLayout, positionAlongLane, type Lane, type Vec3 } from '../lib/laneNavigation'
-import type { CharacterDefinition } from '../lib/characterDefinitions'
+import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '../lib/characterDefinitions'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
 import { HIT_REACTION_LOCK_MS, type Carrier, type HitZone, type LastHit } from '../lib/zombieWaveEngine'
 
@@ -177,7 +177,11 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
 
 interface Props {
   carriers: Carrier[]
-  character: CharacterDefinition
+  /** This wave's character for each lane (index 0..3) — chosen by
+   * `ZombieMathBlaster` from the session roster (`lib/zombieRoster.ts`),
+   * shuffled per wave. Never a single shared character: which model a lane
+   * gets is purely a rendering choice the wave engine has no opinion on. */
+  charactersByLane: CharacterDefinition[]
   weapon: WeaponDefinition
   phase: WavePhase
   speedMultiplier: number
@@ -194,7 +198,7 @@ interface Props {
 
 export function EquationOutbreakScene({
   carriers,
-  character,
+  charactersByLane,
   weapon,
   phase,
   speedMultiplier,
@@ -243,7 +247,7 @@ export function EquationOutbreakScene({
           key={carrier.id}
           carrier={carrier}
           lane={lanes[carrier.lane] ?? lanes[0]}
-          character={character}
+          character={charactersByLane[carrier.lane] ?? SCIENTIST_ZOMBIE}
           phase={phase}
           speedMultiplier={speedMultiplier}
           phaseOffsetSeconds={phaseOffsets.current[carrier.id] ?? 0}

@@ -3,8 +3,9 @@ import * as THREE from 'three'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { CharacterDefinition } from '../lib/characterDefinitions'
-import { SCIENTIST_ZOMBIE } from '../lib/characterDefinitions'
+import { ZOMBIE_CHARACTER_REGISTRY } from '../lib/characterDefinitions'
 import { neutralizeHorizontalRootMotion } from '../lib/rootMotion'
+import { resolveZombieClip } from '../lib/zombieAnimationFallback'
 
 /**
  * Reusable GLB-based character renderer for Equation Outbreak. Takes a
@@ -31,8 +32,20 @@ type OneShotRole = 'hitReact' | 'deadHeadshot' | 'deadBody' | 'reach'
 const ONE_SHOT_ROLES: OneShotRole[] = ['hitReact', 'deadHeadshot', 'deadBody', 'reach']
 
 const CROSSFADE_SECONDS = 0.15
+// A missing/stationary-pose fallback for a one-shot role still needs to
+// eventually "finish" so gameplay flow (e.g. clearing the hit-reaction
+// flag) doesn't wait forever on a mixer 'finished' event that will never
+// fire because nothing was ever played. Roughly matches a short reaction
+// beat rather than the real clips' actual (longer) durations.
+const STATIONARY_FALLBACK_MS = 350
 
-useGLTF.preload(SCIENTIST_ZOMBIE.modelUrl)
+// Every enabled registry entry is preloaded once, at module load — not
+// just whichever character happens to be rendered first — so a session
+// roster of any four (of what will eventually be 20+) enabled characters
+// never pays a load stall mid-game the first time a given one appears.
+for (const character of ZOMBIE_CHARACTER_REGISTRY) {
+  if (character.enabled) useGLTF.preload(character.modelUrl)
+}
 
 export interface ZombieBones {
   head: THREE.Object3D | null
@@ -73,8 +86,12 @@ export function ZombieCharacter3D({ character, clipRole, speed = 1, phaseOffsetS
   const onClipFinishedRef = useRef(onClipFinished)
   onClipFinishedRef.current = onClipFinished
 
-  const clipName = character.clips[clipRole]
+  const configuredClipName = character.clips[clipRole]
   const isOneShot = ONE_SHOT_ROLES.includes(clipRole as OneShotRole)
+  // Stable across renders (same `animations` array reference from the GLTF
+  // cache) so it's safe as an effect dependency without re-triggering the
+  // clip-switch effect every render.
+  const availableClipNames = useMemo(() => animations.map((clip) => clip.name), [animations])
 
   // Resolve head/torso bones once per clone, not per render.
   useEffect(() => {
@@ -90,8 +107,30 @@ export function ZombieCharacter3D({ character, clipRole, speed = 1, phaseOffsetS
   }, [cloned])
 
   useEffect(() => {
+    const { clipName, usedFallback } = resolveZombieClip(configuredClipName, clipRole, availableClipNames)
+    if (usedFallback) {
+      console.warn(
+        `[ZombieCharacter3D] "${character.displayName}" (${character.id}) is missing animation "${configuredClipName}" for role "${clipRole}"` +
+          (clipName ? ` — falling back to "${clipName}".` : ' — no usable animation found, holding a stationary pose.'),
+      )
+    }
+
+    if (!clipName) {
+      // Stationary-pose fallback: nothing to play. One-shot roles still
+      // need to "finish" on their own schedule so gameplay flow (e.g. the
+      // hit-reaction flag) doesn't wait forever on a mixer event that will
+      // never fire because no action was ever started.
+      activeClipRef.current = null
+      if (isOneShot) {
+        const timer = setTimeout(() => onClipFinishedRef.current?.(), STATIONARY_FALLBACK_MS)
+        return () => clearTimeout(timer)
+      }
+      return undefined
+    }
+
     const action = actions[clipName]
-    if (!action) return
+    if (!action) return undefined
+
     const previousName = activeClipRef.current
     const previous = previousName && previousName !== clipName ? actions[previousName] : null
 
@@ -116,13 +155,13 @@ export function ZombieCharacter3D({ character, clipRole, speed = 1, phaseOffsetS
     }
     return undefined
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actions, clipName, isOneShot, mixer])
+  }, [actions, configuredClipName, clipRole, availableClipNames, isOneShot, mixer])
 
   // Playback speed can change independently of clip (wave acceleration).
   useEffect(() => {
-    const action = actions[clipName]
+    const action = activeClipRef.current ? actions[activeClipRef.current] : undefined
     if (action) action.timeScale = speed
-  }, [actions, clipName, speed])
+  }, [actions, speed])
 
   return (
     <group ref={group} scale={character.scale} position-y={character.yOffset} rotation-y={character.rotationYRadians}>

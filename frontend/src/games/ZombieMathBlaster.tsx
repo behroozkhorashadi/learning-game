@@ -6,7 +6,8 @@ import { RatingPrompt } from '../components/RatingPrompt'
 import { SessionComplete } from '../components/SessionComplete'
 import { SessionStart } from '../components/SessionStart'
 import { EquationOutbreakScene } from '../components/EquationOutbreakScene'
-import { SCIENTIST_ZOMBIE } from '../lib/characterDefinitions'
+import { ZOMBIE_CHARACTER_REGISTRY, type CharacterDefinition } from '../lib/characterDefinitions'
+import { selectSessionRoster, shuffle } from '../lib/zombieRoster'
 import { STARTER_BLASTER } from '../lib/weaponDefinitions'
 import { usePrefersReducedMotion } from '../lib/reducedMotion'
 import {
@@ -39,7 +40,12 @@ import {
 const GAME_ID = 'fact_fluency'
 const SESSION_LENGTH = 5
 const STARTING_LIVES = 3
-const CHARACTER = SCIENTIST_ZOMBIE
+// Every wave spawns exactly four carriers (zombieWaveEngine.createWave takes
+// exactly four CarrierOptions from the item payload) — the roster matches
+// that today. Growing the character registry past four enabled entries
+// does not change this: selectSessionRoster still returns four uniques,
+// chosen from whatever's enabled.
+const ROSTER_SIZE = 4
 const WEAPON = STARTER_BLASTER
 const WRONG_HIT_SPEED_BOOST = 0.18
 // How much a non-final body shot pushes the hit zombie back along its lane,
@@ -120,10 +126,18 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   const [aimNdc, setAimNdc] = useState<{ x: number; y: number } | null>(null)
   const [recoilSignal, setRecoilSignal] = useState(0)
   const [liveMessage, setLiveMessage] = useState('')
+  // This wave's character for each lane (index 0..3) — a shuffled view of
+  // the session roster below, recomputed once per wave (not per render).
+  const [waveCharacters, setWaveCharacters] = useState<CharacterDefinition[]>([])
 
   const reducedMotion = usePrefersReducedMotion()
 
   const phaseRef = useRef(phase)
+  // The four characters for the whole session — selected once per session
+  // (see `startSession`), reused by every wave in it. A ref, not state:
+  // nothing renders directly from this — only `waveCharacters` (its
+  // per-wave lane shuffle) is ever passed to the scene.
+  const rosterRef = useRef<CharacterDefinition[]>([])
   const waveRef = useRef<WaveState | null>(null)
   const configRef = useRef<WaveConfig>({
     approachMs: 6000,
@@ -178,6 +192,10 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
       lastFrameRef.current = null
       waveRef.current = newWave
       setWave(newWave)
+      // One instance of each roster member every wave — shuffling only
+      // decides which lane each sits in, never which four characters
+      // appear (that's fixed for the whole session; see `startSession`).
+      setWaveCharacters(shuffle(rosterRef.current))
       setPhase('playing')
     }, INTRO_MS)
     return () => clearTimeout(timer)
@@ -336,6 +354,10 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     setSolvedFacts([])
     setRatingHandled(false)
     fetchedForSessionRef.current = null
+    // A brand-new session (first Start, or Try Again via playAgainSession)
+    // always gets a fresh random roster — see the module docstring in
+    // lib/zombieRoster.ts. Moving to the next question never calls this.
+    rosterRef.current = selectSessionRoster(ZOMBIE_CHARACTER_REGISTRY, ROSTER_SIZE)
     setPhase('playing')
   }
 
@@ -403,7 +425,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
               <Suspense fallback={null}>
                 <EquationOutbreakScene
                   carriers={wave?.carriers ?? []}
-                  character={CHARACTER}
+                  charactersByLane={waveCharacters}
                   weapon={WEAPON}
                   phase={wavePhaseForScene}
                   speedMultiplier={wave?.speedMultiplier ?? 1}
