@@ -18,6 +18,28 @@ interface Props {
   onSelect: (profile: Profile) => void
 }
 
+/** `profile.avatar` is a bare key (e.g. `"fox"`, `"rami"`), not a path —
+ * this looks it up under `/images/avatars/<avatar>.png` and falls back to
+ * the profile's own initial (the picker's original look) if that key has
+ * no real art yet, the same `onError`-driven pattern `SessionStart.tsx`'s
+ * `HeroArt` already uses for missing badge art. */
+function ProfileAvatar({ avatar, name }: { avatar: string; name: string }) {
+  const [broken, setBroken] = useState(false)
+
+  if (broken) {
+    return <>{name.charAt(0).toUpperCase()}</>
+  }
+
+  return (
+    <img
+      src={`/images/avatars/${avatar}.png`}
+      alt=""
+      onError={() => setBroken(true)}
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+    />
+  )
+}
+
 export function ProfilePicker({ onSelect }: Props) {
   const [profiles, setProfiles] = useState<Profile[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +79,7 @@ export function ProfilePicker({ onSelect }: Props) {
               >
                 <div style={{ width: 150, height: 150, borderRadius: 9999, padding: 6, background: theme.ring, boxShadow: `0 8px 0 ${theme.lip}`, boxSizing: 'border-box' }}>
                   <div style={{ width: '100%', height: '100%', borderRadius: 9999, overflow: 'hidden', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 52, color: theme.text }}>
-                    {p.name.charAt(0).toUpperCase()}
+                    <ProfileAvatar avatar={p.avatar} name={p.name} />
                   </div>
                 </div>
                 <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: 'var(--fg-primary)' }}>{p.name}</span>

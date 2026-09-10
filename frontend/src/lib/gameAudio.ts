@@ -1,18 +1,22 @@
 /**
- * Centralized Web Audio system for Equation Outbreak. Every cue (the
- * Equation Blaster's shot/reload, each zombie character's spawn groan)
- * plays a real recorded `.wav` file, decoded once into an `AudioBuffer` and
- * cached under `playSoundEffect` — a missing or slow-to-decode file
- * degrades to silence rather than an error.
+ * Centralized Web Audio system for Equation Outbreak. Every one-shot cue
+ * (the Equation Blaster's shot/reload, each zombie character's spawn
+ * groan, the body-shot impact) plays a real recorded `.wav` file, decoded
+ * once into an `AudioBuffer` and cached under `playSoundEffect` — a
+ * missing or slow-to-decode file degrades to silence rather than an
+ * error. The gameplay music bed is the one long-running exception —
+ * `startGameplayMusic`/`stopGameplayMusic` manage a single looping
+ * `AudioBufferSourceNode` through its own gain node instead.
  *
  * A single `AudioContext` is created lazily on first use and reused for
  * the lifetime of the page — browsers require a user gesture before audio
  * can actually start, which every caller here already has (a shot, a
- * reload, and a wave spawning its zombies are all direct results of the
- * player's own click). Loading of every `.wav` file is kicked off
- * explicitly via `preloadWeaponAudio`/`preloadZombieAudio` from the same
- * gesture that starts a session, well before the first shot or the first
- * wave's spawn can actually happen — decoding an `ArrayBuffer` isn't
+ * reload, a wave spawning its zombies, and starting a session's music are
+ * all direct results of the player's own click). Loading of every `.wav`
+ * file is kicked off explicitly via `preloadWeaponAudio`/
+ * `preloadZombieAudio`/`preloadGameplayMusic` from the same gesture that
+ * starts a session, well before the first shot, the first wave's spawn, or
+ * the music itself can actually happen — decoding an `ArrayBuffer` isn't
  * instant, and the very first cue of a session shouldn't have a chance of
  * being silent while it's still loading.
  */
@@ -21,6 +25,10 @@ const MUTE_STORAGE_KEY = 'equationOutbreak:audioMuted'
 
 const SHOT_SOUND_URL = '/audio/equation-outbreak/weapons/blaster-shot-01.wav'
 const RELOAD_SOUND_URL = '/audio/equation-outbreak/weapons/blaster-reload-01.wav'
+const ZOMBIE_HIT_SOUND_URL = '/audio/equation-outbreak/zombies/zombie-hit.wav'
+const ZOMBIE_ATTACK_SOUND_URL = '/audio/equation-outbreak/zombies/zombie-attack.wav'
+const GAMEPLAY_MUSIC_URL = '/audio/equation-outbreak/music/gameplay_music.wav'
+const GAMEPLAY_MUSIC_VOLUME = 0.35
 
 function readMutedPreference(): boolean {
   try {
@@ -42,6 +50,13 @@ function writeMutedPreference(value: boolean): void {
 let muted = readMutedPreference()
 let audioContext: AudioContext | null = null
 
+/** The currently-playing gameplay-music loop, if any — `null` whenever no
+ * round is in progress. Tracked so `startGameplayMusic` can no-op instead
+ * of restarting the loop from the beginning on every wave transition, and
+ * so `stopGameplayMusic`/mute-toggling has something to act on. */
+let musicSource: AudioBufferSourceNode | null = null
+let musicGain: GainNode | null = null
+
 /** Decoded buffers, keyed by URL — populated by `preloadWeaponAudio`
  * (and, as a fallback, lazily by `playBufferedSound` itself if a sound is
  * ever played before preloading ran). A play call that lands before its
@@ -57,6 +72,13 @@ export function isAudioMuted(): boolean {
 export function setAudioMuted(value: boolean): void {
   muted = value
   writeMutedPreference(value)
+  // One-shot cues (shots, groans, reload) just check `muted` at the instant
+  // they're triggered — fine, since they're instant. The gameplay music
+  // loop is long-running, so toggling mute needs to affect it live rather
+  // than only the *next* time it happens to (re)start.
+  if (musicGain) {
+    musicGain.gain.value = value ? 0 : GAMEPLAY_MUSIC_VOLUME
+  }
 }
 
 export function toggleAudioMuted(): boolean {
@@ -113,18 +135,21 @@ function loadBuffer(ctx: AudioContext, url: string): void {
     })
 }
 
-/** Kicks off decoding both weapon `.wav` files — call this once from the
- * same user-gesture handler that starts a session (well before the intro
- * beat ends and the first shot becomes possible), not from inside the
- * play functions themselves, so decode latency never risks a silent first
- * shot. Safe to call more than once; `loadBuffer` no-ops once a load is
- * cached or already in flight. */
+/** Kicks off decoding every shot-related `.wav` file (the weapon's own shot
+ * and reload, plus the shared body-shot impact and zombie-attack cues) —
+ * call this once from the same user-gesture handler that starts a session
+ * (well before the intro beat ends and the first shot becomes possible),
+ * not from inside the play functions themselves, so decode latency never
+ * risks a silent first shot. Safe to call more than once; `loadBuffer`
+ * no-ops once a load is cached or already in flight. */
 export function preloadWeaponAudio(): void {
   safely(() => {
     const ctx = getAudioContext()
     if (!ctx) return
     loadBuffer(ctx, SHOT_SOUND_URL)
     loadBuffer(ctx, RELOAD_SOUND_URL)
+    loadBuffer(ctx, ZOMBIE_HIT_SOUND_URL)
+    loadBuffer(ctx, ZOMBIE_ATTACK_SOUND_URL)
   })
 }
 
@@ -182,4 +207,76 @@ export function playReloadSound(): void {
  * play back to back at once when a wave's carriers all spawn together. */
 export function playZombieGroan(url: string): void {
   playSoundEffect(url, 0.45)
+}
+
+/** The impact cue for a landed *body* shot — deliberately not played for a
+ * headshot (see `ZombieMathBlaster.tsx`'s hit-feedback effect, which gates
+ * this on `wave.lastHit.zone === 'body'`), and independent of whether the
+ * shot was correct or wrong: it's a physical "that hit" cue, not an
+ * answer-correctness one — the separate correct/wrong feedback already
+ * covers that. */
+export function playZombieHitSound(): void {
+  playSoundEffect(ZOMBIE_HIT_SOUND_URL, 0.6)
+}
+
+/** Plays when a zombie reaches the player and swipes at them (`resolutionReason
+ * === 'player_contact'` — see `ZombieMathBlaster.tsx`), alongside the
+ * existing strong screen-shake/vignette feedback for that same event. */
+export function playZombieAttackSound(): void {
+  playSoundEffect(ZOMBIE_ATTACK_SOUND_URL, 0.7)
+}
+
+/** Kicks off decoding the gameplay music loop — call once from the
+ * start-session gesture, same reasoning as `preloadWeaponAudio`. */
+export function preloadGameplayMusic(): void {
+  safely(() => {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    loadBuffer(ctx, GAMEPLAY_MUSIC_URL)
+  })
+}
+
+/**
+ * Starts the looping gameplay-music bed if it isn't already playing.
+ * Deliberately idempotent — `ZombieMathBlaster.tsx` calls this on every
+ * phase change for as long as a round is in progress (so the music
+ * survives each wave transition, per that component's own docstring),
+ * and this must never restart the loop from the beginning on those calls,
+ * only on a genuinely new round after `stopGameplayMusic`.
+ *
+ * If the buffer hasn't finished decoding yet, this is a silent no-op —
+ * the next phase change within the round will retry, and by then it's
+ * almost certainly ready (decoding started at session-start, well before
+ * the first wave).
+ */
+export function startGameplayMusic(): void {
+  if (musicSource) return
+  safely(() => {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    loadBuffer(ctx, GAMEPLAY_MUSIC_URL)
+    const buffer = bufferCache.get(GAMEPLAY_MUSIC_URL)
+    if (!buffer) return
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    const gain = ctx.createGain()
+    gain.gain.value = muted ? 0 : GAMEPLAY_MUSIC_VOLUME
+    source.connect(gain).connect(ctx.destination)
+    source.start(ctx.currentTime)
+    musicSource = source
+    musicGain = gain
+  })
+}
+
+/** Stops the gameplay-music loop — call when a round ends (win or loss) or
+ * the player leaves back to a menu screen. Safe to call even if nothing is
+ * playing. */
+export function stopGameplayMusic(): void {
+  safely(() => {
+    musicSource?.stop()
+    musicSource?.disconnect()
+  })
+  musicSource = null
+  musicGain = null
 }

@@ -43,6 +43,20 @@ vi.mock(
     }) as Record<string, unknown>,
 )
 
+const { playZombieHitSound } = vi.hoisted(() => ({ playZombieHitSound: vi.fn() }))
+vi.mock('../lib/gameAudio', () => ({
+  isAudioMuted: vi.fn(() => false),
+  toggleAudioMuted: vi.fn(() => false),
+  preloadWeaponAudio: vi.fn(),
+  preloadZombieAudio: vi.fn(),
+  preloadGameplayMusic: vi.fn(),
+  startGameplayMusic: vi.fn(),
+  stopGameplayMusic: vi.fn(),
+  playZombieGroan: vi.fn(),
+  playZombieHitSound,
+  playZombieAttackSound: vi.fn(),
+}))
+
 const ROUNDS = [
   { answer: 7, options: [6, 7, 8, 5] },
   { answer: 9, options: [9, 10, 8, 11] },
@@ -239,4 +253,54 @@ describe('ZombieMathBlaster — answer-feedback visuals', () => {
     },
     15000,
   )
+})
+
+describe('ZombieMathBlaster — zombie-hit impact sound', () => {
+  beforeEach(() => {
+    mockFetchSequence(ROUNDS)
+    playZombieHitSound.mockClear()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  it('plays the impact sound for a correct body shot', async () => {
+    render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
+    await start()
+
+    await bodyshot(ROUNDS[0].answer)
+    expect(playZombieHitSound).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not play the impact sound for a correct headshot', async () => {
+    render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
+    await start()
+
+    await headshot(ROUNDS[0].answer)
+    expect(playZombieHitSound).not.toHaveBeenCalled()
+  })
+
+  it('plays the impact sound for a wrong body shot too — it is not gated on correctness', async () => {
+    render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
+    await start()
+
+    const round = ROUNDS[0]
+    const wrongValue = round.options.find((v) => v !== round.answer)!
+    await bodyshot(wrongValue)
+
+    expect(playZombieHitSound).toHaveBeenCalledTimes(1)
+  })
+
+  it('never plays the impact sound for a headshot, even a wrong one', async () => {
+    render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
+    await start()
+
+    const round = ROUNDS[0]
+    const wrongValue = round.options.find((v) => v !== round.answer)!
+    await headshot(wrongValue)
+
+    expect(playZombieHitSound).not.toHaveBeenCalled()
+  })
 })

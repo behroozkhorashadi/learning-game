@@ -13,9 +13,10 @@
   child records — generated art, coach revision passes, Style Remix Lab
   versions, and Tag-Team Story turns, respectively.
 
-No accounts/auth (PRD §2 non-goals). A single demo profile is seeded on startup
-so there's something to point the frontend and curl at; real profile
-management (creation/editing) is out of scope here.
+No accounts/auth (PRD §2 non-goals). A demo profile plus one hardcoded real
+tester profile are seeded on startup so there's something to point the
+frontend and curl at; real profile management (creation/editing) is out of
+scope here.
 """
 
 from contextlib import asynccontextmanager
@@ -66,7 +67,7 @@ from app.services.loop_a_service import choose_next_item_level, process_attempt
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     create_db_and_tables()
     with Session(engine) as session:
-        _seed_demo_profile(session)
+        _seed_test_profiles(session)
         seed_badges(session)
     yield
 
@@ -84,10 +85,17 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-def _seed_demo_profile(session: Session) -> None:
+def _seed_test_profiles(session: Session) -> None:
     if session.get(Profile, 1) is None:
         session.add(Profile(id=1, name="Demo Kid", avatar="fox", birth_year=2020))
-        session.commit()
+    # A real named tester (the developer's nephew) hardcoded alongside the
+    # demo profile — id=2 is stable so his attempts/badges/session history
+    # persist across restarts instead of being re-seeded from scratch. Only
+    # `birth_year` is stored (see Profile.age's own docstring on why), so
+    # his Oct 22, 2019 birthday is captured as precisely as the schema allows.
+    if session.get(Profile, 2) is None:
+        session.add(Profile(id=2, name="Rami", avatar="rami", birth_year=2019))
+    session.commit()
 
 
 @app.get("/api/profiles", response_model=list[Profile])

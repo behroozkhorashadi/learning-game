@@ -13,7 +13,18 @@ import { ZOMBIE_CHARACTER_REGISTRY, type CharacterDefinition } from '../lib/char
 import { selectSessionRoster, shuffle } from '../lib/zombieRoster'
 import { STARTER_BLASTER } from '../lib/weaponDefinitions'
 import { usePrefersReducedMotion } from '../lib/reducedMotion'
-import { isAudioMuted, playZombieGroan, preloadWeaponAudio, preloadZombieAudio, toggleAudioMuted } from '../lib/gameAudio'
+import {
+  isAudioMuted,
+  playZombieAttackSound,
+  playZombieGroan,
+  playZombieHitSound,
+  preloadGameplayMusic,
+  preloadWeaponAudio,
+  preloadZombieAudio,
+  startGameplayMusic,
+  stopGameplayMusic,
+  toggleAudioMuted,
+} from '../lib/gameAudio'
 import {
   applyHit,
   canShoot,
@@ -58,6 +69,11 @@ const WRONG_HIT_SPEED_BOOST = 0.18
 const INTRO_MS = 1100
 const SOLVED_DELAY_MS = 700
 const CONTACT_HOLD_MS = 700
+// The "reach" clip's actual swipe lands partway through it, not at frame
+// 0 — this is a first-pass estimate (roughly two-thirds of the contact
+// hold) for when the zombie's hand actually connects; nudge it if the
+// sound and the swipe visually drift apart.
+const ZOMBIE_ATTACK_SOUND_DELAY_MS = 450
 const IMPACT_SHAKE_MS = 200
 const IMPACT_SETTLE_MS = 400
 const IMPACT_TO_FROZEN_MS = 800
@@ -201,6 +217,25 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     waveRef.current = wave
   }, [wave])
 
+  // Gameplay music plays for the whole round (every wave, including the
+  // brief "loading next equation" gap between them) and stops the moment
+  // the round ends, win or lose, or the player leaves back to a menu
+  // screen. `startGameplayMusic` is idempotent — it only actually
+  // (re)starts the loop the first time a round begins, not on every one of
+  // these phase changes.
+  useEffect(() => {
+    const roundInProgress = phase !== 'start' && phase !== 'complete' && phase !== 'game_over'
+    if (roundInProgress) {
+      startGameplayMusic()
+    } else {
+      stopGameplayMusic()
+    }
+  }, [phase])
+  // Unmount safety net — e.g. the player clicks "Back" mid-round, which
+  // unmounts this component without ever passing through 'complete'/
+  // 'game_over'.
+  useEffect(() => stopGameplayMusic, [])
+
   function triggerFeedback(kind: FeedbackKind) {
     feedbackIdRef.current += 1
     setFeedbackEvent({ kind, id: feedbackIdRef.current })
@@ -226,6 +261,12 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   // unrelated render of the same `wave` object.
   useEffect(() => {
     if (!wave?.lastHit) return
+    // A physical "that hit" cue for a landed body shot — independent of
+    // correct/wrong (that's what the feedback pulses below are for), and
+    // deliberately silent on a headshot.
+    if (wave.lastHit.zone === 'body') {
+      playZombieHitSound()
+    }
     if (wave.lastHit.correct) {
       triggerFeedback('correctHit')
       return
@@ -376,8 +417,14 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
       // so "what just happened" is represented consistently for all three
       // kinds, not just the two auto-clearing ones.
       triggerFeedback('playerAttacked')
-      const timer = setTimeout(() => setPhase('impact'), CONTACT_HOLD_MS)
-      return () => clearTimeout(timer)
+      // Delayed to land with the swipe itself, not the moment contact is
+      // resolved — see ZOMBIE_ATTACK_SOUND_DELAY_MS.
+      const soundTimer = setTimeout(() => playZombieAttackSound(), ZOMBIE_ATTACK_SOUND_DELAY_MS)
+      const phaseTimer = setTimeout(() => setPhase('impact'), CONTACT_HOLD_MS)
+      return () => {
+        clearTimeout(soundTimer)
+        clearTimeout(phaseTimer)
+      }
     }
     setPhase('impact')
     setLiveMessage('Too many wrong targets!')
@@ -447,6 +494,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     // beat ends and the first shot is even possible, rather than lazily
     // inside the first playShotSound() call itself.
     preloadWeaponAudio()
+    preloadGameplayMusic()
     setLives(STARTING_LIVES)
     setSolvedFacts([])
     setRatingHandled(false)

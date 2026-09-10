@@ -123,6 +123,8 @@ describe('audio playback safety', () => {
     expect(() => audio.playShotSound()).not.toThrow()
     expect(() => audio.playReloadSound()).not.toThrow()
     expect(() => audio.playZombieGroan('/audio/equation-outbreak/zombies/groan_scientist.wav')).not.toThrow()
+    expect(() => audio.playZombieHitSound()).not.toThrow()
+    expect(() => audio.playZombieAttackSound()).not.toThrow()
     expect(() => audio.playSoundEffect('/anything.wav')).not.toThrow()
   })
 
@@ -206,8 +208,9 @@ describe('audio playback safety', () => {
     audio.preloadWeaponAudio()
     await flushLoadChain()
 
-    // Two distinct files (shot + reload) — not one call per preload call.
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    // Four distinct files (shot + reload + zombie-hit + zombie-attack) —
+    // not one call per preload call.
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('plays the decoded buffer once loading completes, without re-fetching on a later call', async () => {
@@ -224,7 +227,7 @@ describe('audio playback safety', () => {
     audio.playShotSound()
 
     // Still exactly one fetch per URL — playing doesn't re-trigger loading.
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('a shot fired before its buffer has finished decoding is a silent no-op, not a throw or a queued play', async () => {
