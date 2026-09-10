@@ -17,6 +17,7 @@ import { IllustrationReveal, IllustrationArrival } from '../components/Illustrat
 import { Storybook } from '../components/Storybook'
 import { StorybookEntryCard } from '../components/StorybookEntryCard'
 import { ZombiePOCScene } from './ZombiePOCScene'
+import { WeaponPOCScene } from './WeaponPOCScene'
 import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
 import type { Profile } from '../types/generated'
 
@@ -163,6 +164,11 @@ const SCREENS: ScreenEntry[] = [
     id: 'zombie-3d-poc',
     label: 'Equation Outbreak 3D character POC',
     render: () => <ZombiePOCScene />,
+  },
+  {
+    id: 'weapon-3d-poc',
+    label: 'Equation Outbreak weapon-assembly POC',
+    render: () => <WeaponPOCScene />,
   },
   {
     id: 'equation-outbreak-live',

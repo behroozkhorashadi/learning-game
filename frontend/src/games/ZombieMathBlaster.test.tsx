@@ -106,8 +106,10 @@ async function bodyshot(value: number) {
   fireEvent.click(button)
 }
 
+// Longer than STARTER_BLASTER.cockingMs (900ms) — a wrong first shot begins
+// a real, non-fireable cocking window before the second shot is accepted.
 async function waitCooldown() {
-  await new Promise((resolve) => setTimeout(resolve, 650))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
 }
 
 describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {

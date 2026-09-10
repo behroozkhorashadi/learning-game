@@ -17,22 +17,31 @@ interface Props {
 export function AnswerLabel3D({ value, color, hidden }: Props) {
   if (hidden) return null
   return (
-    <Html center distanceFactor={6} zIndexRange={[10, 0]} occlude={false} pointerEvents="none">
+    // Anchored by its bottom edge (rather than `center`) so the whole bubble
+    // sits above `answerLabelYOffset` instead of straddling it — it never
+    // dips down into the zombie's head regardless of bubble size.
+    <Html
+      distanceFactor={10}
+      zIndexRange={[10, 0]}
+      occlude={false}
+      pointerEvents="none"
+      style={{ transform: 'translate(-50%, -100%)' }}
+    >
       <div
         aria-hidden="true"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minWidth: 44,
-          height: 44,
-          padding: '0 12px',
+          minWidth: 56,
+          height: 56,
+          padding: '0 14px',
           borderRadius: 9999,
           background: '#FFFFFF',
           border: `3px solid ${color}`,
           fontFamily: 'var(--font-display)',
           fontWeight: 800,
-          fontSize: 22,
+          fontSize: 28,
           color: '#2A2E37',
           boxShadow: '0 4px 10px rgba(0,13,51,0.35)',
           whiteSpace: 'nowrap',

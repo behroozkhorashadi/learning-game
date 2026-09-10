@@ -111,8 +111,10 @@ async function headshot(value: number) {
   fireEvent.click(button)
 }
 
+// Longer than STARTER_BLASTER.cockingMs (900ms) — a wrong first shot begins
+// a real, non-fireable cocking window before the second shot is accepted.
 async function waitCooldown() {
-  await new Promise((resolve) => setTimeout(resolve, 650))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
 }
 
 // `charactersByLane` is only populated once the intro beat's timer fires

@@ -6,10 +6,14 @@ import { RatingPrompt } from '../components/RatingPrompt'
 import { SessionComplete } from '../components/SessionComplete'
 import { SessionStart } from '../components/SessionStart'
 import { EquationOutbreakScene } from '../components/EquationOutbreakScene'
+import { ChargeHud } from '../components/ChargeHud'
+import { WeaponTuningPanel } from '../dev/WeaponTuningPanel'
+import { DEFAULT_WEAPON_VIEW, type WeaponViewConfig } from '../lib/equationBlasterConfig'
 import { ZOMBIE_CHARACTER_REGISTRY, type CharacterDefinition } from '../lib/characterDefinitions'
 import { selectSessionRoster, shuffle } from '../lib/zombieRoster'
 import { STARTER_BLASTER } from '../lib/weaponDefinitions'
 import { usePrefersReducedMotion } from '../lib/reducedMotion'
+import { isAudioMuted, toggleAudioMuted } from '../lib/gameAudio'
 import {
   applyHit,
   canShoot,
@@ -105,12 +109,24 @@ function factText(payload: FactPayload): string {
  * the whole session, not state that changes while playing. */
 const DEBUG_LANES_ENABLED = import.meta.env.DEV && new URLSearchParams(window.location.search).get('debugLanes') === '1'
 
+/** `?tuneWeapon=1`, dev-build-only — shows `WeaponTuningPanel` for live
+ * weapon/arm pose tuning in the actual first-person view. Same rationale as
+ * `DEBUG_LANES_ENABLED` above. Extracted as a pure function (rather than
+ * inlined the way `DEBUG_LANES_ENABLED` is) so a test can directly verify
+ * "never enabled outside dev, regardless of the URL" without needing to
+ * fight `import.meta.env` at the module-load level. */
+export function isWeaponTuningEnabled(isDev: boolean, search: string): boolean {
+  return isDev && new URLSearchParams(search).get('tuneWeapon') === '1'
+}
+
+const WEAPON_TUNING_ENABLED = isWeaponTuningEnabled(import.meta.env.DEV, window.location.search)
+
 function buildConfig(item: Item): WaveConfig {
   const payload = factPayload(item)
   return {
     approachMs: payload.approach_ms,
     wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST,
-    shotCooldownMs: WEAPON.shotCooldownMs,
+    cockingMs: WEAPON.cockingMs,
   }
 }
 
@@ -151,6 +167,11 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   // the player-attacked event — see `triggerFeedback` and the effect that
   // clears this back to null after ANSWER_FEEDBACK_MS.
   const [feedbackEvent, setFeedbackEvent] = useState<FeedbackEvent | null>(null)
+  const [audioMuted, setAudioMuted] = useState(() => isAudioMuted())
+  // Only ever read/rendered when WEAPON_TUNING_ENABLED — see WeaponTuningPanel.
+  const [weaponView, setWeaponView] = useState<WeaponViewConfig>(DEFAULT_WEAPON_VIEW)
+  const [hideRightArmTuning, setHideRightArmTuning] = useState(false)
+  const [hideLeftArmTuning, setHideLeftArmTuning] = useState(false)
 
   const reducedMotion = usePrefersReducedMotion()
 
@@ -165,7 +186,7 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
   const configRef = useRef<WaveConfig>({
     approachMs: 6000,
     wrongHitSpeedBoost: WRONG_HIT_SPEED_BOOST,
-    shotCooldownMs: WEAPON.shotCooldownMs,
+    cockingMs: WEAPON.cockingMs,
   })
   const lastFrameRef = useRef<number | null>(null)
   const handledOutcomeRef = useRef(false)
@@ -429,6 +450,10 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
     setPhase('playing')
   }
 
+  function handleToggleMute() {
+    setAudioMuted(toggleAudioMuted())
+  }
+
   function playAgainSession() {
     setSessionId(crypto.randomUUID())
     startSession()
@@ -463,9 +488,22 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
         ? `wrongHitShake ${WRONG_HIT_SHAKE_MS}ms ease-out`
         : 'none'
 
+  // The live 3D gameplay view fills the whole browser window edge to edge;
+  // the start/complete/game-over cards are regular centered UI, not "the
+  // game" itself, so they keep a comfortable padded/centered layout instead.
+  const isGamePhase = phase !== 'start' && phase !== 'complete' && phase !== 'game_over' && phase !== 'transitioning_to_next_wave'
+
   return (
-    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
-      <div style={{ width: '100%', maxWidth: 'min(1600px, 70vw)', minWidth: 320, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100%', height: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', overflow: 'hidden', display: 'flex' }}>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          ...(isGamePhase ? {} : { padding: '32px 24px 56px', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }),
+        }}
+      >
         {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>}
 
         <div aria-live="assertive" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
@@ -484,19 +522,17 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
           />
         )}
 
-        {phase !== 'start' && phase !== 'complete' && phase !== 'game_over' && phase !== 'transitioning_to_next_wave' && item && (
+        {isGamePhase && item && (
           <div
             ref={containerRef}
             data-testid="game-container"
             onPointerMove={handlePointerMove}
             style={{
               position: 'relative',
-              borderRadius: 24,
               overflow: 'hidden',
-              aspectRatio: '900 / 560',
-              maxHeight: '75vh',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--elevation-300)',
+              flex: 1,
+              width: '100%',
+              minHeight: 0,
               cursor: aimNdc ? 'none' : 'crosshair',
               outline: 'none',
               animation: containerAnimation,
@@ -513,12 +549,30 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
                   aimNdc={aimNdc}
                   reducedMotion={reducedMotion}
                   recoilSignal={recoilSignal}
+                  weaponPhase={wave?.weaponPhase ?? 'readyFirstShot'}
+                  cockingUntilMs={wave?.cockingUntilMs ?? null}
+                  elapsedMs={wave?.elapsedMs ?? 0}
+                  cockingMs={WEAPON.cockingMs}
                   onHit={handleHit}
                   onMiss={handleMiss}
                   debugLanes={DEBUG_LANES_ENABLED}
+                  weaponView={WEAPON_TUNING_ENABLED ? weaponView : undefined}
+                  hideRightArm={WEAPON_TUNING_ENABLED && hideRightArmTuning}
+                  hideLeftArm={WEAPON_TUNING_ENABLED && hideLeftArmTuning}
                 />
               </Suspense>
             </Canvas>
+
+            {WEAPON_TUNING_ENABLED && (
+              <WeaponTuningPanel
+                value={weaponView}
+                onChange={setWeaponView}
+                hideRightArm={hideRightArmTuning}
+                onHideRightArmChange={setHideRightArmTuning}
+                hideLeftArm={hideLeftArmTuning}
+                onHideLeftArmChange={setHideLeftArmTuning}
+              />
+            )}
 
             {/* HUD overlay */}
             <div style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 200, pointerEvents: 'none' }}>
@@ -526,12 +580,31 @@ export function ZombieMathBlaster({ profileId, onBack }: Props) {
                 <DenButton label="Back" variant="quiet" shape="pill" size="md" iconOnly boxSize={44} iconPaths={['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']} onClick={onBack} />
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ pointerEvents: 'auto' }}>
+                  <ChargeHud shotsRemaining={wave?.shotsRemaining ?? 2} weaponPhase={wave?.weaponPhase ?? 'readyFirstShot'} reducedMotion={reducedMotion} />
+                </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 9999, background: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' }}>
                   {solvedFacts.length} / {SESSION_LENGTH}
                 </div>
                 <div style={{ fontSize: 22 }} aria-label={`${lives} lives left`}>
                   {'❤️'.repeat(Math.max(lives, 0))}
                 </div>
+                <span style={{ pointerEvents: 'auto' }}>
+                  <DenButton
+                    label={audioMuted ? 'Unmute' : 'Mute'}
+                    variant="quiet"
+                    shape="pill"
+                    size="md"
+                    iconOnly
+                    boxSize={44}
+                    onClick={handleToggleMute}
+                    iconPaths={
+                      audioMuted
+                        ? ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 8.5L21 15.5M21 8.5L17 15.5']
+                        : ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 9C17.8 9.7 18.25 10.8 18.25 12C18.25 13.2 17.8 14.3 17 15']
+                    }
+                  />
+                </span>
               </div>
             </div>
 

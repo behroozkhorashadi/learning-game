@@ -2,10 +2,10 @@
  * Typed weapon-definition abstraction. Only one weapon exists today
  * (`starter_blaster`), but the shape anticipates a future unlockable
  * weapon catalog without the pure engine ever knowing about it: the engine
- * only ever receives a plain numeric `shotCooldownMs` via `WaveConfig` (see
+ * only ever receives a plain numeric `cockingMs` via `WaveConfig` (see
  * `zombieWaveEngine.ts`) — it does not import this module, and must not.
- * The React layer is responsible for reading the selected weapon's cooldown
- * out of its definition and handing the engine just that number.
+ * The React layer is responsible for reading the selected weapon's cocking
+ * duration out of its definition and handing the engine just that number.
  */
 
 export interface WeaponSoundHooks {
@@ -17,17 +17,14 @@ export interface WeaponSoundHooks {
 export interface WeaponDefinition {
   id: string
   displayName: string
-  /** Identifies which visual component/procedural renderer draws this
-   * weapon — not a literal component reference, so this stays serializable
-   * for a future backend-driven inventory response. */
   rendererId: string
-  shotCooldownMs: number
-  /** 0-1 relative strength, consumed by the viewmodel's recoil animation. */
+  /** How long (ms) the weapon takes to cock between the first and second
+   * shot of a wave — the sole gate on the second shot now that a wave is
+   * exactly two attempts (see `zombieWaveEngine.ts`'s `WeaponPhase`). */
+  cockingMs: number
   recoilStrength: number
   recoilDurationMs: number
   muzzleFlashStyle: string
-  /** e.g. 'hitscan_flash' — this game never needs travelling projectiles,
-   * but the field exists so a future weapon could ask for one. */
   projectileStyle: string
   soundEffects: WeaponSoundHooks
   crosshairStyle: string
@@ -38,8 +35,8 @@ export interface WeaponDefinition {
 export const STARTER_BLASTER: WeaponDefinition = {
   id: 'starter_blaster',
   displayName: 'Starter Blaster',
-  rendererId: 'procedural_blaster_v1',
-  shotCooldownMs: 550,
+  rendererId: 'equation_blaster_glb_v1',
+  cockingMs: 900,
   recoilStrength: 0.4,
   recoilDurationMs: 150,
   muzzleFlashStyle: 'soft_burst',

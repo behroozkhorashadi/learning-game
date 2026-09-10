@@ -4,7 +4,7 @@ import { PerspectiveCamera } from '@react-three/drei'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { ZombieCharacter3D, type ZombieClipRole } from './ZombieCharacter3D'
 import { AnswerLabel3D } from './AnswerLabel3D'
-import { MathBlaster3D } from './MathBlaster3D'
+import { EquationBlaster } from './EquationBlaster'
 import { ScienceFairEnvironment } from './ScienceFairEnvironment'
 import { LaneDebugOverlay } from './LaneDebugOverlay'
 import { collectRaycastHits } from './EnvironmentCollider'
@@ -12,7 +12,8 @@ import { resolveRaycastOutcome } from '../lib/raycastOutcome'
 import { buildLanes, computeLaneLayout, positionAlongLane, type Lane, type Vec3 } from '../lib/laneNavigation'
 import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '../lib/characterDefinitions'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
-import type { Carrier, HitZone } from '../lib/zombieWaveEngine'
+import type { WeaponViewConfig } from '../lib/equationBlasterConfig'
+import type { Carrier, HitZone, WeaponPhase as EngineWeaponPhase } from '../lib/zombieWaveEngine'
 
 /**
  * The fixed-camera 3D shooting-gallery scene — now dressed as "Outbreak at
@@ -151,11 +152,20 @@ interface Props {
   aimNdc: { x: number; y: number } | null
   reducedMotion: boolean
   recoilSignal: number
+  weaponPhase: EngineWeaponPhase
+  cockingUntilMs: number | null
+  elapsedMs: number
+  cockingMs: number
   onHit: (carrierId: string, zone: HitZone) => void
   onMiss: () => void
   /** Dev-only navigation/collision visualization — see `LaneDebugOverlay`.
    * Always `false` outside `import.meta.env.DEV`. */
   debugLanes?: boolean
+  /** Dev-only live weapon-pose override — see `EquationBlaster`'s own
+   * `weaponView` prop and `WeaponTuningPanel` in `ZombieMathBlaster.tsx`. */
+  weaponView?: WeaponViewConfig
+  hideRightArm?: boolean
+  hideLeftArm?: boolean
 }
 
 export function EquationOutbreakScene({
@@ -167,9 +177,16 @@ export function EquationOutbreakScene({
   aimNdc,
   reducedMotion,
   recoilSignal,
+  weaponPhase,
+  cockingUntilMs,
+  elapsedMs,
+  cockingMs,
   onHit,
   onMiss,
   debugLanes = false,
+  weaponView,
+  hideRightArm = false,
+  hideLeftArm = false,
 }: Props) {
   const phaseOffsets = useRef<Record<string, number>>({})
   for (const carrier of carriers) {
@@ -217,7 +234,19 @@ export function EquationOutbreakScene({
         />
       ))}
 
-      <MathBlaster3D weapon={weapon} aimNdc={aimNdc} recoilSignal={recoilSignal} reducedMotion={reducedMotion} />
+      <EquationBlaster
+        weapon={weapon}
+        weaponPhase={weaponPhase}
+        cockingUntilMs={cockingUntilMs}
+        elapsedMs={elapsedMs}
+        cockingMs={cockingMs}
+        recoilSignal={recoilSignal}
+        aimNdc={aimNdc}
+        reducedMotion={reducedMotion}
+        weaponView={weaponView}
+        hideRightArm={hideRightArm}
+        hideLeftArm={hideLeftArm}
+      />
     </>
   )
 }

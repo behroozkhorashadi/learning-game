@@ -276,6 +276,16 @@
     transform: translate(0, 0);
   }
 }
+/* The charge HUD's "Cocking…" pill, while the weapon is between its first
+   and second shot — a gentle glow pulse, not a gameplay timer. */
+@keyframes chargeCockingPulse {
+  0%, 100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 
 * {
   box-sizing: border-box;
