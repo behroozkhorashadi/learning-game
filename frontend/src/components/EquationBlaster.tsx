@@ -5,6 +5,7 @@ import { useGLTF } from '@react-three/drei'
 import type { WeaponPhase } from '../lib/zombieWaveEngine'
 import type { WeaponDefinition } from '../lib/weaponDefinitions'
 import { playReloadSound, playShotSound } from '../lib/gameAudio'
+import { MuzzleFlash } from './MuzzleFlash'
 import {
   AIM_FOLLOW_SMOOTHING,
   EQUATION_BLASTER_URL,
@@ -37,7 +38,7 @@ import {
  *     └─ aim/idle group (mouse-follow yaw/pitch + subtle sway)
  *          └─ recoil group (kicks back+up on every accepted shot)
  *               ├─ weapon model group (the blaster GLB, or its fallback)
- *               │    └─ muzzle anchor (flash mesh, at the model's real tip)
+ *               │    └─ muzzle anchor (MuzzleFlash effect, at the model's real tip)
  *               ├─ right-arm anchor (fixed — never moves independently)
  *               └─ cocking group (left arm — slides back/forward only
  *                    while cocking; otherwise sits at its resting anchor)
@@ -310,7 +311,6 @@ export function EquationBlaster({
   const recoilGroup = useRef<THREE.Group>(null!)
   const weaponModelGroup = useRef<THREE.Group>(null!)
   const cockingGroup = useRef<THREE.Group>(null!)
-  const muzzleFlash = useRef<THREE.Mesh>(null!)
 
   const recoilSignalRef = useRef(recoilSignal)
   const recoilStartRef = useRef<number | null>(null)
@@ -363,9 +363,6 @@ export function EquationBlaster({
     }
     recoilGroup.current.position.z = recoil * RECOIL_KICK_DISTANCE
     recoilGroup.current.rotation.x = recoil * RECOIL_KICK_PITCH_RADIANS
-    if (muzzleFlash.current) {
-      muzzleFlash.current.visible = recoil > 0.35
-    }
 
     // --- cocking: weapon dip/rotate (pump is fused — see
     // equationBlasterConfig.ts) + left-hand backward/forward slide.
@@ -424,10 +421,9 @@ export function EquationBlaster({
                   </Suspense>
                 </ModelErrorBoundary>
 
-                <mesh ref={muzzleFlash} position={view.muzzlePosition} visible={false} raycast={() => null}>
-                  <sphereGeometry args={[0.14, 12, 12]} />
-                  <meshBasicMaterial color="#FFF7D6" transparent opacity={0.9} depthWrite={false} />
-                </mesh>
+                <group position={view.muzzlePosition}>
+                  <MuzzleFlash triggerSignal={recoilSignal} reducedMotion={reducedMotion} />
+                </group>
               </group>
 
               {/* Right (trigger) arm — fixed to the grip; never moves on

@@ -190,7 +190,7 @@ export function playSoundEffect(url: string, gain = 0.7): void {
 
 /** The Equation Blaster's shot sound. */
 export function playShotSound(): void {
-  playSoundEffect(SHOT_SOUND_URL, 0.7)
+  playSoundEffect(SHOT_SOUND_URL, 0.4)
 }
 
 /** The Equation Blaster's reload sound — one continuous clip covering the
@@ -216,7 +216,7 @@ export function playZombieGroan(url: string): void {
  * answer-correctness one — the separate correct/wrong feedback already
  * covers that. */
 export function playZombieHitSound(): void {
-  playSoundEffect(ZOMBIE_HIT_SOUND_URL, 0.6)
+  playSoundEffect(ZOMBIE_HIT_SOUND_URL, 0.9)
 }
 
 /** Plays when a zombie reaches the player and swipes at them (`resolutionReason

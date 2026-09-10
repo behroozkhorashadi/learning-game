@@ -134,6 +134,55 @@ export const COCKING_WEAPON_DIP_RADIANS = 0.19
 export const RECOIL_KICK_DISTANCE = 0.09
 export const RECOIL_KICK_PITCH_RADIANS = 0.32
 
+/**
+ * The muzzle flash effect (`components/MuzzleFlash.tsx`) — a star-shaped
+ * additive-blended sprite (white-hot core → yellow → orange, generated once
+ * onto a cached canvas texture, never a plain white circle), a handful of
+ * short-lived spark sprites, and a brief warm point-light pulse. Every
+ * duration here is deliberately short (tens of milliseconds): this is a
+ * quick, arcade-style punctuation on the shot, not a lingering glow.
+ */
+/** Total lifetime of the star-burst sprite — expands and fades out over
+ * this window (50-80ms is the "reads as a flash, not a glow" range). */
+export const MUZZLE_FLASH_DURATION_MS = 65
+/** Sprite scale (world units) the flash expands *to* by the end of its
+ * life, before the random per-shot size jitter below is applied. It starts
+ * at `MUZZLE_FLASH_START_SCALE_FRACTION` of this and grows outward. */
+export const MUZZLE_FLASH_END_SIZE = 0.26
+export const MUZZLE_FLASH_START_SCALE_FRACTION = 0.55
+/** Random per-shot size multiplier range — keeps repeated shots from
+ * looking identical, per the "no two flashes alike" requirement. */
+export const MUZZLE_FLASH_SIZE_JITTER_MIN = 0.85
+export const MUZZLE_FLASH_SIZE_JITTER_MAX = 1.3
+/** Overall opacity ceiling for the flash sprite — the *brightness* knob;
+ * turn this down for a dimmer flash without touching color or timing. */
+export const MUZZLE_FLASH_BRIGHTNESS = 0.95
+/** Color stops baked into the generated canvas texture — white-hot center,
+ * yellow midtone, orange outer edge, fading to fully transparent. */
+export const MUZZLE_FLASH_CORE_COLOR = '#FFFFFF'
+export const MUZZLE_FLASH_MID_COLOR = '#FFE066'
+export const MUZZLE_FLASH_OUTER_COLOR = '#FF8A1E'
+
+/** How many small sparks fly out per shot (the "3-5 very small sparks"
+ * requirement). */
+export const MUZZLE_SPARK_COUNT = 4
+/** Each spark's lifetime — independent of the main flash's own duration. */
+export const MUZZLE_SPARK_DURATION_MS = 90
+/** How far (world units) a spark travels over its lifetime, before the
+ * per-spark random distance/spread jitter applied in `MuzzleFlash.tsx`. */
+export const MUZZLE_SPARK_DISTANCE = 0.07
+export const MUZZLE_SPARK_SIZE = 0.02
+export const MUZZLE_SPARK_COLOR = '#FFD37A'
+
+/** The brief warm light pulse — `PointLight.intensity` peaks at this value
+ * the instant a shot fires and linearly fades to 0 by `MUZZLE_LIGHT_DURATION_MS`
+ * later (the "30-50ms" requirement), so the gun/nearby surfaces catch a
+ * flicker of light without leaving any lingering glow between shots. */
+export const MUZZLE_LIGHT_COLOR = '#FFB347'
+export const MUZZLE_LIGHT_INTENSITY = 3.5
+export const MUZZLE_LIGHT_DURATION_MS = 40
+export const MUZZLE_LIGHT_DISTANCE = 1.4
+
 export const IDLE_SWAY_AMPLITUDE = 0.012
 /** Per-frame `quaternion.slerp` factor the aim-follow uses to smoothly
  * converge the weapon's muzzle direction onto the actual camera ray toward
