@@ -133,7 +133,7 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
       )}
 
       <group position={[0, character.answerLabelYOffset, 0]}>
-        <AnswerLabel3D value={carrier.value} color={labelColor} hidden={carrier.status === 'defeated'} />
+        <AnswerLabel3D label={carrier.label} color={labelColor} hidden={carrier.status === 'defeated'} />
       </group>
     </group>
   )

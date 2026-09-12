@@ -38,7 +38,7 @@ export type HitZone = 'head' | 'body'
 
 export interface CarrierOption {
   id: string
-  value: number
+  label: string
   correct: boolean
 }
 

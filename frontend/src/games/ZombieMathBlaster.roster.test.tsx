@@ -27,7 +27,7 @@ vi.mock('@react-three/fiber', () => ({
 
 interface MockCarrier {
   id: string
-  value: number
+  label: string
   correct: boolean
   status: string
   lane: number
@@ -46,8 +46,8 @@ vi.mock(
           {props.carriers.map((c) => (
             <div key={c.id}>
               <span data-testid={`character-for-${c.id}`}>{props.charactersByLane[c.lane]?.id}</span>
-              <button onClick={() => props.onHit(c.id, 'head')}>{`headshot ${c.value}`}</button>
-              <button onClick={() => props.onHit(c.id, 'body')}>{`bodyshot ${c.value}`}</button>
+              <button onClick={() => props.onHit(c.id, 'head')}>{`headshot ${c.label}`}</button>
+              <button onClick={() => props.onHit(c.id, 'body')}>{`bodyshot ${c.label}`}</button>
             </div>
           ))}
         </div>
