@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { createWave, tick, applyHit, registerMiss, canShoot, type CarrierOption, type WaveConfig } from './zombieWaveEngine'
 
 const OPTIONS: CarrierOption[] = [
-  { id: 'a', value: 6, correct: false },
-  { id: 'b', value: 7, correct: true },
-  { id: 'c', value: 8, correct: false },
-  { id: 'd', value: 5, correct: false },
+  { id: 'a', label: '6', correct: false },
+  { id: 'b', label: '7', correct: true },
+  { id: 'c', label: '8', correct: false },
+  { id: 'd', label: '5', correct: false },
 ]
 
 // approachMs is deliberately much larger than cockingMs so that

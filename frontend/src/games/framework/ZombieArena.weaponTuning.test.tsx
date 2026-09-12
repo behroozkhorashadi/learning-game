@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { isWeaponTuningEnabled } from './ZombieMathBlaster'
+import { isWeaponTuningEnabled } from './ZombieArena'
 
 /**
  * Focused tests for the dev-only weapon-calibration panel's production
@@ -20,7 +20,7 @@ vi.mock('@react-three/fiber', () => ({
   Canvas: (props: { children?: React.ReactNode }) => <div data-testid="mock-canvas">{props.children}</div>,
 }))
 
-vi.mock('../components/EquationOutbreakScene', () => ({
+vi.mock('../../components/EquationOutbreakScene', () => ({
   EquationOutbreakScene: () => <div data-testid="mock-scene" />,
 }))
 describe('isWeaponTuningEnabled', () => {

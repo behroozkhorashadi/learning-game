@@ -7,14 +7,14 @@ import { Html } from '@react-three/drei'
  * genuine accessible DOM node (not just pixels inside the canvas).
  */
 interface Props {
-  value: number
+  label: string
   color: string
   /** True once this carrier is defeated — fades the label out rather than
    * leaving a number floating over an empty spot. */
   hidden?: boolean
 }
 
-export function AnswerLabel3D({ value, color, hidden }: Props) {
+export function AnswerLabel3D({ label, color, hidden }: Props) {
   if (hidden) return null
   return (
     // Anchored by its bottom edge (rather than `center`) so the whole bubble
@@ -47,7 +47,7 @@ export function AnswerLabel3D({ value, color, hidden }: Props) {
           whiteSpace: 'nowrap',
         }}
       >
-        {value}
+        {label}
       </div>
     </Html>
   )
