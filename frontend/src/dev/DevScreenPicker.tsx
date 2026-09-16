@@ -22,6 +22,7 @@ import { StorybookEntryCard } from '../components/StorybookEntryCard'
 import { ZombiePOCScene } from './ZombiePOCScene'
 import { WeaponPOCScene } from './WeaponPOCScene'
 import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
+import { PathfinderEditor } from '../components/PathfinderEditor'
 import type { Profile } from '../types/generated'
 
 /**
@@ -342,6 +343,15 @@ const SCREENS: ScreenEntry[] = [
     id: 'storybook',
     label: 'Storybook (live — hits the backend)',
     render: () => <Storybook profileId={1} profileName="Mia" onBack={() => console.log('onBack')} onWriteNew={() => console.log('onWriteNew')} />,
+  },
+  {
+    id: 'pathfinder-map-builder',
+    label: 'Pathfinder: Map Builder (design new levels)',
+    render: () => (
+      <CardWrapper wide>
+        <PathfinderEditor onPlay={(puzzle) => console.log('onPlay', puzzle)} />
+      </CardWrapper>
+    ),
   },
   {
     id: 'storybook-entry-card',

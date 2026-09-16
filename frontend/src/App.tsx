@@ -11,6 +11,7 @@ import { PromptForge } from './games/PromptForge'
 import { StyleRemixLab } from './games/StyleRemixLab'
 import { TagTeamStory } from './games/TagTeamStory'
 import { ClueMaster } from './games/ClueMaster'
+import { Pathfinder } from './games/Pathfinder'
 import { BadgesAccomplishments } from './components/BadgesAccomplishments'
 import { Storybook } from './components/Storybook'
 import { DevScreenPicker, DevScreenLink } from './dev/DevScreenPicker'
@@ -123,6 +124,8 @@ function App() {
         }}
       />
     )
+  } else if (gameId === 'pathfinder_no_way_back') {
+    content = <Pathfinder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
   } else {
     content = <SyllableBuilder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
   }
