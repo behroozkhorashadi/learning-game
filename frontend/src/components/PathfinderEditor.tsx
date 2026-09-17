@@ -1,11 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import { DenButton } from './den/DenButton'
-import { DenTabs } from './den/DenTabs'
 import { PathfinderBoard } from './PathfinderBoard'
 import { coordKey } from '../lib/pathfinderRules'
 import { solvePuzzle } from '../lib/pathfinderSolver'
+import { assessDifficulty } from '../lib/pathfinderDifficulty'
 import { formatLevelCode, makeLevelId } from '../lib/pathfinderExport'
 import { deleteCustomMap, listCustomMaps, saveCustomMap } from '../lib/pathfinderCustomMaps'
+import { MAX_BOARD_DIMENSION } from '../lib/pathfinderTypes'
 import type { Difficulty, DotPuzzle, GridPosition } from '../lib/pathfinderTypes'
 
 /**
@@ -15,9 +16,16 @@ import type { Difficulty, DotPuzzle, GridPosition } from '../lib/pathfinderTypes
  * the builder whether a hand-built map is valid, not just let them play a
  * possibly-unsolvable board. When it's solvable, the found path is drawn on
  * a real `PathfinderBoard` so the shape of a working solution is visible,
- * and the puzzle can be exported as the TS snippet that goes straight into
- * `pathfinderLevels.ts` — this component has no way to write to the repo's
- * source itself, so that's the handoff point to a person doing that by hand.
+ * the difficulty-assessment engine (`pathfinderDifficulty`) reports which
+ * tier the board actually landed in, and the puzzle can be exported as the
+ * TS snippet that goes straight into `pathfinderLevels.ts` — this component
+ * has no way to write to the repo's source itself, so that's the handoff
+ * point to a person doing that by hand.
+ *
+ * Difficulty is assessed, not picked: with player-built/published maps
+ * there's no author judgment to fall back on, so the tier comes from
+ * measuring the board (see pathfinderDifficulty.ts), the same source of
+ * truth every curated level is now checked against.
  *
  * The grid itself is deliberately a plain CSS grid of toggle buttons rather
  * than reusing `PathfinderBoard`'s SVG path-drawing view: the interaction
@@ -29,17 +37,18 @@ import type { Difficulty, DotPuzzle, GridPosition } from '../lib/pathfinderTypes
  */
 
 const MIN_SIZE = 3
-const MAX_SIZE = 10
+const MAX_SIZE = MAX_BOARD_DIMENSION
 const DEFAULT_SIZE = 6
 const MIN_DOTS_TO_CHECK = 2
 
-const DIFFICULTY_TABS: { key: Difficulty; label: string }[] = [
-  { key: 'easy', label: 'Easy' },
-  { key: 'medium', label: 'Medium' },
-  { key: 'hard', label: 'Hard' },
-]
+const TIER_LABEL: Record<Difficulty, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+  legendary: 'Legendary',
+}
 
-type CheckResult = { solvable: boolean; solution: GridPosition[] | null } | null
+type CheckResult = { solvable: boolean; solution: GridPosition[] | null; tier: Difficulty | null; score: number | null } | null
 
 interface Props {
   onPlay: (puzzle: DotPuzzle) => void
@@ -54,21 +63,28 @@ export function PathfinderEditor({ onPlay }: Props) {
   const [columns, setColumns] = useState(DEFAULT_SIZE)
   const [dotKeys, setDotKeys] = useState<Set<string>>(emptyGrid)
   const [name, setName] = useState('My Puzzle')
-  const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [checkResult, setCheckResult] = useState<CheckResult>(null)
   const [savedMaps, setSavedMaps] = useState<DotPuzzle[]>(() => listCustomMaps())
   const exportRef = useRef<HTMLTextAreaElement>(null)
 
   const dotCount = dotKeys.size
 
-  const currentPuzzle = useMemo((): DotPuzzle => {
+  // Difficulty isn't known until Check My Puzzle runs the assessment engine
+  // — 'easy' here is just a placeholder to satisfy DotPuzzle's shape while
+  // solving/drafting; `assessedPuzzle` below carries the real, measured tier.
+  const draftPuzzle = useMemo((): DotPuzzle => {
     const dots: GridPosition[] = []
     for (const key of dotKeys) {
       const [row, col] = key.split(',').map(Number)
       dots.push({ row, col })
     }
-    return { id: makeLevelId(difficulty, name), name: name.trim() || 'My Puzzle', difficulty, rows, columns, dots }
-  }, [dotKeys, rows, columns, name, difficulty])
+    return { id: 'draft', name: name.trim() || 'My Puzzle', difficulty: 'easy', rows, columns, dots }
+  }, [dotKeys, rows, columns, name])
+
+  const assessedPuzzle = useMemo((): DotPuzzle | null => {
+    if (!checkResult?.tier) return null
+    return { ...draftPuzzle, difficulty: checkResult.tier, id: makeLevelId(checkResult.tier, name) }
+  }, [draftPuzzle, checkResult, name])
 
   function toggleCell(row: number, col: number) {
     setCheckResult(null)
@@ -106,8 +122,9 @@ export function PathfinderEditor({ onPlay }: Props) {
     // Only reachable once canCheck is true (the button that calls this is
     // disabled otherwise, and a disabled DenButton drops its onClick
     // entirely), so dotCount is already known to be at least MIN_DOTS_TO_CHECK.
-    const result = solvePuzzle(currentPuzzle)
-    setCheckResult({ solvable: result.solved, solution: result.path })
+    const solveResult = solvePuzzle(draftPuzzle)
+    const assessment = assessDifficulty(draftPuzzle, solveResult)
+    setCheckResult({ solvable: solveResult.solved, solution: solveResult.path, tier: assessment.tier, score: assessment.score })
   }
 
   function selectExportText() {
@@ -115,13 +132,14 @@ export function PathfinderEditor({ onPlay }: Props) {
   }
 
   function playNow() {
-    onPlay(currentPuzzle)
+    if (assessedPuzzle) onPlay(assessedPuzzle)
   }
 
   function saveAndPlay() {
-    saveCustomMap(currentPuzzle)
+    if (!assessedPuzzle) return
+    saveCustomMap(assessedPuzzle)
     setSavedMaps(listCustomMaps())
-    onPlay(currentPuzzle)
+    onPlay(assessedPuzzle)
   }
 
   function playSaved(puzzle: DotPuzzle) {
@@ -134,7 +152,7 @@ export function PathfinderEditor({ onPlay }: Props) {
   }
 
   const canCheck = dotCount >= MIN_DOTS_TO_CHECK
-  const canPlay = checkResult?.solvable === true
+  const canPlay = checkResult?.solvable === true && assessedPuzzle !== null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
@@ -171,7 +189,7 @@ export function PathfinderEditor({ onPlay }: Props) {
             style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid var(--border-default)', width: 140 }}
           />
         </label>
-        <DenTabs items={DIFFICULTY_TABS} active={difficulty} onSelect={(key) => setDifficulty(key as Difficulty)} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-tertiary)' }}>Max {MAX_SIZE}x{MAX_SIZE}</span>
       </div>
 
       <div
@@ -182,6 +200,8 @@ export function PathfinderEditor({ onPlay }: Props) {
           gridTemplateColumns: `repeat(${columns}, 36px)`,
           gridTemplateRows: `repeat(${rows}, 36px)`,
           gap: 6,
+          maxWidth: '100%',
+          overflow: 'auto',
         }}
       >
         {Array.from({ length: rows }, (_, row) =>
@@ -216,9 +236,9 @@ export function PathfinderEditor({ onPlay }: Props) {
       </div>
 
       <div style={{ minHeight: 24, textAlign: 'center' }} aria-live="polite">
-        {checkResult?.solvable && (
+        {checkResult?.solvable && checkResult.tier && (
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--green-900)' }}>
-            ✅ Solvable! There's a path through every dot.
+            ✅ Solvable! Assessed difficulty: {TIER_LABEL[checkResult.tier]} (score {checkResult.score})
           </span>
         )}
         {checkResult && !checkResult.solvable && (
@@ -228,10 +248,10 @@ export function PathfinderEditor({ onPlay }: Props) {
         )}
       </div>
 
-      {canPlay && checkResult?.solution && (
+      {canPlay && checkResult?.solution && assessedPuzzle && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--fg-secondary)' }}>Here's a solution:</div>
-          <PathfinderBoard puzzle={currentPuzzle} path={checkResult.solution} onDotClick={() => {}} disabled />
+          <PathfinderBoard puzzle={assessedPuzzle} path={checkResult.solution} onDotClick={() => {}} disabled />
         </div>
       )}
 
@@ -242,7 +262,7 @@ export function PathfinderEditor({ onPlay }: Props) {
         </div>
       )}
 
-      {canPlay && (
+      {canPlay && assessedPuzzle && (
         <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--fg-secondary)' }}>
             Export this level (paste into <code>pathfinderLevels.ts</code>):
@@ -252,8 +272,8 @@ export function PathfinderEditor({ onPlay }: Props) {
             readOnly
             aria-label="Exported level code"
             onFocus={selectExportText}
-            value={formatLevelCode(currentPuzzle)}
-            rows={Math.min(currentPuzzle.dots.length + 6, 20)}
+            value={formatLevelCode(assessedPuzzle)}
+            rows={Math.min(assessedPuzzle.dots.length + 6, 20)}
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -288,7 +308,10 @@ export function PathfinderEditor({ onPlay }: Props) {
               }}
             >
               <span style={{ fontSize: 14, fontWeight: 700 }}>
-                {puzzle.name} <span style={{ color: 'var(--fg-tertiary)', fontWeight: 600 }}>({puzzle.dots.length} dots)</span>
+                {puzzle.name}{' '}
+                <span style={{ color: 'var(--fg-tertiary)', fontWeight: 600 }}>
+                  ({puzzle.dots.length} dots, {TIER_LABEL[puzzle.difficulty]})
+                </span>
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <DenButton label="Play" size="sm" variant="quiet" onClick={() => playSaved(puzzle)} />

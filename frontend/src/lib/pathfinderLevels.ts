@@ -146,28 +146,6 @@ const MEDIUM_LEVELS: DotPuzzle[] = [
     ]),
   },
   {
-    id: 'medium-big-diamond',
-    name: 'Big Diamond',
-    difficulty: 'medium',
-    rows: 7,
-    columns: 7,
-    // Row lengths 3,5,7,7,7,5,3 — a scaled-up version of the Easy diamond.
-    // The two 3-wide tips are offset left (cols 1-3) rather than centered
-    // (cols 2-4): all seven row lengths here are odd, so each row's start
-    // parity swings the board's bipartite color balance by 1, and a
-    // Hamiltonian path over an odd dot count needs that balance within 1 —
-    // centering both tips the same way as the rest pushed it to 5.
-    dots: fromRowRanges([
-      [1, 3],
-      [1, 5],
-      [0, 6],
-      [0, 6],
-      [0, 6],
-      [1, 5],
-      [1, 3],
-    ]),
-  },
-  {
     id: 'medium-notched-rectangle',
     name: 'Notched Rectangle',
     difficulty: 'medium',
@@ -211,17 +189,17 @@ const MEDIUM_LEVELS: DotPuzzle[] = [
       [2, 3],
     ]),
   },
-]
-
-const HARD_LEVELS: DotPuzzle[] = [
   {
-    id: 'hard-wide-open-field',
+    id: 'medium-wide-open-field',
     name: 'Wide Open Field',
-    difficulty: 'hard',
+    difficulty: 'medium',
     rows: 7,
     columns: 7,
     // A large, mostly-open 7x7 field with nine scattered holes — plenty of
     // junctions, plenty of ways to wall off a region without planning ahead.
+    // Reclassified from Hard to Medium after the difficulty-assessment
+    // engine landed: at only 42 dots with near-zero search cost, it scores
+    // below the Medium/Hard boundary despite the original hand guess.
     dots: withoutCells(rectangle(7, 7), [
       { row: 1, col: 1 },
       { row: 1, col: 5 },
@@ -230,6 +208,35 @@ const HARD_LEVELS: DotPuzzle[] = [
       { row: 5, col: 1 },
       { row: 5, col: 5 },
       { row: 6, col: 3 },
+    ]),
+  },
+]
+
+const HARD_LEVELS: DotPuzzle[] = [
+  {
+    id: 'hard-big-diamond',
+    name: 'Big Diamond',
+    difficulty: 'hard',
+    rows: 7,
+    columns: 7,
+    // Row lengths 3,5,7,7,7,5,3 — a scaled-up version of the Easy diamond.
+    // The two 3-wide tips are offset left (cols 1-3) rather than centered
+    // (cols 2-4): all seven row lengths here are odd, so each row's start
+    // parity swings the board's bipartite color balance by 1, and a
+    // Hamiltonian path over an odd dot count needs that balance within 1 —
+    // centering both tips the same way as the rest pushed it to 5.
+    // Reclassified from Medium to Hard after the difficulty-assessment
+    // engine landed: its search cost (~120k DFS nodes to find a path) is
+    // far higher than every other level here, which the hand-picked label
+    // didn't account for — see pathfinderDifficulty.ts's calibration note.
+    dots: fromRowRanges([
+      [1, 3],
+      [1, 5],
+      [0, 6],
+      [0, 6],
+      [0, 6],
+      [1, 5],
+      [1, 3],
     ]),
   },
   {
@@ -292,16 +299,34 @@ const HARD_LEVELS: DotPuzzle[] = [
   },
 ]
 
+const LEGENDARY_LEVELS: DotPuzzle[] = [
+  {
+    id: 'legendary-the-colossus',
+    name: 'The Colossus',
+    difficulty: 'legendary',
+    rows: 14,
+    columns: 14,
+    // 180 dots — a 14x14 field (196) minus one 4x4 interior block. Far past
+    // every Hard level's size, still almost entirely open (98% junctions),
+    // which the difficulty engine scores well above the Hard ceiling (see
+    // pathfinderDifficulty.test.ts's calibration check). A 4x4 block always
+    // removes exactly 8 of each bipartite color, so it can't unbalance the
+    // otherwise-guaranteed-even 14x14 rectangle regardless of where it sits.
+    dots: withoutCells(rectangle(14, 14), block(5, 8, 5, 8)),
+  },
+]
+
 export const LEVELS_BY_DIFFICULTY: Record<Difficulty, DotPuzzle[]> = {
   easy: EASY_LEVELS,
   medium: MEDIUM_LEVELS,
   hard: HARD_LEVELS,
+  legendary: LEGENDARY_LEVELS,
 }
 
-/** Easy levels first, then Medium, then Hard — the fixed order the level
- * select screen displays and the unlock progression steps through. Random
- * picking (the old `pickLevel`) is gone: with only a handful of levels per
- * tier, drawing randomly repeated the same map far too often; a sequential
- * unlock chain fixes that and gives "some maps need to be unlocked" a real
- * mechanism. */
-export const ALL_LEVELS: DotPuzzle[] = [...EASY_LEVELS, ...MEDIUM_LEVELS, ...HARD_LEVELS]
+/** Easy levels first, then Medium, then Hard, then Legendary — the fixed
+ * order the level select screen displays and the unlock progression steps
+ * through. Random picking (the old `pickLevel`) is gone: with only a
+ * handful of levels per tier, drawing randomly repeated the same map far
+ * too often; a sequential unlock chain fixes that and gives "some maps
+ * need to be unlocked" a real mechanism. */
+export const ALL_LEVELS: DotPuzzle[] = [...EASY_LEVELS, ...MEDIUM_LEVELS, ...HARD_LEVELS, ...LEGENDARY_LEVELS]

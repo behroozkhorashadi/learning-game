@@ -9,7 +9,12 @@ export type GridPosition = {
   col: number
 }
 
-export type Difficulty = 'easy' | 'medium' | 'hard'
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'legendary'
+
+/** No board (curated or player-built) may exceed this many rows or columns
+ * — a hard ceiling of 2,500 dots, chosen so the solver is guaranteed to
+ * stay fast (see pathfinderSolver.test.ts's 50x50 performance check). */
+export const MAX_BOARD_DIMENSION = 50
 
 export type DotPuzzle = {
   id: string

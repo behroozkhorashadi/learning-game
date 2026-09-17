@@ -6,6 +6,7 @@ import {
   hasLegalMoveFrom,
   isOrthogonallyAdjacent,
   isPuzzleComplete,
+  isWithinSizeLimit,
   progressOf,
 } from './pathfinderRules'
 import type { DotPuzzle, GridPosition } from './pathfinderTypes'
@@ -133,5 +134,23 @@ describe('coordKey', () => {
   it('produces a stable, distinct key per position', () => {
     expect(coordKey(pos(1, 2))).toBe('1,2')
     expect(coordKey(pos(1, 2))).not.toBe(coordKey(pos(2, 1)))
+  })
+})
+
+describe('isWithinSizeLimit', () => {
+  it('allows a board at exactly the 50x50 ceiling', () => {
+    expect(isWithinSizeLimit({ id: 'x', difficulty: 'easy', rows: 50, columns: 50, dots: [] })).toBe(true)
+  })
+
+  it('rejects a board one row over the ceiling', () => {
+    expect(isWithinSizeLimit({ id: 'x', difficulty: 'easy', rows: 51, columns: 50, dots: [] })).toBe(false)
+  })
+
+  it('rejects a board one column over the ceiling', () => {
+    expect(isWithinSizeLimit({ id: 'x', difficulty: 'easy', rows: 50, columns: 51, dots: [] })).toBe(false)
+  })
+
+  it('allows a small board', () => {
+    expect(isWithinSizeLimit({ id: 'x', difficulty: 'easy', rows: 5, columns: 5, dots: [] })).toBe(true)
   })
 })

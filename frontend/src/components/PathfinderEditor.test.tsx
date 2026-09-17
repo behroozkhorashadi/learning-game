@@ -79,13 +79,17 @@ describe('PathfinderEditor', () => {
     expect(textarea.value).toContain('{ row: 1, col: 1 },')
   })
 
-  it('changing the difficulty tab changes the exported id prefix', () => {
+  it('a much bigger, more open board is assessed as a harder tier than a tiny 2x2 square', () => {
     render(<PathfinderEditor onPlay={vi.fn()} />)
-    place2x2Square()
-    fireEvent.click(screen.getByRole('button', { name: 'Hard' }))
+    // 5x5 full grid — bigger and more junction-heavy than the 2x2 square,
+    // so the assessment engine should place it in a higher tier.
+    // gridCell takes 1-based row/column (matching the board's aria-labels).
+    for (let row = 1; row <= 5; row++) {
+      for (let col = 1; col <= 5; col++) fireEvent.click(gridCell(row, col))
+    }
     fireEvent.click(screen.getByRole('button', { name: 'Check My Puzzle' }))
     const textarea = screen.getByLabelText('Exported level code') as HTMLTextAreaElement
-    expect(textarea.value).toContain("id: 'hard-my-puzzle'")
+    expect(textarea.value).not.toContain("difficulty: 'easy'")
   })
 
   it('Play It! hands the built puzzle to onPlay', () => {
@@ -105,7 +109,7 @@ describe('PathfinderEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save & Play' }))
 
     expect(screen.getByText('My Saved Puzzles')).toBeTruthy()
-    expect(screen.getByText('(4 dots)')).toBeTruthy()
+    expect(screen.getByText(/4 dots, Easy/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(screen.queryByText('My Saved Puzzles')).toBeNull()

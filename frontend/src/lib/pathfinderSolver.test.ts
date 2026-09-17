@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isPuzzleSolvable, solvePuzzle } from './pathfinderSolver'
+import { findQuickUnsolvabilityProof, isPuzzleSolvable, solvePuzzle } from './pathfinderSolver'
 import { isOrthogonallyAdjacent } from './pathfinderRules'
 import type { DotPuzzle, GridPosition } from './pathfinderTypes'
 
@@ -8,6 +8,14 @@ function rectangle(rows: number, columns: number): GridPosition[] {
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) dots.push({ row, col })
   }
+  return dots
+}
+
+function fromRowRanges(ranges: [fromCol: number, toCol: number][]): GridPosition[] {
+  const dots: GridPosition[] = []
+  ranges.forEach(([fromCol, toCol], row) => {
+    for (let col = fromCol; col <= toCol; col++) dots.push({ row, col })
+  })
   return dots
 }
 
@@ -83,5 +91,90 @@ describe('solvePuzzle', () => {
     const puzzle: DotPuzzle = { id: 'rect-4x4', difficulty: 'hard', rows: 4, columns: 4, dots: rectangle(4, 4) }
     const result = solvePuzzle(puzzle, { maxNodes: 3 })
     expect(result.nodesExplored).toBeLessThanOrEqual(4)
+  })
+
+  it('a search that genuinely exhausts its budget is not reported as proven unsolvable', () => {
+    const puzzle: DotPuzzle = { id: 'rect-4x4', difficulty: 'hard', rows: 4, columns: 4, dots: rectangle(4, 4) }
+    const result = solvePuzzle(puzzle, { maxNodes: 3 })
+    expect(result.limitReached).toBe(true)
+    expect(result.unsolvableReason).toBeNull()
+  })
+
+  it('solves a large (40x40, 1600-dot) open board quickly instead of hanging', () => {
+    const puzzle: DotPuzzle = { id: 'huge', difficulty: 'legendary', rows: 40, columns: 40, dots: rectangle(40, 40) }
+    const start = Date.now()
+    const result = solvePuzzle(puzzle)
+    expect(result.solved).toBe(true)
+    expect(result.path).toHaveLength(1600)
+    expect(Date.now() - start).toBeLessThan(5000)
+  })
+})
+
+describe('findQuickUnsolvabilityProof', () => {
+  it('proves an empty board unsolvable', () => {
+    const puzzle: DotPuzzle = { id: 'empty', difficulty: 'easy', rows: 3, columns: 3, dots: [] }
+    expect(findQuickUnsolvabilityProof(puzzle)).toBe('empty-board')
+  })
+
+  it('proves two disconnected regions unsolvable without running any search', () => {
+    const puzzle: DotPuzzle = {
+      id: 'disconnected',
+      difficulty: 'easy',
+      rows: 1,
+      columns: 3,
+      dots: [
+        { row: 0, col: 0 },
+        { row: 0, col: 2 },
+      ],
+    }
+    expect(findQuickUnsolvabilityProof(puzzle)).toBe('disconnected')
+  })
+
+  it('proves a board with more than two leaf dots unsolvable', () => {
+    // A plus shape: center has degree 4, but each of the 4 arm tips is a
+    // leaf (degree 1) — a path only has 2 ends, so 4 leaves is impossible.
+    const puzzle: DotPuzzle = {
+      id: 'plus',
+      difficulty: 'easy',
+      rows: 3,
+      columns: 3,
+      dots: [
+        { row: 1, col: 1 },
+        { row: 0, col: 1 },
+        { row: 2, col: 1 },
+        { row: 1, col: 0 },
+        { row: 1, col: 2 },
+      ],
+    }
+    expect(findQuickUnsolvabilityProof(puzzle)).toBe('too-many-leaf-dots')
+  })
+
+  it('proves an unbalanced bipartite coloring unsolvable even when connected with no leaf-count issue', () => {
+    // A staggered diamond (row lengths 3,5,5,4,3) with both 3-wide tips
+    // centered under the full-width rows below/above them: connected,
+    // every dot has degree >= 2 (no leaves at all), but centering both
+    // odd-length tips the same way skews the bipartite color split to 9/11
+    // instead of the 10/10 a 20-dot Hamiltonian path requires. This is the
+    // exact shape a real curated level had before it was fixed by offsetting
+    // one tip — see pathfinderLevels.ts's easy-staggered-diamond comment.
+    const puzzle: DotPuzzle = {
+      id: 'centered-diamond',
+      difficulty: 'easy',
+      rows: 5,
+      columns: 5,
+      dots: fromRowRanges([
+        [1, 3],
+        [0, 4],
+        [0, 4],
+        [0, 3],
+        [1, 3],
+      ]),
+    }
+    expect(findQuickUnsolvabilityProof(puzzle)).toBe('unbalanced-coloring')
+  })
+
+  it('returns null for a board that passes all three checks', () => {
+    const puzzle: DotPuzzle = { id: 'rect-3x3', difficulty: 'easy', rows: 3, columns: 3, dots: rectangle(3, 3) }
+    expect(findQuickUnsolvabilityProof(puzzle)).toBeNull()
   })
 })

@@ -7,6 +7,7 @@
  * than tracked as separate, possibly-conflicting state.
  */
 
+import { MAX_BOARD_DIMENSION } from './pathfinderTypes'
 import type { DotPuzzle, GridPosition } from './pathfinderTypes'
 
 export function coordKey(pos: GridPosition): string {
@@ -15,6 +16,28 @@ export function coordKey(pos: GridPosition): string {
 
 export function buildDotSet(puzzle: DotPuzzle): Set<string> {
   return new Set(puzzle.dots.map(coordKey))
+}
+
+/** Every dot's orthogonal neighbors that also hold a dot, keyed by
+ * `coordKey`. Shared by the solver (unsolvability pre-checks, search) and
+ * the difficulty engine (degree/junction metrics) so both agree on what
+ * "adjacent" means without recomputing it separately. */
+export function buildNeighborMap(puzzle: DotPuzzle): Map<string, string[]> {
+  const dotSet = buildDotSet(puzzle)
+  const map = new Map<string, string[]>()
+  for (const dot of puzzle.dots) {
+    const candidates: GridPosition[] = [
+      { row: dot.row - 1, col: dot.col },
+      { row: dot.row + 1, col: dot.col },
+      { row: dot.row, col: dot.col - 1 },
+      { row: dot.row, col: dot.col + 1 },
+    ]
+    map.set(
+      coordKey(dot),
+      candidates.map(coordKey).filter((k) => dotSet.has(k)),
+    )
+  }
+  return map
 }
 
 export function isOrthogonallyAdjacent(a: GridPosition, b: GridPosition): boolean {
@@ -87,4 +110,12 @@ export function hasLegalMoveFrom(dotSet: Set<string>, path: readonly GridPositio
     { row: current.row, col: current.col + 1 },
   ]
   return neighbors.some((n) => dotSet.has(coordKey(n)) && !visited.has(coordKey(n)))
+}
+
+/** A board's rows/columns must each stay within `MAX_BOARD_DIMENSION` —
+ * enforced by the map builder's size inputs, and re-checked here so any
+ * future path (e.g. a publish flow) can't bypass that by constructing a
+ * `DotPuzzle` directly. */
+export function isWithinSizeLimit(puzzle: DotPuzzle): boolean {
+  return puzzle.rows <= MAX_BOARD_DIMENSION && puzzle.columns <= MAX_BOARD_DIMENSION
 }

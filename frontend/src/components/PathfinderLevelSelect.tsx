@@ -12,6 +12,7 @@ const SECTION_LABEL: Record<Difficulty, string> = {
   easy: 'Easy',
   medium: 'Medium',
   hard: 'Hard',
+  legendary: 'Legendary',
 }
 
 interface Props {
