@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { GameMetadata, Profile } from '../types/generated'
 import { BadgeIcon } from '../components/icons'
 import { DenButton } from '../components/den/DenButton'
-import { StorybookEntryCard } from '../components/StorybookEntryCard'
 
 const SWITCH_ICON = ['M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.75 13M9.75 13H19.25']
 
@@ -13,6 +12,15 @@ const SWITCH_ICON = ['M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.
  * ("Number Sentences", "Shape Match", "Rhyme Time") but those aren't real
  * game modules, so this only ever renders what the server actually registers.
  */
+
+/**
+ * Temporary roster trim: only these games are shown while development is
+ * focused on Equation Outbreak and Pathfinder. The other games stay fully
+ * registered and playable (via ?screen= dev links, or a direct gameId) —
+ * this only filters what GamePicker displays. Delete this filter (and the
+ * `.filter` call below) to bring the full roster back.
+ */
+const VISIBLE_GAME_IDS = new Set(['fact_fluency', 'pathfinder_no_way_back'])
 
 const CARD_THEMES = [
   { icon: '#EBDCFE', ring: '#CBA6FC', text: '#5006B2' },
@@ -52,7 +60,7 @@ interface Props {
   onOpenStorybook: () => void
 }
 
-export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadges, onOpenStorybook }: Props) {
+export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadges, onOpenStorybook: _onOpenStorybook }: Props) {
   const [games, setGames] = useState<GameMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -110,12 +118,12 @@ export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadge
           <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>Error: {error}</pre>
         )}
 
-        <div style={{ marginBottom: 22 }}>
-          <StorybookEntryCard profileId={profile.id!} onOpen={onOpenStorybook} />
-        </div>
+        {/* My Storybook entry hidden as part of the same temporary roster
+            trim as VISIBLE_GAME_IDS above — StorybookEntryCard is untouched,
+            just not rendered here. */}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 22 }}>
-          {(games ?? []).map((game, i) => {
+          {(games ?? []).filter((game) => VISIBLE_GAME_IDS.has(game.id)).map((game, i) => {
             const theme = CARD_THEMES[i % CARD_THEMES.length]
             return (
               <button
