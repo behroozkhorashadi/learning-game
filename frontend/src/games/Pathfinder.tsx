@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PathfinderBoard } from '../components/PathfinderBoard'
 import { PathfinderLevelSelect } from '../components/PathfinderLevelSelect'
 import { DenButton } from '../components/den/DenButton'
 import { ArrowLeftIcon } from '../components/icons'
-import { checkMove, hasLegalMoveFrom, isPuzzleComplete, progressOf, rejectionMessage } from '../lib/pathfinderRules'
-import { buildDotSet } from '../lib/pathfinderRules'
 import { ALL_LEVELS } from '../lib/pathfinderLevels'
 import { computeLevelStatuses, getCompletedLevelIds, markLevelCompleted } from '../lib/pathfinderProgress'
-import type { DotPuzzle, GridPosition } from '../lib/pathfinderTypes'
+import { usePathfinderPlay } from '../lib/usePathfinderPlay'
+import type { DotPuzzle } from '../lib/pathfinderTypes'
 
 /**
  * Pathfinder: No Way Back — connect every dot on the board with one
@@ -21,11 +20,11 @@ import type { DotPuzzle, GridPosition } from '../lib/pathfinderTypes'
  * random per-difficulty draw: completing one unlocks the next
  * (`pathfinderProgress`), which is both the "map with locked levels"
  * feature and the fix for the random picker repeating the same handful of
- * maps within a session.
+ * maps within a session. Move validation/undo/restart/completion is shared
+ * with the map builder's play-test view via `usePathfinderPlay`.
  */
 
 const GAME_ID = 'pathfinder_no_way_back'
-const INVALID_FEEDBACK_MS = 1500
 
 type Mode = 'select' | 'play'
 
@@ -64,65 +63,18 @@ function BackButton({ onClick }: { onClick: () => void }) {
 export function Pathfinder({ profileId, onBack }: Props) {
   const [mode, setMode] = useState<Mode>('select')
   const [puzzle, setPuzzle] = useState<DotPuzzle>(ALL_LEVELS[0])
-  const [path, setPath] = useState<GridPosition[]>([])
-  const [invalidReason, setInvalidReason] = useState<string | null>(null)
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => getCompletedLevelIds(profileId))
-  const invalidTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const dotSet = useMemo(() => buildDotSet(puzzle), [puzzle])
-  const completed = isPuzzleComplete(puzzle, path)
-  const progress = progressOf(puzzle, path)
-  const canUndo = path.length > 0
-  const canRestart = path.length > 0
-  const stuck = !completed && path.length > 0 && !hasLegalMoveFrom(dotSet, path)
 
   const statuses = useMemo(() => computeLevelStatuses(ALL_LEVELS, completedIds), [completedIds])
   const currentIndex = ALL_LEVELS.findIndex((p) => p.id === puzzle.id)
   const nextLevel = currentIndex >= 0 ? ALL_LEVELS[currentIndex + 1] : undefined
 
-  useEffect(() => {
-    return () => {
-      if (invalidTimer.current) clearTimeout(invalidTimer.current)
-    }
-  }, [])
-
-  function flashInvalid(message: string) {
-    setInvalidReason(message)
-    if (invalidTimer.current) clearTimeout(invalidTimer.current)
-    invalidTimer.current = setTimeout(() => setInvalidReason(null), INVALID_FEEDBACK_MS)
-  }
-
-  function handleDotClick(pos: GridPosition) {
-    if (completed) return // no accidental additional moves once solved
-    const result = checkMove(dotSet, path, pos)
-    if (!result.valid) {
-      flashInvalid(rejectionMessage(result.reason))
-      return
-    }
-    const nextPath = [...path, pos]
-    setPath(nextPath)
-    if (isPuzzleComplete(puzzle, nextPath)) {
-      setCompletedIds(markLevelCompleted(profileId, puzzle.id))
-    }
-  }
-
-  function handleUndo() {
-    if (path.length === 0) return
-    setPath((prev) => prev.slice(0, -1))
-    setInvalidReason(null)
-  }
-
-  function handleRestart() {
-    setPath([])
-    setInvalidReason(null)
-  }
+  const play = usePathfinderPlay(puzzle, () => setCompletedIds(markLevelCompleted(profileId, puzzle.id)))
 
   function playLevel(levelId: string) {
     const level = ALL_LEVELS.find((p) => p.id === levelId)
     if (!level) return
     setPuzzle(level)
-    setPath([])
-    setInvalidReason(null)
     setMode('play')
   }
 
@@ -171,41 +123,41 @@ export function Pathfinder({ profileId, onBack }: Props) {
                   fontFamily: 'var(--font-display)',
                   fontWeight: 800,
                   fontSize: 16,
-                  color: completed ? 'var(--green-900)' : 'var(--fg-secondary)',
-                  background: completed ? 'var(--status-positive-bg)' : 'var(--gray-100)',
-                  border: `1px solid ${completed ? 'var(--status-positive-border)' : 'var(--border-default)'}`,
+                  color: play.completed ? 'var(--green-900)' : 'var(--fg-secondary)',
+                  background: play.completed ? 'var(--status-positive-bg)' : 'var(--gray-100)',
+                  border: `1px solid ${play.completed ? 'var(--status-positive-border)' : 'var(--border-default)'}`,
                   borderRadius: 9999,
                   padding: '6px 14px',
                 }}
               >
-                {progress.visited} / {progress.total} dots connected
+                {play.progress.visited} / {play.progress.total} dots connected
               </div>
             </div>
 
-            <PathfinderBoard puzzle={puzzle} path={path} onDotClick={handleDotClick} disabled={completed} />
+            <PathfinderBoard puzzle={puzzle} path={play.path} onDotClick={play.handleDotClick} disabled={play.completed} />
 
             <div style={{ minHeight: 24, textAlign: 'center' }} aria-live="polite">
-              {invalidReason && (
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)' }}>{invalidReason}</span>
+              {play.invalidReason && (
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)' }}>{play.invalidReason}</span>
               )}
-              {!invalidReason && stuck && (
+              {!play.invalidReason && play.stuck && (
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)' }}>
                   No legal move from here — try Undo or Restart.
                 </span>
               )}
             </div>
 
-            {completed && (
+            {play.completed && (
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--green-900)', textAlign: 'center' }}>
                 {nextLevel ? 'Every dot connected! 🎉' : "Every dot connected! You've finished every map! 🎉"}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {completed && nextLevel && <DenButton label="Next Level" variant="primary" onClick={() => playLevel(nextLevel.id)} />}
-              {completed && <DenButton label="Back to Map" variant="quiet" onClick={handleBackToMap} />}
-              <DenButton label="Undo" variant="quiet" onClick={handleUndo} disabled={!canUndo} />
-              <DenButton label="Restart" variant="quiet" onClick={handleRestart} disabled={!canRestart} />
+              {play.completed && nextLevel && <DenButton label="Next Level" variant="primary" onClick={() => playLevel(nextLevel.id)} />}
+              {play.completed && <DenButton label="Back to Map" variant="quiet" onClick={handleBackToMap} />}
+              <DenButton label="Undo" variant="quiet" onClick={play.handleUndo} disabled={!play.canUndo} />
+              <DenButton label="Restart" variant="quiet" onClick={play.handleRestart} disabled={!play.canRestart} />
             </div>
           </div>
         )}

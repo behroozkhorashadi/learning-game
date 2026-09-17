@@ -22,7 +22,7 @@ import { StorybookEntryCard } from '../components/StorybookEntryCard'
 import { ZombiePOCScene } from './ZombiePOCScene'
 import { WeaponPOCScene } from './WeaponPOCScene'
 import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
-import { PathfinderEditor } from '../components/PathfinderEditor'
+import { PathfinderMapBuilder } from '../components/PathfinderMapBuilder'
 import type { Profile } from '../types/generated'
 
 /**
@@ -349,7 +349,7 @@ const SCREENS: ScreenEntry[] = [
     label: 'Pathfinder: Map Builder (design new levels)',
     render: () => (
       <CardWrapper wide>
-        <PathfinderEditor onPlay={(puzzle) => console.log('onPlay', puzzle)} />
+        <PathfinderMapBuilder username={MOCK_PROFILE.name} />
       </CardWrapper>
     ),
   },
