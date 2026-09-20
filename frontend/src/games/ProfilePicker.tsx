@@ -16,6 +16,7 @@ const RING_THEMES = [
 
 interface Props {
   onSelect: (profile: Profile) => void
+  onAddPlayer: () => void
 }
 
 /** `profile.avatar` is a bare key (e.g. `"fox"`, `"rami"`), not a path —
@@ -40,7 +41,7 @@ function ProfileAvatar({ avatar, name }: { avatar: string; name: string }) {
   )
 }
 
-export function ProfilePicker({ onSelect }: Props) {
+export function ProfilePicker({ onSelect, onAddPlayer }: Props) {
   const [profiles, setProfiles] = useState<Profile[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -86,6 +87,35 @@ export function ProfilePicker({ onSelect }: Props) {
               </button>
             )
           })}
+
+          {profiles != null && (
+            <button
+              type="button"
+              onClick={onAddPlayer}
+              aria-label="Add a player"
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 8 }}
+            >
+              <div
+                style={{
+                  width: 150,
+                  height: 150,
+                  borderRadius: 9999,
+                  boxSizing: 'border-box',
+                  border: '3px dashed var(--border-default)',
+                  background: 'var(--surface-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 52,
+                  fontWeight: 800,
+                  color: 'var(--fg-tertiary)',
+                }}
+              >
+                +
+              </div>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: 'var(--fg-tertiary)' }}>Add a player</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

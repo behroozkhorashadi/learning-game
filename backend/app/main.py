@@ -1,6 +1,7 @@
 """FastAPI app — PRD §9, §16 step 3.
 
 - GET  /api/profiles     : read-only listing for the profile-picker screen.
+- POST /api/profiles     : backs the create-profile screen.
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
 - POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
 - POST /api/ratings      : persists an explicit kid-provided rating, logs `rating_given`.
@@ -57,7 +58,7 @@ from app.models.piece import (
     TurnLine,
     TurnLineCreate,
 )
-from app.models.profile import Profile
+from app.models.profile import AVATAR_OPTIONS, MAX_AGE, MIN_AGE, Profile, ProfileCreate
 from app.models.rating import Rating, RatingCreate
 from app.models.stats import ProfileStats
 from app.models.verification import Verification, VerificationCreate
@@ -106,6 +107,26 @@ def _seed_test_profiles(session: Session) -> None:
 def list_profiles(session: Session = Depends(get_session)) -> list[Profile]:
     """Read-only listing for the profile-picker screen. No auth (PRD §2 non-goals)."""
     return list(session.exec(select(Profile)).all())
+
+
+@app.post("/api/profiles", response_model=Profile, status_code=201)
+def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)) -> Profile:
+    """Backs the create-profile screen. No auth (PRD §2 non-goals) — anyone on
+    the LAN can add a player, same trust model as everything else here."""
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name must not be blank")
+    if payload.avatar not in AVATAR_OPTIONS:
+        raise HTTPException(status_code=422, detail=f"avatar must be one of {AVATAR_OPTIONS}")
+    age = utcnow().year - payload.birth_year
+    if age < MIN_AGE or age > MAX_AGE:
+        raise HTTPException(status_code=422, detail=f"birth_year implies an age outside {MIN_AGE}-{MAX_AGE}")
+
+    profile = Profile(name=name, avatar=payload.avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+    return profile
 
 
 @app.get("/api/profiles/{profile_id}/badges", response_model=list[BadgeStatus])

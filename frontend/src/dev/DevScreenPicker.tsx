@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ProfilePicker } from '../games/ProfilePicker'
+import { CreateProfile } from '../games/CreateProfile'
 import { GamePicker } from '../games/GamePicker'
 import { SyllableBuilder } from '../games/SyllableBuilder'
 import { BadgesAccomplishments } from '../components/BadgesAccomplishments'
@@ -140,7 +141,12 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'profile-picker',
     label: 'Profile picker',
-    render: () => <ProfilePicker onSelect={(p) => console.log('onSelect', p)} />,
+    render: () => <ProfilePicker onSelect={(p) => console.log('onSelect', p)} onAddPlayer={() => console.log('onAddPlayer')} />,
+  },
+  {
+    id: 'create-profile',
+    label: 'Create profile',
+    render: () => <CreateProfile onCreated={(p) => console.log('onCreated', p)} onCancel={() => console.log('onCancel')} />,
   },
   {
     id: 'game-picker',

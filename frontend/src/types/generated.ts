@@ -10,6 +10,13 @@ export interface Profile {
   created_at?: string;
 }
 
+export interface ProfileCreate {
+  name: string;
+  avatar: string;
+  birth_year: number;
+  reading_support?: boolean;
+}
+
 export interface SkillState {
   id?: number | null;
   profile_id: number;

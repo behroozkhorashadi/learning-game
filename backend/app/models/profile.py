@@ -8,7 +8,32 @@ from datetime import date, datetime
 from typing import Optional
 
 from app.util import utcnow
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel, UniqueConstraint
+
+# Generic avatar keys the create-profile screen offers — none has real art yet
+# (only the two hardcoded seed profiles do, and "rami" is a specific kid's
+# photo, not reusable), so picking one of these falls back to the profile's
+# initial letter via `ProfileAvatar`'s existing onError handling. Shared with
+# the frontend's `CreateProfile.tsx`, which hardcodes the same list rather
+# than round-tripping it through an API call.
+AVATAR_OPTIONS = ["fox", "owl", "bear", "cat", "panda", "rabbit"]
+
+# Sanity bounds on a new profile's age, not a product requirement — just wide
+# enough to catch an obvious typo (a future date, or a birth year that'd make
+# the player an infant or an adult) without guessing at a "real" min/max.
+MIN_AGE = 3
+MAX_AGE = 14
+
+
+class ProfileCreate(BaseModel):
+    """Inbound POST body for /api/profiles. Not a table — `Profile` is the
+    persisted shape."""
+
+    name: str
+    avatar: str
+    birth_year: int
+    reading_support: bool = False
 
 
 class Profile(SQLModel, table=True):
