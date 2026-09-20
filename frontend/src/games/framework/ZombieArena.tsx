@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { randomId } from '../../lib/id'
 import type { Item } from '../../types/generated'
 import { DenButton } from '../../components/den/DenButton'
 import { RatingPrompt } from '../../components/RatingPrompt'
@@ -156,7 +157,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
   const [solvedItems, setSolvedItems] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ratingHandled, setRatingHandled] = useState(false)
-  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
+  const [sessionId, setSessionId] = useState<string>(() => randomId())
   const [aimNdc, setAimNdc] = useState<{ x: number; y: number } | null>(null)
   const [recoilSignal, setRecoilSignal] = useState(0)
   const [liveMessage, setLiveMessage] = useState('')
@@ -487,7 +488,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
   }
 
   function playAgainSession() {
-    setSessionId(crypto.randomUUID())
+    setSessionId(randomId())
     startSession()
   }
 

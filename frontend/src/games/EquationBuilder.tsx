@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { randomId } from '../lib/id'
 import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ProgressBar } from '../components/ProgressBar'
@@ -104,7 +105,7 @@ export function EquationBuilder({ profileId, onBack }: Props) {
   const [posting, setPosting] = useState(false)
   const [lastResult, setLastResult] = useState<AttemptRead | null>(null)
   const [startedAt, setStartedAt] = useState<number>(0)
-  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
+  const [sessionId, setSessionId] = useState<string>(() => randomId())
   const [solvedEquations, setSolvedEquations] = useState<string[]>([])
   const [phase, setPhase] = useState<Phase>('start')
   const [ratingHandled, setRatingHandled] = useState(false)
@@ -143,7 +144,7 @@ export function EquationBuilder({ profileId, onBack }: Props) {
     setPhase('start')
     setRatingHandled(false)
     countedItemIds.current = new Set()
-    setSessionId(crypto.randomUUID())
+    setSessionId(randomId())
   }
 
   function submitRating(value: number) {

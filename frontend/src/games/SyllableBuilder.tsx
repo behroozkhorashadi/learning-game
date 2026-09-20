@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { randomId } from '../lib/id'
 import type { AttemptCreate, AttemptRead, Item, VerificationCreate } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ImagePlaceholderIcon } from '../components/icons'
@@ -104,7 +105,7 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
   // Regenerated whenever a session restarts (mount, or "Play again" after
   // wrap-up) so the server can avoid repeating a word already shown within
   // that session — see `repeat_key` in the syllable_builder game module.
-  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
+  const [sessionId, setSessionId] = useState<string>(() => randomId())
   const [completedWords, setCompletedWords] = useState<string[]>([])
   const [phase, setPhase] = useState<Phase>('start')
   // The word and attempt id from the session's last item — carried through
@@ -162,7 +163,7 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
     setFinalAttemptId(null)
     setRatingHandled(false)
     countedItemIds.current = new Set()
-    setSessionId(crypto.randomUUID())
+    setSessionId(randomId())
   }
 
   function submitRating(value: number) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { randomId } from '../lib/id'
 import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
 import { CoachPanel } from '../components/CoachPanel'
 import { IllustrationReveal } from '../components/IllustrationReveal'
@@ -166,7 +167,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Props) {
   const [phase, setPhase] = useState<Phase>('setup')
-  const [sessionId] = useState(() => crypto.randomUUID())
+  const [sessionId] = useState(() => randomId())
   const [error, setError] = useState<string | null>(null)
   const [piece, setPiece] = useState<Piece | null>(null)
 

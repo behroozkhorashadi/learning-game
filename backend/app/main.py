@@ -12,6 +12,9 @@
 - POST /api/pieces/{id}/illustrations, /revisions, /remixes, /turns: a piece's
   child records — generated art, coach revision passes, Style Remix Lab
   versions, and Tag-Team Story turns, respectively.
+- POST /api/client-errors: fire-and-forget sink for uncaught frontend errors
+  (React error boundary, window error/unhandledrejection) — see
+  `app/services/client_error_log.py`. Written to `logs/client_errors.log`.
 
 No accounts/auth (PRD §2 non-goals). A demo profile plus one hardcoded real
 tester profile are seeded on startup so there's something to point the
@@ -59,6 +62,7 @@ from app.models.rating import Rating, RatingCreate
 from app.models.stats import ProfileStats
 from app.models.verification import Verification, VerificationCreate
 from app.services.badges_service import compute_profile_stats, evaluate_and_award_badges, seed_badges
+from app.services.client_error_log import ClientErrorReport, log_client_error
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
 
@@ -136,6 +140,11 @@ def get_profile_stats(profile_id: int, session: Session = Depends(get_session)) 
     if session.get(Profile, profile_id) is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
     return compute_profile_stats(session, profile_id)
+
+
+@app.post("/api/client-errors", status_code=204)
+def post_client_error(payload: ClientErrorReport) -> None:
+    log_client_error(payload)
 
 
 @app.get("/api/games", response_model=list[GameMetadata])
