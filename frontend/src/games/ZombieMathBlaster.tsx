@@ -14,7 +14,7 @@ import type { QuestionResult, ZombieArenaBrain } from './framework/zombieArenaTy
  */
 
 const GAME_ID = 'fact_fluency'
-const SESSION_LENGTH = 5
+const SESSION_LENGTH = 10
 const STARTING_LIVES = 3
 
 type FactPayload = {
