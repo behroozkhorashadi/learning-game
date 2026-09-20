@@ -18,6 +18,10 @@
 - POST /api/pieces/{id}/illustrations, /revisions, /remixes, /turns: a piece's
   child records — generated art, coach revision passes, Style Remix Lab
   versions, and Tag-Team Story turns, respectively.
+- GET/PUT/DELETE /api/practice-config: a parent's per-(profile, game)
+  operations/focus-numbers/difficulty override for games that support it
+  (see `app/models/practice_config.py`, `GameModule.supports_practice_config`).
+  No auth — a practice preference, not a destructive action.
 - POST /api/client-errors: fire-and-forget sink for uncaught frontend errors
   (React error boundary, window error/unhandledrejection) — see
   `app/services/client_error_log.py`. Written to `logs/client_errors.log`.
@@ -38,6 +42,7 @@ from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
 from app.admin_auth import ADMIN_PASSWORD, AdminLoginRequest, require_admin
+from app.games._arithmetic import ALL_OPERATORS
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
 from app.events.log import append_event
@@ -63,6 +68,7 @@ from app.models.piece import (
     TurnLine,
     TurnLineCreate,
 )
+from app.models.practice_config import PracticeConfig, PracticeConfigUpsert
 from app.models.profile import AVATAR_OPTIONS, MAX_AGE, MIN_AGE, Profile, ProfileCreate, ProfileUpdate, SkillState
 from app.models.rating import Rating, RatingCreate
 from app.models.session import PlaySession
@@ -204,11 +210,72 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
     for verification in session.exec(select(Verification).where(Verification.attempt_id.in_(attempt_ids))).all():
         session.delete(verification)
 
-    for model in (Attempt, Event, Rating, BadgeAward, Level, PlaySession, SkillState):
+    for model in (Attempt, Event, Rating, BadgeAward, Level, PlaySession, SkillState, PracticeConfig):
         for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
             session.delete(row)
 
     session.delete(profile)
+    session.commit()
+
+
+def _get_practice_config(session: Session, profile_id: int, game_id: str) -> Optional[PracticeConfig]:
+    return session.exec(
+        select(PracticeConfig).where(PracticeConfig.profile_id == profile_id, PracticeConfig.game_id == game_id)
+    ).first()
+
+
+@app.get("/api/practice-config", response_model=PracticeConfig)
+def get_practice_config(profile_id: int, game_id: str, session: Session = Depends(get_session)) -> PracticeConfig:
+    """Backs the practice-settings screen (e.g. Equation Outbreak's focus
+    picker). 404 means "no config yet — this game is on automatic
+    difficulty," not an error."""
+    config = _get_practice_config(session, profile_id, game_id)
+    if config is None:
+        raise HTTPException(status_code=404, detail="no practice config set for this profile/game")
+    return config
+
+
+@app.put("/api/practice-config", response_model=PracticeConfig)
+def put_practice_config(payload: PracticeConfigUpsert, session: Session = Depends(get_session)) -> PracticeConfig:
+    """Creates or replaces the (profile_id, game_id) config — no auth (PRD §2
+    non-goals): this is a practice preference, not a destructive action, so
+    it doesn't need the admin screen's password gate."""
+    if session.get(Profile, payload.profile_id) is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
+    try:
+        game = get_game(payload.game_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not game.supports_practice_config():
+        raise HTTPException(status_code=422, detail=f"{payload.game_id} does not support a practice config")
+
+    if not payload.operations:
+        raise HTTPException(status_code=422, detail="operations must not be empty")
+    if not set(payload.operations) <= set(ALL_OPERATORS):
+        raise HTTPException(status_code=422, detail=f"operations must be a subset of {ALL_OPERATORS}")
+    if not (1 <= payload.difficulty <= game.metadata.max_level):
+        raise HTTPException(status_code=422, detail=f"difficulty must be between 1 and {game.metadata.max_level}")
+
+    config = _get_practice_config(session, payload.profile_id, payload.game_id)
+    if config is None:
+        config = PracticeConfig(profile_id=payload.profile_id, game_id=payload.game_id, operations=[], difficulty=1)
+    config.operations = payload.operations
+    config.focus_numbers = payload.focus_numbers
+    config.difficulty = payload.difficulty
+    config.updated_at = utcnow()
+    session.add(config)
+    session.commit()
+    session.refresh(config)
+    return config
+
+
+@app.delete("/api/practice-config", status_code=204)
+def delete_practice_config(profile_id: int, game_id: str, session: Session = Depends(get_session)) -> None:
+    """Reverts this profile/game to the server-adaptive Level."""
+    config = _get_practice_config(session, profile_id, game_id)
+    if config is None:
+        raise HTTPException(status_code=404, detail="no practice config set for this profile/game")
+    session.delete(config)
     session.commit()
 
 
@@ -271,14 +338,6 @@ def get_next_item(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    directive = choose_next_item_level(
-        session,
-        profile_id=profile_id,
-        game_id=game_id,
-        max_level=game.metadata.max_level,
-        rng=Random(),
-    )
-
     # No-repeat-within-a-session (client passes a session_id it generates once
     # per play session): derive already-shown items from the event log rather
     # than tracking new mutable state, per the event-sourcing pattern elsewhere.
@@ -301,14 +360,37 @@ def get_next_item(
             if (key := game.repeat_key(event.payload.get("payload", {}))) is not None
         }
 
-    item = game.generate_item(directive.level, Random(), exclude=frozenset(exclude))
+    # A parent-set practice config (see app/models/practice_config.py) fully
+    # replaces the adaptive Level for this profile/game — skip
+    # choose_next_item_level entirely rather than computing a directive
+    # that'd go unused.
+    practice_config = _get_practice_config(session, profile_id, game_id) if game.supports_practice_config() else None
+    if practice_config is not None:
+        item = game.generate_item_from_practice_config(
+            difficulty=practice_config.difficulty,
+            operations=practice_config.operations,
+            focus_numbers=practice_config.focus_numbers,
+            rng=Random(),
+            exclude=frozenset(exclude),
+        )
+        pacing = "practice_config"
+    else:
+        directive = choose_next_item_level(
+            session,
+            profile_id=profile_id,
+            game_id=game_id,
+            max_level=game.metadata.max_level,
+            rng=Random(),
+        )
+        item = game.generate_item(directive.level, Random(), exclude=frozenset(exclude))
+        pacing = directive.kind.value
 
     append_event(
         session,
         profile_id=profile_id,
         game_id=game_id,
         event_type=EventType.ITEM_SHOWN,
-        payload={**item.model_dump(), "pacing": directive.kind.value},
+        payload={**item.model_dump(), "pacing": pacing},
         session_id=session_id,
     )
     return item

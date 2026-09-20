@@ -3,6 +3,7 @@ import { ProfilePicker } from '../games/ProfilePicker'
 import { CreateProfile } from '../games/CreateProfile'
 import { AdminPanel } from '../games/AdminPanel'
 import { GamePicker } from '../games/GamePicker'
+import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
 import { SyllableBuilder } from '../games/SyllableBuilder'
 import { BadgesAccomplishments } from '../components/BadgesAccomplishments'
 import { SessionStart } from '../components/SessionStart'
@@ -170,8 +171,14 @@ const SCREENS: ScreenEntry[] = [
         onSwitchProfile={() => console.log('onSwitchProfile')}
         onViewBadges={() => console.log('onViewBadges')}
         onOpenStorybook={() => console.log('onOpenStorybook')}
+        onOpenPracticeSettings={(id) => console.log('onOpenPracticeSettings', id)}
       />
     ),
+  },
+  {
+    id: 'equation-outbreak-settings',
+    label: 'Equation Outbreak settings (live — hits the backend)',
+    render: () => <EquationOutbreakSettings profileId={1} onBack={() => console.log('onBack')} />,
   },
   {
     id: 'syllable-builder',

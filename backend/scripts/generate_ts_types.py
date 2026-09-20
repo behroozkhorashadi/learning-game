@@ -34,6 +34,7 @@ from app.models.piece import (  # noqa: E402
     TurnLine,
     TurnLineCreate,
 )
+from app.models.practice_config import PracticeConfig, PracticeConfigUpsert  # noqa: E402
 from app.models.profile import Profile, ProfileCreate, ProfileUpdate, SkillState  # noqa: E402
 from app.models.rating import Rating, RatingCreate  # noqa: E402
 from app.models.session import PlaySession  # noqa: E402
@@ -46,6 +47,8 @@ MODELS = [
     Profile,
     ProfileCreate,
     ProfileUpdate,
+    PracticeConfig,
+    PracticeConfigUpsert,
     SkillState,
     Skill,
     GameMetadata,

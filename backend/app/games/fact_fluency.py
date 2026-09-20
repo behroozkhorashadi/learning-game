@@ -20,7 +20,14 @@ reskinned freely without touching this module; nothing here is zombie-shaped.
 from random import Random
 from typing import Any, NamedTuple, Optional
 
-from app.games._arithmetic import ALL_OPERATORS, Operator, apply_operator, draw_operands, numeric_distractors
+from app.games._arithmetic import (
+    ALL_OPERATORS,
+    Operator,
+    apply_operator,
+    draw_operands,
+    draw_operands_with_focus,
+    numeric_distractors,
+)
 from app.games.base import GameModule
 from app.games.registry import register
 from app.models.game import GameMetadata
@@ -84,15 +91,58 @@ class FactFluencyGame(GameModule):
             operator = rng.choice(tier.operations)
             left, right = draw_operands(operator, tier.operand_max, rng)
             answer = apply_operator(operator, left, right)
-            candidate_key = self._fact_key(left, operator, right, answer)
-            if candidate_key not in exclude:
+            if self._fact_key(left, operator, right, answer) not in exclude:
                 break
 
+        return self._build_item(
+            level=level, operator=operator, left=left, right=right, answer=answer, approach_ms=tier.approach_ms, rng=rng, tag=f"L{level}"
+        )
+
+    def supports_practice_config(self) -> bool:
+        return True
+
+    def generate_item_from_practice_config(
+        self,
+        *,
+        difficulty: int,
+        operations: list[str],
+        focus_numbers: dict[str, list[int]],
+        rng: Random,
+        exclude: frozenset[str] = frozenset(),
+    ) -> Item:
+        tier = _tier_for_level(difficulty)
+        # Guards against an empty/invalid `operations` list (shouldn't happen —
+        # the API layer validates non-empty on write — but this keeps the
+        # generator itself never able to crash on bad stored data).
+        allowed = tuple(op for op in operations if op in ALL_OPERATORS) or tier.operations
+
+        for _ in range(10):
+            operator = rng.choice(allowed)
+            focus = focus_numbers.get(operator)
+            left, right = draw_operands_with_focus(operator, tier.operand_max, rng, focus)
+            answer = apply_operator(operator, left, right)
+            if self._fact_key(left, operator, right, answer) not in exclude:
+                break
+
+        return self._build_item(
+            level=difficulty,
+            operator=operator,
+            left=left,
+            right=right,
+            answer=answer,
+            approach_ms=tier.approach_ms,
+            rng=rng,
+            tag=f"P{difficulty}",
+        )
+
+    def _build_item(
+        self, *, level: int, operator: Operator, left: int, right: int, answer: int, approach_ms: int, rng: Random, tag: str
+    ) -> Item:
         distractors = numeric_distractors(answer, _OPTION_COUNT - 1, rng, floor=0)
         options = [answer] + distractors
         rng.shuffle(options)
 
-        item_id = f"{self.metadata.id}-L{level}-{rng.getrandbits(32):08x}"
+        item_id = f"{self.metadata.id}-{tag}-{rng.getrandbits(32):08x}"
         return Item(
             item_id=item_id,
             game_id=self.metadata.id,
@@ -103,7 +153,7 @@ class FactFluencyGame(GameModule):
                 "right": right,
                 "answer": answer,
                 "options": options,
-                "approach_ms": tier.approach_ms,
+                "approach_ms": approach_ms,
             },
         )
 

@@ -24,6 +24,24 @@ export interface ProfileUpdate {
   reading_support?: boolean | null;
 }
 
+export interface PracticeConfig {
+  id?: number | null;
+  profile_id: number;
+  game_id: string;
+  operations: string[];
+  focus_numbers?: Record<string, any>;
+  difficulty: number;
+  updated_at?: string;
+}
+
+export interface PracticeConfigUpsert {
+  profile_id: number;
+  game_id: string;
+  operations: string[];
+  focus_numbers?: Record<string, any>;
+  difficulty: number;
+}
+
 export interface SkillState {
   id?: number | null;
   profile_id: number;

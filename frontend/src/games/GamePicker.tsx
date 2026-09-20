@@ -52,15 +52,28 @@ function GameIcon({ gameId, emoji, background }: { gameId: string; emoji: string
   )
 }
 
+// Games with a parent-facing practice-settings screen (operations/focus-
+// numbers/difficulty) — see GameModule.supports_practice_config() on the
+// backend. Only fact_fluency (Equation Outbreak) has one today.
+const GAMES_WITH_PRACTICE_SETTINGS = new Set(['fact_fluency'])
+
 interface Props {
   profile: Profile
   onSelectGame: (gameId: string) => void
   onSwitchProfile: () => void
   onViewBadges: () => void
   onOpenStorybook: () => void
+  onOpenPracticeSettings: (gameId: string) => void
 }
 
-export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadges, onOpenStorybook: _onOpenStorybook }: Props) {
+export function GamePicker({
+  profile,
+  onSelectGame,
+  onSwitchProfile,
+  onViewBadges,
+  onOpenStorybook: _onOpenStorybook,
+  onOpenPracticeSettings,
+}: Props) {
   const [games, setGames] = useState<GameMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -126,18 +139,47 @@ export function GamePicker({ profile, onSelectGame, onSwitchProfile, onViewBadge
           {(games ?? []).filter((game) => VISIBLE_GAME_IDS.has(game.id)).map((game, i) => {
             const theme = CARD_THEMES[i % CARD_THEMES.length]
             return (
-              <button
-                key={game.id}
-                type="button"
-                onClick={() => onSelectGame(game.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 20, textAlign: 'left', padding: 22, borderRadius: 26, background: '#FFFFFF', border: '1px solid #F1ECE0', boxShadow: '0 10px 22px -16px rgba(0,13,51,0.18)', cursor: 'pointer' }}
-              >
-                <GameIcon gameId={game.id} emoji={game.icon} background={theme.icon} />
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 23, lineHeight: 1.15, color: '#2A2E37' }}>{game.title}</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#8B94A3', marginTop: 4 }}>{game.tagline}</div>
-                </div>
-              </button>
+              <div key={game.id} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => onSelectGame(game.id)}
+                  style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 20, textAlign: 'left', padding: 22, borderRadius: 26, background: '#FFFFFF', border: '1px solid #F1ECE0', boxShadow: '0 10px 22px -16px rgba(0,13,51,0.18)', cursor: 'pointer' }}
+                >
+                  <GameIcon gameId={game.id} emoji={game.icon} background={theme.icon} />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 23, lineHeight: 1.15, color: '#2A2E37' }}>{game.title}</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#8B94A3', marginTop: 4 }}>{game.tagline}</div>
+                  </div>
+                </button>
+                {GAMES_WITH_PRACTICE_SETTINGS.has(game.id) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onOpenPracticeSettings(game.id)
+                    }}
+                    aria-label={`Practice settings for ${game.title}`}
+                    title="Practice settings"
+                    style={{
+                      position: 'absolute',
+                      top: 12,
+                      right: 12,
+                      width: 36,
+                      height: 36,
+                      borderRadius: 9999,
+                      border: '1px solid #E7E2D6',
+                      background: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                    }}
+                  >
+                    ⚙️
+                  </button>
+                )}
+              </div>
             )
           })}
         </div>

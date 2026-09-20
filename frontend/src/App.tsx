@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ProfilePicker } from './games/ProfilePicker'
 import { CreateProfile } from './games/CreateProfile'
 import { AdminPanel } from './games/AdminPanel'
+import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
 import { GamePicker } from './games/GamePicker'
 import { SyllableBuilder } from './games/SyllableBuilder'
 import { EquationBuilder } from './games/EquationBuilder'
@@ -22,6 +23,7 @@ function App() {
   const [showStorybook, setShowStorybook] = useState(false)
   const [creatingProfile, setCreatingProfile] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [practiceSettingsGameId, setPracticeSettingsGameId] = useState<string | null>(null)
 
   if (import.meta.env.DEV) {
     const screen = new URLSearchParams(window.location.search).get('screen')
@@ -56,6 +58,8 @@ function App() {
         onWriteNew={() => setShowStorybook(false)}
       />
     )
+  } else if (practiceSettingsGameId === 'fact_fluency') {
+    content = <EquationOutbreakSettings profileId={profile.id!} onBack={() => setPracticeSettingsGameId(null)} />
   } else if (gameId == null) {
     content = (
       <GamePicker
@@ -64,6 +68,7 @@ function App() {
         onSwitchProfile={() => setProfile(null)}
         onViewBadges={() => setShowBadges(true)}
         onOpenStorybook={() => setShowStorybook(true)}
+        onOpenPracticeSettings={setPracticeSettingsGameId}
       />
     )
   } else if (gameId === 'prompt_forge') {

@@ -42,6 +42,31 @@ class GameModule(ABC):
         concept and no session-level exclusion is applied."""
         return None
 
+    def supports_practice_config(self) -> bool:
+        """Whether this game accepts a parent-set `PracticeConfig` (which
+        operations are in play, which numbers to focus on per operation, and
+        an explicit difficulty) instead of always using the server-adaptive
+        Level (PRD §5.1's Loop A). False (the default) means main.py never
+        looks up or applies a config for this game — most games don't support
+        this yet. Kept as a capability check rather than an `if game_id ==`
+        special-case in main.py, per this class's own "no special-casing"
+        goal above."""
+        return False
+
+    def generate_item_from_practice_config(
+        self,
+        *,
+        difficulty: int,
+        operations: list[str],
+        focus_numbers: dict[str, list[int]],
+        rng: Random,
+        exclude: frozenset[str] = frozenset(),
+    ) -> Item:
+        """Only called when `supports_practice_config()` is True. Takes plain
+        primitives (not the `PracticeConfig` model itself) so this base class
+        doesn't need to depend on that model."""
+        raise NotImplementedError(f"{self.metadata.id} does not support a practice config")
+
     def score_attempt(self, item: Item, response: dict[str, Any]) -> GradedResult:
         """Writing-only scoring seam via the model-provider layer (PRD §9.1,
         out of scope here). Objective games score client-side and never call
