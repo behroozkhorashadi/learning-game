@@ -144,96 +144,104 @@ export function EquationOutbreakSettings({ profileId, onBack }: Props) {
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 32, cursor: 'pointer' }}>
           <input type="checkbox" checked={customEnabled} onChange={(e) => setCustomEnabled(e.target.checked)} style={{ width: 20, height: 20 }} />
-          <span style={{ fontWeight: 700, color: 'var(--fg-secondary)' }}>Use custom practice focus</span>
+          <span style={{ fontWeight: 700, color: 'var(--fg-secondary)' }}>Customize which problems appear</span>
         </label>
         <div style={{ marginTop: 4, marginLeft: 30, fontSize: 14, color: 'var(--fg-tertiary)' }}>
           {customEnabled
             ? 'Overrides automatic difficulty until you turn this off.'
-            : 'Off: difficulty adjusts automatically as they play.'}
+            : 'Check this to pick operations, focus numbers, and difficulty yourself — off, difficulty adjusts automatically as they play.'}
         </div>
 
-        {customEnabled && (
-          <>
-            <div style={{ marginTop: 28 }}>
-              <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>Operations</span>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {OPERATIONS.map((op) => {
-                  const active = operations.has(op.key)
+        <div
+          // Always rendered (rather than only when checked) so it's obvious
+          // there's more here to turn on, not just a bare checkbox — the
+          // grayed-out/inert state is the discoverability cue.
+          aria-hidden={!customEnabled}
+          style={{
+            opacity: customEnabled ? 1 : 0.4,
+            pointerEvents: customEnabled ? 'auto' : 'none',
+            transition: 'opacity 120ms ease',
+          }}
+        >
+          <div style={{ marginTop: 28 }}>
+            <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>Operations</span>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {OPERATIONS.map((op) => {
+                const active = operations.has(op.key)
+                return (
+                  <button
+                    key={op.key}
+                    type="button"
+                    onClick={() => toggleOperation(op.key)}
+                    aria-pressed={active}
+                    title={op.label}
+                    style={{
+                      padding: '10px 18px',
+                      borderRadius: 14,
+                      fontWeight: 700,
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      background: active ? 'var(--blue-100)' : 'var(--surface-subtle)',
+                      border: active ? '2px solid var(--fg-brand)' : '2px solid var(--border-default)',
+                      color: 'var(--fg-primary)',
+                    }}
+                  >
+                    {op.key}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {OPERATIONS.filter((op) => operations.has(op.key)).map((op) => (
+            <div key={op.key} style={{ marginTop: 24 }}>
+              <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>
+                Focus numbers for {op.label.toLowerCase()} <span style={{ fontWeight: 400, color: 'var(--fg-tertiary)' }}>(optional)</span>
+              </span>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {FOCUS_NUMBER_OPTIONS.map((n) => {
+                  const active = (focusNumbers[op.key] ?? []).includes(n)
                   return (
                     <button
-                      key={op.key}
+                      key={n}
                       type="button"
-                      onClick={() => toggleOperation(op.key)}
+                      onClick={() => toggleFocusNumber(op.key, n)}
                       aria-pressed={active}
-                      title={op.label}
                       style={{
-                        padding: '10px 18px',
-                        borderRadius: 14,
+                        width: 38,
+                        height: 38,
+                        borderRadius: 9999,
                         fontWeight: 700,
-                        fontSize: 18,
+                        fontSize: 14,
                         cursor: 'pointer',
                         background: active ? 'var(--blue-100)' : 'var(--surface-subtle)',
                         border: active ? '2px solid var(--fg-brand)' : '2px solid var(--border-default)',
                         color: 'var(--fg-primary)',
                       }}
                     >
-                      {op.key}
+                      {n}
                     </button>
                   )
                 })}
               </div>
             </div>
+          ))}
 
-            {OPERATIONS.filter((op) => operations.has(op.key)).map((op) => (
-              <div key={op.key} style={{ marginTop: 24 }}>
-                <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>
-                  Focus numbers for {op.label.toLowerCase()} <span style={{ fontWeight: 400, color: 'var(--fg-tertiary)' }}>(optional)</span>
-                </span>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {FOCUS_NUMBER_OPTIONS.map((n) => {
-                    const active = (focusNumbers[op.key] ?? []).includes(n)
-                    return (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => toggleFocusNumber(op.key, n)}
-                        aria-pressed={active}
-                        style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 9999,
-                          fontWeight: 700,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          background: active ? 'var(--blue-100)' : 'var(--surface-subtle)',
-                          border: active ? '2px solid var(--fg-brand)' : '2px solid var(--border-default)',
-                          color: 'var(--fg-primary)',
-                        }}
-                      >
-                        {n}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-
-            <div style={{ marginTop: 28 }}>
-              <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>
-                Difficulty — {difficultyLabel(difficulty)} ({difficulty}/{MAX_DIFFICULTY})
-              </span>
-              <input
-                type="range"
-                min={MIN_DIFFICULTY}
-                max={MAX_DIFFICULTY}
-                value={difficulty}
-                onChange={(e) => setDifficulty(Number(e.target.value))}
-                style={{ width: '100%' }}
-              />
-              <div style={{ fontSize: 13, color: 'var(--fg-tertiary)' }}>Bigger numbers and less time to answer as this goes up.</div>
-            </div>
-          </>
-        )}
+          <div style={{ marginTop: 28 }}>
+            <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>
+              Difficulty — {difficultyLabel(difficulty)} ({difficulty}/{MAX_DIFFICULTY})
+            </span>
+            <input
+              type="range"
+              min={MIN_DIFFICULTY}
+              max={MAX_DIFFICULTY}
+              value={difficulty}
+              onChange={(e) => setDifficulty(Number(e.target.value))}
+              style={{ width: '100%' }}
+            />
+            <div style={{ fontSize: 13, color: 'var(--fg-tertiary)' }}>Bigger numbers and less time to answer as this goes up.</div>
+          </div>
+        </div>
 
         {error && <div style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>{error}</div>}
 
