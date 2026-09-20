@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ProfilePicker } from './games/ProfilePicker'
 import { CreateProfile } from './games/CreateProfile'
+import { AdminPanel } from './games/AdminPanel'
 import { GamePicker } from './games/GamePicker'
 import { SyllableBuilder } from './games/SyllableBuilder'
 import { EquationBuilder } from './games/EquationBuilder'
@@ -20,6 +21,7 @@ function App() {
   const [showBadges, setShowBadges] = useState(false)
   const [showStorybook, setShowStorybook] = useState(false)
   const [creatingProfile, setCreatingProfile] = useState(false)
+  const [showAdmin, setShowAdmin] = useState(false)
 
   if (import.meta.env.DEV) {
     const screen = new URLSearchParams(window.location.search).get('screen')
@@ -29,7 +31,9 @@ function App() {
   }
 
   let content
-  if (creatingProfile) {
+  if (showAdmin) {
+    content = <AdminPanel onClose={() => setShowAdmin(false)} />
+  } else if (creatingProfile) {
     content = (
       <CreateProfile
         onCreated={(newProfile) => {
@@ -40,7 +44,7 @@ function App() {
       />
     )
   } else if (profile == null) {
-    content = <ProfilePicker onSelect={setProfile} onAddPlayer={() => setCreatingProfile(true)} />
+    content = <ProfilePicker onSelect={setProfile} onAddPlayer={() => setCreatingProfile(true)} onOpenAdmin={() => setShowAdmin(true)} />
   } else if (showBadges) {
     content = <BadgesAccomplishments profileId={profile.id!} kidName={profile.name} onBack={() => setShowBadges(false)} />
   } else if (showStorybook) {

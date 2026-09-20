@@ -36,6 +36,17 @@ class ProfileCreate(BaseModel):
     reading_support: bool = False
 
 
+class ProfileUpdate(BaseModel):
+    """Inbound PATCH body for /api/profiles/{profile_id} (admin-only — see
+    `app/admin_auth.py`). All fields optional so a caller can send just the
+    ones changing, same pattern as `PieceUpdate`."""
+
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    birth_year: Optional[int] = None
+    reading_support: Optional[bool] = None
+
+
 class Profile(SQLModel, table=True):
     """One per kid. `reading_support` is an independent per-profile flag, not an
     age rule — PRD §8 (our fluent-reading 6yo has it off)."""

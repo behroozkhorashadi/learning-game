@@ -17,6 +17,13 @@ export interface ProfileCreate {
   reading_support?: boolean;
 }
 
+export interface ProfileUpdate {
+  name?: string | null;
+  avatar?: string | null;
+  birth_year?: number | null;
+  reading_support?: boolean | null;
+}
+
 export interface SkillState {
   id?: number | null;
   profile_id: number;

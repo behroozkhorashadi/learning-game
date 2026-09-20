@@ -34,7 +34,7 @@ from app.models.piece import (  # noqa: E402
     TurnLine,
     TurnLineCreate,
 )
-from app.models.profile import Profile, ProfileCreate, SkillState  # noqa: E402
+from app.models.profile import Profile, ProfileCreate, ProfileUpdate, SkillState  # noqa: E402
 from app.models.rating import Rating, RatingCreate  # noqa: E402
 from app.models.session import PlaySession  # noqa: E402
 from app.models.skill import Skill  # noqa: E402
@@ -45,6 +45,7 @@ from app.models.verification import Verification, VerificationCreate  # noqa: E4
 MODELS = [
     Profile,
     ProfileCreate,
+    ProfileUpdate,
     SkillState,
     Skill,
     GameMetadata,

@@ -17,6 +17,7 @@ const RING_THEMES = [
 interface Props {
   onSelect: (profile: Profile) => void
   onAddPlayer: () => void
+  onOpenAdmin: () => void
 }
 
 /** `profile.avatar` is a bare key (e.g. `"fox"`, `"rami"`), not a path —
@@ -41,7 +42,7 @@ function ProfileAvatar({ avatar, name }: { avatar: string; name: string }) {
   )
 }
 
-export function ProfilePicker({ onSelect, onAddPlayer }: Props) {
+export function ProfilePicker({ onSelect, onAddPlayer, onOpenAdmin }: Props) {
   const [profiles, setProfiles] = useState<Profile[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -118,6 +119,23 @@ export function ProfilePicker({ onSelect, onAddPlayer }: Props) {
           )}
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={onOpenAdmin}
+        style={{
+          position: 'fixed',
+          bottom: 16,
+          left: 20,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: 13,
+          color: 'var(--fg-disabled)',
+        }}
+      >
+        Admin
+      </button>
     </div>
   )
 }

@@ -2,6 +2,11 @@
 
 - GET  /api/profiles     : read-only listing for the profile-picker screen.
 - POST /api/profiles     : backs the create-profile screen.
+- PATCH/DELETE /api/profiles/{id}: backs the admin screen's edit/remove
+  actions. Gated by `require_admin` (app/admin_auth.py) — a hardcoded shared
+  password, not real auth (PRD §2 non-goals).
+- POST /api/admin/login  : lets the admin screen check the password before
+  showing itself. Holds no session state — see `app/admin_auth.py`.
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
 - POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
 - POST /api/ratings      : persists an explicit kid-provided rating, logs `rating_given`.
@@ -17,10 +22,9 @@
   (React error boundary, window error/unhandledrejection) — see
   `app/services/client_error_log.py`. Written to `logs/client_errors.log`.
 
-No accounts/auth (PRD §2 non-goals). A demo profile plus one hardcoded real
-tester profile are seeded on startup so there's something to point the
-frontend and curl at; real profile management (creation/editing) is out of
-scope here.
+No accounts/auth (PRD §2 non-goals) beyond the admin screen's hardcoded
+password gate. A demo profile plus one hardcoded real tester profile are
+seeded on startup so there's something to point the frontend and curl at.
 """
 
 from contextlib import asynccontextmanager
@@ -33,6 +37,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
+from app.admin_auth import ADMIN_PASSWORD, AdminLoginRequest, require_admin
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
 from app.events.log import append_event
@@ -42,7 +47,7 @@ from app.models.attempt import Attempt, AttemptCreate, AttemptRead
 from app.models.badge import Badge, BadgeAward, BadgeStatus
 from app.models.enums import EventType
 from app.models.event import Event
-from app.models.game import GameMetadata
+from app.models.game import GameMetadata, Level
 from app.models.item import Item
 from app.models.piece import (
     Illustration,
@@ -58,8 +63,9 @@ from app.models.piece import (
     TurnLine,
     TurnLineCreate,
 )
-from app.models.profile import AVATAR_OPTIONS, MAX_AGE, MIN_AGE, Profile, ProfileCreate
+from app.models.profile import AVATAR_OPTIONS, MAX_AGE, MIN_AGE, Profile, ProfileCreate, ProfileUpdate, SkillState
 from app.models.rating import Rating, RatingCreate
+from app.models.session import PlaySession
 from app.models.stats import ProfileStats
 from app.models.verification import Verification, VerificationCreate
 from app.services.badges_service import compute_profile_stats, evaluate_and_award_badges, seed_badges
@@ -109,24 +115,101 @@ def list_profiles(session: Session = Depends(get_session)) -> list[Profile]:
     return list(session.exec(select(Profile)).all())
 
 
+def _validated_profile_name(name: str) -> str:
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name must not be blank")
+    return name
+
+
+def _validate_profile_avatar(avatar: str) -> None:
+    if avatar not in AVATAR_OPTIONS:
+        raise HTTPException(status_code=422, detail=f"avatar must be one of {AVATAR_OPTIONS}")
+
+
+def _validate_profile_birth_year(birth_year: int) -> None:
+    age = utcnow().year - birth_year
+    if age < MIN_AGE or age > MAX_AGE:
+        raise HTTPException(status_code=422, detail=f"birth_year implies an age outside {MIN_AGE}-{MAX_AGE}")
+
+
 @app.post("/api/profiles", response_model=Profile, status_code=201)
 def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)) -> Profile:
     """Backs the create-profile screen. No auth (PRD §2 non-goals) — anyone on
     the LAN can add a player, same trust model as everything else here."""
-    name = payload.name.strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="name must not be blank")
-    if payload.avatar not in AVATAR_OPTIONS:
-        raise HTTPException(status_code=422, detail=f"avatar must be one of {AVATAR_OPTIONS}")
-    age = utcnow().year - payload.birth_year
-    if age < MIN_AGE or age > MAX_AGE:
-        raise HTTPException(status_code=422, detail=f"birth_year implies an age outside {MIN_AGE}-{MAX_AGE}")
+    name = _validated_profile_name(payload.name)
+    _validate_profile_avatar(payload.avatar)
+    _validate_profile_birth_year(payload.birth_year)
 
     profile = Profile(name=name, avatar=payload.avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
     session.add(profile)
     session.commit()
     session.refresh(profile)
     return profile
+
+
+@app.post("/api/admin/login", status_code=204)
+def admin_login(payload: AdminLoginRequest) -> None:
+    """Lets the admin screen check a password before showing itself — a UX
+    nicety, not the actual gate. `require_admin` (checked per-request on the
+    admin-only endpoints below) is what actually protects anything; this
+    endpoint holds no session state of its own."""
+    if payload.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="invalid admin password")
+
+
+@app.patch("/api/profiles/{profile_id}", response_model=Profile, dependencies=[Depends(require_admin)])
+def patch_profile(profile_id: int, payload: ProfileUpdate, session: Session = Depends(get_session)) -> Profile:
+    """Admin-only (see `app/admin_auth.py`) — backs the edit-profile screen."""
+    profile = session.get(Profile, profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+
+    if payload.name is not None:
+        profile.name = _validated_profile_name(payload.name)
+    if payload.avatar is not None:
+        _validate_profile_avatar(payload.avatar)
+        profile.avatar = payload.avatar
+    if payload.birth_year is not None:
+        _validate_profile_birth_year(payload.birth_year)
+        profile.birth_year = payload.birth_year
+    if payload.reading_support is not None:
+        profile.reading_support = payload.reading_support
+
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+    return profile
+
+
+@app.delete("/api/profiles/{profile_id}", status_code=204, dependencies=[Depends(require_admin)])
+def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> None:
+    """Admin-only (see `app/admin_auth.py`) — backs the admin screen's remove
+    action. Removes every row that hangs off this profile first since
+    there's no DB-level cascade configured (same reasoning as `delete_piece`)."""
+    profile = session.get(Profile, profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+
+    piece_ids = [p.id for p in session.exec(select(Piece).where(Piece.profile_id == profile_id)).all()]
+    for model in (Illustration, RevisionPass, RemixVersion, TurnLine):
+        for row in session.exec(select(model).where(model.piece_id.in_(piece_ids))).all():
+            session.delete(row)
+    for piece_id in piece_ids:
+        piece = session.get(Piece, piece_id)
+        if piece is not None:
+            session.delete(piece)
+
+    attempt_ids = [a.id for a in session.exec(select(Attempt).where(Attempt.profile_id == profile_id)).all()]
+    for verification in session.exec(select(Verification).where(Verification.attempt_id.in_(attempt_ids))).all():
+        session.delete(verification)
+
+    for model in (Attempt, Event, Rating, BadgeAward, Level, PlaySession, SkillState):
+        for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
+            session.delete(row)
+
+    session.delete(profile)
+    session.commit()
 
 
 @app.get("/api/profiles/{profile_id}/badges", response_model=list[BadgeStatus])
