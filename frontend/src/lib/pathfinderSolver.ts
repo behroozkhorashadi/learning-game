@@ -34,6 +34,18 @@ export interface SolveOptions {
   maxNodes?: number
   /** Restrict the search to paths starting at this dot. */
   startAt?: GridPosition
+  /**
+   * 'warnsdorff' (default): try the neighbor with the fewest onward options
+   * first — a genuine planning heuristic, so node count under this mode
+   * measures "how hard even with a good strategy", which is far too
+   * forgiving to use as a difficulty signal (a huge but structurally
+   * trivial board solves in a handful of nodes this way regardless of
+   * size). 'fixed': try neighbors in plain grid order (up/down/left/right)
+   * with no lookahead — closer to a person poking at the board without a
+   * strategy, so how much backtracking *this* mode needs is what
+   * `pathfinderDifficulty.ts` actually measures difficulty from.
+   */
+  neighborOrder?: 'warnsdorff' | 'fixed'
 }
 
 export type UnsolvabilityReason = 'empty-board' | 'disconnected' | 'too-many-leaf-dots' | 'unbalanced-coloring'
@@ -129,6 +141,7 @@ export function solvePuzzle(puzzle: DotPuzzle, options: SolveOptions = {}): Solv
   }
 
   const maxNodes = options.maxNodes ?? defaultMaxNodes(puzzle.dots.length)
+  const useWarnsdorff = (options.neighborOrder ?? 'warnsdorff') === 'warnsdorff'
   const total = puzzle.dots.length
   const keyToPos = new Map(puzzle.dots.map((d) => [coordKey(d), d]))
   const neighborMap = buildNeighborMap(puzzle)
@@ -148,10 +161,12 @@ export function solvePuzzle(puzzle: DotPuzzle, options: SolveOptions = {}): Solv
 
     if (!unvisitedRegionIsConnected(currentKey, visited, total - visited.size, neighborMap)) return false
 
-    const ordered = unvisitedNeighbors
-      .map((k) => ({ k, degree: (neighborMap.get(k) ?? []).filter((n) => !visited.has(n)).length }))
-      .sort((a, b) => a.degree - b.degree)
-      .map((e) => e.k)
+    const ordered = useWarnsdorff
+      ? unvisitedNeighbors
+          .map((k) => ({ k, degree: (neighborMap.get(k) ?? []).filter((n) => !visited.has(n)).length }))
+          .sort((a, b) => a.degree - b.degree)
+          .map((e) => e.k)
+      : unvisitedNeighbors
 
     for (const next of ordered) {
       visited.add(next)
@@ -164,7 +179,15 @@ export function solvePuzzle(puzzle: DotPuzzle, options: SolveOptions = {}): Solv
     return false
   }
 
-  const starts = options.startAt ? [coordKey(options.startAt)] : puzzle.dots.map(coordKey)
+  // Canonical (row, then column) order, not the order `puzzle.dots` happens
+  // to be listed in — a board's difficulty must be a property of the graph,
+  // not of how a caller happened to serialize its dot list. Without this,
+  // re-sorting a puzzle's dots array for readability (as pathfinderLevels.ts
+  // does) would silently change which start gets tried first and thus the
+  // measured node count / difficulty score for the exact same board.
+  const starts = options.startAt
+    ? [coordKey(options.startAt)]
+    : [...puzzle.dots].sort((a, b) => a.row - b.row || a.col - b.col).map(coordKey)
 
   for (const startKey of starts) {
     if (!keyToPos.has(startKey)) continue

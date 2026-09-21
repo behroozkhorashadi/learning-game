@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { assessDifficulty } from './pathfinderDifficulty'
-import { ALL_LEVELS } from './pathfinderLevels'
+import { ALL_LEVELS, LEVELS_BY_DIFFICULTY } from './pathfinderLevels'
 import { solvePuzzle } from './pathfinderSolver'
 import type { DotPuzzle, GridPosition } from './pathfinderTypes'
 
@@ -57,15 +57,27 @@ describe('assessDifficulty', () => {
     // Same board, same solver, same answer either way — reuse doesn't
     // change the outcome, only avoids a redundant solve.
     expect(withReuse.score).toBe(withoutReuse.score)
-    expect(withReuse.metrics.searchCost).toBe(solveResult.nodesExplored)
+    expect(withReuse.metrics.smartSearchCost).toBe(solveResult.nodesExplored)
   })
 
-  it('a board at the 50x50 size ceiling does not exceed the legendary tier', () => {
-    const puzzle: DotPuzzle = { id: 'max-size', difficulty: 'legendary', rows: 50, columns: 50, dots: rectangle(50, 50) }
+  it('a full, wide-open board at the 50x50 size ceiling is not automatically legendary', () => {
+    // The regression this guards against: the first version of this engine
+    // weighted raw size so heavily that a huge-but-trivial board (a
+    // straightforward sweep solves it with no backtracking at all) scored
+    // as Legendary. Size alone must never do that again — a full rectangle
+    // has no real traps regardless of how big it is.
+    const puzzle: DotPuzzle = { id: 'max-size', difficulty: 'easy', rows: 50, columns: 50, dots: rectangle(50, 50) }
     const result = assessDifficulty(puzzle)
     expect(result.solvable).toBe(true)
-    expect(result.tier).toBe('legendary')
+    expect(result.tier).not.toBe('legendary')
     expect(result.score).toBeLessThanOrEqual(100)
+  })
+
+  it('a small board can still reach Legendary — the tier tracks difficulty, not dot count', () => {
+    const smallestLegendary = [...LEVELS_BY_DIFFICULTY.legendary].sort((a, b) => a.dots.length - b.dots.length)[0]
+    const biggestEasy = [...LEVELS_BY_DIFFICULTY.easy].sort((a, b) => b.dots.length - a.dots.length)[0]
+    expect(smallestLegendary.dots.length).toBeLessThan(biggestEasy.dots.length * 3)
+    expect(assessDifficulty(smallestLegendary).tier).toBe('legendary')
   })
 })
 

@@ -100,6 +100,16 @@ describe('solvePuzzle', () => {
     expect(result.unsolvableReason).toBeNull()
   })
 
+  it('the node count (and thus the difficulty it implies) does not depend on the order dots are listed in', () => {
+    // Same board, listed two different ways — reordering a puzzle's dots
+    // array (e.g. for readability) must never change what the solver finds.
+    const inOrder: DotPuzzle = { id: 'ordered', difficulty: 'easy', rows: 5, columns: 5, dots: rectangle(5, 5) }
+    const shuffled: DotPuzzle = { ...inOrder, dots: [...inOrder.dots].reverse() }
+    const a = solvePuzzle(inOrder, { neighborOrder: 'fixed' })
+    const b = solvePuzzle(shuffled, { neighborOrder: 'fixed' })
+    expect(b.nodesExplored).toBe(a.nodesExplored)
+  })
+
   it('solves a large (40x40, 1600-dot) open board quickly instead of hanging', () => {
     const puzzle: DotPuzzle = { id: 'huge', difficulty: 'legendary', rows: 40, columns: 40, dots: rectangle(40, 40) }
     const start = Date.now()
