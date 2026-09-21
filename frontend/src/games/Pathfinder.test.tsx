@@ -92,6 +92,16 @@ describe('Pathfinder level select', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(onBack).toHaveBeenCalledTimes(1)
   })
+
+  it('Build Your Own Map opens the builder, and Back from there returns to the map', () => {
+    render(<Pathfinder profileId={freshProfileId()} onBack={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Build Your Own Map/ }))
+    // The builder's own grid-cell controls are now on screen.
+    expect(screen.getByRole('button', { name: 'Check My Puzzle' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByText(`0 / ${ALL_LEVELS.length} maps completed`)).toBeTruthy()
+  })
 })
 
 describe('Pathfinder gameplay', () => {

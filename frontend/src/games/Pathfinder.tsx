@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PathfinderBoard } from '../components/PathfinderBoard'
 import { PathfinderLevelSelect } from '../components/PathfinderLevelSelect'
+import { PathfinderMapBuilder } from '../components/PathfinderMapBuilder'
 import { DenButton } from '../components/den/DenButton'
 import { ArrowLeftIcon } from '../components/icons'
 import { ALL_LEVELS } from '../lib/pathfinderLevels'
@@ -26,7 +27,7 @@ import type { DotPuzzle } from '../lib/pathfinderTypes'
 
 const GAME_ID = 'pathfinder_no_way_back'
 
-type Mode = 'select' | 'play'
+type Mode = 'select' | 'play' | 'build'
 
 interface Props {
   profileId: number
@@ -60,7 +61,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function Pathfinder({ profileId, onBack }: Props) {
+export function Pathfinder({ profileId, profileName, onBack }: Props) {
   const [mode, setMode] = useState<Mode>('select')
   const [puzzle, setPuzzle] = useState<DotPuzzle>(ALL_LEVELS[0])
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => getCompletedLevelIds(profileId))
@@ -83,7 +84,7 @@ export function Pathfinder({ profileId, onBack }: Props) {
   }
 
   function handleTopBack() {
-    if (mode === 'play') setMode('select')
+    if (mode === 'play' || mode === 'build') setMode('select')
     else onBack()
   }
 
@@ -97,7 +98,11 @@ export function Pathfinder({ profileId, onBack }: Props) {
           </div>
         </div>
 
-        {mode === 'select' && <PathfinderLevelSelect statuses={statuses} onSelect={playLevel} />}
+        {mode === 'select' && (
+          <PathfinderLevelSelect statuses={statuses} onSelect={playLevel} onBuild={() => setMode('build')} />
+        )}
+
+        {mode === 'build' && <PathfinderMapBuilder username={profileName || 'Player'} />}
 
         {mode === 'play' && (
           <div

@@ -1,8 +1,12 @@
+import { ArrowRightIcon } from './icons'
+import { listCustomMaps } from '../lib/pathfinderCustomMaps'
 import type { LevelStatus } from '../lib/pathfinderProgress'
 import type { Difficulty } from '../lib/pathfinderTypes'
 
 /**
- * The map: every level in fixed order, grouped by difficulty tier, each
+ * The map: a "Build Your Own Map" entry point (same visual role as the My
+ * Storybook card sitting above the game grid in `GamePicker`) followed by
+ * every curated level in fixed order, grouped by difficulty tier, each
  * shown as locked / unlocked / completed. Locked cards aren't clickable —
  * "some maps need to be unlocked by playing the previous maps" (finishing
  * level N unlocks level N+1, computed by `pathfinderProgress`).
@@ -18,6 +22,7 @@ const SECTION_LABEL: Record<Difficulty, string> = {
 interface Props {
   statuses: LevelStatus[]
   onSelect: (levelId: string) => void
+  onBuild: () => void
 }
 
 function groupByDifficulty(statuses: LevelStatus[]): { difficulty: Difficulty; items: LevelStatus[] }[] {
@@ -61,12 +66,50 @@ function LevelCard({ status, onSelect }: { status: LevelStatus; onSelect: (level
   )
 }
 
-export function PathfinderLevelSelect({ statuses, onSelect }: Props) {
+function BuildEntryCard({ onBuild }: { onBuild: () => void }) {
+  const savedCount = listCustomMaps().length
+
+  return (
+    <button
+      type="button"
+      onClick={onBuild}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        background: 'var(--surface-default)',
+        border: '1.5px solid var(--border-default)',
+        borderRadius: 22,
+        padding: '18px 20px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        boxShadow: 'var(--elevation-300)',
+      }}
+    >
+      <span style={{ fontSize: 34, flex: 'none' }}>🛠️</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--fg-primary)' }}>
+          Build Your Own Map
+        </div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg-tertiary)', marginTop: 3 }}>
+          {savedCount > 0 ? `${savedCount} map${savedCount === 1 ? '' : 's'} you've built` : 'Design a puzzle, check it, and play it'}
+        </div>
+      </div>
+      <div style={{ color: 'var(--fg-tertiary)', flex: 'none' }}>
+        <ArrowRightIcon size={22} />
+      </div>
+    </button>
+  )
+}
+
+export function PathfinderLevelSelect({ statuses, onSelect, onBuild }: Props) {
   const groups = groupByDifficulty(statuses)
   const completedCount = statuses.filter((s) => s.completed).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
+      <BuildEntryCard onBuild={onBuild} />
+
       <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--fg-tertiary)' }}>
         {completedCount} / {statuses.length} maps completed
       </div>
