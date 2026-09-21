@@ -16,6 +16,12 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # backend/.env is gitignored (it holds real secrets — see
+    # backend/.env.example) and never exists on the runner, but app/admin_auth.py
+    # refuses to start without ADMIN_PASSWORD set. Any value works here — the
+    # test suite exercises the admin-auth logic, not the real password.
+    env:
+      ADMIN_PASSWORD: ci-test-password
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
