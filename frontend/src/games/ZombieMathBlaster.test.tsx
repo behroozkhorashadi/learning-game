@@ -123,23 +123,27 @@ describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {
   })
 
   it(
-    'wins via five correct headshots and shows the Equation Outbreak victory copy',
+    'wins via ten correct headshots and shows the Equation Outbreak victory copy',
     async () => {
       render(<ZombieMathBlaster profileId={1} onBack={() => {}} />)
       await start()
 
-      for (const round of ROUNDS) {
-        await headshot(round.answer)
+      // ZombieMathBlaster.SESSION_LENGTH is 10; mockFetchSequence clamps to
+      // ROUNDS' last entry once exhausted, so replaying it is enough to
+      // drive a full session without needing 10 distinct facts.
+      const SESSION_LENGTH = 10
+      for (let i = 0; i < SESSION_LENGTH; i++) {
+        await headshot(ROUNDS[Math.min(i, ROUNDS.length - 1)].answer)
         await waitCooldown()
       }
 
       expect(await screen.findByText('You stopped the Equation Outbreak!', undefined, { timeout: 3000 })).toBeTruthy()
-      expect(attemptPayloads).toHaveLength(5)
+      expect(attemptPayloads).toHaveLength(SESSION_LENGTH)
       for (const payload of attemptPayloads as Array<{ telemetry: { correct: boolean } }>) {
         expect(payload.telemetry.correct).toBe(true)
       }
     },
-    20000,
+    30000,
   )
 
   it(
@@ -256,7 +260,7 @@ describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'background miss' }))
     await waitCooldown()
     expect(attemptPayloads).toHaveLength(0)
-    expect(screen.getByText('0 / 5')).toBeTruthy()
+    expect(screen.getByText('0 / 10')).toBeTruthy()
   })
 })
 
