@@ -27,10 +27,13 @@
   `app/services/client_error_log.py`. Written to `logs/client_errors.log`.
 
 No accounts/auth (PRD §2 non-goals) beyond the admin screen's hardcoded
-password gate. A demo profile plus one hardcoded real tester profile are
-seeded on startup so there's something to point the frontend and curl at.
+password gate. A demo profile is always seeded on startup so there's
+something to point the frontend and curl at; a second, real named tester
+profile can be seeded locally via LOCAL_SEED_PROFILE_* env vars (see
+backend/.env.example) without that person's name/photo living in the repo.
 """
 
+import os
 from contextlib import asynccontextmanager
 from random import Random
 from typing import AsyncIterator, Optional
@@ -105,14 +108,21 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 def _seed_test_profiles(session: Session) -> None:
     if session.get(Profile, 1) is None:
         session.add(Profile(id=1, name="Demo Kid", avatar="fox", birth_year=2020))
-    # A real named tester (the developer's nephew) hardcoded alongside the
-    # demo profile — id=2 is stable so his attempts/badges/session history
-    # persist across restarts instead of being re-seeded from scratch. Only
-    # `birth_year` is stored (see Profile.age's own docstring on why), so
-    # his Oct 22, 2019 birthday is captured as precisely as the schema allows.
-    if session.get(Profile, 2) is None:
-        session.add(Profile(id=2, name="Rami", avatar="rami", birth_year=2019))
+    _seed_local_profile(session)
     session.commit()
+
+
+def _seed_local_profile(session: Session) -> None:
+    """Optional second seed profile for a real named tester, kept out of the
+    repo (see backend/.env.example) — id=2 is stable so their attempts/badges/
+    session history persist across restarts instead of being re-seeded from
+    scratch. Only set on machines that opt in via LOCAL_SEED_PROFILE_* env vars."""
+    name = os.environ.get("LOCAL_SEED_PROFILE_NAME")
+    if not name or session.get(Profile, 2) is not None:
+        return
+    avatar = os.environ.get("LOCAL_SEED_PROFILE_AVATAR", "fox")
+    birth_year = int(os.environ.get("LOCAL_SEED_PROFILE_BIRTH_YEAR", "2019"))
+    session.add(Profile(id=2, name=name, avatar=avatar, birth_year=birth_year))
 
 
 @app.get("/api/profiles", response_model=list[Profile])

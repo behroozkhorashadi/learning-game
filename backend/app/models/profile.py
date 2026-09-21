@@ -11,12 +11,14 @@ from app.util import utcnow
 from pydantic import BaseModel
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
-# Generic avatar keys the create-profile screen offers — none has real art yet
-# (only the two hardcoded seed profiles do, and "rami" is a specific kid's
-# photo, not reusable), so picking one of these falls back to the profile's
-# initial letter via `ProfileAvatar`'s existing onError handling. Shared with
-# the frontend's `CreateProfile.tsx`, which hardcodes the same list rather
-# than round-tripping it through an API call.
+# Generic avatar keys the create-profile screen offers — none has real art yet,
+# so picking one of these falls back to the profile's initial letter via
+# `ProfileAvatar`'s existing onError handling. (A local dev machine may seed an
+# extra profile with a real kid's photo as its avatar — see
+# LOCAL_SEED_PROFILE_* in backend/.env.example — but that key isn't part of
+# this list since it's not reusable art.) Shared with the frontend's
+# `CreateProfile.tsx`, which hardcodes the same list rather than round-tripping
+# it through an API call.
 AVATAR_OPTIONS = ["fox", "owl", "bear", "cat", "panda", "rabbit"]
 
 # Sanity bounds on a new profile's age, not a product requirement — just wide

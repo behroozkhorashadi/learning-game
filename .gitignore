@@ -17,3 +17,6 @@ frontend/dist/
 
 # Local tooling
 .claude/settings.local.json
+
+# Local-only profile photo (see LOCAL_SEED_PROFILE_* in backend/.env.example)
+frontend/public/images/avatars/rami.png
