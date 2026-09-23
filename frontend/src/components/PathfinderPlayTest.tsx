@@ -14,9 +14,12 @@ import type { DotPuzzle } from '../lib/pathfinderTypes'
 interface Props {
   puzzle: DotPuzzle
   onBack: () => void
+  /** Defaults to the map-builder wording; the dev level gallery passes its
+   * own so the label matches where "back" actually goes. */
+  backLabel?: string
 }
 
-export function PathfinderPlayTest({ puzzle, onBack }: Props) {
+export function PathfinderPlayTest({ puzzle, onBack, backLabel = 'Back to Builder' }: Props) {
   const play = usePathfinderPlay(puzzle)
 
   return (
@@ -60,7 +63,7 @@ export function PathfinderPlayTest({ puzzle, onBack }: Props) {
       )}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <DenButton label="Back to Builder" variant="quiet" onClick={onBack} />
+        <DenButton label={backLabel} variant="quiet" onClick={onBack} />
         <DenButton label="Undo" variant="quiet" onClick={play.handleUndo} disabled={!play.canUndo} />
         <DenButton label="Restart" variant="quiet" onClick={play.handleRestart} disabled={!play.canRestart} />
       </div>

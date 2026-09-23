@@ -23,6 +23,7 @@ import { ZombiePOCScene } from './ZombiePOCScene'
 import { WeaponPOCScene } from './WeaponPOCScene'
 import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
 import { PathfinderMapBuilder } from '../components/PathfinderMapBuilder'
+import { PathfinderLevelGallery } from '../components/PathfinderLevelGallery'
 import type { Profile } from '../types/generated'
 
 /**
@@ -350,6 +351,15 @@ const SCREENS: ScreenEntry[] = [
     render: () => (
       <CardWrapper wide>
         <PathfinderMapBuilder username={MOCK_PROFILE.name} />
+      </CardWrapper>
+    ),
+  },
+  {
+    id: 'pathfinder-level-gallery',
+    label: 'Pathfinder: All Levels (QA — every level unlocked, scores shown)',
+    render: () => (
+      <CardWrapper wide>
+        <PathfinderLevelGallery />
       </CardWrapper>
     ),
   },
