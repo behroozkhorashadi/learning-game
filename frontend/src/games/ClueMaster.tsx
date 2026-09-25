@@ -147,7 +147,7 @@ function pickCase(excludeKey?: string): CaseFile {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-export function ClueMaster({ profileId, profileName, onBack, onFinished }: Props) {
+export function ClueMaster({ profileId, onBack, onFinished }: Props) {
   const [phase, setPhase] = useState<Phase>('dealing')
   const [sessionId] = useState(() => randomId())
   const [error, setError] = useState<string | null>(null)
@@ -509,7 +509,7 @@ export function ClueMaster({ profileId, profileName, onBack, onFinished }: Props
 
         {phase === 'revealing' && piece && (
           <IllustrationReveal
-            pieceId={piece.id}
+            pieceId={piece.id!}
             pieceTitle={piece.title ?? 'Your case'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}

@@ -324,7 +324,10 @@ function Reader({
   onNext: () => void
   onDelete: () => void
 }) {
-  const sortedIllustrations = useMemo(() => [...illustrations].sort((a, b) => a.order - b.order), [illustrations])
+  const sortedIllustrations = useMemo(
+    () => [...illustrations].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [illustrations],
+  )
   const blocks = useMemo(() => buildBlocks(piece.body ?? '', sortedIllustrations), [piece.body, sortedIllustrations])
   const pictureCount = sortedIllustrations.length
 

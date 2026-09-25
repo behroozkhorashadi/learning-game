@@ -86,7 +86,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 const PIECE_TITLE = 'Same Scene, Six Ways'
 
-export function StyleRemixLab({ profileId, profileName, onBack, onFinished }: Props) {
+export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
   const [phase, setPhase] = useState<Phase>('drawing')
   const [sessionId] = useState(() => randomId())
   const [error, setError] = useState<string | null>(null)
@@ -410,7 +410,7 @@ export function StyleRemixLab({ profileId, profileName, onBack, onFinished }: Pr
 
         {phase === 'revealing' && piece && (
           <IllustrationReveal
-            pieceId={piece.id}
+            pieceId={piece.id!}
             pieceTitle={piece.title ?? 'Your remix'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}

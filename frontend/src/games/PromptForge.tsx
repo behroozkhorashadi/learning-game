@@ -79,7 +79,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function PromptForge({ profileId, profileName, onBack, onFinished }: Props) {
+export function PromptForge({ profileId, onBack, onFinished }: Props) {
   const [phase, setPhase] = useState<Phase>('forging')
   const [sessionId] = useState(() => randomId())
   const [error, setError] = useState<string | null>(null)
@@ -328,7 +328,7 @@ export function PromptForge({ profileId, profileName, onBack, onFinished }: Prop
 
         {phase === 'revealing' && piece && (
           <IllustrationReveal
-            pieceId={piece.id}
+            pieceId={piece.id!}
             pieceTitle={piece.title ?? 'Your story'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}

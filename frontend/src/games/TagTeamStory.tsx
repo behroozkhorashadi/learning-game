@@ -165,7 +165,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Props) {
+export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
   const [phase, setPhase] = useState<Phase>('setup')
   const [sessionId] = useState(() => randomId())
   const [error, setError] = useState<string | null>(null)
@@ -594,7 +594,7 @@ export function TagTeamStory({ profileId, profileName, onBack, onFinished }: Pro
 
         {phase === 'revealing' && piece && (
           <IllustrationReveal
-            pieceId={piece.id}
+            pieceId={piece.id!}
             pieceTitle={piece.title ?? 'Your story'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}
