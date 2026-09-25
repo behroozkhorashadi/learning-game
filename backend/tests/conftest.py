@@ -7,6 +7,7 @@ import tempfile
 
 _tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp_db.name}"
+os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password")
 
 import pytest
 from fastapi.testclient import TestClient

@@ -44,7 +44,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
-from app.admin_auth import ADMIN_PASSWORD, AdminLoginRequest, require_admin
+from app.admin_auth import AdminLoginRequest, require_admin, verify_admin_password
 from app.games._arithmetic import ALL_OPERATORS
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
@@ -170,8 +170,7 @@ def admin_login(payload: AdminLoginRequest) -> None:
     nicety, not the actual gate. `require_admin` (checked per-request on the
     admin-only endpoints below) is what actually protects anything; this
     endpoint holds no session state of its own."""
-    if payload.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="invalid admin password")
+    verify_admin_password(payload.password)
 
 
 @app.patch("/api/profiles/{profile_id}", response_model=Profile, dependencies=[Depends(require_admin)])
