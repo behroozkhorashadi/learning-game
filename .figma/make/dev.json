@@ -4,5 +4,5 @@
     "frontend/package-lock.json",
     "backend/requirements.txt"
   ],
-  "restartOn": ["backend/app/**/*.py"]
+  "restartOn": ["backend/app/**/*.py", "backend/.env"]
 }
