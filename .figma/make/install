@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/../../frontend"
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+
+python -m venv "$repo_root/backend/.venv"
+env -u PYTHONPATH "$repo_root/backend/.venv/bin/pip" install --disable-pip-version-check -r "$repo_root/backend/requirements.txt"
+
+cd "$repo_root/frontend"
 exec npm ci

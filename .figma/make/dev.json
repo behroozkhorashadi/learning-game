@@ -1,3 +1,8 @@
 {
-  "installOn": ["frontend/package.json", "frontend/package-lock.json"]
+  "installOn": [
+    "frontend/package.json",
+    "frontend/package-lock.json",
+    "backend/requirements.txt"
+  ],
+  "restartOn": ["backend/app/**/*.py"]
 }

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+port="${1:?frontend port is required}"
+backend_pid=""
+frontend_pid=""
+
+cleanup() {
+  trap - EXIT INT TERM
+  if [[ -n "$frontend_pid" ]]; then
+    kill "$frontend_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$backend_pid" ]]; then
+    kill "$backend_pid" 2>/dev/null || true
+  fi
+  wait "$frontend_pid" "$backend_pid" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+cd "$repo_root/backend"
+STATIC_DIR="$repo_root/backend/static" \
+  env -u PYTHONPATH "$repo_root/backend/.venv/bin/uvicorn" app.main:app --host 127.0.0.1 --port 8000 &
+backend_pid=$!
+
+for _ in {1..50}; do
+  if curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/profiles >/dev/null; then
+    break
+  fi
+  if ! kill -0 "$backend_pid" 2>/dev/null; then
+    wait "$backend_pid"
+  fi
+  sleep 0.1
+done
+
+if ! curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/profiles >/dev/null; then
+  echo "Backend did not become ready on port 8000" >&2
+  exit 1
+fi
+
+cd "$repo_root/frontend"
+npx vite --port "$port" --host &
+frontend_pid=$!
+
+wait -n "$backend_pid" "$frontend_pid"
