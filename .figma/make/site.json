@@ -1,0 +1,10 @@
+{
+  "description": "Streamline project setup by automatically configuring dependencies and build requirements, ensuring a smooth deployment process for developers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
