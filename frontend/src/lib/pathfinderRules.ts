@@ -44,15 +44,19 @@ export function isOrthogonallyAdjacent(a: GridPosition, b: GridPosition): boolea
   return Math.abs(a.row - b.row) + Math.abs(a.col - b.col) === 1
 }
 
-export type MoveRejectionReason = 'no-dot' | 'same-dot' | 'already-visited' | 'not-adjacent'
+export type MoveRejectionReason = 'no-dot' | 'same-dot' | 'already-visited' | 'not-adjacent' | 'blocked'
 
-export type MoveCheck = { valid: true } | { valid: false; reason: MoveRejectionReason }
+/** A valid move carries `steps`: the dots it adds to the path, in order,
+ * ending at the clicked dot. A neighbor click adds one; a longer straight
+ * click adds every dot passed along the way. */
+export type MoveCheck = { valid: true; steps: GridPosition[] } | { valid: false; reason: MoveRejectionReason }
 
 const REJECTION_MESSAGES: Record<MoveRejectionReason, string> = {
   'no-dot': "There's no dot there.",
   'same-dot': "You're already there.",
   'already-visited': "That dot's already used — no going back.",
-  'not-adjacent': 'Only straight to a neighbor — up, down, left, or right.',
+  'not-adjacent': 'Only in a straight line — up, down, left, or right.',
+  blocked: "Can't get there in a straight line — there's a gap or a used dot in the way.",
 }
 
 export function rejectionMessage(reason: MoveRejectionReason): string {
@@ -62,14 +66,17 @@ export function rejectionMessage(reason: MoveRejectionReason): string {
 /**
  * The core move-validation rule (spec's four numbered conditions, plus the
  * two obvious edge cases of clicking the current dot or an earlier dot).
- * `dotSet` is `buildDotSet(puzzle)`, passed in so callers that check many
- * candidates don't rebuild it each time.
+ * Clicking a dot further along the same row or column is a shortcut for
+ * clicking each dot in between: it's valid only if every cell along the way
+ * holds an unvisited dot, so it can never make a move the one-step rule
+ * wouldn't allow. `dotSet` is `buildDotSet(puzzle)`, passed in so callers
+ * that check many candidates don't rebuild it each time.
  */
 export function checkMove(dotSet: Set<string>, path: readonly GridPosition[], candidate: GridPosition): MoveCheck {
   const candidateKey = coordKey(candidate)
   if (!dotSet.has(candidateKey)) return { valid: false, reason: 'no-dot' }
 
-  if (path.length === 0) return { valid: true }
+  if (path.length === 0) return { valid: true, steps: [candidate] }
 
   const current = path[path.length - 1]
   if (coordKey(current) === candidateKey) return { valid: false, reason: 'same-dot' }
@@ -77,9 +84,20 @@ export function checkMove(dotSet: Set<string>, path: readonly GridPosition[], ca
   const visited = visitedKeySet(path)
   if (visited.has(candidateKey)) return { valid: false, reason: 'already-visited' }
 
-  if (!isOrthogonallyAdjacent(current, candidate)) return { valid: false, reason: 'not-adjacent' }
+  if (current.row !== candidate.row && current.col !== candidate.col) return { valid: false, reason: 'not-adjacent' }
 
-  return { valid: true }
+  const dRow = Math.sign(candidate.row - current.row)
+  const dCol = Math.sign(candidate.col - current.col)
+  const steps: GridPosition[] = []
+  let step = { row: current.row + dRow, col: current.col + dCol }
+  while (coordKey(step) !== candidateKey) {
+    const key = coordKey(step)
+    if (!dotSet.has(key) || visited.has(key)) return { valid: false, reason: 'blocked' }
+    steps.push(step)
+    step = { row: step.row + dRow, col: step.col + dCol }
+  }
+  steps.push(candidate)
+  return { valid: true, steps }
 }
 
 export function visitedKeySet(path: readonly GridPosition[]): Set<string> {

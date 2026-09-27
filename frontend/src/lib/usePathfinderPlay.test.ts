@@ -45,6 +45,25 @@ describe('usePathfinderPlay', () => {
     expect(result.current.invalidReason).toBeTruthy()
   })
 
+  it('a straight click past a neighbor fills in every dot along the way', () => {
+    const { result } = renderHook(() => usePathfinderPlay(PUZZLE))
+    act(() => result.current.handleDotClick({ row: 0, col: 0 }))
+    act(() => result.current.handleDotClick({ row: 0, col: 2 }))
+    expect(result.current.path).toEqual([{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }])
+    expect(result.current.progress).toEqual({ visited: 3, total: 6 })
+  })
+
+  it('Undo takes back a whole straight-line move at once', () => {
+    const { result } = renderHook(() => usePathfinderPlay(PUZZLE))
+    act(() => result.current.handleDotClick({ row: 0, col: 0 }))
+    act(() => result.current.handleDotClick({ row: 0, col: 2 }))
+    act(() => result.current.handleDotClick({ row: 1, col: 2 }))
+    act(() => result.current.handleUndo())
+    expect(result.current.path).toHaveLength(3)
+    act(() => result.current.handleUndo())
+    expect(result.current.path).toEqual([{ row: 0, col: 0 }])
+  })
+
   it('Undo removes exactly the last move', () => {
     const { result } = renderHook(() => usePathfinderPlay(PUZZLE))
     act(() => result.current.handleDotClick({ row: 0, col: 0 }))

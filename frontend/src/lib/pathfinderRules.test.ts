@@ -62,11 +62,21 @@ describe('isOrthogonallyAdjacent', () => {
 
 describe('checkMove', () => {
   it('accepts any dot as the starting move', () => {
-    expect(checkMove(dotSet, [], pos(2, 2))).toEqual({ valid: true })
+    expect(checkMove(dotSet, [], pos(2, 2))).toEqual({ valid: true, steps: [pos(2, 2)] })
   })
 
   it('accepts an orthogonally adjacent, unvisited dot', () => {
-    expect(checkMove(dotSet, [pos(0, 0)], pos(0, 1))).toEqual({ valid: true })
+    expect(checkMove(dotSet, [pos(0, 0)], pos(0, 1))).toEqual({ valid: true, steps: [pos(0, 1)] })
+  })
+
+  it('accepts a longer straight move, filling in every dot passed along the way', () => {
+    expect(checkMove(dotSet, [pos(0, 0)], pos(0, 2))).toEqual({ valid: true, steps: [pos(0, 1), pos(0, 2)] })
+    expect(checkMove(dotSet, [pos(2, 2)], pos(0, 2))).toEqual({ valid: true, steps: [pos(1, 2), pos(0, 2)] })
+  })
+
+  it('rejects a straight move that passes over an already-visited dot', () => {
+    // From (0,0), clicking (0,2) would pass through visited (0,1).
+    expect(checkMove(dotSet, [pos(0, 1), pos(0, 0)], pos(0, 2))).toEqual({ valid: false, reason: 'blocked' })
   })
 
   it('rejects a diagonal move', () => {
@@ -75,11 +85,11 @@ describe('checkMove', () => {
   })
 
   it('rejects jumping across the empty center gap', () => {
-    // (1,0) -> (1,2) are two apart with a gap between them, not adjacent.
-    expect(checkMove(dotSet, [pos(1, 0)], pos(1, 2))).toEqual({ valid: false, reason: 'not-adjacent' })
+    // (1,0) -> (1,2) are in the same row, but the gap at (1,1) blocks the line.
+    expect(checkMove(dotSet, [pos(1, 0)], pos(1, 2))).toEqual({ valid: false, reason: 'blocked' })
   })
 
-  it('rejects clicking a nonadjacent dot', () => {
+  it('rejects clicking a dot that is not in the same row or column', () => {
     expect(checkMove(dotSet, [pos(0, 0)], pos(2, 2))).toEqual({ valid: false, reason: 'not-adjacent' })
   })
 

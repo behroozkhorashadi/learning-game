@@ -3,7 +3,6 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Pathfinder } from './Pathfinder'
 import { ALL_LEVELS } from '../lib/pathfinderLevels'
 import { solvePuzzle } from '../lib/pathfinderSolver'
-import { isOrthogonallyAdjacent } from '../lib/pathfinderRules'
 import type { DotPuzzle, GridPosition } from '../lib/pathfinderTypes'
 
 /**
@@ -56,9 +55,9 @@ function openFirstLevel(): void {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${first.name}(,|$)`) }))
 }
 
-function findNonAdjacentDot(puzzle: DotPuzzle, from: GridPosition): GridPosition {
+function findOffLineDot(puzzle: DotPuzzle, from: GridPosition): GridPosition {
   const found = puzzle.dots.find(
-    (d) => !(d.row === from.row && d.col === from.col) && !isOrthogonallyAdjacent(from, d),
+    (d) => d.row !== from.row && d.col !== from.col,
   )
   if (!found) throw new Error('test fixture assumption broken: expected a non-adjacent dot to exist')
   return found
@@ -125,9 +124,9 @@ describe('Pathfinder gameplay', () => {
   it('ignores a non-adjacent click and leaves the path untouched', () => {
     setup()
     click(solution[0])
-    click(findNonAdjacentDot(level, solution[0]))
+    click(findOffLineDot(level, solution[0]))
     expect(screen.getByText(progressText(1, total))).toBeTruthy()
-    expect(screen.getByText(/Only straight to a neighbor/)).toBeTruthy()
+    expect(screen.getByText(/Only in a straight line/)).toBeTruthy()
   })
 
   it('ignores a click back on an already-visited dot', () => {

@@ -27,11 +27,15 @@ export interface PathfinderPlayState {
  */
 export function usePathfinderPlay(puzzle: DotPuzzle, onComplete?: () => void): PathfinderPlayState {
   const [path, setPath] = useState<GridPosition[]>([])
+  // Path length before each move, so Undo takes back a whole multi-dot
+  // straight-line move in one press, the same way it was made.
+  const [moveStarts, setMoveStarts] = useState<number[]>([])
   const [invalidReason, setInvalidReason] = useState<string | null>(null)
   const invalidTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setPath([])
+    setMoveStarts([])
     setInvalidReason(null)
   }, [puzzle.id])
 
@@ -61,19 +65,23 @@ export function usePathfinderPlay(puzzle: DotPuzzle, onComplete?: () => void): P
       flashInvalid(rejectionMessage(result.reason))
       return
     }
-    const nextPath = [...path, pos]
+    const nextPath = [...path, ...result.steps]
     setPath(nextPath)
+    setMoveStarts([...moveStarts, path.length])
     if (isPuzzleComplete(puzzle, nextPath)) onComplete?.()
   }
 
   function handleUndo() {
     if (path.length === 0) return
-    setPath((prev) => prev.slice(0, -1))
+    const start = moveStarts[moveStarts.length - 1] ?? path.length - 1
+    setPath(path.slice(0, start))
+    setMoveStarts(moveStarts.slice(0, -1))
     setInvalidReason(null)
   }
 
   function handleRestart() {
     setPath([])
+    setMoveStarts([])
     setInvalidReason(null)
   }
 
