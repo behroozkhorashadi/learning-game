@@ -4,9 +4,20 @@
 
 from datetime import date
 
+import pytest
+
+from app import admin_auth
 from app.admin_auth import ADMIN_PASSWORD
 
 ADMIN_HEADERS = {"X-Admin-Password": ADMIN_PASSWORD}
+
+
+@pytest.fixture
+def no_admin_password(monkeypatch):
+    """Simulates an unset/empty ADMIN_PASSWORD. The module reads the env var
+    once at import, so the fixture patches the module global rather than the
+    environment — `verify_admin_password` resolves it at call time."""
+    monkeypatch.setattr(admin_auth, "ADMIN_PASSWORD", "")
 
 
 def _create_profile(client, **overrides) -> dict:
@@ -84,6 +95,29 @@ def test_admin_login_accepts_correct_password(client):
 def test_admin_login_rejects_wrong_password(client):
     response = client.post("/api/admin/login", json={"password": "nope"})
     assert response.status_code == 401
+
+
+def test_admin_login_accepts_empty_password_when_none_is_configured(client, no_admin_password):
+    """An unset ADMIN_PASSWORD means the password is the empty string — the
+    admin screen must open rather than being 503'd or 401'd shut."""
+    response = client.post("/api/admin/login", json={"password": ""})
+    assert response.status_code == 204
+
+
+def test_admin_login_rejects_nonempty_password_when_none_is_configured(client, no_admin_password):
+    response = client.post("/api/admin/login", json={"password": "nope"})
+    assert response.status_code == 401
+
+
+def test_admin_endpoints_open_without_header_when_no_password_is_configured(client, no_admin_password):
+    """The header is absent (None), not empty — it still has to be treated as
+    the empty string and pass, or a no-password setup can't edit anything."""
+    profile = _create_profile(client)
+
+    response = client.patch(f"/api/profiles/{profile['id']}", json={"name": "Renamed"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Renamed"
 
 
 def test_patch_profile_without_admin_header_is_rejected(client):

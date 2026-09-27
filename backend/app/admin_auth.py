@@ -11,8 +11,12 @@ real.
 
 The password itself lives in `backend/.env` (gitignored — see
 `backend/.env.example` for the key), loaded via `app/__init__.py`'s
-`load_dotenv()`, not hardcoded here. When it is absent, the rest of the app
-remains available but admin-only operations return 503.
+`load_dotenv()`, not hardcoded here. **An unset or empty `ADMIN_PASSWORD`
+means the password is the empty string** — i.e. no password at all: admin
+features stay fully available and any request without the header passes.
+That's the deliberate default for the LAN/dev case, where being locked out
+of your own admin screen is a worse failure than the screen being open.
+Set `ADMIN_PASSWORD` to turn the gate on.
 """
 
 import os
@@ -21,7 +25,10 @@ from typing import Optional
 from fastapi import Header, HTTPException
 from pydantic import BaseModel
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+# Normalized to "" rather than left as None, so the "unset" and "set to
+# empty" cases are one code path and the comparison below never has to
+# special-case a missing value.
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or ""
 
 
 class AdminLoginRequest(BaseModel):
@@ -29,9 +36,10 @@ class AdminLoginRequest(BaseModel):
 
 
 def verify_admin_password(password: Optional[str]) -> None:
-    if not ADMIN_PASSWORD:
-        raise HTTPException(status_code=503, detail="admin features are unavailable")
-    if password != ADMIN_PASSWORD:
+    """Raises 401 unless `password` matches. A missing header (`None`) is
+    treated as the empty string, so when no `ADMIN_PASSWORD` is configured
+    an unauthenticated request is the *correct* password and passes."""
+    if (password or "") != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="invalid admin password")
 
 

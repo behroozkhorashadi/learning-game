@@ -13,6 +13,11 @@ import type { Profile, ProfileUpdate } from '../types/generated'
  * endpoints with curl, not a motivated attacker — see
  * `backend/app/admin_auth.py`'s docstring for the full caveat. Nothing here
  * should be treated as securing anything beyond that.
+ *
+ * An empty password is deliberately submittable: an unset `ADMIN_PASSWORD`
+ * on the backend means the password *is* the empty string, so blocking a
+ * blank submit here would lock the admin screen out of exactly the
+ * no-password setup the backend supports.
  */
 
 interface Props {
@@ -59,14 +64,14 @@ function LoginForm({ onAuthenticated, onCancel }: { onAuthenticated: (password: 
   return (
     <CardShell>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 32, color: 'var(--fg-primary)', textAlign: 'center' }}>Admin</div>
-      <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Enter the admin password.</div>
+      <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Enter the admin password. Leave it blank if none is set.</div>
 
       <input
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && password && !submitting) handleSubmit()
+          if (e.key === 'Enter' && !submitting) handleSubmit()
         }}
         placeholder="Password"
         autoFocus
@@ -89,7 +94,7 @@ function LoginForm({ onAuthenticated, onCancel }: { onAuthenticated: (password: 
       <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
         <DenButton label="Back" variant="quiet" size="lg" onClick={onCancel} />
         <div style={{ flex: 1 }}>
-          <DenButton label={submitting ? 'Checking…' : 'Enter'} size="lg" full disabled={!password || submitting} onClick={handleSubmit} />
+          <DenButton label={submitting ? 'Checking…' : 'Enter'} size="lg" full disabled={submitting} onClick={handleSubmit} />
         </div>
       </div>
     </CardShell>
