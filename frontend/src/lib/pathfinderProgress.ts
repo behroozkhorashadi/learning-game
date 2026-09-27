@@ -1,43 +1,36 @@
 /**
  * Pathfinder: No Way Back — level-select unlock progress.
  *
- * No backend model exists for per-player progress (and none is being added
- * here), so completed levels are stored client-side under a namespaced
- * localStorage key — same pattern as `pathfinderCustomMaps.ts` and
- * `gameAudio.ts`'s mute preference. Scoped per `profileId` (this app lets
- * several kids share one browser via `ProfilePicker`) so one kid finishing
- * levels doesn't silently unlock them for another kid on the same device.
+ * Which curated levels a kid has finished is stored server-side per profile
+ * (`/api/profiles/{id}/pathfinder/completions`, see the backend's
+ * `app/models/pathfinder.py`), so progress follows the profile rather than
+ * whichever browser they played on. Unlocking isn't stored at all — it's
+ * derived from completions by `computeLevelStatuses`.
  */
 
 import type { DotPuzzle } from './pathfinderTypes'
 
-const STORAGE_PREFIX = 'pathfinder:completedLevelIds'
-
-function storageKey(profileId: number): string {
-  return `${STORAGE_PREFIX}:${profileId}`
+function completionsUrl(profileId: number): string {
+  return `/api/profiles/${profileId}/pathfinder/completions`
 }
 
-export function getCompletedLevelIds(profileId: number): Set<string> {
-  try {
-    const raw = window.localStorage.getItem(storageKey(profileId))
-    if (!raw) return new Set()
-    const parsed = JSON.parse(raw)
-    return new Set(Array.isArray(parsed) ? parsed : [])
-  } catch {
-    return new Set()
-  }
+export async function fetchCompletedLevelIds(profileId: number): Promise<Set<string>> {
+  const res = await fetch(completionsUrl(profileId))
+  if (!res.ok) throw new Error(`loading Pathfinder progress failed: ${res.status}`)
+  return new Set((await res.json()) as string[])
 }
 
-export function markLevelCompleted(profileId: number, levelId: string): Set<string> {
-  const ids = getCompletedLevelIds(profileId)
-  ids.add(levelId)
-  try {
-    window.localStorage.setItem(storageKey(profileId), JSON.stringify([...ids]))
-  } catch {
-    // Storage unavailable — the unlock still applies for the rest of this
-    // session via the returned set; it just won't survive a reload.
-  }
-  return ids
+/** Records a finished level and resolves to the profile's full, updated
+ * set of completed level ids. Recording an already-finished level is a
+ * no-op on the server. */
+export async function markLevelCompleted(profileId: number, levelId: string): Promise<Set<string>> {
+  const res = await fetch(completionsUrl(profileId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level_ids: [levelId] }),
+  })
+  if (!res.ok) throw new Error(`saving Pathfinder progress failed: ${res.status}`)
+  return new Set((await res.json()) as string[])
 }
 
 export interface LevelStatus {

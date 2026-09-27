@@ -42,6 +42,53 @@ export interface PracticeConfigUpsert {
   difficulty: number;
 }
 
+export interface PathfinderCompletionsCreate {
+  level_ids: string[];
+}
+
+export interface PathfinderCustomMap {
+  id: string;
+  profile_id: number;
+  name: string;
+  difficulty: string;
+  rows: number;
+  columns: number;
+  dots: Record<string, any>[];
+  published?: boolean;
+  created_at?: string;
+}
+
+export interface GridPosition {
+  row: number;
+  col: number;
+}
+
+export interface PathfinderCustomMapCreate {
+  id: string;
+  name: string;
+  difficulty: string;
+  rows: number;
+  columns: number;
+  dots: GridPosition[];
+}
+
+export interface PathfinderCustomMapUpdate {
+  name?: string | null;
+  published?: boolean | null;
+}
+
+export interface PublishedPathfinderMap {
+  id: string;
+  name: string;
+  difficulty: string;
+  rows: number;
+  columns: number;
+  dots: GridPosition[];
+  author_profile_id: number;
+  author_name: string;
+  created_at: string;
+}
+
 export interface SkillState {
   id?: number | null;
   profile_id: number;

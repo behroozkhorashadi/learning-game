@@ -1,17 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DenButton } from './den/DenButton'
 import { formatLevelCode } from '../lib/pathfinderExport'
 import { deleteCustomMap, listCustomMaps, renameCustomMap, setCustomMapPublished, type CustomMapRecord } from '../lib/pathfinderCustomMaps'
 import type { Difficulty, DotPuzzle } from '../lib/pathfinderTypes'
 
 /**
- * The builder's personal map library: every map this browser has saved,
- * most recently created first, with rename/delete/publish and — since
- * there's still no backend endpoint for actually sharing a map with other
- * players — a "Publish" toggle that's a local-only flag for now (see
- * pathfinderCustomMaps.ts's file header) plus an Export Code action so a
- * map can still be handed off by hand into the curated level set, the same
- * way the builder originally worked before it grew a save/manage flow.
+ * The builder's personal map library: every map this profile has saved,
+ * most recently created first, with rename/delete, a Publish toggle (a
+ * published map shows up for every player on the Published Maps screen;
+ * unpublishing takes it back off), plus an Export Code action so a map can
+ * still be handed off by hand into the curated level set, the same way the
+ * builder originally worked before it grew a save/manage flow.
  */
 
 const TIER_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard', legendary: 'Legendary' }
@@ -27,6 +26,7 @@ function formatDate(iso: string): string {
 }
 
 interface Props {
+  profileId: number
   onBack: () => void
   onPlay: (puzzle: DotPuzzle) => void
 }
@@ -133,19 +133,41 @@ function MapRow({
   )
 }
 
-export function PathfinderMyMaps({ onBack, onPlay }: Props) {
-  const [records, setRecords] = useState<CustomMapRecord[]>(() => listCustomMaps())
+export function PathfinderMyMaps({ profileId, onBack, onPlay }: Props) {
+  const [records, setRecords] = useState<CustomMapRecord[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [exportOpenId, setExportOpenId] = useState<string | null>(null)
 
-  function refresh() {
-    setRecords(listCustomMaps())
+  useEffect(() => {
+    let cancelled = false
+    listCustomMaps(profileId)
+      .then((loaded) => {
+        if (!cancelled) setRecords(loaded)
+      })
+      .catch(() => {
+        if (!cancelled) setError("Couldn't load your maps — is the server running?")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [profileId])
+
+  /** Runs a change against the server, then reloads the list so the page
+   * always shows what's actually saved. */
+  async function apply(change: () => Promise<void>, failure: string) {
+    try {
+      await change()
+      setRecords(await listCustomMaps(profileId))
+      setError(null)
+    } catch {
+      setError(failure)
+    }
   }
 
   function handleDelete(id: string, name: string) {
     if (!window.confirm(`Delete "${name || 'Untitled'}"? This can't be undone.`)) return
-    deleteCustomMap(id)
     if (exportOpenId === id) setExportOpenId(null)
-    refresh()
+    void apply(() => deleteCustomMap(profileId, id), "Couldn't delete that map.")
   }
 
   function handleRename(id: string, currentName: string) {
@@ -153,13 +175,11 @@ export function PathfinderMyMaps({ onBack, onPlay }: Props) {
     if (next === null) return
     const trimmed = next.trim()
     if (!trimmed || trimmed === currentName) return
-    renameCustomMap(id, trimmed)
-    refresh()
+    void apply(() => renameCustomMap(profileId, id, trimmed), "Couldn't rename that map.")
   }
 
   function handleTogglePublish(id: string, published: boolean) {
-    setCustomMapPublished(id, !published)
-    refresh()
+    void apply(() => setCustomMapPublished(profileId, id, !published), "Couldn't change that map's published setting.")
   }
 
   return (
@@ -169,14 +189,24 @@ export function PathfinderMyMaps({ onBack, onPlay }: Props) {
         <DenButton label="Back to Builder" variant="quiet" onClick={onBack} />
       </div>
 
-      {records.length === 0 && (
+      {error && (
+        <div role="alert" style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)' }}>
+          {error}
+        </div>
+      )}
+
+      {records === null && !error && (
+        <div style={{ textAlign: 'center', padding: '32px 16px', fontSize: 14, fontWeight: 600, color: 'var(--fg-tertiary)' }}>Loading maps…</div>
+      )}
+
+      {records?.length === 0 && (
         <div style={{ textAlign: 'center', padding: '32px 16px', fontSize: 14, fontWeight: 600, color: 'var(--fg-tertiary)' }}>
           No saved maps yet — build one and hit Save.
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {records.map((record) => (
+        {records?.map((record) => (
           <MapRow
             key={record.puzzle.id}
             record={record}

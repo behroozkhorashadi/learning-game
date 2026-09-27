@@ -10,6 +10,7 @@ from app.models.verification import Verification, VerificationCreate
 from app.models.rating import Rating, RatingCreate
 from app.models.badge import Badge, BadgeAward, BadgeStatus
 from app.models.stats import ProfileStats
+from app.models.pathfinder import PathfinderCustomMap, PathfinderLevelCompletion
 from app.models.piece import (
     Illustration,
     IllustrationCreate,
@@ -49,6 +50,8 @@ __all__ = [
     "BadgeAward",
     "BadgeStatus",
     "ProfileStats",
+    "PathfinderCustomMap",
+    "PathfinderLevelCompletion",
     "Piece",
     "PieceCreate",
     "PieceUpdate",

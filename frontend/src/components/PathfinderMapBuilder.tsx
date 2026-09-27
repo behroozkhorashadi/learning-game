@@ -16,11 +16,13 @@ import type { DotPuzzle } from '../lib/pathfinderTypes'
 type Mode = 'build' | 'myMaps' | 'play'
 
 interface Props {
+  /** Whose My Maps library saves go to. */
+  profileId: number
   /** Seeds the default save-name suggestion ("<username>_map1"). */
   username: string
 }
 
-export function PathfinderMapBuilder({ username }: Props) {
+export function PathfinderMapBuilder({ profileId, username }: Props) {
   const [mode, setMode] = useState<Mode>('build')
   const [playingPuzzle, setPlayingPuzzle] = useState<DotPuzzle | null>(null)
 
@@ -35,12 +37,12 @@ export function PathfinderMapBuilder({ username }: Props) {
   }
 
   if (mode === 'myMaps') {
-    return <PathfinderMyMaps onBack={backToBuild} onPlay={playPuzzle} />
+    return <PathfinderMyMaps profileId={profileId} onBack={backToBuild} onPlay={playPuzzle} />
   }
 
   if (mode === 'play' && playingPuzzle) {
     return <PathfinderPlayTest puzzle={playingPuzzle} onBack={backToBuild} />
   }
 
-  return <PathfinderEditor username={username} onPlay={playPuzzle} onViewMyMaps={() => setMode('myMaps')} />
+  return <PathfinderEditor profileId={profileId} username={username} onPlay={playPuzzle} onViewMyMaps={() => setMode('myMaps')} />
 }

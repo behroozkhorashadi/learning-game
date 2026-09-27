@@ -22,6 +22,13 @@
   operations/focus-numbers/difficulty override for games that support it
   (see `app/models/practice_config.py`, `GameModule.supports_practice_config`).
   No auth — a practice preference, not a destructive action.
+- GET/POST /api/profiles/{id}/pathfinder/completions: which curated
+  Pathfinder levels this kid has finished (unlocks derive from these).
+- GET/POST /api/profiles/{id}/pathfinder/maps, PATCH/DELETE
+  /api/profiles/{id}/pathfinder/maps/{map_id}: the kid's saved custom maps.
+  See `app/models/pathfinder.py`. No auth, same as practice-config.
+- GET /api/pathfinder/published-maps: every profile's published custom
+  maps, with the builder's name, for the Published Maps screen.
 - POST /api/client-errors: fire-and-forget sink for uncaught frontend errors
   (React error boundary, window error/unhandledrejection) — see
   `app/services/client_error_log.py`. Written to `logs/client_errors.log`.
@@ -70,6 +77,15 @@ from app.models.piece import (
     RevisionPassCreate,
     TurnLine,
     TurnLineCreate,
+)
+from app.models.pathfinder import (
+    PATHFINDER_DIFFICULTIES,
+    PathfinderCompletionsCreate,
+    PathfinderCustomMap,
+    PathfinderCustomMapCreate,
+    PathfinderCustomMapUpdate,
+    PathfinderLevelCompletion,
+    PublishedPathfinderMap,
 )
 from app.models.practice_config import PracticeConfig, PracticeConfigUpsert
 from app.models.profile import AVATAR_OPTIONS, MAX_AGE, MIN_AGE, Profile, ProfileCreate, ProfileUpdate, SkillState
@@ -219,7 +235,18 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
     for verification in session.exec(select(Verification).where(Verification.attempt_id.in_(attempt_ids))).all():
         session.delete(verification)
 
-    for model in (Attempt, Event, Rating, BadgeAward, Level, PlaySession, SkillState, PracticeConfig):
+    for model in (
+        Attempt,
+        Event,
+        Rating,
+        BadgeAward,
+        Level,
+        PlaySession,
+        SkillState,
+        PracticeConfig,
+        PathfinderLevelCompletion,
+        PathfinderCustomMap,
+    ):
         for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
             session.delete(row)
 
@@ -285,6 +312,143 @@ def delete_practice_config(profile_id: int, game_id: str, session: Session = Dep
     if config is None:
         raise HTTPException(status_code=404, detail="no practice config set for this profile/game")
     session.delete(config)
+    session.commit()
+
+
+def _require_profile(session: Session, profile_id: int) -> None:
+    if session.get(Profile, profile_id) is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+
+
+def _completed_level_ids(session: Session, profile_id: int) -> list[str]:
+    rows = session.exec(
+        select(PathfinderLevelCompletion)
+        .where(PathfinderLevelCompletion.profile_id == profile_id)
+        .order_by(PathfinderLevelCompletion.completed_at)
+    ).all()
+    return [row.level_id for row in rows]
+
+
+@app.get("/api/profiles/{profile_id}/pathfinder/completions", response_model=list[str])
+def get_pathfinder_completions(profile_id: int, session: Session = Depends(get_session)) -> list[str]:
+    """Ids of every curated Pathfinder level this kid has finished — the
+    level map derives locked/unlocked/completed from these."""
+    _require_profile(session, profile_id)
+    return _completed_level_ids(session, profile_id)
+
+
+@app.post("/api/profiles/{profile_id}/pathfinder/completions", response_model=list[str])
+def add_pathfinder_completions(
+    profile_id: int, payload: PathfinderCompletionsCreate, session: Session = Depends(get_session)
+) -> list[str]:
+    """Records finished levels. Idempotent: already-recorded ids are skipped,
+    so a replayed level keeps its original completion time. Returns the full
+    updated list so the client doesn't need a second round trip."""
+    _require_profile(session, profile_id)
+    already = set(_completed_level_ids(session, profile_id))
+    for level_id in dict.fromkeys(payload.level_ids):
+        if level_id not in already:
+            session.add(PathfinderLevelCompletion(profile_id=profile_id, level_id=level_id))
+    session.commit()
+    return _completed_level_ids(session, profile_id)
+
+
+def _get_custom_map(session: Session, profile_id: int, map_id: str) -> PathfinderCustomMap:
+    custom_map = session.get(PathfinderCustomMap, map_id)
+    if custom_map is None or custom_map.profile_id != profile_id:
+        raise HTTPException(status_code=404, detail=f"no map {map_id} for profile {profile_id}")
+    return custom_map
+
+
+@app.get("/api/profiles/{profile_id}/pathfinder/maps", response_model=list[PathfinderCustomMap])
+def list_pathfinder_maps(profile_id: int, session: Session = Depends(get_session)) -> list[PathfinderCustomMap]:
+    """Backs My Maps — most recently created first."""
+    _require_profile(session, profile_id)
+    return list(
+        session.exec(
+            select(PathfinderCustomMap)
+            .where(PathfinderCustomMap.profile_id == profile_id)
+            .order_by(PathfinderCustomMap.created_at.desc())
+        ).all()
+    )
+
+
+@app.post("/api/profiles/{profile_id}/pathfinder/maps", response_model=PathfinderCustomMap, status_code=201)
+def create_pathfinder_map(
+    profile_id: int, payload: PathfinderCustomMapCreate, session: Session = Depends(get_session)
+) -> PathfinderCustomMap:
+    _require_profile(session, profile_id)
+    if payload.difficulty not in PATHFINDER_DIFFICULTIES:
+        raise HTTPException(status_code=422, detail=f"difficulty must be one of {PATHFINDER_DIFFICULTIES}")
+    if not payload.name.strip():
+        raise HTTPException(status_code=422, detail="name must not be empty")
+    if not payload.dots:
+        raise HTTPException(status_code=422, detail="a map needs at least one dot")
+    if session.get(PathfinderCustomMap, payload.id) is not None:
+        raise HTTPException(status_code=409, detail=f"map {payload.id} already exists")
+
+    custom_map = PathfinderCustomMap(
+        id=payload.id,
+        profile_id=profile_id,
+        name=payload.name.strip(),
+        difficulty=payload.difficulty,
+        rows=payload.rows,
+        columns=payload.columns,
+        dots=[dot.model_dump() for dot in payload.dots],
+    )
+    session.add(custom_map)
+    session.commit()
+    session.refresh(custom_map)
+    return custom_map
+
+
+@app.patch("/api/profiles/{profile_id}/pathfinder/maps/{map_id}", response_model=PathfinderCustomMap)
+def update_pathfinder_map(
+    profile_id: int, map_id: str, payload: PathfinderCustomMapUpdate, session: Session = Depends(get_session)
+) -> PathfinderCustomMap:
+    """Rename and/or publish/unpublish. `id` and `created_at` never change."""
+    custom_map = _get_custom_map(session, profile_id, map_id)
+    if payload.name is not None:
+        if not payload.name.strip():
+            raise HTTPException(status_code=422, detail="name must not be empty")
+        custom_map.name = payload.name.strip()
+    if payload.published is not None:
+        custom_map.published = payload.published
+    session.add(custom_map)
+    session.commit()
+    session.refresh(custom_map)
+    return custom_map
+
+
+@app.get("/api/pathfinder/published-maps", response_model=list[PublishedPathfinderMap])
+def list_published_pathfinder_maps(session: Session = Depends(get_session)) -> list[PublishedPathfinderMap]:
+    """Every profile's published maps, newest first. Unpublishing a map just
+    drops it from this list."""
+    rows = session.exec(
+        select(PathfinderCustomMap, Profile)
+        .join(Profile, Profile.id == PathfinderCustomMap.profile_id)
+        .where(PathfinderCustomMap.published == True)  # noqa: E712
+        .order_by(PathfinderCustomMap.created_at.desc())
+    ).all()
+    return [
+        PublishedPathfinderMap(
+            id=custom_map.id,
+            name=custom_map.name,
+            difficulty=custom_map.difficulty,
+            rows=custom_map.rows,
+            columns=custom_map.columns,
+            dots=custom_map.dots,
+            author_profile_id=profile.id,
+            author_name=profile.name,
+            created_at=custom_map.created_at,
+        )
+        for custom_map, profile in rows
+    ]
+
+
+@app.delete("/api/profiles/{profile_id}/pathfinder/maps/{map_id}", status_code=204)
+def delete_pathfinder_map(profile_id: int, map_id: str, session: Session = Depends(get_session)) -> None:
+    session.delete(_get_custom_map(session, profile_id, map_id))
     session.commit()
 
 

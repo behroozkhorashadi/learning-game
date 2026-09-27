@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { PathfinderMapBuilder } from './PathfinderMapBuilder'
+import { installFakePathfinderApi } from '../lib/fakePathfinderApi'
 
 /**
  * Navigation-only tests — the three screens' own content/behavior is
@@ -10,7 +11,7 @@ import { PathfinderMapBuilder } from './PathfinderMapBuilder'
  */
 
 beforeEach(() => {
-  localStorage.clear()
+  installFakePathfinderApi()
 })
 
 afterEach(cleanup)
@@ -21,21 +22,21 @@ function gridCell(row: number, col: number): HTMLElement {
 
 describe('PathfinderMapBuilder', () => {
   it('starts on the build screen', () => {
-    render(<PathfinderMapBuilder username="mia" />)
+    render(<PathfinderMapBuilder profileId={1} username="mia" />)
     expect(screen.getByRole('button', { name: 'Check My Puzzle' })).toBeTruthy()
   })
 
-  it('My Maps navigates to the library, and Back to Builder returns', () => {
-    render(<PathfinderMapBuilder username="mia" />)
+  it('My Maps navigates to the library, and Back to Builder returns', async () => {
+    render(<PathfinderMapBuilder profileId={1} username="mia" />)
     fireEvent.click(screen.getByRole('button', { name: 'My Maps' }))
-    expect(screen.getByText('My Maps')).toBeTruthy()
+    expect(await screen.findByText(/No saved maps yet/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to Builder' }))
     expect(screen.getByRole('button', { name: 'Check My Puzzle' })).toBeTruthy()
   })
 
   it('Play from the builder switches to the play-test screen', () => {
-    render(<PathfinderMapBuilder username="mia" />)
+    render(<PathfinderMapBuilder profileId={1} username="mia" />)
     fireEvent.click(gridCell(1, 1))
     fireEvent.click(gridCell(1, 2))
     fireEvent.click(gridCell(2, 2))

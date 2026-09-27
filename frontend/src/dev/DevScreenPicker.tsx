@@ -347,10 +347,10 @@ const SCREENS: ScreenEntry[] = [
   },
   {
     id: 'pathfinder-map-builder',
-    label: 'Pathfinder: Map Builder (design new levels)',
+    label: 'Pathfinder: Map Builder (design new levels — saves to profile 1 on the backend)',
     render: () => (
       <CardWrapper wide>
-        <PathfinderMapBuilder username={MOCK_PROFILE.name} />
+        <PathfinderMapBuilder profileId={1} username={MOCK_PROFILE.name} />
       </CardWrapper>
     ),
   },

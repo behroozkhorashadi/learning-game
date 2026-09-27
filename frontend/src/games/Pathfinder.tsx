@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PathfinderBoard } from '../components/PathfinderBoard'
 import { PathfinderLevelSelect } from '../components/PathfinderLevelSelect'
 import { PathfinderMapBuilder } from '../components/PathfinderMapBuilder'
+import { PathfinderPublishedMaps } from '../components/PathfinderPublishedMaps'
 import { DenButton } from '../components/den/DenButton'
 import { ArrowLeftIcon } from '../components/icons'
 import { ALL_LEVELS } from '../lib/pathfinderLevels'
-import { computeLevelStatuses, getCompletedLevelIds, markLevelCompleted } from '../lib/pathfinderProgress'
+import { computeLevelStatuses, fetchCompletedLevelIds, markLevelCompleted } from '../lib/pathfinderProgress'
 import { usePathfinderPlay } from '../lib/usePathfinderPlay'
 import type { DotPuzzle } from '../lib/pathfinderTypes'
 
@@ -19,15 +20,22 @@ import type { DotPuzzle } from '../lib/pathfinderTypes'
  *
  * Levels are a single fixed, ordered list (`ALL_LEVELS`) rather than a
  * random per-difficulty draw: completing one unlocks the next
- * (`pathfinderProgress`), which is both the "map with locked levels"
+ * (`pathfinderProgress`, stored per profile on the server), which is both the "map with locked levels"
  * feature and the fix for the random picker repeating the same handful of
  * maps within a session. Move validation/undo/restart/completion is shared
  * with the map builder's play-test view via `usePathfinderPlay`.
+ *
+ * Published Maps lists other players' published custom maps. Finishing one
+ * is recorded through the same completions store (keyed by the map's
+ * `custom-<uuid>` id, which can't collide with a curated level id), which
+ * is what marks it played.
  */
 
 const GAME_ID = 'pathfinder_no_way_back'
 
-type Mode = 'select' | 'play' | 'build'
+type Mode = 'select' | 'play' | 'build' | 'published'
+/** Which list the map being played came from — decides where Back goes. */
+type PlaySource = 'levels' | 'published'
 
 interface Props {
   profileId: number
@@ -64,27 +72,66 @@ function BackButton({ onClick }: { onClick: () => void }) {
 export function Pathfinder({ profileId, profileName, onBack }: Props) {
   const [mode, setMode] = useState<Mode>('select')
   const [puzzle, setPuzzle] = useState<DotPuzzle>(ALL_LEVELS[0])
-  const [completedIds, setCompletedIds] = useState<Set<string>>(() => getCompletedLevelIds(profileId))
+  const [playSource, setPlaySource] = useState<PlaySource>('levels')
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set())
+  const [progressState, setProgressState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [saveFailed, setSaveFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setProgressState('loading')
+    fetchCompletedLevelIds(profileId)
+      .then((ids) => {
+        if (cancelled) return
+        setCompletedIds(ids)
+        setProgressState('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setProgressState('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [profileId])
 
   const statuses = useMemo(() => computeLevelStatuses(ALL_LEVELS, completedIds), [completedIds])
   const currentIndex = ALL_LEVELS.findIndex((p) => p.id === puzzle.id)
-  const nextLevel = currentIndex >= 0 ? ALL_LEVELS[currentIndex + 1] : undefined
+  const nextLevel = playSource === 'levels' && currentIndex >= 0 ? ALL_LEVELS[currentIndex + 1] : undefined
 
-  const play = usePathfinderPlay(puzzle, () => setCompletedIds(markLevelCompleted(profileId, puzzle.id)))
+  function recordCompletion(levelId: string) {
+    // Unlock the next level right away; the server's answer then replaces
+    // the local guess. If saving fails the unlock still holds for this
+    // visit, and the map says it wasn't saved.
+    setCompletedIds((prev) => new Set(prev).add(levelId))
+    setSaveFailed(false)
+    markLevelCompleted(profileId, levelId)
+      .then(setCompletedIds)
+      .catch(() => setSaveFailed(true))
+  }
+
+  const play = usePathfinderPlay(puzzle, () => recordCompletion(puzzle.id))
 
   function playLevel(levelId: string) {
     const level = ALL_LEVELS.find((p) => p.id === levelId)
     if (!level) return
     setPuzzle(level)
+    setPlaySource('levels')
     setMode('play')
   }
 
-  function handleBackToMap() {
-    setMode('select')
+  function playPublishedMap(map: DotPuzzle) {
+    setPuzzle(map)
+    setPlaySource('published')
+    setMode('play')
+  }
+
+  function handleBackToList() {
+    setMode(playSource === 'published' ? 'published' : 'select')
   }
 
   function handleTopBack() {
-    if (mode === 'play' || mode === 'build') setMode('select')
+    if (mode === 'play') handleBackToList()
+    else if (mode === 'build' || mode === 'published') setMode('select')
     else onBack()
   }
 
@@ -98,11 +145,29 @@ export function Pathfinder({ profileId, profileName, onBack }: Props) {
           </div>
         </div>
 
-        {mode === 'select' && (
-          <PathfinderLevelSelect statuses={statuses} onSelect={playLevel} onBuild={() => setMode('build')} />
+        {(mode === 'select' || mode === 'published') && saveFailed && (
+          <div role="alert" style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)', textAlign: 'center' }}>
+            Couldn't save your progress — is the server running?
+          </div>
         )}
 
-        {mode === 'build' && <PathfinderMapBuilder username={profileName || 'Player'} />}
+        {mode === 'select' && progressState === 'loading' && (
+          <div style={{ textAlign: 'center', padding: 32, fontSize: 14, fontWeight: 600, color: 'var(--fg-tertiary)' }}>Loading maps…</div>
+        )}
+
+        {mode === 'select' && progressState === 'error' && (
+          <div role="alert" style={{ textAlign: 'center', padding: 32, fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)' }}>
+            Couldn't load your progress — is the server running?
+          </div>
+        )}
+
+        {mode === 'select' && progressState === 'ready' && (
+          <PathfinderLevelSelect profileId={profileId} statuses={statuses} onSelect={playLevel} onBuild={() => setMode('build')} onBrowsePublished={() => setMode('published')} />
+        )}
+
+        {mode === 'published' && <PathfinderPublishedMaps profileId={profileId} completedIds={completedIds} onPlay={playPublishedMap} />}
+
+        {mode === 'build' && <PathfinderMapBuilder profileId={profileId} username={profileName || 'Player'} />}
 
         {mode === 'play' && (
           <div
@@ -154,13 +219,13 @@ export function Pathfinder({ profileId, profileName, onBack }: Props) {
 
             {play.completed && (
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--green-900)', textAlign: 'center' }}>
-                {nextLevel ? 'Every dot connected! 🎉' : "Every dot connected! You've finished every map! 🎉"}
+                {playSource === 'published' || nextLevel ? 'Every dot connected! 🎉' : "Every dot connected! You've finished every map! 🎉"}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
               {play.completed && nextLevel && <DenButton label="Next Level" variant="primary" onClick={() => playLevel(nextLevel.id)} />}
-              {play.completed && <DenButton label="Back to Map" variant="quiet" onClick={handleBackToMap} />}
+              {play.completed && <DenButton label={playSource === 'published' ? 'Back to Published Maps' : 'Back to Map'} variant="quiet" onClick={handleBackToList} />}
               <DenButton label="Undo" variant="quiet" onClick={play.handleUndo} disabled={!play.canUndo} />
               <DenButton label="Restart" variant="quiet" onClick={play.handleRestart} disabled={!play.canRestart} />
             </div>

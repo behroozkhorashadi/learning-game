@@ -1,29 +1,25 @@
 /**
  * Pathfinder: No Way Back — persistence for player-built custom maps.
  *
- * No backend model exists for user-generated game content (and none is
- * being added here), so custom maps are stored client-side under a
- * namespaced localStorage key — same pattern as `gameAudio.ts`'s mute
- * preference (`equationOutbreak:audioMuted`). They're per-browser, not
- * synced anywhere.
+ * Saved maps belong to a profile and are stored server-side
+ * (`/api/profiles/{id}/pathfinder/maps`, see the backend's
+ * `app/models/pathfinder.py`), so a kid's maps follow them to any browser
+ * and one kid's maps don't show up in another kid's My Maps.
  *
  * Each saved map is a `CustomMapRecord`, not a bare `DotPuzzle`: the My
  * Maps page needs to show when a map was made (and sort by it) and whether
  * it's been published, neither of which belongs on the core `DotPuzzle`
- * type every other part of the game uses. `published` is a local-only flag
- * for now — there's no backend endpoint yet for other players to actually
- * fetch a published map, so it's a placeholder for that future feature
- * rather than a working "share with others" mechanism today.
+ * type every other part of the game uses. Published maps from every
+ * profile are listed by `listPublishedMaps` for the Published Maps screen.
  *
  * A saved map's `id` is a random, stable UUID assigned once at save time,
  * independent of its name — renaming a map must never change its identity
  * (delete/rename/publish are all keyed by `id`).
  */
 
+import type { PathfinderCustomMap, PublishedPathfinderMap } from '../types/generated'
 import { randomId } from './id'
-import type { DotPuzzle } from './pathfinderTypes'
-
-const STORAGE_KEY = 'pathfinder:customMaps'
+import type { Difficulty, DotPuzzle } from './pathfinderTypes'
 
 export interface CustomMapRecord {
   puzzle: DotPuzzle
@@ -31,59 +27,90 @@ export interface CustomMapRecord {
   published: boolean
 }
 
-function readAll(): CustomMapRecord[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
+function mapsUrl(profileId: number, mapId?: string): string {
+  const base = `/api/profiles/${profileId}/pathfinder/maps`
+  return mapId ? `${base}/${encodeURIComponent(mapId)}` : base
+}
+
+function toRecord(row: PathfinderCustomMap): CustomMapRecord {
+  return {
+    puzzle: {
+      id: row.id,
+      name: row.name,
+      difficulty: row.difficulty as Difficulty,
+      rows: row.rows,
+      columns: row.columns,
+      dots: row.dots.map((d) => ({ row: d.row, col: d.col })),
+    },
+    createdAt: row.created_at ?? '',
+    published: row.published ?? false,
   }
 }
 
-function writeAll(records: CustomMapRecord[]): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
-  } catch {
-    // Storage unavailable (private browsing, quota) — saving is best-effort;
-    // the map still plays this session via the in-memory value the caller holds.
+async function send(url: string, init: RequestInit, action: string): Promise<Response> {
+  const res = await fetch(url, init)
+  if (!res.ok) throw new Error(`${action} failed: ${res.status}`)
+  return res
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+
+/** Most recently created first (the server's order). */
+export async function listCustomMaps(profileId: number): Promise<CustomMapRecord[]> {
+  const res = await send(mapsUrl(profileId), {}, 'loading saved maps')
+  return ((await res.json()) as PathfinderCustomMap[]).map(toRecord)
+}
+
+export async function saveCustomMap(profileId: number, puzzle: DotPuzzle): Promise<CustomMapRecord> {
+  const body = {
+    id: puzzle.id,
+    name: puzzle.name ?? '',
+    difficulty: puzzle.difficulty,
+    rows: puzzle.rows,
+    columns: puzzle.columns,
+    dots: puzzle.dots,
   }
+  const res = await send(mapsUrl(profileId), { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body) }, 'saving map')
+  return toRecord((await res.json()) as PathfinderCustomMap)
 }
 
-/** Most recently created first. */
-export function listCustomMaps(): CustomMapRecord[] {
-  return readAll().sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-}
-
-export function saveCustomMap(puzzle: DotPuzzle): CustomMapRecord {
-  const records = readAll().filter((r) => r.puzzle.id !== puzzle.id)
-  const record: CustomMapRecord = { puzzle, createdAt: new Date().toISOString(), published: false }
-  records.push(record)
-  writeAll(records)
-  return record
-}
-
-export function deleteCustomMap(id: string): void {
-  writeAll(readAll().filter((r) => r.puzzle.id !== id))
+export async function deleteCustomMap(profileId: number, id: string): Promise<void> {
+  await send(mapsUrl(profileId, id), { method: 'DELETE' }, 'deleting map')
 }
 
 /** Changes only the display name — `id`, `createdAt`, and `published`
  * stay put, so this is a rename, not a re-save under a new identity. */
-export function renameCustomMap(id: string, newName: string): void {
-  const records = readAll()
-  const record = records.find((r) => r.puzzle.id === id)
-  if (!record) return
-  record.puzzle = { ...record.puzzle, name: newName }
-  writeAll(records)
+export async function renameCustomMap(profileId: number, id: string, newName: string): Promise<void> {
+  await send(mapsUrl(profileId, id), { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ name: newName }) }, 'renaming map')
 }
 
-export function setCustomMapPublished(id: string, published: boolean): void {
-  const records = readAll()
-  const record = records.find((r) => r.puzzle.id === id)
-  if (!record) return
-  record.published = published
-  writeAll(records)
+export async function setCustomMapPublished(profileId: number, id: string, published: boolean): Promise<void> {
+  await send(mapsUrl(profileId, id), { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify({ published }) }, 'publishing map')
+}
+
+/** A map someone published, as the Published Maps screen shows it. */
+export interface PublishedMapRecord {
+  puzzle: DotPuzzle
+  authorProfileId: number
+  authorName: string
+}
+
+/** Every profile's published maps, newest first. An unpublished map is
+ * simply absent. */
+export async function listPublishedMaps(): Promise<PublishedMapRecord[]> {
+  const res = await send('/api/pathfinder/published-maps', {}, 'loading published maps')
+  return ((await res.json()) as PublishedPathfinderMap[]).map((row) => ({
+    puzzle: {
+      id: row.id,
+      name: row.name,
+      difficulty: row.difficulty as Difficulty,
+      rows: row.rows,
+      columns: row.columns,
+      dots: row.dots.map((d) => ({ row: d.row, col: d.col })),
+    },
+    authorProfileId: row.author_profile_id,
+    authorName: row.author_name,
+  }))
 }
 
 export function makeCustomMapId(): string {
@@ -91,12 +118,12 @@ export function makeCustomMapId(): string {
 }
 
 /** Suggests "<username>_map1", "<username>_map2", ... — one past the
- * highest number already used for this username across every saved map on
- * this device, so the default name is always free without the builder
- * having to check for a collision themselves. */
-export function nextDefaultMapName(username: string): string {
+ * highest number already used for this username among `existing`, so the
+ * default name is always free without the builder having to check for a
+ * collision themselves. */
+export function nextDefaultMapName(username: string, existing: readonly CustomMapRecord[]): string {
   const prefix = `${username}_map`
-  const used = readAll()
+  const used = existing
     .map((r) => r.puzzle.name ?? '')
     .filter((name) => name.startsWith(prefix))
     .map((name) => Number(name.slice(prefix.length)))

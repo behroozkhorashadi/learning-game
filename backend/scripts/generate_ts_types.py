@@ -34,6 +34,13 @@ from app.models.piece import (  # noqa: E402
     TurnLine,
     TurnLineCreate,
 )
+from app.models.pathfinder import (  # noqa: E402
+    PathfinderCompletionsCreate,
+    PathfinderCustomMap,
+    PathfinderCustomMapCreate,
+    PathfinderCustomMapUpdate,
+    PublishedPathfinderMap,
+)
 from app.models.practice_config import PracticeConfig, PracticeConfigUpsert  # noqa: E402
 from app.models.profile import Profile, ProfileCreate, ProfileUpdate, SkillState  # noqa: E402
 from app.models.rating import Rating, RatingCreate  # noqa: E402
@@ -49,6 +56,11 @@ MODELS = [
     ProfileUpdate,
     PracticeConfig,
     PracticeConfigUpsert,
+    PathfinderCompletionsCreate,
+    PathfinderCustomMap,
+    PathfinderCustomMapCreate,
+    PathfinderCustomMapUpdate,
+    PublishedPathfinderMap,
     SkillState,
     Skill,
     GameMetadata,

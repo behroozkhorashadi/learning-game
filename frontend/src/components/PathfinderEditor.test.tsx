@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { PathfinderEditor } from './PathfinderEditor'
+import { installFakePathfinderApi, type FakePathfinderApi } from '../lib/fakePathfinderApi'
 import { listCustomMaps } from '../lib/pathfinderCustomMaps'
 
 /**
@@ -11,8 +12,11 @@ import { listCustomMaps } from '../lib/pathfinderCustomMaps'
  * at save time via `window.prompt`, so every save-related test stubs that.
  */
 
+const PROFILE_ID = 1
+let api: FakePathfinderApi
+
 beforeEach(() => {
-  localStorage.clear()
+  api = installFakePathfinderApi()
 })
 
 afterEach(() => {
@@ -37,7 +41,7 @@ function checkPuzzle() {
 
 describe('PathfinderEditor', () => {
   it('has no Name field — only Rows, Columns, and My Maps controls', () => {
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     expect(screen.queryByLabelText(/^Name$/)).toBeNull()
     expect(screen.getByText('Rows')).toBeTruthy()
     expect(screen.getByText('Columns')).toBeTruthy()
@@ -45,14 +49,14 @@ describe('PathfinderEditor', () => {
   })
 
   it('placing only one dot leaves Check My Puzzle inert (DenButton drops onClick while disabled)', () => {
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     fireEvent.click(gridCell(1, 1))
     checkPuzzle()
     expect(screen.queryByText(/Solvable/)).toBeNull()
   })
 
   it('reports a solvable board with its assessed difficulty, and shows the solution preview', () => {
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
 
@@ -64,7 +68,7 @@ describe('PathfinderEditor', () => {
   })
 
   it('reports not solvable for two isolated dots with no shared edge, and hides Play/Save', () => {
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     fireEvent.click(gridCell(1, 1))
     fireEvent.click(gridCell(4, 4))
     checkPuzzle()
@@ -74,7 +78,7 @@ describe('PathfinderEditor', () => {
   })
 
   it('toggling a cell after checking clears the stale result', () => {
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
     expect(screen.getByText(/Solvable!/)).toBeTruthy()
@@ -85,70 +89,94 @@ describe('PathfinderEditor', () => {
 
   it('My Maps button calls onViewMyMaps', () => {
     const onViewMyMaps = vi.fn()
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={onViewMyMaps} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={onViewMyMaps} />)
     fireEvent.click(screen.getByRole('button', { name: 'My Maps' }))
     expect(onViewMyMaps).toHaveBeenCalledTimes(1)
   })
 
-  it('Play hands the built puzzle to onPlay without requiring a save first', () => {
+  it('Play hands the built puzzle to onPlay without requiring a save first', async () => {
     const onPlay = vi.fn()
-    render(<PathfinderEditor username="mia" onPlay={onPlay} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={onPlay} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     expect(onPlay).toHaveBeenCalledTimes(1)
     expect(onPlay.mock.calls[0][0].dots).toHaveLength(4)
-    expect(listCustomMaps()).toEqual([]) // Play alone must not persist anything
+    expect(await listCustomMaps(PROFILE_ID)).toEqual([]) // Play alone must not persist anything
   })
 
-  it('Save prompts for a name (pre-filled with the auto-incrementing default) and persists on confirm', () => {
+  it('Save prompts for a name (pre-filled with the auto-incrementing default) and persists on confirm', async () => {
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('mia_map1')
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
+    expect(await screen.findByText(/Saved as "mia_map1"/)).toBeTruthy()
     expect(promptSpy).toHaveBeenCalledWith('Name your map:', 'mia_map1')
-    const saved = listCustomMaps()
+    const saved = await listCustomMaps(PROFILE_ID)
     expect(saved).toHaveLength(1)
     expect(saved[0].puzzle.name).toBe('mia_map1')
     expect(saved[0].puzzle.difficulty).toBe('easy')
-    expect(screen.getByText(/Saved as "mia_map1"/)).toBeTruthy()
   })
 
-  it('cancelling the Save name prompt (returns null) does not persist anything', () => {
-    vi.spyOn(window, 'prompt').mockReturnValue(null)
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+  it('cancelling the Save name prompt (returns null) does not persist anything', async () => {
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue(null)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(listCustomMaps()).toEqual([])
+    await waitFor(() => expect(promptSpy).toHaveBeenCalled())
+    expect(await listCustomMaps(PROFILE_ID)).toEqual([])
   })
 
-  it('a blank name in the prompt falls back to the suggested default instead of saving untitled', () => {
+  it('a blank name in the prompt falls back to the suggested default instead of saving untitled', async () => {
     vi.spyOn(window, 'prompt').mockReturnValue('   ')
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(listCustomMaps()[0].puzzle.name).toBe('mia_map1')
+    await screen.findByText(/Saved as/)
+    expect((await listCustomMaps(PROFILE_ID))[0].puzzle.name).toBe('mia_map1')
   })
 
-  it('saving twice suggests the next number each time', () => {
+  it('saving twice suggests the next number each time', async () => {
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValueOnce('mia_map1').mockReturnValueOnce('mia_map2')
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     checkPuzzle()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByText(/Saved as "mia_map1"/)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByText(/Saved as "mia_map2"/)
 
     expect(promptSpy).toHaveBeenNthCalledWith(1, 'Name your map:', 'mia_map1')
     expect(promptSpy).toHaveBeenNthCalledWith(2, 'Name your map:', 'mia_map2')
-    expect(listCustomMaps()).toHaveLength(2)
+    expect(await listCustomMaps(PROFILE_ID)).toHaveLength(2)
+  })
+
+  it('suggests the next number based on maps already saved to this profile', async () => {
+    api.maps.push({ id: 'custom-x', profile_id: PROFILE_ID, name: 'mia_map4', difficulty: 'easy', rows: 1, columns: 1, dots: [{ row: 0, col: 0 }], created_at: '2026-01-01T00:00:00Z' })
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue(null)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    place2x2Square()
+    checkPuzzle()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(promptSpy).toHaveBeenCalledWith('Name your map:', 'mia_map5'))
+  })
+
+  it('tells the player when saving fails', async () => {
+    vi.spyOn(window, 'prompt').mockReturnValue('mia_map1')
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    place2x2Square()
+    checkPuzzle()
+    api.failing = true
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/Couldn't save your map/)).toBeTruthy()
   })
 
   it('Clear Grid empties every placed dot', () => {
-    render(<PathfinderEditor username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     place2x2Square()
     expect(screen.getByText('4 dots placed')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Clear Grid' }))

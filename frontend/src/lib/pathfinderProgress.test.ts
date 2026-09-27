@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { computeLevelStatuses, getCompletedLevelIds, markLevelCompleted } from './pathfinderProgress'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { installFakePathfinderApi, type FakePathfinderApi } from './fakePathfinderApi'
+import { computeLevelStatuses, fetchCompletedLevelIds, markLevelCompleted } from './pathfinderProgress'
 import type { DotPuzzle } from './pathfinderTypes'
 
 function puzzle(id: string): DotPuzzle {
@@ -9,36 +10,31 @@ function puzzle(id: string): DotPuzzle {
 const LEVELS = [puzzle('a'), puzzle('b'), puzzle('c')]
 
 describe('pathfinderProgress', () => {
+  let api: FakePathfinderApi
+
   beforeEach(() => {
-    localStorage.clear()
+    api = installFakePathfinderApi()
   })
 
-  it('starts with nothing completed for a fresh profile', () => {
-    expect(getCompletedLevelIds(1)).toEqual(new Set())
+  it('starts with nothing completed for a fresh profile', async () => {
+    expect(await fetchCompletedLevelIds(1)).toEqual(new Set())
   })
 
-  it('markLevelCompleted persists and getCompletedLevelIds reads it back', () => {
-    markLevelCompleted(1, 'a')
-    expect(getCompletedLevelIds(1)).toEqual(new Set(['a']))
+  it('markLevelCompleted saves to the server and resolves to the updated set', async () => {
+    expect(await markLevelCompleted(1, 'a')).toEqual(new Set(['a']))
+    expect(await fetchCompletedLevelIds(1)).toEqual(new Set(['a']))
+    expect(api.completions.get(1)).toEqual(['a'])
   })
 
-  it('scopes progress per profile — one profile completing a level does not affect another', () => {
-    markLevelCompleted(1, 'a')
-    expect(getCompletedLevelIds(2)).toEqual(new Set())
+  it('scopes progress per profile — one profile completing a level does not affect another', async () => {
+    await markLevelCompleted(1, 'a')
+    expect(await fetchCompletedLevelIds(2)).toEqual(new Set())
   })
 
-  it('marking the same level completed twice is idempotent', () => {
-    markLevelCompleted(1, 'a')
-    markLevelCompleted(1, 'a')
-    expect(getCompletedLevelIds(1)).toEqual(new Set(['a']))
-  })
-
-  it('a corrupted/inaccessible localStorage does not throw and falls back to empty', () => {
-    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
-    expect(getCompletedLevelIds(1)).toEqual(new Set())
-    spy.mockRestore()
+  it('rejects when the server fails, so callers can tell the player', async () => {
+    api.failing = true
+    await expect(fetchCompletedLevelIds(1)).rejects.toThrow()
+    await expect(markLevelCompleted(1, 'a')).rejects.toThrow()
   })
 
   describe('computeLevelStatuses', () => {

@@ -4,7 +4,7 @@ import { PathfinderBoard } from './PathfinderBoard'
 import { coordKey } from '../lib/pathfinderRules'
 import { solvePuzzle } from '../lib/pathfinderSolver'
 import { assessDifficulty } from '../lib/pathfinderDifficulty'
-import { makeCustomMapId, nextDefaultMapName, saveCustomMap } from '../lib/pathfinderCustomMaps'
+import { listCustomMaps, makeCustomMapId, nextDefaultMapName, saveCustomMap } from '../lib/pathfinderCustomMaps'
 import { MAX_BOARD_DIMENSION } from '../lib/pathfinderTypes'
 import type { Difficulty, DotPuzzle, GridPosition } from '../lib/pathfinderTypes'
 
@@ -48,6 +48,8 @@ const TIER_LABEL: Record<Difficulty, string> = {
 type CheckResult = { solvable: boolean; solution: GridPosition[] | null; tier: Difficulty | null; score: number | null } | null
 
 interface Props {
+  /** Whose My Maps library a saved map goes to. */
+  profileId: number
   /** Used only to seed the default save-name suggestion ("<username>_map1"). */
   username: string
   onPlay: (puzzle: DotPuzzle) => void
@@ -58,7 +60,7 @@ function emptyGrid(): Set<string> {
   return new Set()
 }
 
-export function PathfinderEditor({ username, onPlay, onViewMyMaps }: Props) {
+export function PathfinderEditor({ profileId, username, onPlay, onViewMyMaps }: Props) {
   const [rows, setRows] = useState(DEFAULT_SIZE)
   const [columns, setColumns] = useState(DEFAULT_SIZE)
   const [dotKeys, setDotKeys] = useState<Set<string>>(emptyGrid)
@@ -133,14 +135,18 @@ export function PathfinderEditor({ username, onPlay, onViewMyMaps }: Props) {
     if (assessedPuzzle) onPlay({ ...assessedPuzzle, name: assessedPuzzle.name || 'My Map', id: makeCustomMapId() })
   }
 
-  function saveMap() {
+  async function saveMap() {
     if (!assessedPuzzle) return
-    const suggested = nextDefaultMapName(username)
-    const chosen = window.prompt('Name your map:', suggested)
-    if (chosen === null) return // cancelled
-    const name = chosen.trim() || suggested
-    saveCustomMap({ ...assessedPuzzle, id: makeCustomMapId(), name })
-    setSavedMessage(`Saved as "${name}" — find it under My Maps.`)
+    try {
+      const suggested = nextDefaultMapName(username, await listCustomMaps(profileId))
+      const chosen = window.prompt('Name your map:', suggested)
+      if (chosen === null) return // cancelled
+      const name = chosen.trim() || suggested
+      await saveCustomMap(profileId, { ...assessedPuzzle, id: makeCustomMapId(), name })
+      setSavedMessage(`Saved as "${name}" — find it under My Maps.`)
+    } catch {
+      setSavedMessage("Couldn't save your map — is the server running?")
+    }
   }
 
   const canCheck = dotCount >= MIN_DOTS_TO_CHECK
