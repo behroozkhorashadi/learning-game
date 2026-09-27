@@ -20,6 +20,7 @@
  * (delete/rename/publish are all keyed by `id`).
  */
 
+import { randomId } from './id'
 import type { DotPuzzle } from './pathfinderTypes'
 
 const STORAGE_KEY = 'pathfinder:customMaps'
@@ -86,7 +87,7 @@ export function setCustomMapPublished(id: string, published: boolean): void {
 }
 
 export function makeCustomMapId(): string {
-  return `custom-${crypto.randomUUID()}`
+  return `custom-${randomId()}`
 }
 
 /** Suggests "<username>_map1", "<username>_map2", ... — one past the
