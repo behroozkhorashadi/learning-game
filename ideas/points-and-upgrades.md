@@ -1,13 +1,27 @@
-# Point system with buyable upgrades (starting with faster / zero reload)
+# Point system with buyable upgrades: reload speed, zombie health/hit-zones, and a weapon+bullet catalog
 
 **Status:** idea
 
 ## Summary
 
 Give the player points for playing well, and let them spend those points on
-upgrades that change how the game feels. The first and most motivating
-upgrade: a faster reload — and at the top tier, *zero* reload, so both shots
-of a wave can be fired back-to-back.
+upgrades that change how the game feels. Three upgrade lines, all spending
+from the same points balance:
+
+1. **Faster reload** — and at the top tier, *zero* reload, so both shots of a
+   wave can be fired back-to-back. (This is the original version of this
+   idea and is the most-scoped-out section below — start here.)
+2. **Zombie health and hit-zone damage.** Give each carrier a health bar
+   instead of dying to any accepted hit: a headshot kills in 1 shot, a body
+   shot takes 2, and an arm/leg shot takes 3. This is a bigger change than it
+   sounds — see "Zombie health & hit-zone damage" below, including a real
+   conflict with the engine's current "exactly two shots per wave" rule that
+   has to be resolved, not glossed over.
+3. **A weapon + bullet catalog to purchase.** Different guns (already
+   anticipated by `WeaponDefinition`'s `unlockCost`/`unlockedByDefault`
+   fields) and different bullet types (a new concept — e.g. armor-piercing
+   rounds that reduce a body/limb shot's hit-count) as separate purchasable
+   things, on top of the health/hit-zone mechanic above.
 
 ## Context
 
@@ -59,6 +73,53 @@ session only." A points balance is the first thing in this app that has to
 actually survive a session, so it needs a real decision about where it lives
 (see open questions).
 
+**Zombie health & hit-zone damage — the real design conflict to resolve
+first.** The user asked for: a headshot kills in 1 shot, a body shot in 2,
+and an arm/leg shot in 3. That's a genuine mechanic change, not just a
+scoring tweak — `zombieWaveEngine.ts`'s `applyHit` currently defeats *any*
+active carrier on the first accepted hit (its own docstring: "every accepted
+shot — hit or miss — is a one-shot defeat"; `HitZone` only picks the death
+animation and `resolutionReason`, never whether the hit kills). Making zone
+determine a *hit count* instead of an instant kill means:
+- `Carrier` needs a `remainingHits` (or `health`) field, initialized from
+  its zone's required-hits count and decremented per accepted hit, only
+  transitioning to `'defeated'` at 0 — a real change to `WaveState`/`Carrier`
+  shape and to `applyHit`'s core branch, not an additive field nobody reads.
+- **The conflict:** a wave today is a hard-coded exactly-two-shots contract
+  (`shotsRemaining` starts at 2; the docstring calls this "one of the
+  central simplifying rules"). If the *correct* carrier needs 2 shots (body)
+  or 3 (limb) to go down, and only 2 shots exist in a wave at all, the
+  player can't ever clear a body/limb-zone correct carrier without also
+  guaranteeing a wrong-carrier hit or a wasted shot, or the wave has to stop
+  being fixed-at-two-shots per zone. This has to be an explicit design
+  decision with the user before writing engine code — candidates: shots per
+  wave scale with the correct carrier's required hit-count; only headshots
+  remain viable within a 2-shot wave and body/limb shots require multiple
+  *waves* worth of hits (health persists across the approach?); or the
+  "exactly two shots" rule is rethought entirely. Don't guess — this is the
+  single riskiest unknown in this whole idea.
+- Distractor (wrong-answer) carriers presumably keep needing only 1 accepted
+  hit to remove from play regardless of zone (only the *correct* carrier's
+  health should matter pedagogically — the exercise is picking the right
+  carrier, not attrition-farming wrong ones), but confirm this with the user
+  rather than assuming it.
+- Whatever health values are chosen become new purchasable-catalog data (see
+  the weapon+bullet catalog below), not hardcoded constants, matching how
+  `cockingMs` already lives in `WeaponDefinition` rather than the engine.
+
+**A weapon + bullet catalog, not just weapons.** `weaponDefinitions.ts`
+already anticipates buyable *weapons* (`unlockCost`, `unlockedByDefault`) —
+the previous version of this idea filed that under "out of scope, obvious
+sequel," which no longer holds now that the user has asked for it directly.
+New on top of that: *bullets* as a second, separate purchasable dimension —
+e.g. a standard round needs the full zone hit-count, while a pricier
+armor-piercing round reduces a body or limb shot's hit-count by one. That
+means damage-per-zone can't live solely on the weapon; it's likely
+`(weapon, bullet)` together that determines the effective hit-count per
+zone, which should be modeled as data (a small lookup/formula), the same
+"engine takes plain numbers, never imports the catalog" rule the reload
+upgrade already established.
+
 **PRD guardrail — read before designing the economy.**
 `PRD_adaptive_learning_games.md` §"Rewards, kept healthy" requires rewards
 "tuned to motivate without dark patterns. Session caps. No pressure
@@ -69,6 +130,14 @@ timed/limited-time offers, no grind so long that the only way to progress is
 more play time. Prices should be reachable in a handful of good sessions.
 
 ## Scope
+
+This idea now covers two phases. Do phase 1 first — it's smaller, it's the
+one already worked out in detail, and the points balance/catalog/purchase-UI
+plumbing it builds is exactly what phase 2 spends. Don't start phase 2
+before raising its open design conflict (health + the two-shots-per-wave
+rule, above) with the user.
+
+### Phase 1 — points + reload upgrade
 
 In scope:
 - A scoring function — pure and unit-tested, in `lib/` alongside the wave
@@ -93,18 +162,44 @@ In scope:
   animation (see starter instructions step 4 — this is the one real
   landmine).
 
-Out of scope:
-- New weapons. The catalog fields (`unlockCost`, `unlockedByDefault`) exist
-  and buying a whole new blaster is the obvious sequel, but modeling a
-  second weapon means new GLB assets and a new pose config — don't take that
-  on here.
+Out of scope for phase 1 (see phase 2):
+- New weapons and bullets, and the zombie health/hit-zone mechanic.
 - Cosmetics, skins, currencies beyond the single point type.
 - Extending points to the other games (Pathfinder, Syllable Builder, etc.).
   Get the loop right in one game first. Do keep the persistence model
   game-agnostic enough that it isn't painful later.
+
+### Phase 2 — zombie health, hit-zones, and a weapon+bullet catalog
+
+In scope:
+- Per-carrier health/hit-count, replacing the engine's current one-shot-
+  defeat rule for the *correct* carrier: 1 hit for a headshot, 2 for a body
+  shot, 3 for an arm/leg shot (the user's numbers) — **only after** the
+  two-shots-per-wave conflict above is resolved with the user, since it
+  changes what "resolved" and "shots per wave" even mean. The health values
+  should be data (baseline hit-counts, adjustable by weapon/bullet), not
+  hardcoded in the engine.
+- A weapon catalog beyond `STARTER_BLASTER`, purchasable via `unlockCost`
+  (the field already exists and is already read by nothing).
+- A bullet catalog: a purchasable second dimension that can reduce a body/
+  limb shot's hit-count (e.g. armor-piercing rounds), separate from weapon
+  choice.
+- Wiring `(weapon, bullet)` selection through to gameplay, and a way to
+  choose a loadout before a session (likely alongside the phase-1 upgrades
+  panel).
+
+Out of scope for phase 2:
+- Cosmetics, skins, currencies beyond the single point type.
+- Extending health/hit-zones or the weapon+bullet catalog to any other game.
+- New GLB assets/animations for additional weapons unless the user wants to
+  take that on explicitly — start with reskins or data-only variants
+  (different `unlockCost`, `crosshairStyle`, `muzzleFlashStyle`, etc. on the
+  existing model) before commissioning new art.
 - Anything resembling real-money purchase UI. Obviously.
 
 ## Starter instructions for Claude
+
+### Phase 1 — points + reload upgrade
 
 1. Read, in this order: `lib/zombieWaveEngine.ts` (especially the module
    docstring and `WaveState`), `lib/weaponDefinitions.ts`,
@@ -157,6 +252,34 @@ Out of scope:
    playtesting together), and whether the reload tiers should be presented
    as upgrades to the existing blaster or as separate weapons in the
    catalog.
+
+### Phase 2 — zombie health, hit-zones, and a weapon+bullet catalog
+
+1. **Do not write engine code before this conversation happens.** Bring the
+   two-shots-per-wave conflict (Context, above) to the user explicitly, with
+   the candidate resolutions listed there, and get a decision. This is the
+   one thing in this file most likely to be stale or under-thought by the
+   time someone picks it up — re-verify against the current
+   `zombieWaveEngine.ts` rather than trusting this doc.
+2. Once resolved, change `Carrier`/`WaveState` and `applyHit` in
+   `zombieWaveEngine.ts` to track hit-count-to-defeat per carrier, and add
+   engine tests for every zone at every hit-count (headshot-1, body-2,
+   limb-3, plus whatever the wrong-carrier rule turns out to be).
+3. Extend `WeaponDefinition` (or add a sibling `BulletDefinition`) with
+   whatever data shape the `(weapon, bullet) -> hit-count-per-zone` decision
+   above needs, and add a second catalog (`BULLET_DEFINITIONS`) alongside
+   `WEAPON_DEFINITIONS` — keep the engine ignorant of both, exactly like
+   `cockingMs` today.
+4. A health bar needs new UI on each carrier — check whether
+   `games/framework/` already has a place carrier-level UI/HUD elements are
+   drawn (health isn't rendered anywhere today) before inventing a new
+   layer.
+5. Extend the phase-1 purchase panel to include weapons and bullets, and add
+   a loadout choice before a session starts.
+6. Play it: confirm a body-shot correct carrier now visibly takes 2 hits,
+   an armor-piercing bullet (if built) visibly changes that count, and that
+   the wave-resolution rule the user agreed to in step 1 behaves as decided
+   when shots run out mid-health.
 
 ## Related
 
