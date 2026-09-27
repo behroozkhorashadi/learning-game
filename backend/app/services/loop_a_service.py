@@ -75,6 +75,7 @@ def process_attempt(
     *,
     attempt: Attempt,
     max_level: int,
+    starting_level: int = 1,
     config: Optional[LoopAConfig] = None,
 ) -> tuple[LevelDecision, bool]:
     """Runs Loop A for one already-persisted `Attempt` — PRD §5.1.
@@ -84,9 +85,13 @@ def process_attempt(
     appends a `difficulty_changed` event carrying the reason. Returns the
     level decision and whether the frustration guard fired, so the caller
     (an API endpoint) can surface both without re-deriving them.
+
+    `starting_level` (PRD §4: age as the base difficulty is calibrated from)
+    only matters the first time this (profile, game) pair is seen — see
+    `get_or_create_level`.
     """
     config = config or LoopAConfig()
-    level_row = get_or_create_level(session, attempt.profile_id, attempt.game_id)
+    level_row = get_or_create_level(session, attempt.profile_id, attempt.game_id, starting_level)
 
     window = _load_window(session, level_row, config)
     hint_offered = check_frustration_guard(window)
@@ -141,13 +146,19 @@ def choose_next_item_level(
     game_id: str,
     max_level: int,
     rng: Random,
+    starting_level: int = 1,
     config: Optional[LoopAConfig] = None,
 ) -> NextItemDirective:
     """Picks the next item's target difficulty — PRD §5.1 session pacing.
     Called before `generate_item`; the caller passes `.level` from the result
-    straight into the game module."""
+    straight into the game module.
+
+    `starting_level` (PRD §4: age as the base difficulty is calibrated from)
+    only matters the first time this (profile, game) pair is seen — see
+    `get_or_create_level`.
+    """
     config = config or LoopAConfig()
-    level_row = get_or_create_level(session, profile_id, game_id)
+    level_row = get_or_create_level(session, profile_id, game_id, starting_level)
     force_confidence = _pending_confidence_item(session, profile_id, game_id)
     return select_next_item_level(
         level_row.value,

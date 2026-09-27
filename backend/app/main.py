@@ -340,7 +340,8 @@ def get_next_item(
     session_id: Optional[str] = None,
     session: Session = Depends(get_session),
 ) -> Item:
-    if session.get(Profile, profile_id) is None:
+    profile = session.get(Profile, profile_id)
+    if profile is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
     try:
         game = get_game(game_id)
@@ -388,7 +389,8 @@ def get_next_item(
             session,
             profile_id=profile_id,
             game_id=game_id,
-            max_level=game.metadata.max_level,
+            max_level=game.max_level_for_age(profile.age),
+            starting_level=game.starting_level_for_age(profile.age),
             rng=Random(),
         )
         item = game.generate_item(directive.level, Random(), exclude=frozenset(exclude))
@@ -407,14 +409,17 @@ def get_next_item(
 
 @app.post("/api/attempts", response_model=AttemptRead, status_code=201)
 def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)) -> AttemptRead:
-    if session.get(Profile, payload.profile_id) is None:
+    profile = session.get(Profile, payload.profile_id)
+    if profile is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
     try:
         game = get_game(payload.game_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    level = get_current_level(session, payload.profile_id, payload.game_id)
+    level = get_current_level(
+        session, payload.profile_id, payload.game_id, starting_level=game.starting_level_for_age(profile.age)
+    )
     attempt = Attempt(
         item_id=payload.item_id,
         profile_id=payload.profile_id,
@@ -451,7 +456,10 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
     )
 
     _decision, hint_offered = process_attempt(
-        session, attempt=attempt, max_level=game.metadata.max_level
+        session,
+        attempt=attempt,
+        max_level=game.max_level_for_age(profile.age),
+        starting_level=game.starting_level_for_age(profile.age),
     )
 
     evaluate_and_award_badges(session, profile_id=payload.profile_id, session_id=payload.session_id)

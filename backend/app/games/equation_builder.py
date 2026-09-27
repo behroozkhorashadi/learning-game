@@ -23,6 +23,7 @@ from app.games._arithmetic import (
     Operator,
     apply_operator as _apply,
     draw_operands,
+    draw_operator_with_ramp,
     numeric_distractors,
     operator_distractors,
 )
@@ -37,21 +38,30 @@ _ALL_MISSING_KINDS: tuple[str, ...] = ("left", "operator", "right", "answer")
 class Tier(NamedTuple):
     """One difficulty rung — PRD §14.5: number range, allowed operations, and
     which token can be blanked all escalate together. `operand_max` is the
-    primary axis (PRD §11: must be non-decreasing with level)."""
+    primary axis (PRD §11: must be non-decreasing with level). `min_age` is
+    the youngest PRD §4 persona this tier's operations suit — Loop A's level
+    ceiling is clamped to it (see `max_level_for_age`) so a young kid is
+    never promoted, or session-paced into a stretch item, into a tier whose
+    operations that persona hasn't met yet."""
 
     max_level: int
     operand_max: int
     operations: tuple[Operator, ...]
     missing_kinds: tuple[str, ...]
+    min_age: int
 
 
 # (each tier's max_level_inclusive) — explicit and monotonic on operand_max by
-# construction, mirroring syllable_builder's `_LEVEL_THRESHOLDS`.
+# construction, mirroring syllable_builder's `_LEVEL_THRESHOLDS`. `min_age` on
+# the first three tiers matches this game's own `min_age=6` below (PRD §4's
+# 6-year-old persona: addition/subtraction, "early number sense"); the last
+# tier's `min_age=8` is where multiplication/division first belong (PRD §4's
+# 9-year-old persona), matching `fact_fluency`'s own `min_age=8`.
 _TIERS: list[Tier] = [
-    Tier(max_level=2, operand_max=5, operations=("+",), missing_kinds=("answer",)),
-    Tier(max_level=4, operand_max=10, operations=("+", "-"), missing_kinds=("answer",)),
-    Tier(max_level=7, operand_max=12, operations=("+", "-"), missing_kinds=("answer", "left", "right")),
-    Tier(max_level=10, operand_max=12, operations=_ALL_OPERATORS, missing_kinds=_ALL_MISSING_KINDS),
+    Tier(max_level=2, operand_max=5, operations=("+",), missing_kinds=("answer",), min_age=6),
+    Tier(max_level=4, operand_max=10, operations=("+", "-"), missing_kinds=("answer",), min_age=6),
+    Tier(max_level=7, operand_max=12, operations=("+", "-"), missing_kinds=("answer", "left", "right"), min_age=6),
+    Tier(max_level=10, operand_max=12, operations=_ALL_OPERATORS, missing_kinds=_ALL_MISSING_KINDS, min_age=8),
 ]
 
 
@@ -60,6 +70,65 @@ def _tier_for_level(level: int) -> Tier:
         if level <= tier.max_level:
             return tier
     return _TIERS[-1]
+
+
+def _tier_index_for_level(level: int) -> int:
+    for index, tier in enumerate(_TIERS):
+        if level <= tier.max_level:
+            return index
+    return len(_TIERS) - 1
+
+
+def _tier_start_level(tier_index: int) -> int:
+    """The first level belonging to `_TIERS[tier_index]` — one past the
+    previous tier's ceiling, or 1 for the first tier."""
+    return 1 if tier_index == 0 else _TIERS[tier_index - 1].max_level + 1
+
+
+def _new_operations_for_tier(tier_index: int) -> tuple[Operator, ...]:
+    """Operators `_TIERS[tier_index]` has that the previous tier didn't —
+    what `draw_operator_with_ramp` eases in gradually rather than at full
+    weight from the tier's first level. Empty for the first tier (nothing to
+    ramp against yet)."""
+    if tier_index == 0:
+        return ()
+    previous_operations = set(_TIERS[tier_index - 1].operations)
+    return tuple(op for op in _TIERS[tier_index].operations if op not in previous_operations)
+
+
+def _tier_progress(level: int, tier_index: int) -> float:
+    """How far `level` is through `_TIERS[tier_index]`'s span — 0.0 at the
+    tier's first level, 1.0 at its last."""
+    start = _tier_start_level(tier_index)
+    end = _TIERS[tier_index].max_level
+    if end <= start:
+        return 1.0
+    return (level - start) / (end - start)
+
+
+def _max_level_for_age(age: int) -> int:
+    """Highest `Tier.max_level` among tiers this age has reached, per
+    `Tier.min_age` — falls back to the first tier's ceiling for an age below
+    every tier (never crashes on an out-of-range profile age)."""
+    eligible = [tier.max_level for tier in _TIERS if age >= tier.min_age]
+    return max(eligible) if eligible else _TIERS[0].max_level
+
+
+def _starting_level_for_age(age: int) -> int:
+    """Where a *brand-new* profile starts this game — the first level of the
+    tier just *below* the highest one this age has reached (`_max_level_for_age`),
+    not level 1 for everyone: an older kid starts calibrated near their
+    developmental level (PRD §4) instead of grinding through tiers clearly
+    below it. Deliberately one tier short of the ceiling rather than landing
+    right on it, so even a kid old enough for the hardest currently-unlocked
+    tier still has to earn it via a genuine promotion — "slowly probe, don't
+    jump" applies to the starting point too, not just the ceiling. Loop A's
+    own promote/support rules do the actual fine-tuning from there, and
+    `draw_operator_with_ramp` eases in anything a *later* tier introduces
+    once promotion does get there."""
+    ceiling_index = _tier_index_for_level(_max_level_for_age(age))
+    start_index = max(0, ceiling_index - 1)
+    return _tier_start_level(start_index)
 
 
 def _draw_operands(operator: Operator, tier: Tier, rng: Random) -> tuple[int, int]:
@@ -78,15 +147,24 @@ class EquationBuilderGame(GameModule):
         max_level=10,
     )
 
+    def max_level_for_age(self, age: int) -> int:
+        return _max_level_for_age(age)
+
+    def starting_level_for_age(self, age: int) -> int:
+        return _starting_level_for_age(age)
+
     def generate_item(self, level: int, rng: Random, exclude: frozenset[str] = frozenset()) -> Item:
-        tier = _tier_for_level(level)
+        tier_index = _tier_index_for_level(level)
+        tier = _TIERS[tier_index]
+        new_operations = _new_operations_for_tier(tier_index)
+        progress = _tier_progress(level, tier_index)
 
         # Equations are generated, not drawn from a fixed bank, so the pool is
         # effectively unbounded — a handful of retries is enough to dodge a
         # same-session repeat without the exhausted-pool fallback syllable_builder
         # needs for its small curated word lists.
         for _ in range(10):
-            left, operator, right, missing = self._draw_equation(tier, rng)
+            left, operator, right, missing = self._draw_equation(tier, new_operations, progress, rng)
             answer = _apply(operator, left, right)
             candidate_key = self._equation_key(left, operator, right, answer, missing)
             if candidate_key not in exclude:
@@ -116,8 +194,10 @@ class EquationBuilderGame(GameModule):
             },
         )
 
-    def _draw_equation(self, tier: Tier, rng: Random) -> tuple[int, Operator, int, str]:
-        operator = rng.choice(tier.operations)
+    def _draw_equation(
+        self, tier: Tier, new_operations: tuple[Operator, ...], progress: float, rng: Random
+    ) -> tuple[int, Operator, int, str]:
+        operator = draw_operator_with_ramp(tier.operations, new_operations, progress, rng)
         left, right = _draw_operands(operator, tier, rng)
         missing = rng.choice(tier.missing_kinds)
         return left, operator, right, missing

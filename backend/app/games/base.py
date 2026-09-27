@@ -42,6 +42,30 @@ class GameModule(ABC):
         concept and no session-level exclusion is applied."""
         return None
 
+    def max_level_for_age(self, age: int) -> int:
+        """Age-aware ceiling on top of `metadata.max_level`, used as the
+        `max_level` passed to Loop A's promote/stretch clamp (PRD §5.1) so a
+        kid can never be promoted, or session-paced into a stretch item,
+        past what's age-appropriate — PRD §4's per-age personas are explicit
+        that e.g. a 6-year-old's math stays addition/subtraction ("early
+        number sense") while multiplication/division wait for the 9-year-old
+        persona. Most games have no such age-gated tiers, so the default is
+        just `metadata.max_level` unchanged; `equation_builder` and
+        `fact_fluency` override this since their tiers introduce operators
+        partway up the level range."""
+        return self.metadata.max_level
+
+    def starting_level_for_age(self, age: int) -> int:
+        """Where a *brand-new* profile's `Level` row is initialized for this
+        game (see `app.engine.level_selector.get_or_create_level`), instead
+        of level 1 for every age — PRD §4's older personas shouldn't have to
+        grind through content clearly below their developmental level before
+        Loop A's adaptive promote/support rules take over. Most games have
+        no age-gated tiers to calibrate a starting point from, so the
+        default is level 1 unchanged; `equation_builder` and `fact_fluency`
+        override this alongside `max_level_for_age`."""
+        return 1
+
     def supports_practice_config(self) -> bool:
         """Whether this game accepts a parent-set `PracticeConfig` (which
         operations are in play, which numbers to focus on per operation, and

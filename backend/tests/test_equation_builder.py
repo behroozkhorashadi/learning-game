@@ -5,7 +5,7 @@ primary axis (operand ceiling) as level rises."""
 
 from random import Random
 
-from app.games.equation_builder import EquationBuilderGame, _apply, _tier_for_level
+from app.games.equation_builder import EquationBuilderGame, _apply, _tier_for_level, _TIERS
 
 GAME = EquationBuilderGame()
 
@@ -82,6 +82,65 @@ def test_repeat_key_matches_the_shown_equation_and_blank():
     key = GAME.repeat_key(item.payload)
     p = item.payload
     assert key == f"{p['left']}{p['operator']}{p['right']}={p['answer']}|{p['missing']}"
+
+
+def test_max_level_for_age_keeps_a_six_year_old_off_the_operator_tier():
+    """Regression guard for the reported bug: a 6-year-old profile getting a
+    surprise multiplication/division item after a streak of easy addition —
+    PRD §4's 6-year-old persona is addition/subtraction only ("early number
+    sense"); multiplication/division is the 9-year-old persona's. The tier
+    that introduces `×`/`÷` must stay out of reach until its `min_age`."""
+    operator_tier = _TIERS[-1]
+    assert operator_tier.operations == ("+", "-", "×", "÷")
+
+    for age in range(operator_tier.min_age):
+        capped = GAME.max_level_for_age(age)
+        allowed = _tier_for_level(capped).operations
+        assert "×" not in allowed and "÷" not in allowed
+
+    assert GAME.max_level_for_age(operator_tier.min_age) == GAME.metadata.max_level
+    assert _tier_for_level(GAME.max_level_for_age(operator_tier.min_age)) is operator_tier
+
+
+def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their_ceiling():
+    """PRD §4: age is the base difficulty is calibrated from. A brand-new
+    profile shouldn't grind through tiers clearly below their developmental
+    level, but shouldn't skip straight to the hardest tier they've unlocked
+    either — it starts one tier short of that ceiling, still having to earn
+    the top tier through a real promotion ("slowly probe, don't jump" applies
+    to the starting point too)."""
+    six = GAME.starting_level_for_age(6)
+    nine = GAME.starting_level_for_age(9)
+
+    assert 1 < six < GAME.max_level_for_age(6)
+    assert six <= nine < GAME.max_level_for_age(9)
+
+    # Always the entry level of some tier, never partway/at the end of one.
+    for age in range(6, 12):
+        level = GAME.starting_level_for_age(age)
+        assert level == 1 or level - 1 == _tier_for_level(level - 1).max_level
+
+    # No age starts a brand-new profile already inside the ×/÷ tier.
+    for age in range(6, 12):
+        level = GAME.starting_level_for_age(age)
+        assert "×" not in _tier_for_level(level).operations
+
+
+def test_promotion_into_the_operator_tier_ramps_in_multiplication_and_division_gently():
+    """A kid promoted into the tier that first introduces ×/÷ must not be
+    dropped straight into it at full blast on that tier's very first level —
+    the ramp mechanism (test_arithmetic.py) applies here, regardless of how
+    old the kid is or what starting level they began at."""
+    operator_tier = _TIERS[-1]
+    first_level = operator_tier.max_level - 2  # this tier spans exactly 3 levels (8, 9, 10)
+    last_level = operator_tier.max_level
+
+    def new_op_share(level: int) -> float:
+        operators = [GAME.generate_item(level=level, rng=Random(seed)).payload["operator"] for seed in range(500)]
+        return sum(1 for op in operators if op in ("×", "÷")) / len(operators)
+
+    assert new_op_share(first_level) < 0.3  # nowhere near the natural 50% share yet
+    assert new_op_share(last_level) > 0.4  # ramped up to it by the tier's last level
 
 
 def test_exclude_avoids_repeats_when_the_pool_is_effectively_unbounded():

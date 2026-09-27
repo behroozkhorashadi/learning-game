@@ -26,6 +26,7 @@ from app.games._arithmetic import (
     apply_operator,
     draw_operands,
     draw_operands_with_focus,
+    draw_operator_with_ramp,
     numeric_distractors,
 )
 from app.games.base import GameModule
@@ -44,21 +45,30 @@ class Tier(NamedTuple):
     """One difficulty rung. `operand_max` is the primary axis (PRD §11: must
     be non-decreasing with level); `approach_ms` — how long a kid has before
     time runs out — is the second, and must be non-increasing with level
-    (faster is harder)."""
+    (faster is harder). `min_age` is the youngest PRD §4 persona this tier's
+    operations suit — Loop A's level ceiling is clamped to it (see
+    `max_level_for_age`), mirroring `equation_builder`'s identical rule."""
 
     max_level: int
     operand_max: int
     operations: tuple[Operator, ...]
     approach_ms: int
+    min_age: int
 
 
 # Explicit and monotonic by construction: operand_max non-decreasing,
-# approach_ms non-increasing, mirroring equation_builder's `_TIERS`.
+# approach_ms non-increasing, mirroring equation_builder's `_TIERS`. `min_age`
+# graduates *within* this game's own 8-11 audience (PRD §7.2's "Fact Fluency
+# (math, 9/11)") rather than sitting flat at the game's own `min_age=8` for
+# every tier: a fresh 8-year-old still starts on addition/subtraction, and
+# multiplication/division (the last tier) wait for age 10, one step past
+# equation_builder's introduction of it — Fact Fluency layers time pressure
+# on top of the same operators, so it earns a slightly later start.
 _TIERS: list[Tier] = [
-    Tier(max_level=2, operand_max=5, operations=("+",), approach_ms=9000),
-    Tier(max_level=4, operand_max=10, operations=("+", "-"), approach_ms=7500),
-    Tier(max_level=7, operand_max=12, operations=("+", "-"), approach_ms=6000),
-    Tier(max_level=10, operand_max=12, operations=ALL_OPERATORS, approach_ms=4500),
+    Tier(max_level=2, operand_max=5, operations=("+",), approach_ms=9000, min_age=8),
+    Tier(max_level=4, operand_max=10, operations=("+", "-"), approach_ms=7500, min_age=8),
+    Tier(max_level=7, operand_max=12, operations=("+", "-"), approach_ms=6000, min_age=9),
+    Tier(max_level=10, operand_max=12, operations=ALL_OPERATORS, approach_ms=4500, min_age=10),
 ]
 
 
@@ -67,6 +77,60 @@ def _tier_for_level(level: int) -> Tier:
         if level <= tier.max_level:
             return tier
     return _TIERS[-1]
+
+
+def _tier_index_for_level(level: int) -> int:
+    for index, tier in enumerate(_TIERS):
+        if level <= tier.max_level:
+            return index
+    return len(_TIERS) - 1
+
+
+def _tier_start_level(tier_index: int) -> int:
+    """The first level belonging to `_TIERS[tier_index]` — one past the
+    previous tier's ceiling, or 1 for the first tier."""
+    return 1 if tier_index == 0 else _TIERS[tier_index - 1].max_level + 1
+
+
+def _new_operations_for_tier(tier_index: int) -> tuple[Operator, ...]:
+    """Operators `_TIERS[tier_index]` has that the previous tier didn't —
+    what `draw_operator_with_ramp` eases in gradually rather than at full
+    weight from the tier's first level. Empty for the first tier (nothing to
+    ramp against yet)."""
+    if tier_index == 0:
+        return ()
+    previous_operations = set(_TIERS[tier_index - 1].operations)
+    return tuple(op for op in _TIERS[tier_index].operations if op not in previous_operations)
+
+
+def _tier_progress(level: int, tier_index: int) -> float:
+    """How far `level` is through `_TIERS[tier_index]`'s span — 0.0 at the
+    tier's first level, 1.0 at its last."""
+    start = _tier_start_level(tier_index)
+    end = _TIERS[tier_index].max_level
+    if end <= start:
+        return 1.0
+    return (level - start) / (end - start)
+
+
+def _max_level_for_age(age: int) -> int:
+    """Highest `Tier.max_level` among tiers this age has reached, per
+    `Tier.min_age` — falls back to the first tier's ceiling for an age below
+    every tier (never crashes on an out-of-range profile age)."""
+    eligible = [tier.max_level for tier in _TIERS if age >= tier.min_age]
+    return max(eligible) if eligible else _TIERS[0].max_level
+
+
+def _starting_level_for_age(age: int) -> int:
+    """Where a *brand-new* profile starts this game — the first level of the
+    tier just *below* the highest one this age has reached, mirroring
+    `equation_builder`'s identical rule: deliberately one tier short of the
+    age ceiling rather than landing right on it, so a kid still has to earn
+    the hardest currently-unlocked tier via a genuine promotion. Loop A's
+    promote/support rules do the actual fine-tuning from there."""
+    ceiling_index = _tier_index_for_level(_max_level_for_age(age))
+    start_index = max(0, ceiling_index - 1)
+    return _tier_start_level(start_index)
 
 
 class FactFluencyGame(GameModule):
@@ -81,14 +145,23 @@ class FactFluencyGame(GameModule):
         max_level=10,
     )
 
+    def max_level_for_age(self, age: int) -> int:
+        return _max_level_for_age(age)
+
+    def starting_level_for_age(self, age: int) -> int:
+        return _starting_level_for_age(age)
+
     def generate_item(self, level: int, rng: Random, exclude: frozenset[str] = frozenset()) -> Item:
-        tier = _tier_for_level(level)
+        tier_index = _tier_index_for_level(level)
+        tier = _TIERS[tier_index]
+        new_operations = _new_operations_for_tier(tier_index)
+        progress = _tier_progress(level, tier_index)
 
         # Facts are generated, not drawn from a fixed bank, so a handful of
         # retries is enough to dodge a same-session repeat — same reasoning
         # as equation_builder's identical loop.
         for _ in range(10):
-            operator = rng.choice(tier.operations)
+            operator = draw_operator_with_ramp(tier.operations, new_operations, progress, rng)
             left, right = draw_operands(operator, tier.operand_max, rng)
             answer = apply_operator(operator, left, right)
             if self._fact_key(left, operator, right, answer) not in exclude:

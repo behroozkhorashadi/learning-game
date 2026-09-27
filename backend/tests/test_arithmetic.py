@@ -4,7 +4,13 @@ actually favor (without exclusively using) the requested numbers."""
 
 from random import Random
 
-from app.games._arithmetic import ALL_OPERATORS, apply_operator, draw_operands, draw_operands_with_focus
+from app.games._arithmetic import (
+    ALL_OPERATORS,
+    apply_operator,
+    draw_operands,
+    draw_operands_with_focus,
+    draw_operator_with_ramp,
+)
 
 
 def test_division_always_divides_evenly():
@@ -70,3 +76,44 @@ def test_focus_number_outside_operand_range_falls_back_gracefully():
     for seed in range(50):
         left, right = draw_operands_with_focus("×", 5, Random(seed), [99])
         assert apply_operator("×", left, right) == left * right
+
+
+def _new_operator_share(progress: float, trials: int = 2000, seed: int = 0) -> float:
+    rng = Random(seed)
+    hits = sum(
+        1
+        for _ in range(trials)
+        if draw_operator_with_ramp(("+", "-", "×", "÷"), ("×", "÷"), progress, rng) in ("×", "÷")
+    )
+    return hits / trials
+
+
+def test_ramp_starts_low_and_climbs_to_the_natural_share():
+    """The adaptive engine's "slowly probe, don't jump" rule (regardless of
+    which specific operators a tier introduces): a new operator pair should
+    show up rarely right at the start of the tier that adds it, and reach
+    its full, uniform-choice share only by the tier's last level."""
+    start_share = _new_operator_share(progress=0.0, seed=1)
+    mid_share = _new_operator_share(progress=0.5, seed=2)
+    end_share = _new_operator_share(progress=1.0, seed=3)
+
+    assert start_share < 0.20  # near the floor, not a coin flip
+    assert start_share < mid_share < end_share
+    assert 0.45 < end_share < 0.55  # natural share for 2 of 4 operators
+
+
+def test_ramp_is_a_plain_uniform_choice_when_theres_nothing_new():
+    for seed in range(50):
+        rng = Random(seed)
+        operator = draw_operator_with_ramp(("+", "-"), (), progress=0.0, rng=rng)
+        assert operator in ("+", "-")
+
+
+def test_ramp_is_a_plain_uniform_choice_when_everything_is_new():
+    # No "old" pool to ramp against (e.g. a game's very first tier) — every
+    # operator counts as "new", so this must fall back rather than divide by
+    # an empty old-operator pool.
+    for seed in range(50):
+        rng = Random(seed)
+        operator = draw_operator_with_ramp(("+", "-"), ("+", "-"), progress=0.0, rng=rng)
+        assert operator in ("+", "-")

@@ -158,3 +158,61 @@ def test_support_serves_a_confidence_item_on_the_next_request_only(client):
             ).all()
         )
     assert shown_again[-1].payload["pacing"] != "confidence"
+
+
+def test_a_six_year_old_is_never_promoted_or_stretched_into_multiplication_division(client):
+    """Regression guard for the reported bug: a 6-year-old profile acing
+    equation_builder was eventually served a multiplication/division item —
+    a jarring jump PRD §4's 6-year-old persona ("early number sense",
+    addition/subtraction only) never intends. Runs enough correct-streak
+    windows to promote all the way to the game's raw ceiling (level 10) if
+    the age cap weren't wired in, and checks every served item along the way."""
+    with Session(engine) as session:
+        profile_id = 2000
+        session.add(Profile(id=profile_id, name="Young Kid", avatar="owl", birth_year=2020))
+        session.commit()
+
+    game_id = "equation_builder"
+
+    def get_item() -> dict:
+        response = client.get(
+            "/api/items/next", params={"profile_id": profile_id, "game_id": game_id}
+        )
+        assert response.status_code == 200
+        return response.json()
+
+    for _ in range(20 * 5):  # 20 full mastery windows: enough to hit the ceiling if uncapped
+        item = get_item()
+        assert item["payload"]["operator"] in ("+", "-"), item["payload"]
+        client.post(
+            "/api/attempts",
+            json={
+                "item_id": item["item_id"],
+                "profile_id": profile_id,
+                "game_id": game_id,
+                "telemetry": {"correct": True, "hints_used": 0, "time_ms": 1000},
+                "details": {},
+            },
+        )
+
+    with Session(engine) as session:
+        level = session.exec(
+            select(Level).where(Level.profile_id == profile_id, Level.game_id == game_id)
+        ).first()
+    assert level.value <= 7  # never crossed into the ×/÷ tier (level 8-10)
+
+
+def test_a_brand_new_older_profiles_first_item_starts_above_level_one(client):
+    """PRD §4: age is the base difficulty is calibrated from — an older kid's
+    very first item, before any attempt has ever been posted, should already
+    reflect their age rather than starting everyone at level 1."""
+    profile_id = 2001
+    with Session(engine) as session:
+        session.add(Profile(id=profile_id, name="Older Kid", avatar="owl", birth_year=2015))  # age 11
+        session.commit()
+
+    response = client.get(
+        "/api/items/next", params={"profile_id": profile_id, "game_id": "equation_builder"}
+    )
+    assert response.status_code == 200
+    assert response.json()["level"] > 1

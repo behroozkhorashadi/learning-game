@@ -18,6 +18,45 @@ ALL_OPERATORS: tuple[Operator, ...] = ("+", "-", "×", "÷")
 _MAX_DISTRACTOR_SEARCH_RADIUS = 12
 
 
+# Floor share for a newly-introduced operator right at the start of the tier
+# that adds it — small enough to feel like an occasional preview rather than
+# a coin flip, big enough that it's not so rare a session never sees it.
+_NEW_OPERATOR_FLOOR_SHARE = 0.15
+
+
+def draw_operator_with_ramp(
+    operations: tuple[Operator, ...],
+    new_operations: tuple[Operator, ...],
+    progress: float,
+    rng: Random,
+) -> Operator:
+    """Chooses an operator from `operations`, ramping in `new_operations` (the
+    subset of `operations` this difficulty tier adds that the previous tier
+    didn't have) gradually rather than at full weight from that tier's very
+    first level — "the adaptive engine should slowly probe more difficulty,
+    not jump," applied the same way regardless of which specific operators a
+    game's tiers happen to introduce. `progress` is how far through the tier
+    we are (0.0 at its first level, 1.0 at its last); the new operators'
+    combined share ramps linearly from a small floor up to their natural
+    equal share of the full operator set.
+
+    Falls back to a plain uniform choice when there's nothing to ramp:
+    `new_operations` empty (this tier adds nothing new) or every operator in
+    `operations` is "new" (there's no "old" pool to ramp against — the very
+    first tier)."""
+    old_operations = tuple(op for op in operations if op not in new_operations)
+    if not new_operations or not old_operations:
+        return rng.choice(operations)
+
+    natural_share = len(new_operations) / len(operations)
+    progress = max(0.0, min(1.0, progress))
+    new_share = _NEW_OPERATOR_FLOOR_SHARE + (natural_share - _NEW_OPERATOR_FLOOR_SHARE) * progress
+
+    if rng.random() < new_share:
+        return rng.choice(new_operations)
+    return rng.choice(old_operations)
+
+
 def apply_operator(operator: Operator, left: int, right: int) -> int:
     if operator == "+":
         return left + right
