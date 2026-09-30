@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { DenButton } from '../components/den/DenButton'
 import { ProfileFormFields, MIN_AGE, MAX_AGE, READING_SUPPORT_DEFAULT_MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
+import { ProfilePhotoCapture } from '../components/ProfilePhotoCapture'
 import type { Profile, ProfileCreate } from '../types/generated'
 
 /**
@@ -24,6 +25,8 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
   const [name, setName] = useState('')
   const [birthday, setBirthday] = useState('')
   const [avatar, setAvatar] = useState<string | null>(null)
+  const [photo, setPhoto] = useState<string | null>(null)
+  const [stylizePhoto, setStylizePhoto] = useState(false)
   const [readingSupport, setReadingSupport] = useState(false)
   const [readingSupportTouched, setReadingSupportTouched] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -32,7 +35,7 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
   const birthYear = birthday ? birthYearOf(birthday) : null
   const age = birthYear != null ? ageOf(birthYear) : null
   const ageInRange = age != null && age >= MIN_AGE && age <= MAX_AGE
-  const canSubmit = name.trim().length > 0 && ageInRange && avatar != null && !submitting
+  const canSubmit = name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && !submitting
 
   function handleBirthdayChange(value: string) {
     setBirthday(value)
@@ -42,10 +45,17 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
   }
 
   async function handleSubmit() {
-    if (!canSubmit || birthYear == null || avatar == null) return
+    if (!canSubmit || birthYear == null) return
     setSubmitting(true)
     setError(null)
-    const payload: ProfileCreate = { name: name.trim(), avatar, birth_year: birthYear, reading_support: readingSupport }
+    const payload: ProfileCreate = {
+      name: name.trim(),
+      avatar: avatar ?? 'fox',
+      birth_year: birthYear,
+      reading_support: readingSupport,
+      avatar_image_data_url: photo,
+      avatar_style: photo && stylizePhoto ? 'storybook' : null,
+    }
     try {
       const res = await fetch('/api/profiles', {
         method: 'POST',
@@ -85,6 +95,17 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
             setReadingSupport(value)
             setReadingSupportTouched(true)
           }}
+        />
+
+        <div className="profile-avatar-divider"><span>or use a photo</span></div>
+        <ProfilePhotoCapture
+          value={photo}
+          onChange={(value) => {
+            setPhoto(value)
+            if (value) setAvatar(null)
+          }}
+          stylize={stylizePhoto}
+          onStylizeChange={setStylizePhoto}
         />
 
         {error && <div style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>{error}</div>}

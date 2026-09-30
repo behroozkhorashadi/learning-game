@@ -34,7 +34,7 @@ function ProfileAvatar({ avatar, name }: { avatar: string; name: string }) {
 
   return (
     <img
-      src={`/images/avatars/${avatar}.png`}
+      src={avatar.startsWith('/static/') ? avatar : `/images/avatars/${avatar}.png`}
       alt=""
       onError={() => setBroken(true)}
       style={{ width: '100%', height: '100%', objectFit: 'cover' }}

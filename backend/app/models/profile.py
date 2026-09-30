@@ -36,6 +36,8 @@ class ProfileCreate(BaseModel):
     avatar: str
     birth_year: int
     reading_support: bool = False
+    avatar_image_data_url: Optional[str] = None
+    avatar_style: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):

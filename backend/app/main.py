@@ -97,6 +97,7 @@ from app.services.badges_service import compute_profile_stats, evaluate_and_awar
 from app.services.client_error_log import ClientErrorReport, log_client_error
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
+from app.services.profile_avatars import delete_profile_avatar, save_profile_avatar
 
 
 @asynccontextmanager
@@ -170,10 +171,19 @@ def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)
     """Backs the create-profile screen. No auth (PRD §2 non-goals) — anyone on
     the LAN can add a player, same trust model as everything else here."""
     name = _validated_profile_name(payload.name)
-    _validate_profile_avatar(payload.avatar)
+    if payload.avatar_style not in {None, "storybook"}:
+        raise HTTPException(status_code=422, detail="avatar_style must be 'storybook' or null")
+    avatar = payload.avatar
+    if payload.avatar_image_data_url:
+        try:
+            avatar = save_profile_avatar(payload.avatar_image_data_url, payload.avatar_style)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    else:
+        _validate_profile_avatar(avatar)
     _validate_profile_birth_year(payload.birth_year)
 
-    profile = Profile(name=name, avatar=payload.avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
+    profile = Profile(name=name, avatar=avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
     session.add(profile)
     session.commit()
     session.refresh(profile)
@@ -250,6 +260,7 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
         for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
             session.delete(row)
 
+    delete_profile_avatar(profile.avatar)
     session.delete(profile)
     session.commit()
 

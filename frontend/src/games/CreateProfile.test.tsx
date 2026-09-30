@@ -65,7 +65,14 @@ describe('CreateProfile', () => {
       '/api/profiles',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false }),
+        body: JSON.stringify({
+          name: 'Nora',
+          avatar: 'cat',
+          birth_year: 2019,
+          reading_support: false,
+          avatar_image_data_url: null,
+          avatar_style: null,
+        }),
       }),
     )
   })

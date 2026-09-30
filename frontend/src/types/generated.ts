@@ -15,6 +15,8 @@ export interface ProfileCreate {
   avatar: string;
   birth_year: number;
   reading_support?: boolean;
+  avatar_image_data_url?: string | null;
+  avatar_style?: string | null;
 }
 
 export interface ProfileUpdate {

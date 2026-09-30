@@ -73,6 +73,23 @@ def test_create_profile_rejects_unknown_avatar(client):
     assert response.status_code == 422
 
 
+def test_create_profile_saves_captured_photo(client, monkeypatch):
+    monkeypatch.setattr("app.main.save_profile_avatar", lambda data_url, style: "/static/profile-avatars/test.png")
+    response = client.post(
+        "/api/profiles",
+        json={
+            "name": "Ada",
+            "avatar": "fox",
+            "birth_year": date.today().year - 6,
+            "avatar_image_data_url": "data:image/png;base64,example",
+            "avatar_style": "storybook",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["avatar"] == "/static/profile-avatars/test.png"
+
+
 def test_create_profile_rejects_age_outside_bounds(client):
     too_old = client.post(
         "/api/profiles",
