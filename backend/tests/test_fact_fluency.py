@@ -29,6 +29,16 @@ def test_approach_time_is_monotonic_non_increasing_by_level():
     assert approach_times == sorted(approach_times, reverse=True)
 
 
+def test_every_level_increases_fact_or_time_difficulty():
+    tiers = [_tier_for_level(level) for level in range(1, GAME.metadata.max_level + 1)]
+    for previous, current in zip(tiers, tiers[1:]):
+        assert (
+            current.operand_max > previous.operand_max
+            or current.approach_ms < previous.approach_ms
+            or current.operations != previous.operations
+        )
+
+
 def test_generated_facts_are_arithmetically_true():
     for level in range(1, GAME.metadata.max_level + 1):
         for seed in range(20):
