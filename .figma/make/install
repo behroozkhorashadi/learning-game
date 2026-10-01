@@ -3,9 +3,13 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 
-python3 -m venv --without-pip "$repo_root/backend/.venv"
-curl -fsSL https://bootstrap.pypa.io/get-pip.py | "$repo_root/backend/.venv/bin/python3"
-env -u PYTHONPATH "$repo_root/backend/.venv/bin/pip" install --disable-pip-version-check -r "$repo_root/backend/requirements.txt"
+UV_BIN="$repo_root/.figma/make/.uv/bin/uv"
+if [[ ! -x "$UV_BIN" ]]; then
+  curl -fsSL https://astral.sh/uv/install.sh | HOME="$repo_root/.figma/make/.uv-home" INSTALLER_NO_MODIFY_PATH=1 UV_INSTALL_DIR="$repo_root/.figma/make/.uv/bin" sh
+fi
+
+"$UV_BIN" venv "$repo_root/backend/.venv" --python python3 --seed --clear
+"$UV_BIN" pip install --python "$repo_root/backend/.venv/bin/python3" -r "$repo_root/backend/requirements.txt"
 
 cd "$repo_root/frontend"
 exec npm ci
