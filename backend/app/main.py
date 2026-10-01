@@ -750,7 +750,14 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
     )
 
     loop_config = (
-        LoopAConfig(rapid_promotion_time_ms=3000)
+        LoopAConfig(
+            window_size=3,
+            rapid_promotion_window_size=3,
+            rapid_promotion_time_ms=6000,
+            promote_accuracy=0.67,
+            at_level_probability=0.9,
+            below_level_probability=0.1,
+        )
         if payload.game_id == "fact_fluency"
         else None
     )
