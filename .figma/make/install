@@ -3,7 +3,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 
-python -m venv "$repo_root/backend/.venv"
+python3 -m venv --without-pip "$repo_root/backend/.venv"
+curl -fsSL https://bootstrap.pypa.io/get-pip.py | "$repo_root/backend/.venv/bin/python3"
 env -u PYTHONPATH "$repo_root/backend/.venv/bin/pip" install --disable-pip-version-check -r "$repo_root/backend/requirements.txt"
 
 cd "$repo_root/frontend"
