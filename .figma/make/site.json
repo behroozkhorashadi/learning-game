@@ -1,5 +1,5 @@
 {
-  "description": "Streamline project setup by automatically configuring dependencies and build requirements, ensuring a smooth deployment process for developers.",
+  "description": "Automates project setup and deployment previews by verifying configurations and flagging critical issues to streamline initial import workflows.",
   "robots": {
     "index": false
   },
