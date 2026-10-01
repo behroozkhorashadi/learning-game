@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { randomId } from '../../lib/id'
 import type { Item } from '../../types/generated'
 import { DenButton } from '../../components/den/DenButton'
+import { DenCard } from '../../components/den/DenCard'
 import { RatingPrompt } from '../../components/RatingPrompt'
 import { SessionComplete } from '../../components/SessionComplete'
 import { SessionStart } from '../../components/SessionStart'
@@ -143,6 +144,65 @@ interface FeedbackEvent {
   id: number
 }
 
+interface SessionQuestionResult {
+  question: string
+  correct: boolean
+  timeTakenMs: number
+}
+
+function formatResponseTime(timeTakenMs: number): string {
+  return `${(timeTakenMs / 1000).toFixed(1)}s`
+}
+
+function PerformanceSummary({ results }: { results: SessionQuestionResult[] }) {
+  const correctCount = results.filter((result) => result.correct).length
+  const averageMs = results.length > 0 ? results.reduce((sum, result) => sum + result.timeTakenMs, 0) / results.length : 0
+
+  return (
+    <div style={{ marginTop: 'var(--space-6)', textAlign: 'left' }}>
+      <DenCard kicker="Session stats" title="How you did" meta={`${results.length} answered`} tone="sunken" shadow="none" radius={20} bodyPadding={20}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+          <div style={{ background: 'var(--surface-default)', border: '1px solid var(--border-tray)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+            <div style={{ color: 'var(--fg-tertiary)', fontSize: 'var(--fs-sm)', fontWeight: 700 }}>Questions right</div>
+            <div style={{ color: 'var(--fg-positive)', fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', lineHeight: 'var(--lh-2xl)', fontWeight: 800 }}>
+              {correctCount} / {results.length}
+            </div>
+          </div>
+          <div style={{ background: 'var(--surface-default)', border: '1px solid var(--border-tray)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+            <div style={{ color: 'var(--fg-tertiary)', fontSize: 'var(--fs-sm)', fontWeight: 700 }}>Average response</div>
+            <div style={{ color: 'var(--fg-brand)', fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', lineHeight: 'var(--lh-2xl)', fontWeight: 800 }}>
+              {formatResponseTime(averageMs)}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          {results.map((result, index) => (
+            <div
+              key={`${result.question}-${index}`}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                padding: 'var(--space-3) var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--surface-default)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ minWidth: 0, color: 'var(--fg-primary)', fontFamily: 'var(--font-display)', fontWeight: 800 }}>{result.question}</div>
+              <div style={{ color: result.correct ? 'var(--fg-positive)' : 'var(--fg-warning)', fontWeight: 700 }}>
+                {result.correct ? 'Correct' : 'Missed'}
+              </div>
+              <div style={{ color: 'var(--fg-secondary)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{formatResponseTime(result.timeTakenMs)}</div>
+            </div>
+          ))}
+        </div>
+      </DenCard>
+    </div>
+  )
+}
+
 interface Props {
   profileId: number
   onBack: () => void
@@ -155,6 +215,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
   const [wave, setWave] = useState<WaveState | null>(null)
   const [lives, setLives] = useState(brain.startingLives)
   const [solvedItems, setSolvedItems] = useState<string[]>([])
+  const [questionResults, setQuestionResults] = useState<SessionQuestionResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ratingHandled, setRatingHandled] = useState(false)
   const [sessionId, setSessionId] = useState<string>(() => randomId())
@@ -357,6 +418,12 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
     handledOutcomeRef.current = true
 
     const summary = brain.questionSummary(item)
+    const questionResult = {
+      question: summary,
+      correct: wave.outcome === 'solved',
+      timeTakenMs: wave.elapsedMs,
+    }
+    setQuestionResults((previous) => [...previous, questionResult])
 
     if (wave.outcome === 'solved') {
       brain.onQuestionResult(item, { correct: true, timeTakenMs: wave.elapsedMs, wrongShots: wave.wrongShots }, sessionId)
@@ -473,6 +540,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
     preloadGameplayMusic()
     setLives(brain.startingLives)
     setSolvedItems([])
+    setQuestionResults([])
     setRatingHandled(false)
     fetchedForSessionRef.current = null
     // A brand-new session (first Start, or Try Again via playAgainSession)
@@ -797,6 +865,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
               badgeTitle={brain.copy.badgeTitle}
               words={solvedItems}
               itemsLabel={brain.copy.itemsLabel}
+              summarySlot={<PerformanceSummary results={questionResults} />}
               onPlayAgain={playAgainSession}
               onAllDone={onBack}
             />
@@ -824,6 +893,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
             <p style={{ color: '#8896AA', fontSize: 17, marginBottom: 8 }}>
               You solved {solvedItems.length} of {brain.sessionLength} before that happened. Give it another go?
             </p>
+            <PerformanceSummary results={questionResults} />
             {solvedItems.length > 0 && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', margin: '18px 0' }}>
                 {solvedItems.map((fact, i) => (

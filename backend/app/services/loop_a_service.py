@@ -67,7 +67,10 @@ def _load_window(
         .limit(config.window_size)
     ).all()
     rows.reverse()
-    return [WindowAttempt(correct=_is_correct(a), hints_used=a.hints_used) for a in rows]
+    return [
+        WindowAttempt(correct=_is_correct(a), hints_used=a.hints_used, time_ms=a.time_ms)
+        for a in rows
+    ]
 
 
 def process_attempt(

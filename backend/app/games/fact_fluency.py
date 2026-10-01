@@ -65,9 +65,15 @@ class Tier(NamedTuple):
 # equation_builder's introduction of it — Fact Fluency layers time pressure
 # on top of the same operators, so it earns a slightly later start.
 _TIERS: list[Tier] = [
-    Tier(max_level=2, operand_max=5, operations=("+",), approach_ms=9000, min_age=8),
-    Tier(max_level=4, operand_max=10, operations=("+", "-"), approach_ms=7500, min_age=8),
-    Tier(max_level=7, operand_max=12, operations=("+", "-"), approach_ms=6000, min_age=9),
+    Tier(max_level=1, operand_max=5, operations=("+",), approach_ms=9000, min_age=8),
+    Tier(max_level=2, operand_max=8, operations=("+",), approach_ms=8250, min_age=8),
+    Tier(max_level=3, operand_max=10, operations=("+",), approach_ms=7500, min_age=8),
+    Tier(max_level=4, operand_max=10, operations=("+", "-"), approach_ms=7000, min_age=8),
+    Tier(max_level=5, operand_max=12, operations=("+", "-"), approach_ms=6500, min_age=9),
+    Tier(max_level=6, operand_max=12, operations=("+", "-"), approach_ms=6000, min_age=9),
+    Tier(max_level=7, operand_max=12, operations=ALL_OPERATORS, approach_ms=5750, min_age=10),
+    Tier(max_level=8, operand_max=12, operations=ALL_OPERATORS, approach_ms=5250, min_age=10),
+    Tier(max_level=9, operand_max=12, operations=ALL_OPERATORS, approach_ms=4750, min_age=10),
     Tier(max_level=10, operand_max=12, operations=ALL_OPERATORS, approach_ms=4500, min_age=10),
 ]
 

@@ -52,9 +52,10 @@ from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
 from app.admin_auth import AdminLoginRequest, require_admin, verify_admin_password
-from app.games._arithmetic import ALL_OPERATORS
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
+from app.engine.loop_a import LoopAConfig
+from app.games._arithmetic import ALL_OPERATORS
 from app.events.log import append_event
 from app.games.registry import all_games, get_game
 from app.util import utcnow
@@ -630,11 +631,17 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
         session_id=payload.session_id,
     )
 
+    loop_config = (
+        LoopAConfig(rapid_promotion_time_ms=3000)
+        if payload.game_id == "fact_fluency"
+        else None
+    )
     _decision, hint_offered = process_attempt(
         session,
         attempt=attempt,
         max_level=game.max_level_for_age(profile.age),
         starting_level=game.starting_level_for_age(profile.age),
+        config=loop_config,
     )
 
     evaluate_and_award_badges(session, profile_id=payload.profile_id, session_id=payload.session_id)

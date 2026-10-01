@@ -24,7 +24,7 @@ DEFAULT = LoopAConfig()
 
 
 def _window(pattern: list[bool], hints: int = 0) -> list[WindowAttempt]:
-    return [WindowAttempt(correct=c, hints_used=hints) for c in pattern]
+    return [WindowAttempt(correct=c, hints_used=hints, time_ms=4000) for c in pattern]
 
 
 # --- evaluate_level: promote / hold / support -------------------------------
@@ -92,6 +92,30 @@ def test_rules_do_not_fire_until_window_is_full():
     assert decision.action == LevelAction.PENDING
     assert decision.changed is False
     assert decision.level == 3
+
+
+def test_three_fast_correct_answers_promote_before_full_window():
+    config = LoopAConfig(rapid_promotion_time_ms=3000)
+    window = [
+        WindowAttempt(correct=True, hints_used=0, time_ms=time_ms)
+        for time_ms in (1800, 2200, 2000)
+    ]
+    decision = evaluate_level(3, window, max_level=10, config=config)
+    assert decision.action == LevelAction.PROMOTE
+    assert decision.level == 4
+    assert decision.changed is True
+    assert "rapid promotion" in decision.reason
+
+
+def test_slow_or_incorrect_answers_do_not_trigger_rapid_promotion():
+    config = LoopAConfig(rapid_promotion_time_ms=3000)
+    slow = [WindowAttempt(correct=True, hints_used=0, time_ms=4000) for _ in range(3)]
+    incorrect = [
+        WindowAttempt(correct=correct, hints_used=0, time_ms=1000)
+        for correct in (True, False, True)
+    ]
+    assert evaluate_level(3, slow, max_level=10, config=config).action == LevelAction.PENDING
+    assert evaluate_level(3, incorrect, max_level=10, config=config).action == LevelAction.PENDING
 
 
 def test_window_only_resets_on_promote_or_support_not_hold():

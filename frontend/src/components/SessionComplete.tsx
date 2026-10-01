@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { SparklesIcon } from './icons'
 import { DenButton } from './den/DenButton'
 
@@ -31,6 +31,7 @@ interface Props {
   /** Label above the `words` chips — defaults to Syllable Builder's original
    * copy; other games pass their own (e.g. "Equations you solved"). */
   itemsLabel?: string
+  summarySlot?: ReactNode
   onPlayAgain: () => void
   onAllDone: () => void
 }
@@ -66,7 +67,7 @@ function BadgeArt({ src, title }: { src: string; title: string }) {
   )
 }
 
-export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, words, itemsLabel = 'Words you built', onPlayAgain, onAllDone }: Props) {
+export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, words, itemsLabel = 'Words you built', summarySlot, onPlayAgain, onAllDone }: Props) {
   return (
     <div style={{ position: 'relative', background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '44px 40px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', overflow: 'hidden', boxSizing: 'border-box' }}>
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -84,6 +85,8 @@ export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, word
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, lineHeight: 1.15, color: '#2A2E37', marginTop: 22 }}>{headline}</div>
         <div style={{ marginTop: 10, fontSize: 18, color: '#8896AA' }}>{subtitle}</div>
       </div>
+
+      {summarySlot}
 
       <div style={{ background: '#FBF8F2', border: '1px dashed #EEE4D2', borderRadius: 20, padding: '20px 22px', margin: '30px 0 0' }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3', marginBottom: 12 }}>{itemsLabel}</div>

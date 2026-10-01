@@ -17,7 +17,7 @@ from __future__ import annotations
 from enum import Enum
 from random import Random
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoopAConfig(BaseModel):
@@ -48,6 +48,12 @@ class LoopAConfig(BaseModel):
     min_level: int = 1
     """Floor: level (and below-level pacing / confidence items) never goes below this."""
 
+    rapid_promotion_window_size: int = Field(default=3, ge=1)
+    """Consecutive correct, hint-free attempts needed for a speed-based promotion."""
+
+    rapid_promotion_time_ms: int | None = Field(default=None, ge=1)
+    """Optional average response-time ceiling for early promotion. Disabled by default."""
+
 
 class WindowAttempt(BaseModel):
     """One attempt's engine-relevant signal, derived from the `TelemetryCore`
@@ -56,6 +62,7 @@ class WindowAttempt(BaseModel):
 
     correct: bool
     hints_used: int
+    time_ms: int
 
 
 class LevelAction(str, Enum):
@@ -115,6 +122,31 @@ def evaluate_level(
     False, since no real level transition happened.
     """
     config = config or LoopAConfig()
+
+    rapid_window = window[-config.rapid_promotion_window_size :]
+    rapid_promotion = (
+        config.rapid_promotion_time_ms is not None
+        and len(rapid_window) == config.rapid_promotion_window_size
+        and all(attempt.correct and attempt.hints_used == 0 for attempt in rapid_window)
+        and sum(attempt.time_ms for attempt in rapid_window) / len(rapid_window)
+        <= config.rapid_promotion_time_ms
+    )
+    if rapid_promotion:
+        new_level = min(current_level + 1, max_level)
+        changed = new_level != current_level
+        average_ms = sum(attempt.time_ms for attempt in rapid_window) / len(rapid_window)
+        return LevelDecision(
+            action=LevelAction.PROMOTE,
+            level=new_level,
+            changed=changed,
+            reason=(
+                f"rapid promotion to L{new_level}: {len(rapid_window)} correct, "
+                f"{average_ms:.0f}ms avg"
+                if changed
+                else f"held at ceiling L{current_level}: {average_ms:.0f}ms avg"
+            ),
+            reset_window=changed,
+        )
 
     if len(window) < config.window_size:
         return LevelDecision(

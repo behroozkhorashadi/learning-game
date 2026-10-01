@@ -138,6 +138,9 @@ describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {
       }
 
       expect(await screen.findByText('You stopped the Equation Outbreak!', undefined, { timeout: 3000 })).toBeTruthy()
+      expect(screen.getByText('Average response')).toBeTruthy()
+      expect(screen.getByText('10 / 10')).toBeTruthy()
+      expect(screen.getAllByText('Correct')).toHaveLength(SESSION_LENGTH)
       expect(attemptPayloads).toHaveLength(SESSION_LENGTH)
       for (const payload of attemptPayloads as Array<{ telemetry: { correct: boolean } }>) {
         expect(payload.telemetry.correct).toBe(true)
@@ -227,6 +230,9 @@ describe('ZombieMathBlaster (Equation Outbreak) — session flow', () => {
       }
 
       expect(await screen.findByText(/outbreak got the better of you/i, undefined, { timeout: 3000 })).toBeTruthy()
+      expect(screen.getByText('Average response')).toBeTruthy()
+      expect(screen.getByText('0 / 3')).toBeTruthy()
+      expect(screen.getAllByText('Missed')).toHaveLength(3)
       expect(screen.queryByRole('button', { name: /next question/i })).toBeNull()
     },
     25000,
