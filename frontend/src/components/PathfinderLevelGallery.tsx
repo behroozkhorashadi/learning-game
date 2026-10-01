@@ -31,8 +31,22 @@ function groupByDifficulty(levels: DotPuzzle[]): { difficulty: Difficulty; items
   return groups
 }
 
+// `assessDifficulty` runs the full solver (~80ms a level), and curated
+// levels never change — so score each one once per page load rather than on
+// every render of every card.
+const assessmentCache = new Map<DotPuzzle, ReturnType<typeof assessDifficulty>>()
+
+function assessOnce(puzzle: DotPuzzle) {
+  let assessment = assessmentCache.get(puzzle)
+  if (assessment == null) {
+    assessment = assessDifficulty(puzzle)
+    assessmentCache.set(puzzle, assessment)
+  }
+  return assessment
+}
+
 function LevelCard({ puzzle, onSelect }: { puzzle: DotPuzzle; onSelect: () => void }) {
-  const assessment = assessDifficulty(puzzle)
+  const assessment = assessOnce(puzzle)
   return (
     <button
       type="button"

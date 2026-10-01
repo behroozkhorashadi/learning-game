@@ -13,7 +13,10 @@ describe('PathfinderLevelGallery', () => {
     for (const puzzle of ALL_LEVELS) {
       expect(screen.getByRole('button', { name: new RegExp(`^${puzzle.name}$`) })).toBeTruthy()
     }
-  })
+    // The gallery's first render solves every curated level (~2s locally,
+    // cached for the tests after it), so give it headroom on slower CI
+    // runners rather than the default 5s.
+  }, 20_000)
 
   it("shows each level's assessed score on its card", () => {
     render(<PathfinderLevelGallery />)
