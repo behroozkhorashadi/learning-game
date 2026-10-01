@@ -149,6 +149,7 @@ const SCREENS: ScreenEntry[] = [
       <ProfilePicker
         onSelect={(p) => console.log('onSelect', p)}
         onAddPlayer={() => console.log('onAddPlayer')}
+        onEditProfile={(p) => console.log('onEditProfile', p)}
         onOpenAdmin={() => console.log('onOpenAdmin')}
       />
     ),
@@ -171,6 +172,7 @@ const SCREENS: ScreenEntry[] = [
         profile={MOCK_PROFILE}
         onSelectGame={(id) => console.log('onSelectGame', id)}
         onSwitchProfile={() => console.log('onSwitchProfile')}
+        onEditProfile={() => console.log('onEditProfile')}
         onViewBadges={() => console.log('onViewBadges')}
         onOpenStorybook={() => console.log('onOpenStorybook')}
         onOpenPracticeSettings={(id) => console.log('onOpenPracticeSettings', id)}

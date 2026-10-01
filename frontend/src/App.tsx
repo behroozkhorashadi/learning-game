@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ProfilePicker } from './games/ProfilePicker'
 import { CreateProfile } from './games/CreateProfile'
+import { EditProfile } from './games/EditProfile'
 import { AdminPanel } from './games/AdminPanel'
 import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
 import { GamePicker } from './games/GamePicker'
@@ -23,6 +24,10 @@ function App() {
   const [showBadges, setShowBadges] = useState(false)
   const [showStorybook, setShowStorybook] = useState(false)
   const [creatingProfile, setCreatingProfile] = useState(false)
+  // Set from either picker's pencil; `editReturnsToGames` records which one
+  // so Save/Cancel lands back where the edit started.
+  const [editingProfile, setEditingProfile] = useState<Profile | null>(null)
+  const [editReturnsToGames, setEditReturnsToGames] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
   const [practiceSettingsGameId, setPracticeSettingsGameId] = useState<string | null>(null)
 
@@ -46,8 +51,29 @@ function App() {
         onCancel={() => setCreatingProfile(false)}
       />
     )
+  } else if (editingProfile != null) {
+    content = (
+      <EditProfile
+        profile={editingProfile}
+        onSaved={(updated) => {
+          setEditingProfile(null)
+          if (editReturnsToGames) setProfile(updated)
+        }}
+        onCancel={() => setEditingProfile(null)}
+      />
+    )
   } else if (profile == null) {
-    content = <ProfilePicker onSelect={setProfile} onAddPlayer={() => setCreatingProfile(true)} onOpenAdmin={() => setShowAdmin(true)} />
+    content = (
+      <ProfilePicker
+        onSelect={setProfile}
+        onAddPlayer={() => setCreatingProfile(true)}
+        onEditProfile={(p) => {
+          setEditReturnsToGames(false)
+          setEditingProfile(p)
+        }}
+        onOpenAdmin={() => setShowAdmin(true)}
+      />
+    )
   } else if (showBadges) {
     content = <BadgesAccomplishments profileId={profile.id!} kidName={profile.name} onBack={() => setShowBadges(false)} />
   } else if (showStorybook) {
@@ -67,6 +93,10 @@ function App() {
         profile={profile}
         onSelectGame={setGameId}
         onSwitchProfile={() => setProfile(null)}
+        onEditProfile={() => {
+          setEditReturnsToGames(true)
+          setEditingProfile(profile)
+        }}
         onViewBadges={() => setShowBadges(true)}
         onOpenStorybook={() => setShowStorybook(true)}
         onOpenPracticeSettings={setPracticeSettingsGameId}

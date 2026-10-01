@@ -20,7 +20,7 @@ function mockProfiles() {
 describe('ProfilePicker', () => {
   it('renders every profile plus an Add-a-player tile and an Admin link', async () => {
     mockProfiles()
-    render(<ProfilePicker onSelect={vi.fn()} onAddPlayer={vi.fn()} onOpenAdmin={vi.fn()} />)
+    render(<ProfilePicker onSelect={vi.fn()} onAddPlayer={vi.fn()} onEditProfile={vi.fn()} onOpenAdmin={vi.fn()} />)
 
     expect(await screen.findByText('Demo Kid')).toBeTruthy()
     expect(screen.getByText('Rami')).toBeTruthy()
@@ -31,7 +31,7 @@ describe('ProfilePicker', () => {
   it('selecting a profile calls onSelect with that profile', async () => {
     mockProfiles()
     const onSelect = vi.fn()
-    render(<ProfilePicker onSelect={onSelect} onAddPlayer={vi.fn()} onOpenAdmin={vi.fn()} />)
+    render(<ProfilePicker onSelect={onSelect} onAddPlayer={vi.fn()} onEditProfile={vi.fn()} onOpenAdmin={vi.fn()} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Play as Rami/i }))
 
@@ -41,7 +41,7 @@ describe('ProfilePicker', () => {
   it('the Add a player tile calls onAddPlayer', async () => {
     mockProfiles()
     const onAddPlayer = vi.fn()
-    render(<ProfilePicker onSelect={vi.fn()} onAddPlayer={onAddPlayer} onOpenAdmin={vi.fn()} />)
+    render(<ProfilePicker onSelect={vi.fn()} onAddPlayer={onAddPlayer} onEditProfile={vi.fn()} onOpenAdmin={vi.fn()} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Add a player' }))
 
@@ -51,10 +51,22 @@ describe('ProfilePicker', () => {
   it('the Admin link calls onOpenAdmin', () => {
     mockProfiles()
     const onOpenAdmin = vi.fn()
-    render(<ProfilePicker onSelect={vi.fn()} onAddPlayer={vi.fn()} onOpenAdmin={onOpenAdmin} />)
+    render(<ProfilePicker onSelect={vi.fn()} onAddPlayer={vi.fn()} onEditProfile={vi.fn()} onOpenAdmin={onOpenAdmin} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Admin' }))
 
     expect(onOpenAdmin).toHaveBeenCalled()
+  })
+
+  it("a profile's pencil calls onEditProfile with that profile, not onSelect", async () => {
+    mockProfiles()
+    const onSelect = vi.fn()
+    const onEditProfile = vi.fn()
+    render(<ProfilePicker onSelect={onSelect} onAddPlayer={vi.fn()} onEditProfile={onEditProfile} onOpenAdmin={vi.fn()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Rami' }))
+
+    expect(onEditProfile).toHaveBeenCalledWith(PROFILES[1])
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })

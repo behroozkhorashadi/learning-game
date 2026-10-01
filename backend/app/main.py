@@ -89,7 +89,17 @@ from app.models.pathfinder import (
     PublishedPathfinderMap,
 )
 from app.models.practice_config import PracticeConfig, PracticeConfigUpsert
-from app.models.profile import AVATAR_OPTIONS, MAX_AGE, MIN_AGE, Profile, ProfileCreate, ProfileUpdate, SkillState
+from app.models.profile import (
+    AVATAR_OPTIONS,
+    MAX_AGE,
+    MIN_AGE,
+    Profile,
+    ProfileCreate,
+    ProfilePhotoRemixRequest,
+    ProfilePhotoRemixResponse,
+    ProfileUpdate,
+    SkillState,
+)
 from app.models.rating import Rating, RatingCreate
 from app.models.session import PlaySession
 from app.models.stats import ProfileStats
@@ -98,7 +108,7 @@ from app.services.badges_service import compute_profile_stats, evaluate_and_awar
 from app.services.client_error_log import ClientErrorReport, log_client_error
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
-from app.services.profile_avatars import delete_profile_avatar, save_profile_avatar
+from app.services.profile_avatars import delete_profile_avatar, encode_avatar_data_url, remix_profile_photo, save_profile_avatar
 
 
 @asynccontextmanager
@@ -161,6 +171,13 @@ def _validate_profile_avatar(avatar: str) -> None:
         raise HTTPException(status_code=422, detail=f"avatar must be one of {AVATAR_OPTIONS}")
 
 
+def _saved_profile_photo(data_url: str) -> str:
+    try:
+        return save_profile_avatar(data_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 def _validate_profile_birth_year(birth_year: int) -> None:
     age = utcnow().year - birth_year
     if age < MIN_AGE or age > MAX_AGE:
@@ -172,23 +189,34 @@ def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)
     """Backs the create-profile screen. No auth (PRD §2 non-goals) — anyone on
     the LAN can add a player, same trust model as everything else here."""
     name = _validated_profile_name(payload.name)
-    if payload.avatar_style not in {None, "storybook"}:
-        raise HTTPException(status_code=422, detail="avatar_style must be 'storybook' or null")
-    avatar = payload.avatar
-    if payload.avatar_image_data_url:
-        try:
-            avatar = save_profile_avatar(payload.avatar_image_data_url, payload.avatar_style)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-    else:
-        _validate_profile_avatar(avatar)
     _validate_profile_birth_year(payload.birth_year)
+    if payload.avatar_image_data_url:
+        avatar = _saved_profile_photo(payload.avatar_image_data_url)
+    else:
+        _validate_profile_avatar(payload.avatar)
+        avatar = payload.avatar
 
     profile = Profile(name=name, avatar=avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
     session.add(profile)
     session.commit()
     session.refresh(profile)
     return profile
+
+
+@app.post("/api/profile-photos/remix", response_model=ProfilePhotoRemixResponse)
+def remix_profile_photo_preview(payload: ProfilePhotoRemixRequest) -> ProfilePhotoRemixResponse:
+    """Backs the photo "remix" panel on the create/edit-profile screens: sends
+    the captured photo plus a preset style and/or the kid's own idea to the
+    image provider and hands the result straight back for preview. Nothing is
+    saved here — the picked version comes back as `avatar_image_data_url` on
+    the profile create/update. No auth, same trust model as POST /api/profiles."""
+    try:
+        image = remix_profile_photo(payload.image_data_url, payload.style, payload.idea)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if image is None:
+        raise HTTPException(status_code=503, detail="AI photo remix isn't available right now")
+    return ProfilePhotoRemixResponse(image_data_url=encode_avatar_data_url(image))
 
 
 @app.post("/api/admin/login", status_code=204)
@@ -209,18 +237,26 @@ def patch_profile(profile_id: int, payload: ProfileUpdate, session: Session = De
 
     if payload.name is not None:
         profile.name = _validated_profile_name(payload.name)
-    if payload.avatar is not None:
-        _validate_profile_avatar(payload.avatar)
-        profile.avatar = payload.avatar
     if payload.birth_year is not None:
         _validate_profile_birth_year(payload.birth_year)
         profile.birth_year = payload.birth_year
     if payload.reading_support is not None:
         profile.reading_support = payload.reading_support
+    # Avatar last, so a validation failure above never leaves a new photo
+    # file orphaned on disk. Re-sending the current avatar (e.g. a saved
+    # photo's /static path) is a no-op rather than a validation error.
+    previous_avatar = profile.avatar
+    if payload.avatar_image_data_url:
+        profile.avatar = _saved_profile_photo(payload.avatar_image_data_url)
+    elif payload.avatar is not None and payload.avatar != profile.avatar:
+        _validate_profile_avatar(payload.avatar)
+        profile.avatar = payload.avatar
 
     session.add(profile)
     session.commit()
     session.refresh(profile)
+    if profile.avatar != previous_avatar:
+        delete_profile_avatar(previous_avatar)
     return profile
 
 

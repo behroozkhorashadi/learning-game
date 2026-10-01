@@ -1,7 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { DenButton } from '../components/den/DenButton'
-import { ProfileFormFields, MIN_AGE, MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
-import type { Profile, ProfileUpdate } from '../types/generated'
+import { CardShell, LoginForm } from '../components/AdminLoginForm'
+import { ageOf } from '../components/ProfileFormFields'
+import { ProfileAvatar } from './ProfilePicker'
+import { EditProfileForm } from './EditProfile'
+import type { Profile } from '../types/generated'
 
 /**
  * Admin screen — password-gated player management (edit/remove). Reached via
@@ -22,159 +25,6 @@ import type { Profile, ProfileUpdate } from '../types/generated'
 
 interface Props {
   onClose: () => void
-}
-
-function CardShell({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
-      <div style={{ width: '100%', maxWidth: 560, background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 32, padding: '44px 40px', boxShadow: 'var(--elevation-600)' }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function LoginForm({ onAuthenticated, onCancel }: { onAuthenticated: (password: string) => void; onCancel: () => void }) {
-  const [password, setPassword] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleSubmit() {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      })
-      if (res.status === 401) {
-        setError('Incorrect password.')
-        return
-      }
-      if (!res.ok) throw new Error(`POST /api/admin/login -> ${res.status}`)
-      onAuthenticated(password)
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <CardShell>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 32, color: 'var(--fg-primary)', textAlign: 'center' }}>Admin</div>
-      <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Enter the admin password. Leave it blank if none is set.</div>
-
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !submitting) handleSubmit()
-        }}
-        placeholder="Password"
-        autoFocus
-        style={{
-          width: '100%',
-          boxSizing: 'border-box',
-          marginTop: 32,
-          padding: '14px 16px',
-          fontSize: 16,
-          borderRadius: 14,
-          border: '2px solid var(--border-default)',
-          background: 'var(--surface-subtle)',
-          color: 'var(--fg-primary)',
-          outline: 'none',
-        }}
-      />
-
-      {error && <div style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>{error}</div>}
-
-      <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-        <DenButton label="Back" variant="quiet" size="lg" onClick={onCancel} />
-        <div style={{ flex: 1 }}>
-          <DenButton label={submitting ? 'Checking…' : 'Enter'} size="lg" full disabled={submitting} onClick={handleSubmit} />
-        </div>
-      </div>
-    </CardShell>
-  )
-}
-
-function EditForm({
-  profile,
-  adminPassword,
-  onSaved,
-  onCancel,
-}: {
-  profile: Profile
-  adminPassword: string
-  onSaved: (profile: Profile) => void
-  onCancel: () => void
-}) {
-  const [name, setName] = useState(profile.name)
-  const [birthday, setBirthday] = useState(`${profile.birth_year}-01-01`)
-  const [avatar, setAvatar] = useState<string | null>(profile.avatar)
-  const [readingSupport, setReadingSupport] = useState(profile.reading_support ?? false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const birthYear = birthday ? birthYearOf(birthday) : null
-  const age = birthYear != null ? ageOf(birthYear) : null
-  const ageInRange = age != null && age >= MIN_AGE && age <= MAX_AGE
-  const canSubmit = name.trim().length > 0 && ageInRange && avatar != null && !submitting
-
-  async function handleSubmit() {
-    if (!canSubmit || birthYear == null || avatar == null) return
-    setSubmitting(true)
-    setError(null)
-    const payload: ProfileUpdate = { name: name.trim(), avatar, birth_year: birthYear, reading_support: readingSupport }
-    try {
-      const res = await fetch(`/api/profiles/${profile.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        throw new Error(body?.detail ?? `PATCH /api/profiles/${profile.id} -> ${res.status}`)
-      }
-      const updated: Profile = await res.json()
-      onSaved(updated)
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <CardShell>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 32, color: 'var(--fg-primary)', textAlign: 'center' }}>
-        Edit {profile.name}
-      </div>
-
-      <ProfileFormFields
-        name={name}
-        onNameChange={setName}
-        birthday={birthday}
-        onBirthdayChange={setBirthday}
-        avatar={avatar}
-        onAvatarChange={setAvatar}
-        readingSupport={readingSupport}
-        onReadingSupportChange={setReadingSupport}
-      />
-
-      {error && <div style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>{error}</div>}
-
-      <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-        <DenButton label="Cancel" variant="quiet" size="lg" onClick={onCancel} />
-        <div style={{ flex: 1 }}>
-          <DenButton label={submitting ? 'Saving…' : 'Save changes'} size="lg" full disabled={!canSubmit} onClick={handleSubmit} />
-        </div>
-      </div>
-    </CardShell>
-  )
 }
 
 function ProfileRow({
@@ -224,11 +74,12 @@ function ProfileRow({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              overflow: 'hidden',
               fontWeight: 800,
               color: 'var(--fg-brand)',
             }}
           >
-            {profile.name.charAt(0).toUpperCase()}
+            <ProfileAvatar avatar={profile.avatar} name={profile.name} />
           </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--fg-primary)' }}>{profile.name}</div>
@@ -287,7 +138,7 @@ export function AdminPanel({ onClose }: Props) {
 
   if (editingProfile != null) {
     return (
-      <EditForm
+      <EditProfileForm
         profile={editingProfile}
         adminPassword={adminPassword}
         onSaved={() => {

@@ -16,7 +16,6 @@ export interface ProfileCreate {
   birth_year: number;
   reading_support?: boolean;
   avatar_image_data_url?: string | null;
-  avatar_style?: string | null;
 }
 
 export interface ProfileUpdate {
@@ -24,6 +23,17 @@ export interface ProfileUpdate {
   avatar?: string | null;
   birth_year?: number | null;
   reading_support?: boolean | null;
+  avatar_image_data_url?: string | null;
+}
+
+export interface ProfilePhotoRemixRequest {
+  image_data_url: string;
+  style?: string | null;
+  idea?: string | null;
+}
+
+export interface ProfilePhotoRemixResponse {
+  image_data_url: string;
 }
 
 export interface PracticeConfig {

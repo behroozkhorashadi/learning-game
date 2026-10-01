@@ -71,7 +71,6 @@ describe('CreateProfile', () => {
           birth_year: 2019,
           reading_support: false,
           avatar_image_data_url: null,
-          avatar_style: null,
         }),
       }),
     )

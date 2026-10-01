@@ -2,6 +2,7 @@
 /api/profiles/{id} and POST /api/admin/login — backs the admin screen
 (app/admin_auth.py's hardcoded password gate)."""
 
+import base64
 from datetime import date
 
 import pytest
@@ -74,7 +75,7 @@ def test_create_profile_rejects_unknown_avatar(client):
 
 
 def test_create_profile_saves_captured_photo(client, monkeypatch):
-    monkeypatch.setattr("app.main.save_profile_avatar", lambda data_url, style: "/static/profile-avatars/test.png")
+    monkeypatch.setattr("app.main.save_profile_avatar", lambda data_url: "/static/profile-avatars/test.png")
     response = client.post(
         "/api/profiles",
         json={
@@ -82,7 +83,6 @@ def test_create_profile_saves_captured_photo(client, monkeypatch):
             "avatar": "fox",
             "birth_year": date.today().year - 6,
             "avatar_image_data_url": "data:image/png;base64,example",
-            "avatar_style": "storybook",
         },
     )
 
@@ -209,3 +209,92 @@ def test_delete_profile_also_removes_its_dependent_rows(client):
 def test_delete_unknown_profile_is_404(client):
     response = client.delete("/api/profiles/999999", headers=ADMIN_HEADERS)
     assert response.status_code == 404
+
+
+PHOTO_DATA_URL = "data:image/png;base64," + base64.b64encode(b"fake-png-bytes").decode()
+
+
+@pytest.fixture
+def avatars_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.services.profile_avatars.PROFILE_AVATARS_DIR", tmp_path)
+    return tmp_path
+
+
+def test_patch_profile_replaces_photo_and_removes_the_old_file(client, avatars_dir):
+    profile = _create_profile(client, avatar_image_data_url=PHOTO_DATA_URL)
+    old_file = avatars_dir / profile["avatar"].rsplit("/", 1)[-1]
+    assert old_file.exists()
+
+    response = client.patch(
+        f"/api/profiles/{profile['id']}", json={"avatar_image_data_url": PHOTO_DATA_URL}, headers=ADMIN_HEADERS
+    )
+
+    assert response.status_code == 200
+    new_avatar = response.json()["avatar"]
+    assert new_avatar.startswith("/static/profile-avatars/") and new_avatar != profile["avatar"]
+    assert not old_file.exists()
+    assert (avatars_dir / new_avatar.rsplit("/", 1)[-1]).exists()
+
+
+def test_patch_profile_keeps_existing_photo_when_resent(client, avatars_dir):
+    """The edit screen sends the current avatar back unchanged when only the
+    name changes — a saved photo's /static path must not fail validation."""
+    profile = _create_profile(client, avatar_image_data_url=PHOTO_DATA_URL)
+
+    response = client.patch(
+        f"/api/profiles/{profile['id']}", json={"name": "Renamed", "avatar": profile["avatar"]}, headers=ADMIN_HEADERS
+    )
+
+    assert response.status_code == 200
+    assert response.json()["avatar"] == profile["avatar"]
+    assert (avatars_dir / profile["avatar"].rsplit("/", 1)[-1]).exists()
+
+
+def test_patch_profile_can_switch_from_photo_to_animal(client, avatars_dir):
+    profile = _create_profile(client, avatar_image_data_url=PHOTO_DATA_URL)
+
+    response = client.patch(f"/api/profiles/{profile['id']}", json={"avatar": "panda"}, headers=ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()["avatar"] == "panda"
+    assert list(avatars_dir.iterdir()) == []
+
+
+def test_remix_returns_preview_without_saving(client, avatars_dir, monkeypatch):
+    calls = []
+
+    def fake_remix(data_url, style, idea):
+        calls.append((style, idea))
+        from app.services.image_generation import GeneratedImage
+
+        return GeneratedImage(content=b"remixed", content_type="image/jpeg")
+
+    monkeypatch.setattr("app.main.remix_profile_photo", fake_remix)
+    response = client.post(
+        "/api/profile-photos/remix", json={"image_data_url": PHOTO_DATA_URL, "style": "wizard", "idea": "rainbow hair"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["image_data_url"] == "data:image/jpeg;base64," + base64.b64encode(b"remixed").decode()
+    assert calls == [("wizard", "rainbow hair")]
+    assert list(avatars_dir.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"style": "not-a-style"},
+        {"idea": "x" * 121},
+        {},
+        {"idea": "   "},
+    ],
+)
+def test_remix_rejects_bad_input(client, body):
+    response = client.post("/api/profile-photos/remix", json={"image_data_url": PHOTO_DATA_URL, **body})
+    assert response.status_code == 422
+
+
+def test_remix_without_provider_is_503(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    response = client.post("/api/profile-photos/remix", json={"image_data_url": PHOTO_DATA_URL, "style": "cartoon"})
+    assert response.status_code == 503

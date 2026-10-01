@@ -36,8 +36,9 @@ class ProfileCreate(BaseModel):
     avatar: str
     birth_year: int
     reading_support: bool = False
+    # A captured (and possibly AI-remixed) photo as a data URL; when set it
+    # replaces `avatar` with the saved file's /static path.
     avatar_image_data_url: Optional[str] = None
-    avatar_style: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -49,6 +50,22 @@ class ProfileUpdate(BaseModel):
     avatar: Optional[str] = None
     birth_year: Optional[int] = None
     reading_support: Optional[bool] = None
+    # Same meaning as on `ProfileCreate` — a new photo that replaces whatever
+    # avatar the profile had. Takes precedence over `avatar` if both are sent.
+    avatar_image_data_url: Optional[str] = None
+
+
+class ProfilePhotoRemixRequest(BaseModel):
+    """Inbound POST body for /api/profile-photos/remix — a preview only;
+    nothing is saved until the chosen result comes back on a create/update."""
+
+    image_data_url: str
+    style: Optional[str] = None
+    idea: Optional[str] = None
+
+
+class ProfilePhotoRemixResponse(BaseModel):
+    image_data_url: str
 
 
 class Profile(SQLModel, table=True):

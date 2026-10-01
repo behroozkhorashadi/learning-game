@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { GameMetadata, Profile } from '../types/generated'
 import { BadgeIcon } from '../components/icons'
 import { DenButton } from '../components/den/DenButton'
+import { PENCIL_ICON } from './ProfilePicker'
 
 const SWITCH_ICON = ['M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.75 13M9.75 13H19.25']
 
@@ -61,6 +62,7 @@ interface Props {
   profile: Profile
   onSelectGame: (gameId: string) => void
   onSwitchProfile: () => void
+  onEditProfile: () => void
   onViewBadges: () => void
   onOpenStorybook: () => void
   onOpenPracticeSettings: (gameId: string) => void
@@ -70,6 +72,7 @@ export function GamePicker({
   profile,
   onSelectGame,
   onSwitchProfile,
+  onEditProfile,
   onViewBadges,
   onOpenStorybook: _onOpenStorybook,
   onOpenPracticeSettings,
@@ -114,6 +117,18 @@ export function GamePicker({
             >
               <BadgeIcon />
             </button>
+            <DenButton
+              label="Edit profile"
+              ariaLabel="Edit profile"
+              titleText="Edit profile"
+              variant="quiet"
+              shape="pill"
+              size="md"
+              iconOnly
+              boxSize={56}
+              iconPaths={[PENCIL_ICON]}
+              onClick={onEditProfile}
+            />
             <DenButton
               label="Switch player"
               variant="quiet"

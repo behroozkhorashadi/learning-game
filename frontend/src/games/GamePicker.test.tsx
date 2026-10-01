@@ -22,6 +22,7 @@ function renderPicker(overrides: Partial<React.ComponentProps<typeof GamePicker>
       profile={PROFILE}
       onSelectGame={vi.fn()}
       onSwitchProfile={vi.fn()}
+      onEditProfile={vi.fn()}
       onViewBadges={vi.fn()}
       onOpenStorybook={vi.fn()}
       onOpenPracticeSettings={vi.fn()}

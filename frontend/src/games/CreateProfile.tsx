@@ -26,7 +26,6 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
   const [birthday, setBirthday] = useState('')
   const [avatar, setAvatar] = useState<string | null>(null)
   const [photo, setPhoto] = useState<string | null>(null)
-  const [stylizePhoto, setStylizePhoto] = useState(false)
   const [readingSupport, setReadingSupport] = useState(false)
   const [readingSupportTouched, setReadingSupportTouched] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -54,7 +53,6 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
       birth_year: birthYear,
       reading_support: readingSupport,
       avatar_image_data_url: photo,
-      avatar_style: photo && stylizePhoto ? 'storybook' : null,
     }
     try {
       const res = await fetch('/api/profiles', {
@@ -89,7 +87,10 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
           birthday={birthday}
           onBirthdayChange={handleBirthdayChange}
           avatar={avatar}
-          onAvatarChange={setAvatar}
+          onAvatarChange={(value) => {
+            setAvatar(value)
+            setPhoto(null)
+          }}
           readingSupport={readingSupport}
           onReadingSupportChange={(value) => {
             setReadingSupport(value)
@@ -104,8 +105,6 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
             setPhoto(value)
             if (value) setAvatar(null)
           }}
-          stylize={stylizePhoto}
-          onStylizeChange={setStylizePhoto}
         />
 
         {error && <div style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>{error}</div>}
