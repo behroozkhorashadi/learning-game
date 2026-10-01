@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DenButton } from '../components/den/DenButton'
 import { CardShell } from '../components/AdminLoginForm'
 import { ProfileFormFields, MIN_AGE, MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
-import { ProfilePhotoCapture } from '../components/ProfilePhotoCapture'
+import { ProfilePhotoCapture, type NewPhoto } from '../components/ProfilePhotoCapture'
+import { newPhotosPayload } from '../components/newPhotosPayload'
 import { ProfilePasswordFields, EMPTY_PASSWORD_DRAFT, passwordDraftError } from '../components/ProfilePasswordFields'
-import type { Profile, ProfileUpdate } from '../types/generated'
+import type { Profile, ProfilePhotoRead, ProfileUpdate } from '../types/generated'
 
 /**
  * Edit-profile screen: name, birthday, reading support, password, and the
- * avatar (an animal, the saved photo, or a new photo, optionally remixed).
+ * avatar: an animal, any of the profile's saved pictures (GET
+ * /api/profiles/{id}/photos), or a new photo, optionally remixed. Every new
+ * photo/remix is saved with the profile so it can be switched back to later.
  *
  * The caller has already checked whoever is editing and passes the matching
  * header in `authHeaders`: `X-Profile-Password` from App (the password typed
@@ -33,6 +36,8 @@ export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) 
   const [birthday, setBirthday] = useState(`${profile.birth_year}-01-01`)
   const [avatar, setAvatar] = useState<string | null>(isPhotoAvatar(profile.avatar) ? null : profile.avatar)
   const [photo, setPhoto] = useState<string | null>(isPhotoAvatar(profile.avatar) ? profile.avatar : null)
+  const [newPhotos, setNewPhotos] = useState<NewPhoto[]>([])
+  const [savedPhotos, setSavedPhotos] = useState<ProfilePhotoRead[]>([])
   const [readingSupport, setReadingSupport] = useState(profile.reading_support ?? false)
   const [passwordDraft, setPasswordDraft] = useState(EMPTY_PASSWORD_DRAFT)
   const [submitting, setSubmitting] = useState(false)
@@ -44,13 +49,35 @@ export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) 
   const canSubmit =
     name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && passwordDraftError(passwordDraft) == null && !submitting
 
+  const authKey = JSON.stringify(authHeaders)
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/profiles/${profile.id}/photos`, { headers: JSON.parse(authKey) })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((photos: ProfilePhotoRead[]) => !cancelled && setSavedPhotos(photos))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [profile.id, authKey])
+
+  async function deleteSavedPhoto(saved: ProfilePhotoRead) {
+    const res = await fetch(`/api/profiles/${profile.id}/photos/${saved.id}`, { method: 'DELETE', headers: authHeaders })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw new Error(body?.detail ?? `DELETE /api/profiles/${profile.id}/photos/${saved.id} -> ${res.status}`)
+    }
+    setSavedPhotos((current) => current.filter((p) => p.id !== saved.id))
+    if (photo === saved.url) setPhoto(null)
+  }
+
   async function handleSubmit() {
     if (!canSubmit || birthYear == null) return
     setSubmitting(true)
     setError(null)
     const payload: ProfileUpdate = { name: name.trim(), birth_year: birthYear, reading_support: readingSupport }
-    if (photo?.startsWith('data:')) payload.avatar_image_data_url = photo
-    else payload.avatar = photo ?? avatar
+    payload.new_photos = newPhotosPayload(newPhotos, photo)
+    if (!photo?.startsWith('data:')) payload.avatar = photo ?? avatar
     if (passwordDraft.remove) payload.remove_password = true
     else if (passwordDraft.password) payload.password = passwordDraft.password
     try {
@@ -97,6 +124,10 @@ export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) 
       <div className="profile-avatar-divider"><span>or use a photo</span></div>
       <ProfilePhotoCapture
         value={photo}
+        onNewPhotosChange={setNewPhotos}
+        savedPhotos={savedPhotos}
+        currentSavedUrl={isPhotoAvatar(profile.avatar) ? profile.avatar : null}
+        onDeleteSaved={deleteSavedPhoto}
         onChange={(value) => {
           setPhoto(value)
           if (value) setAvatar(null)

@@ -216,6 +216,49 @@
   text-align: center;
 }
 
+.profile-pictures {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.profile-pictures-title {
+  font-weight: 700;
+  color: var(--fg-secondary);
+}
+
+.profile-remix-tile {
+  position: relative;
+}
+
+.profile-remix-new {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--purple-800);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.profile-remix-delete {
+  position: absolute;
+  top: calc(var(--space-1) * -1);
+  right: calc(var(--space-1) * -1);
+  min-width: var(--space-6);
+  height: var(--space-6);
+  padding: 0 var(--space-2);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--surface-default);
+  color: var(--fg-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .profile-remix-versions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -223,6 +266,8 @@
 }
 
 .profile-remix-version {
+  position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;

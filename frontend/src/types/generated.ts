@@ -11,12 +11,18 @@ export interface Profile {
   has_password?: boolean;
 }
 
+export interface NewProfilePhoto {
+  image_data_url: string;
+  label?: string;
+  use_as_avatar?: boolean;
+}
+
 export interface ProfileCreate {
   name: string;
   avatar: string;
   birth_year: number;
   reading_support?: boolean;
-  avatar_image_data_url?: string | null;
+  new_photos?: NewProfilePhoto[];
   password?: string | null;
 }
 
@@ -25,13 +31,20 @@ export interface ProfileUpdate {
   avatar?: string | null;
   birth_year?: number | null;
   reading_support?: boolean | null;
-  avatar_image_data_url?: string | null;
+  new_photos?: NewProfilePhoto[];
   password?: string | null;
   remove_password?: boolean;
 }
 
 export interface ProfileUnlockRequest {
   password: string;
+}
+
+export interface ProfilePhotoRead {
+  id: number;
+  url: string;
+  label: string;
+  created_at: string;
 }
 
 export interface ProfilePhotoRemixRequest {

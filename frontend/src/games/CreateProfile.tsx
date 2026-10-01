@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { DenButton } from '../components/den/DenButton'
 import { ProfileFormFields, MIN_AGE, MAX_AGE, READING_SUPPORT_DEFAULT_MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
-import { ProfilePhotoCapture } from '../components/ProfilePhotoCapture'
+import { ProfilePhotoCapture, type NewPhoto } from '../components/ProfilePhotoCapture'
+import { newPhotosPayload } from '../components/newPhotosPayload'
 import { ProfilePasswordFields, EMPTY_PASSWORD_DRAFT, passwordDraftError } from '../components/ProfilePasswordFields'
 import type { Profile, ProfileCreate } from '../types/generated'
 
@@ -29,6 +30,7 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
   const [birthday, setBirthday] = useState('')
   const [avatar, setAvatar] = useState<string | null>(null)
   const [photo, setPhoto] = useState<string | null>(null)
+  const [newPhotos, setNewPhotos] = useState<NewPhoto[]>([])
   const [readingSupport, setReadingSupport] = useState(false)
   const [readingSupportTouched, setReadingSupportTouched] = useState(false)
   const [passwordDraft, setPasswordDraft] = useState(EMPTY_PASSWORD_DRAFT)
@@ -57,7 +59,7 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
       avatar: avatar ?? 'fox',
       birth_year: birthYear,
       reading_support: readingSupport,
-      avatar_image_data_url: photo,
+      new_photos: newPhotosPayload(newPhotos, photo),
       password: passwordDraft.password || null,
     }
     try {
@@ -111,6 +113,7 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
             setPhoto(value)
             if (value) setAvatar(null)
           }}
+          onNewPhotosChange={setNewPhotos}
         />
 
         <ProfilePasswordFields draft={passwordDraft} onChange={setPasswordDraft} />

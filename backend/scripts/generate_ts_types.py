@@ -43,7 +43,9 @@ from app.models.pathfinder import (  # noqa: E402
 )
 from app.models.practice_config import PracticeConfig, PracticeConfigUpsert  # noqa: E402
 from app.models.profile import (  # noqa: E402
+    NewProfilePhoto,
     ProfileCreate,
+    ProfilePhotoRead,
     ProfilePhotoRemixRequest,
     ProfilePhotoRemixResponse,
     ProfileRead,
@@ -63,6 +65,7 @@ MODELS = [
     ProfileCreate,
     ProfileUpdate,
     ProfileUnlockRequest,
+    ProfilePhotoRead,
     ProfilePhotoRemixRequest,
     ProfilePhotoRemixResponse,
     PracticeConfig,

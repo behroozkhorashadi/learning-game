@@ -109,6 +109,7 @@ describe('AdminPanel edit flow', () => {
       if (url === '/api/profiles/1' && init?.method === 'PATCH') {
         return Promise.resolve({ ok: true, json: async () => updated } as Response)
       }
+      if (url === '/api/profiles/1/photos') return Promise.resolve({ ok: true, json: async () => [] } as Response)
       throw new Error(`unexpected fetch: ${url} ${init?.method}`)
     }) as unknown as typeof fetch
 

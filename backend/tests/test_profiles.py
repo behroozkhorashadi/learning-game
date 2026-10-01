@@ -74,22 +74,6 @@ def test_create_profile_rejects_unknown_avatar(client):
     assert response.status_code == 422
 
 
-def test_create_profile_saves_captured_photo(client, monkeypatch):
-    monkeypatch.setattr("app.main.save_profile_avatar", lambda data_url: "/static/profile-avatars/test.png")
-    response = client.post(
-        "/api/profiles",
-        json={
-            "name": "Ada",
-            "avatar": "fox",
-            "birth_year": date.today().year - 6,
-            "avatar_image_data_url": "data:image/png;base64,example",
-        },
-    )
-
-    assert response.status_code == 201
-    assert response.json()["avatar"] == "/static/profile-avatars/test.png"
-
-
 def test_create_profile_rejects_age_outside_bounds(client):
     too_old = client.post(
         "/api/profiles",
@@ -322,44 +306,156 @@ def avatars_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_patch_profile_replaces_photo_and_removes_the_old_file(client, avatars_dir):
-    profile = _create_profile(client, avatar_image_data_url=PHOTO_DATA_URL)
-    old_file = avatars_dir / profile["avatar"].rsplit("/", 1)[-1]
-    assert old_file.exists()
+def _photo(label="Original", use=False, data_url=None):
+    return {"image_data_url": data_url or PHOTO_DATA_URL, "label": label, "use_as_avatar": use}
+
+
+def _files(avatars_dir):
+    return sorted(p.name for p in avatars_dir.iterdir())
+
+
+def _photos(client, profile_id, headers=None):
+    response = client.get(f"/api/profiles/{profile_id}/photos", headers=headers or {})
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_create_profile_saves_every_variant_and_uses_the_picked_one(client, avatars_dir):
+    profile = _create_profile(
+        client, new_photos=[_photo("Original"), _photo("Wizard", use=True), _photo("Pixel art")]
+    )
+
+    photos = _photos(client, profile["id"])
+    assert [p["label"] for p in photos] == ["Original", "Wizard", "Pixel art"]
+    assert profile["avatar"] == photos[1]["url"]
+    assert len(_files(avatars_dir)) == 3
+
+
+def test_create_profile_with_photos_but_none_picked_keeps_the_animal(client, avatars_dir):
+    profile = _create_profile(client, avatar="owl", new_photos=[_photo("Original")])
+    assert profile["avatar"] == "owl"
+    assert len(_photos(client, profile["id"])) == 1
+
+
+def test_switching_between_saved_photos_and_animals_keeps_every_photo(client, avatars_dir):
+    profile = _create_profile(client, new_photos=[_photo("Original", use=True), _photo("Cartoon")])
+    url = f"/api/profiles/{profile['id']}"
+    original, cartoon = _photos(client, profile["id"])
+
+    assert client.patch(url, json={"avatar": cartoon["url"]}).json()["avatar"] == cartoon["url"]
+    assert client.patch(url, json={"avatar": "panda"}).json()["avatar"] == "panda"
+    assert client.patch(url, json={"avatar": original["url"]}).json()["avatar"] == original["url"]
+    assert len(_files(avatars_dir)) == 2
+
+
+def test_patch_adds_new_variants_to_the_saved_list(client, avatars_dir):
+    profile = _create_profile(client, new_photos=[_photo("Original", use=True)])
 
     response = client.patch(
-        f"/api/profiles/{profile['id']}", json={"avatar_image_data_url": PHOTO_DATA_URL}, headers=ADMIN_HEADERS
+        f"/api/profiles/{profile['id']}", json={"new_photos": [_photo("Retake"), _photo("Space explorer", use=True)]}
     )
 
     assert response.status_code == 200
-    new_avatar = response.json()["avatar"]
-    assert new_avatar.startswith("/static/profile-avatars/") and new_avatar != profile["avatar"]
-    assert not old_file.exists()
-    assert (avatars_dir / new_avatar.rsplit("/", 1)[-1]).exists()
+    photos = _photos(client, profile["id"])
+    assert [p["label"] for p in photos] == ["Original", "Retake", "Space explorer"]
+    assert response.json()["avatar"] == photos[2]["url"]
 
 
-def test_patch_profile_keeps_existing_photo_when_resent(client, avatars_dir):
+def test_patch_keeps_current_photo_when_resent(client, avatars_dir):
     """The edit screen sends the current avatar back unchanged when only the
     name changes — a saved photo's /static path must not fail validation."""
-    profile = _create_profile(client, avatar_image_data_url=PHOTO_DATA_URL)
+    profile = _create_profile(client, new_photos=[_photo(use=True)])
 
-    response = client.patch(
-        f"/api/profiles/{profile['id']}", json={"name": "Renamed", "avatar": profile["avatar"]}, headers=ADMIN_HEADERS
-    )
+    response = client.patch(f"/api/profiles/{profile['id']}", json={"name": "Renamed", "avatar": profile["avatar"]})
 
     assert response.status_code == 200
     assert response.json()["avatar"] == profile["avatar"]
-    assert (avatars_dir / profile["avatar"].rsplit("/", 1)[-1]).exists()
 
 
-def test_patch_profile_can_switch_from_photo_to_animal(client, avatars_dir):
-    profile = _create_profile(client, avatar_image_data_url=PHOTO_DATA_URL)
+def test_cannot_use_another_profiles_photo(client, avatars_dir):
+    owner = _create_profile(client, new_photos=[_photo(use=True)])
+    other = _create_profile(client, name="Other")
 
-    response = client.patch(f"/api/profiles/{profile['id']}", json={"avatar": "panda"}, headers=ADMIN_HEADERS)
+    response = client.patch(f"/api/profiles/{other['id']}", json={"avatar": owner["avatar"]})
 
-    assert response.status_code == 200
-    assert response.json()["avatar"] == "panda"
-    assert list(avatars_dir.iterdir()) == []
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "new_photos",
+    [
+        [_photo(use=True), _photo(use=True)],
+        [_photo(data_url="data:image/gif;base64,AAAA")],
+        [_photo(label="   ")],
+        [_photo()] * 13,
+    ],
+)
+def test_bad_new_photos_are_rejected_without_writing_files(client, avatars_dir, new_photos):
+    response = client.post(
+        "/api/profiles",
+        json={"name": "Ada", "avatar": "fox", "birth_year": date.today().year - 6, "new_photos": new_photos},
+    )
+    assert response.status_code == 422
+    assert _files(avatars_dir) == []
+
+
+def test_delete_saved_photo_but_not_the_current_one(client, avatars_dir):
+    profile = _create_profile(client, new_photos=[_photo("Original", use=True), _photo("Cartoon")])
+    original, cartoon = _photos(client, profile["id"])
+    base = f"/api/profiles/{profile['id']}/photos"
+
+    assert client.delete(f"{base}/{original['id']}").status_code == 409
+    assert client.delete(f"{base}/{cartoon['id']}").status_code == 204
+    assert [p["id"] for p in _photos(client, profile["id"])] == [original["id"]]
+    assert len(_files(avatars_dir)) == 1
+    assert client.delete(f"{base}/{cartoon['id']}").status_code == 404
+
+
+def test_saved_photos_follow_the_profile_password(client, avatars_dir, admin_password):
+    profile = _create_profile(client, password="tiger42", new_photos=[_photo(use=True), _photo("Cartoon")])
+    base = f"/api/profiles/{profile['id']}/photos"
+
+    assert client.get(base).status_code == 401
+    assert len(_photos(client, profile["id"], {"X-Profile-Password": "tiger42"})) == 2
+    assert len(_photos(client, profile["id"], {"X-Admin-Password": "admin-secret"})) == 2
+    cartoon_id = _photos(client, profile["id"], {"X-Profile-Password": "tiger42"})[1]["id"]
+    assert client.delete(f"{base}/{cartoon_id}").status_code == 401
+
+
+def test_photos_of_another_profile_cannot_be_deleted_through_this_one(client, avatars_dir):
+    owner = _create_profile(client, new_photos=[_photo(use=True), _photo("Cartoon")])
+    other = _create_profile(client, name="Other")
+    cartoon_id = _photos(client, owner["id"])[1]["id"]
+
+    assert client.delete(f"/api/profiles/{other['id']}/photos/{cartoon_id}").status_code == 404
+
+
+def test_deleting_a_profile_removes_all_its_photos(client, avatars_dir, admin_password):
+    profile = _create_profile(client, new_photos=[_photo(use=True), _photo("Cartoon")])
+
+    response = client.delete(f"/api/profiles/{profile['id']}", headers={"X-Admin-Password": "admin-secret"})
+
+    assert response.status_code == 204
+    assert _files(avatars_dir) == []
+
+
+def test_backfill_adds_pre_existing_photo_avatars_to_the_saved_list(client, avatars_dir):
+    from sqlmodel import Session
+
+    from app.db import engine
+    from app.models.profile import Profile
+    from app.services.profile_photos import backfill_existing_avatars
+
+    with Session(engine) as session:
+        legacy = Profile(name="Legacy", avatar="/static/profile-avatars/old.jpg", birth_year=date.today().year - 7)
+        session.add(legacy)
+        session.commit()
+        legacy_id = legacy.id
+        backfill_existing_avatars(session)
+        backfill_existing_avatars(session)  # idempotent
+
+    photos = _photos(client, legacy_id)
+    assert [(p["url"], p["label"]) for p in photos] == [("/static/profile-avatars/old.jpg", "Photo")]
 
 
 def test_remix_returns_preview_without_saving(client, avatars_dir, monkeypatch):

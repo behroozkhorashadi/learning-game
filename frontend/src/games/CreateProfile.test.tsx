@@ -70,7 +70,7 @@ describe('CreateProfile', () => {
           avatar: 'cat',
           birth_year: 2019,
           reading_support: false,
-          avatar_image_data_url: null,
+          new_photos: [],
           password: null,
         }),
       }),

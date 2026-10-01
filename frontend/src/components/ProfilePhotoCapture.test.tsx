@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import { ProfilePhotoCapture, MAX_REMIXES } from './ProfilePhotoCapture'
+import { ProfilePhotoCapture, MAX_REMIXES, type NewPhoto } from './ProfilePhotoCapture'
+import type { ProfilePhotoRead } from '../types/generated'
 
 const ORIGINAL = 'data:image/png;base64,T1JJR0lOQUw='
 
@@ -24,8 +25,20 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function Harness({ onChange }: { onChange: (value: string | null) => void }) {
-  const [value, setValue] = useState<string | null>(null)
+function Harness({
+  onChange,
+  onNewPhotosChange = () => {},
+  initial = null,
+  savedPhotos,
+  onDeleteSaved,
+}: {
+  onChange: (value: string | null) => void
+  onNewPhotosChange?: (photos: NewPhoto[]) => void
+  initial?: string | null
+  savedPhotos?: ProfilePhotoRead[]
+  onDeleteSaved?: (photo: ProfilePhotoRead) => Promise<void>
+}) {
+  const [value, setValue] = useState<string | null>(initial)
   return (
     <ProfilePhotoCapture
       value={value}
@@ -33,6 +46,9 @@ function Harness({ onChange }: { onChange: (value: string | null) => void }) {
         setValue(v)
         onChange(v)
       }}
+      onNewPhotosChange={onNewPhotosChange}
+      savedPhotos={savedPhotos}
+      onDeleteSaved={onDeleteSaved}
     />
   )
 }
@@ -91,7 +107,7 @@ describe('ProfilePhotoCapture remix', () => {
     fireEvent.click(screen.getByRole('button', { name: 'No tries left' }))
     expect(global.fetch).toHaveBeenCalledTimes(MAX_REMIXES)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use Original' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use Photo' }))
     expect(onChange).toHaveBeenLastCalledWith(ORIGINAL)
   })
 
@@ -108,5 +124,72 @@ describe('ProfilePhotoCapture remix', () => {
 
     await screen.findByText(/isn't available right now/)
     expect(onChange).toHaveBeenLastCalledWith(ORIGINAL)
+  })
+})
+
+describe('ProfilePhotoCapture saved pictures', () => {
+  it('reports every version, keeps them across a retake, and resets the tries for the new photo', async () => {
+    mockRemix()
+    const onNewPhotosChange = vi.fn()
+    render(<Harness onChange={vi.fn()} onNewPhotosChange={onNewPhotosChange} />)
+    await capturePhoto()
+    fireEvent.click(screen.getByRole('button', { name: /Cartoon/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Try it/ }))
+    await screen.findByRole('button', { name: 'Use Cartoon' })
+    expect(screen.getByRole('button', { name: /2 tries left/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take a new photo' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Take photo' }))
+
+    expect(screen.getAllByRole('button', { name: /^Use / })).toHaveLength(3)
+    expect(screen.getByRole('button', { name: /3 tries left/ })).toBeTruthy()
+    expect(onNewPhotosChange).toHaveBeenLastCalledWith([
+      { src: ORIGINAL, label: 'Photo' },
+      { src: 'data:image/jpeg;base64,remix1', label: 'Cartoon' },
+      { src: ORIGINAL, label: 'Photo' },
+    ])
+  })
+
+  it('discards an unsaved version but never the one in use', async () => {
+    mockRemix()
+    const onNewPhotosChange = vi.fn()
+    render(<Harness onChange={vi.fn()} onNewPhotosChange={onNewPhotosChange} />)
+    await capturePhoto()
+    fireEvent.click(screen.getByRole('button', { name: /Wizard/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Try it/ }))
+    await screen.findByRole('button', { name: 'Use Wizard' })
+
+    expect(screen.queryByRole('button', { name: 'Delete Wizard' })).toBeNull() // in use
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Photo' }))
+
+    expect(onNewPhotosChange).toHaveBeenLastCalledWith([{ src: 'data:image/jpeg;base64,remix1', label: 'Wizard' }])
+    expect(screen.queryByRole('button', { name: 'Use Photo' })).toBeNull()
+  })
+
+  const SAVED: ProfilePhotoRead[] = [
+    { id: 1, url: '/static/profile-avatars/a.jpg', label: 'Photo', created_at: '2026-10-01T00:00:00' },
+    { id: 2, url: '/static/profile-avatars/b.jpg', label: 'Space explorer', created_at: '2026-10-01T00:00:00' },
+  ]
+
+  it('switches between saved pictures', () => {
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} initial={SAVED[0].url} savedPhotos={SAVED} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use Space explorer' }))
+
+    expect(onChange).toHaveBeenLastCalledWith(SAVED[1].url)
+    expect(screen.getByAltText('Your profile picture preview').getAttribute('src')).toBe(SAVED[1].url)
+  })
+
+  it('asks before deleting a saved picture and shows why a delete failed', async () => {
+    const onDeleteSaved = vi.fn(() => Promise.reject(new Error('server said no')))
+    render(<Harness onChange={vi.fn()} initial={SAVED[0].url} savedPhotos={SAVED} onDeleteSaved={onDeleteSaved} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Space explorer' }))
+    expect(onDeleteSaved).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Really delete Space explorer?' }))
+
+    await screen.findByText('server said no')
+    expect(onDeleteSaved).toHaveBeenCalledWith(SAVED[1])
   })
 })

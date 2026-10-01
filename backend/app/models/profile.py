@@ -28,6 +28,26 @@ MIN_AGE = 3
 MAX_AGE = 14
 
 
+class NewProfilePhoto(BaseModel):
+    """One photo (the camera original or an AI remix of it) to add to a
+    profile's saved pictures on create/update. Every version a kid made gets
+    saved, so they can switch back to any of them later; `use_as_avatar`
+    marks the one to show right now (at most one per request)."""
+
+    image_data_url: str
+    label: str = "Photo"
+    use_as_avatar: bool = False
+
+
+class ProfilePhotoRead(BaseModel):
+    """A saved picture as GET /api/profiles/{id}/photos returns it."""
+
+    id: int
+    url: str
+    label: str
+    created_at: datetime
+
+
 class ProfileCreate(BaseModel):
     """Inbound POST body for /api/profiles. Not a table — `Profile` is the
     persisted shape."""
@@ -36,9 +56,9 @@ class ProfileCreate(BaseModel):
     avatar: str
     birth_year: int
     reading_support: bool = False
-    # A captured (and possibly AI-remixed) photo as a data URL; when set it
-    # replaces `avatar` with the saved file's /static path.
-    avatar_image_data_url: Optional[str] = None
+    # Photos to save with the new profile; if one is `use_as_avatar` its
+    # saved /static path replaces `avatar`.
+    new_photos: list[NewProfilePhoto] = []
     # Optional — a profile without one works exactly as before (anyone can
     # pick it). See `app/services/profile_passwords.py`.
     password: Optional[str] = None
@@ -50,12 +70,14 @@ class ProfileUpdate(BaseModel):
     ones changing, same pattern as `PieceUpdate`."""
 
     name: Optional[str] = None
+    # An animal key, or the /static URL of one of this profile's saved photos
+    # (switching back to an earlier picture).
     avatar: Optional[str] = None
     birth_year: Optional[int] = None
     reading_support: Optional[bool] = None
-    # Same meaning as on `ProfileCreate` — a new photo that replaces whatever
-    # avatar the profile had. Takes precedence over `avatar` if both are sent.
-    avatar_image_data_url: Optional[str] = None
+    # Same as on `ProfileCreate`; a `use_as_avatar` photo takes precedence
+    # over `avatar` if both are sent.
+    new_photos: list[NewProfilePhoto] = []
     # Sets (or changes) the profile's password. `remove_password` clears it;
     # sending both is a 422.
     password: Optional[str] = None
@@ -116,6 +138,18 @@ class ProfileRead(BaseModel):
     @classmethod
     def of(cls, profile: "Profile", has_password: bool) -> "ProfileRead":
         return cls(**profile.model_dump(), has_password=has_password)
+
+
+class ProfilePhoto(SQLModel, table=True):
+    """A saved picture belonging to a profile — the camera original or one of
+    its AI remixes. `Profile.avatar` points at one of these `url`s when the
+    profile uses a photo; the others stay around to switch back to."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(foreign_key="profile.id", index=True)
+    url: str
+    label: str
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class ProfilePassword(SQLModel, table=True):

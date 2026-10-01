@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { DenButton } from './den/DenButton'
-import type { ProfilePhotoRemixRequest, ProfilePhotoRemixResponse } from '../types/generated'
+import type { ProfilePhotoRead, ProfilePhotoRemixRequest, ProfilePhotoRemixResponse } from '../types/generated'
 
 /**
- * Camera capture plus an optional AI "remix" panel. Each remix is only a
- * preview (POST /api/profile-photos/remix saves nothing) — the kid tries up
- * to MAX_REMIXES looks per photo, taps the version they like, and the parent
- * form sends whichever image `value` holds when the profile is saved.
+ * Camera capture, an optional AI "remix" panel, and a strip of every picture
+ * the profile has — so a kid can switch back and forth between them.
  *
- * `value` is the image the profile will use: a data URL for a photo taken
- * (or remixed) here, or an already-saved `/static/...` path when editing a
- * profile that has a photo. Remixing needs a photo taken in this session.
+ * Each remix is only a preview (POST /api/profile-photos/remix saves
+ * nothing). Every photo and remix made here is a *new* picture, reported via
+ * `onNewPhotosChange`; the parent form saves all of them with the profile
+ * (`new_photos`), and they join `savedPhotos` from then on. Retaking keeps
+ * the earlier versions; MAX_REMIXES applies per photo taken.
+ *
+ * `value` is the picture the profile will use: a data URL for a new one, or
+ * a saved photo's `/static/...` URL. Remixing needs a photo taken in this
+ * session (the original's data URL).
  */
 
 // Labels for backend/app/services/profile_avatars.py's PHOTO_STYLES — the
@@ -29,29 +33,43 @@ export const PHOTO_STYLES: { key: string; label: string; emoji: string }[] = [
 export const MAX_REMIXES = 3
 const MAX_IDEA_LENGTH = 120
 
-interface Version {
-  label: string
+export interface NewPhoto {
   src: string
+  label: string
 }
 
 interface Props {
   value: string | null
   onChange: (value: string | null) => void
+  onNewPhotosChange: (photos: NewPhoto[]) => void
+  /** The profile's already-saved pictures (edit screen only). */
+  savedPhotos?: ProfilePhotoRead[]
+  /** Deletes a saved picture; rejects with a message to show if it can't. */
+  onDeleteSaved?: (photo: ProfilePhotoRead) => Promise<void>
+  /** A saved URL that can't be deleted — the profile's current picture on the server. */
+  currentSavedUrl?: string | null
 }
 
 type CameraState = 'idle' | 'starting' | 'live' | 'unavailable'
 
-export function ProfilePhotoCapture({ value, onChange }: Props) {
+export function ProfilePhotoCapture({ value, onChange, onNewPhotosChange, savedPhotos = [], onDeleteSaved, currentSavedUrl = null }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [cameraState, setCameraState] = useState<CameraState>('idle')
   const [message, setMessage] = useState<string | null>(null)
+  const [newPhotos, setNewPhotos] = useState<NewPhoto[]>([])
+  // Mirrors `newPhotos` so a remix finishing after other edits appends to
+  // the latest list rather than the one captured when it started.
+  const newPhotosRef = useRef<NewPhoto[]>([])
+  // The photo taken most recently this session, and how many remixes it's had.
   const [original, setOriginal] = useState<string | null>(null)
-  const [remixes, setRemixes] = useState<Version[]>([])
+  const [remixCount, setRemixCount] = useState(0)
   const [style, setStyle] = useState<string | null>(null)
   const [idea, setIdea] = useState('')
   const [remixing, setRemixing] = useState(false)
   const [remixError, setRemixError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState<number | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -59,6 +77,13 @@ export function ProfilePhotoCapture({ value, onChange }: Props) {
   }
 
   useEffect(() => stopCamera, [])
+
+  function updateNewPhotos(update: (current: NewPhoto[]) => NewPhoto[]) {
+    const next = update(newPhotosRef.current)
+    newPhotosRef.current = next
+    setNewPhotos(next)
+    onNewPhotosChange(next)
+  }
 
   async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -104,25 +129,21 @@ export function ProfilePhotoCapture({ value, onChange }: Props) {
     context.drawImage(video, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size)
     const photo = canvas.toDataURL('image/png')
     setOriginal(photo)
+    setRemixCount(0)
+    setRemixError(null)
+    updateNewPhotos((current) => [...current, { src: photo, label: 'Photo' }])
     onChange(photo)
     stopCamera()
     setCameraState('idle')
   }
 
-  function clearPhoto() {
-    setOriginal(null)
-    setRemixes([])
-    setRemixError(null)
+  function takeNewPhoto() {
     onChange(null)
-  }
-
-  function retake() {
-    clearPhoto()
     void startCamera()
   }
 
   async function tryRemix() {
-    if (original == null || remixing || remixes.length >= MAX_REMIXES) return
+    if (original == null || remixing || remixCount >= MAX_REMIXES) return
     const trimmedIdea = idea.trim()
     if (style == null && !trimmedIdea) return
 
@@ -142,7 +163,8 @@ export function ProfilePhotoCapture({ value, onChange }: Props) {
       const { image_data_url }: ProfilePhotoRemixResponse = await res.json()
       const styleLabel = PHOTO_STYLES.find((s) => s.key === style)?.label
       const label = [styleLabel, trimmedIdea].filter(Boolean).join(' + ')
-      setRemixes((prev) => [...prev, { label, src: image_data_url }])
+      setRemixCount((n) => n + 1)
+      updateNewPhotos((current) => [...current, { src: image_data_url, label }])
       onChange(image_data_url)
     } catch (err) {
       setRemixError(err instanceof Error ? err.message : String(err))
@@ -151,9 +173,31 @@ export function ProfilePhotoCapture({ value, onChange }: Props) {
     }
   }
 
-  const triesLeft = MAX_REMIXES - remixes.length
+  function discardNew(photo: NewPhoto) {
+    updateNewPhotos((current) => current.filter((p) => p !== photo))
+    if (photo.src === original) setOriginal(null)
+  }
+
+  async function deleteSaved(photo: ProfilePhotoRead) {
+    if (confirmingDelete !== photo.id) {
+      setConfirmingDelete(photo.id)
+      return
+    }
+    setConfirmingDelete(null)
+    setDeleteError(null)
+    try {
+      await onDeleteSaved?.(photo)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const triesLeft = MAX_REMIXES - remixCount
   const canRemix = original != null && !remixing && triesLeft > 0 && (style != null || idea.trim().length > 0)
-  const versions: Version[] = original ? [{ label: 'Original', src: original }, ...remixes] : []
+  const tiles = [
+    ...savedPhotos.map((p) => ({ key: `saved-${p.id}`, src: p.url, label: p.label, saved: p as ProfilePhotoRead | null, fresh: null as NewPhoto | null })),
+    ...newPhotos.map((p, i) => ({ key: `new-${i}`, src: p.src, label: p.label, saved: null as ProfilePhotoRead | null, fresh: p as NewPhoto | null })),
+  ]
 
   return (
     <section className="profile-photo-section" aria-labelledby="profile-photo-title">
@@ -199,13 +243,53 @@ export function ProfilePhotoCapture({ value, onChange }: Props) {
         {!value && cameraState === 'live' && <DenButton label="Take photo" variant="blue" onClick={takePhoto} />}
         {value && (
           <>
-            <DenButton label={original ? 'Retake' : 'Take a new photo'} variant="quiet" onClick={retake} disabled={remixing} />
-            <DenButton label="Remove photo" variant="quiet" onClick={clearPhoto} disabled={remixing} />
+            <DenButton label="Take a new photo" variant="quiet" onClick={takeNewPhoto} disabled={remixing} />
+            <DenButton label="Don't use a photo" variant="quiet" onClick={() => onChange(null)} disabled={remixing} />
           </>
         )}
       </div>
 
       {message && <p className="profile-camera-message" role="status">{message}</p>}
+
+      {tiles.length > 0 && (
+        <div className="profile-pictures">
+          <div className="profile-pictures-title">Your pictures</div>
+          <p className="profile-remix-help">Tap one to use it. Every version you make is kept, so you can switch back anytime.</p>
+          <div className="profile-remix-versions">
+            {tiles.map((tile) => {
+              const selected = value === tile.src
+              const deletable = !selected && tile.src !== currentSavedUrl && (tile.fresh != null || onDeleteSaved != null)
+              return (
+                <div key={tile.key} className="profile-remix-tile">
+                  <button
+                    type="button"
+                    className="profile-remix-version"
+                    aria-pressed={selected}
+                    aria-label={`Use ${tile.label}`}
+                    onClick={() => onChange(tile.src)}
+                  >
+                    <img src={tile.src} alt="" />
+                    <span>{tile.label}</span>
+                    {tile.fresh && <span className="profile-remix-new">New</span>}
+                  </button>
+                  {deletable && (
+                    <button
+                      type="button"
+                      className="profile-remix-delete"
+                      aria-label={tile.saved && confirmingDelete === tile.saved.id ? `Really delete ${tile.label}?` : `Delete ${tile.label}`}
+                      title="Delete"
+                      onClick={() => (tile.saved ? void deleteSaved(tile.saved) : tile.fresh && discardNew(tile.fresh))}
+                    >
+                      {tile.saved && confirmingDelete === tile.saved.id ? 'Delete?' : '×'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {deleteError && <p className="profile-remix-error" role="alert">{deleteError}</p>}
+        </div>
+      )}
 
       {original && (
         <div className="profile-remix">
@@ -252,27 +336,6 @@ export function ProfilePhotoCapture({ value, onChange }: Props) {
           </div>
 
           {remixError && <p className="profile-remix-error" role="alert">{remixError}</p>}
-
-          {versions.length > 1 && (
-            <>
-              <p className="profile-remix-help">Tap the one you want to use.</p>
-              <div className="profile-remix-versions">
-                {versions.map((v, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className="profile-remix-version"
-                    aria-pressed={value === v.src}
-                    aria-label={`Use ${v.label}`}
-                    onClick={() => onChange(v.src)}
-                  >
-                    <img src={v.src} alt="" />
-                    <span>{v.label}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
 
           <small className="profile-remix-privacy">Trying a remix sends this photo to OpenAI to make the new picture.</small>
         </div>

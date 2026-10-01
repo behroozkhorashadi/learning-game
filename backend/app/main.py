@@ -10,6 +10,8 @@
   `require_admin` (app/admin_auth.py) — a hardcoded shared password, not real
   auth (PRD §2 non-goals).
 - POST /api/profile-photos/remix: AI-restyles a captured photo for preview only.
+- GET/DELETE /api/profiles/{id}/photos[/{photo_id}]: a profile's saved pictures
+  (every photo and remix kept), to switch between or clean up.
 - POST /api/admin/login  : lets the admin screen check the password before
   showing itself. Holds no session state — see `app/admin_auth.py`.
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
@@ -100,8 +102,9 @@ from app.models.profile import (
     MIN_AGE,
     Profile,
     ProfileCreate,
-    ProfilePhotoRemixRequest,
     ProfilePassword,
+    ProfilePhotoRead,
+    ProfilePhotoRemixRequest,
     ProfilePhotoRemixResponse,
     ProfileRead,
     ProfileUnlockRequest,
@@ -116,8 +119,8 @@ from app.services.badges_service import compute_profile_stats, evaluate_and_awar
 from app.services.client_error_log import ClientErrorReport, log_client_error
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
-from app.services import profile_passwords
-from app.services.profile_avatars import delete_profile_avatar, encode_avatar_data_url, remix_profile_photo, save_profile_avatar
+from app.services import profile_passwords, profile_photos
+from app.services.profile_avatars import encode_avatar_data_url, remix_profile_photo
 
 
 @asynccontextmanager
@@ -126,6 +129,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     with Session(engine) as session:
         _seed_test_profiles(session)
         seed_badges(session)
+        profile_photos.backfill_existing_avatars(session)
     yield
 
 
@@ -182,13 +186,6 @@ def _validate_profile_avatar(avatar: str) -> None:
         raise HTTPException(status_code=422, detail=f"avatar must be one of {AVATAR_OPTIONS}")
 
 
-def _saved_profile_photo(data_url: str) -> str:
-    try:
-        return save_profile_avatar(data_url)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-
 def _validate_profile_birth_year(birth_year: int) -> None:
     age = utcnow().year - birth_year
     if age < MIN_AGE or age > MAX_AGE:
@@ -203,15 +200,16 @@ def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)
     _validate_profile_birth_year(payload.birth_year)
     if payload.password is not None:
         profile_passwords.validated_new_password(payload.password)
-    if payload.avatar_image_data_url:
-        avatar = _saved_profile_photo(payload.avatar_image_data_url)
-    else:
+    profile_photos.validate_new_photos(payload.new_photos)
+    if not any(photo.use_as_avatar for photo in payload.new_photos):
         _validate_profile_avatar(payload.avatar)
-        avatar = payload.avatar
 
-    profile = Profile(name=name, avatar=avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
+    profile = Profile(name=name, avatar=payload.avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
     session.add(profile)
     session.flush()
+    photo_avatar = profile_photos.add_photos(session, profile.id, payload.new_photos)
+    if photo_avatar is not None:
+        profile.avatar = photo_avatar
     if payload.password is not None:
         profile_passwords.set_password(session, profile.id, payload.password)
     session.commit()
@@ -236,8 +234,8 @@ def remix_profile_photo_preview(payload: ProfilePhotoRemixRequest) -> ProfilePho
     """Backs the photo "remix" panel on the create/edit-profile screens: sends
     the captured photo plus a preset style and/or the kid's own idea to the
     image provider and hands the result straight back for preview. Nothing is
-    saved here — the picked version comes back as `avatar_image_data_url` on
-    the profile create/update. No auth, same trust model as POST /api/profiles."""
+    saved here — the versions the kid keeps come back as `new_photos` on the
+    profile create/update. No auth, same trust model as POST /api/profiles."""
     try:
         image = remix_profile_photo(payload.image_data_url, payload.style, payload.idea)
     except ValueError as exc:
@@ -276,6 +274,7 @@ def patch_profile(
         raise HTTPException(status_code=422, detail="send either password or remove_password, not both")
     if payload.password is not None:
         profile_passwords.validated_new_password(payload.password)
+    profile_photos.validate_new_photos(payload.new_photos)
 
     if payload.name is not None:
         profile.name = _validated_profile_name(payload.name)
@@ -285,14 +284,16 @@ def patch_profile(
     if payload.reading_support is not None:
         profile.reading_support = payload.reading_support
     # Avatar last, so a validation failure above never leaves a new photo
-    # file orphaned on disk. Re-sending the current avatar (e.g. a saved
-    # photo's /static path) is a no-op rather than a validation error.
-    previous_avatar = profile.avatar
-    if payload.avatar_image_data_url:
-        profile.avatar = _saved_profile_photo(payload.avatar_image_data_url)
-    elif payload.avatar is not None and payload.avatar != profile.avatar:
-        _validate_profile_avatar(payload.avatar)
+    # file orphaned on disk. Re-sending the current avatar is a no-op; any
+    # other avatar is an animal key or one of this profile's saved photos.
+    # Switching away from a photo keeps it in the saved list.
+    if payload.avatar is not None and payload.avatar != profile.avatar:
+        if not profile_photos.owns_photo(session, profile_id, payload.avatar):
+            _validate_profile_avatar(payload.avatar)
         profile.avatar = payload.avatar
+    photo_avatar = profile_photos.add_photos(session, profile_id, payload.new_photos)
+    if photo_avatar is not None:
+        profile.avatar = photo_avatar
 
     if payload.password is not None:
         profile_passwords.set_password(session, profile_id, payload.password)
@@ -302,9 +303,42 @@ def patch_profile(
     session.add(profile)
     session.commit()
     session.refresh(profile)
-    if profile.avatar != previous_avatar:
-        delete_profile_avatar(previous_avatar)
     return ProfileRead.of(profile, profile_passwords.has_password(session, profile_id))
+
+
+def _profile_for_access(session: Session, profile_id: int, profile_password: Optional[str], admin_password: Optional[str]) -> Profile:
+    profile = session.get(Profile, profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+    profile_passwords.require_profile_access(session, profile_id, profile_password, admin_password)
+    return profile
+
+
+@app.get("/api/profiles/{profile_id}/photos", response_model=list[ProfilePhotoRead])
+def list_profile_photos(
+    profile_id: int,
+    session: Session = Depends(get_session),
+    x_profile_password: Optional[str] = Header(default=None),
+    x_admin_password: Optional[str] = Header(default=None),
+) -> list[ProfilePhotoRead]:
+    """Backs the edit screen's "Your pictures" strip — every saved photo and
+    AI remix, oldest first. Same access rule as PATCH."""
+    _profile_for_access(session, profile_id, x_profile_password, x_admin_password)
+    return [ProfilePhotoRead(**photo.model_dump()) for photo in profile_photos.list_photos(session, profile_id)]
+
+
+@app.delete("/api/profiles/{profile_id}/photos/{photo_id}", status_code=204)
+def delete_profile_photo(
+    profile_id: int,
+    photo_id: int,
+    session: Session = Depends(get_session),
+    x_profile_password: Optional[str] = Header(default=None),
+    x_admin_password: Optional[str] = Header(default=None),
+) -> None:
+    """Removes one saved picture (row and file). 409 for the current profile
+    picture — switch to another first. Same access rule as PATCH."""
+    profile = _profile_for_access(session, profile_id, x_profile_password, x_admin_password)
+    profile_photos.delete_photo(session, profile, photo_id)
 
 
 @app.delete("/api/profiles/{profile_id}", status_code=204, dependencies=[Depends(require_admin)])
@@ -345,7 +379,7 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
         for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
             session.delete(row)
 
-    delete_profile_avatar(profile.avatar)
+    profile_photos.delete_all_photos(session, profile)
     session.delete(profile)
     session.commit()
 
