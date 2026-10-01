@@ -3,7 +3,11 @@ maps, both stored server-side so they follow the profile across browsers."""
 
 from datetime import date
 
-ADMIN_HEADERS = {"X-Admin-Password": "test-admin-password"}
+from app.admin_auth import ADMIN_PASSWORD
+
+# The configured password, not a literal: CI sets its own ADMIN_PASSWORD, and
+# conftest only falls back to "test-admin-password" when none is set.
+ADMIN_HEADERS = {"X-Admin-Password": ADMIN_PASSWORD}
 
 
 def _create_profile(client, name="Path Kid") -> int:

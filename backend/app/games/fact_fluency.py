@@ -98,22 +98,41 @@ def _tier_start_level(tier_index: int) -> int:
     return 1 if tier_index == 0 else _TIERS[tier_index - 1].max_level + 1
 
 
+def _band_bounds(tier_index: int) -> tuple[int, int]:
+    """First and last tier index of the run of consecutive tiers that share
+    `_TIERS[tier_index]`'s operator set — its "operator band". The tiers are
+    single-level speed/operand rungs, so the ×/÷ ramp-in and the starting
+    level both reason about bands: a single rung is too short to ease a new
+    operator in over, and starting "one tier short of the ceiling" by rung
+    would drop a brand-new profile straight into ×/÷."""
+    operations = _TIERS[tier_index].operations
+    first = tier_index
+    while first > 0 and _TIERS[first - 1].operations == operations:
+        first -= 1
+    last = tier_index
+    while last < len(_TIERS) - 1 and _TIERS[last + 1].operations == operations:
+        last += 1
+    return first, last
+
+
 def _new_operations_for_tier(tier_index: int) -> tuple[Operator, ...]:
-    """Operators `_TIERS[tier_index]` has that the previous tier didn't —
-    what `draw_operator_with_ramp` eases in gradually rather than at full
-    weight from the tier's first level. Empty for the first tier (nothing to
-    ramp against yet)."""
-    if tier_index == 0:
+    """Operators `_TIERS[tier_index]`'s band has that the band before it
+    didn't — what `draw_operator_with_ramp` eases in gradually across the
+    band rather than at full weight from its first level. Empty for the
+    first band (nothing to ramp against yet)."""
+    first, _ = _band_bounds(tier_index)
+    if first == 0:
         return ()
-    previous_operations = set(_TIERS[tier_index - 1].operations)
+    previous_operations = set(_TIERS[first - 1].operations)
     return tuple(op for op in _TIERS[tier_index].operations if op not in previous_operations)
 
 
-def _tier_progress(level: int, tier_index: int) -> float:
-    """How far `level` is through `_TIERS[tier_index]`'s span — 0.0 at the
-    tier's first level, 1.0 at its last."""
-    start = _tier_start_level(tier_index)
-    end = _TIERS[tier_index].max_level
+def _band_progress(level: int, tier_index: int) -> float:
+    """How far `level` is through `_TIERS[tier_index]`'s operator band — 0.0
+    at the band's first level, 1.0 at its last."""
+    first, last = _band_bounds(tier_index)
+    start = _tier_start_level(first)
+    end = _TIERS[last].max_level
     if end <= start:
         return 1.0
     return (level - start) / (end - start)
@@ -129,14 +148,17 @@ def _max_level_for_age(age: int) -> int:
 
 def _starting_level_for_age(age: int) -> int:
     """Where a *brand-new* profile starts this game — the first level of the
-    tier just *below* the highest one this age has reached, mirroring
+    operator band (see `_band_bounds`) just *below* the highest one this age
+    has reached, mirroring
     `equation_builder`'s identical rule: deliberately one tier short of the
     age ceiling rather than landing right on it, so a kid still has to earn
     the hardest currently-unlocked tier via a genuine promotion. Loop A's
     promote/support rules do the actual fine-tuning from there."""
-    ceiling_index = _tier_index_for_level(_max_level_for_age(age))
-    start_index = max(0, ceiling_index - 1)
-    return _tier_start_level(start_index)
+    ceiling_band_first, _ = _band_bounds(_tier_index_for_level(_max_level_for_age(age)))
+    if ceiling_band_first == 0:
+        return 1
+    start_band_first, _ = _band_bounds(ceiling_band_first - 1)
+    return _tier_start_level(start_band_first)
 
 
 class FactFluencyGame(GameModule):
@@ -161,7 +183,7 @@ class FactFluencyGame(GameModule):
         tier_index = _tier_index_for_level(level)
         tier = _TIERS[tier_index]
         new_operations = _new_operations_for_tier(tier_index)
-        progress = _tier_progress(level, tier_index)
+        progress = _band_progress(level, tier_index)
 
         # Facts are generated, not drawn from a fixed bank, so a handful of
         # retries is enough to dodge a same-session repeat — same reasoning

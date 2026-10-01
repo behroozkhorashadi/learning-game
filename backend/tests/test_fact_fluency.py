@@ -164,9 +164,11 @@ def test_promotion_into_the_operator_tier_ramps_in_multiplication_and_division_g
     """A kid promoted into the tier that first introduces ×/÷ must not be
     dropped straight into it at full blast on that tier's very first level —
     the ramp mechanism (test_arithmetic.py) applies here regardless of age."""
-    operator_tier = _TIERS[-1]
-    first_level = operator_tier.max_level - 2  # this tier spans exactly 3 levels (8, 9, 10)
-    last_level = operator_tier.max_level
+    # The tiers are single-level rungs, so the ramp runs across the whole
+    # band of rungs that has ×/÷, from the first level that adds them.
+    first_level = next(tier.max_level for tier in _TIERS if "×" in tier.operations)
+    last_level = _TIERS[-1].max_level
+    assert last_level - first_level >= 2, "×/÷ needs several levels to ramp in over"
 
     def new_op_share(level: int) -> float:
         operators = [GAME.generate_item(level=level, rng=Random(seed)).payload["operator"] for seed in range(500)]
