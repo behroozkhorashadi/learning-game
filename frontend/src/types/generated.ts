@@ -7,7 +7,8 @@ export interface Profile {
   avatar: string;
   birth_year: number;
   reading_support?: boolean;
-  created_at?: string;
+  created_at?: string | null;
+  has_password?: boolean;
 }
 
 export interface ProfileCreate {
@@ -16,6 +17,7 @@ export interface ProfileCreate {
   birth_year: number;
   reading_support?: boolean;
   avatar_image_data_url?: string | null;
+  password?: string | null;
 }
 
 export interface ProfileUpdate {
@@ -24,6 +26,12 @@ export interface ProfileUpdate {
   birth_year?: number | null;
   reading_support?: boolean | null;
   avatar_image_data_url?: string | null;
+  password?: string | null;
+  remove_password?: boolean;
+}
+
+export interface ProfileUnlockRequest {
+  password: string;
 }
 
 export interface ProfilePhotoRemixRequest {

@@ -2,9 +2,14 @@
 
 - GET  /api/profiles     : read-only listing for the profile-picker screen.
 - POST /api/profiles     : backs the create-profile screen.
-- PATCH/DELETE /api/profiles/{id}: backs the admin screen's edit/remove
-  actions. Gated by `require_admin` (app/admin_auth.py) — a hardcoded shared
-  password, not real auth (PRD §2 non-goals).
+- POST /api/profiles/{id}/unlock: checks an (optional) profile password, or
+  the admin password as an override — see app/services/profile_passwords.py.
+- PATCH /api/profiles/{id}: backs the edit-profile screen. Needs the profile's
+  password (or the admin password) if it has one.
+- DELETE /api/profiles/{id}: backs the admin screen's remove action. Gated by
+  `require_admin` (app/admin_auth.py) — a hardcoded shared password, not real
+  auth (PRD §2 non-goals).
+- POST /api/profile-photos/remix: AI-restyles a captured photo for preview only.
 - POST /api/admin/login  : lets the admin screen check the password before
   showing itself. Holds no session state — see `app/admin_auth.py`.
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
@@ -45,7 +50,7 @@ from contextlib import asynccontextmanager
 from random import Random
 from typing import AsyncIterator, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
@@ -96,7 +101,10 @@ from app.models.profile import (
     Profile,
     ProfileCreate,
     ProfilePhotoRemixRequest,
+    ProfilePassword,
     ProfilePhotoRemixResponse,
+    ProfileRead,
+    ProfileUnlockRequest,
     ProfileUpdate,
     SkillState,
 )
@@ -108,6 +116,7 @@ from app.services.badges_service import compute_profile_stats, evaluate_and_awar
 from app.services.client_error_log import ClientErrorReport, log_client_error
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
+from app.services import profile_passwords
 from app.services.profile_avatars import delete_profile_avatar, encode_avatar_data_url, remix_profile_photo, save_profile_avatar
 
 
@@ -153,10 +162,12 @@ def _seed_local_profile(session: Session) -> None:
     session.add(Profile(id=2, name=name, avatar=avatar, birth_year=birth_year))
 
 
-@app.get("/api/profiles", response_model=list[Profile])
-def list_profiles(session: Session = Depends(get_session)) -> list[Profile]:
-    """Read-only listing for the profile-picker screen. No auth (PRD §2 non-goals)."""
-    return list(session.exec(select(Profile)).all())
+@app.get("/api/profiles", response_model=list[ProfileRead])
+def list_profiles(session: Session = Depends(get_session)) -> list[ProfileRead]:
+    """Read-only listing for the profile-picker screen. No auth (PRD §2 non-goals)
+    — `has_password` tells the picker which profiles to ask a password for."""
+    protected = set(session.exec(select(ProfilePassword.profile_id)).all())
+    return [ProfileRead.of(p, p.id in protected) for p in session.exec(select(Profile)).all()]
 
 
 def _validated_profile_name(name: str) -> str:
@@ -184,12 +195,14 @@ def _validate_profile_birth_year(birth_year: int) -> None:
         raise HTTPException(status_code=422, detail=f"birth_year implies an age outside {MIN_AGE}-{MAX_AGE}")
 
 
-@app.post("/api/profiles", response_model=Profile, status_code=201)
-def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)) -> Profile:
+@app.post("/api/profiles", response_model=ProfileRead, status_code=201)
+def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)) -> ProfileRead:
     """Backs the create-profile screen. No auth (PRD §2 non-goals) — anyone on
     the LAN can add a player, same trust model as everything else here."""
     name = _validated_profile_name(payload.name)
     _validate_profile_birth_year(payload.birth_year)
+    if payload.password is not None:
+        profile_passwords.validated_new_password(payload.password)
     if payload.avatar_image_data_url:
         avatar = _saved_profile_photo(payload.avatar_image_data_url)
     else:
@@ -198,9 +211,24 @@ def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)
 
     profile = Profile(name=name, avatar=avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
     session.add(profile)
+    session.flush()
+    if payload.password is not None:
+        profile_passwords.set_password(session, profile.id, payload.password)
     session.commit()
     session.refresh(profile)
-    return profile
+    return ProfileRead.of(profile, payload.password is not None)
+
+
+@app.post("/api/profiles/{profile_id}/unlock", status_code=204)
+def unlock_profile(profile_id: int, payload: ProfileUnlockRequest, session: Session = Depends(get_session)) -> None:
+    """Backs the password prompt shown when a kid picks a protected profile
+    (or opens its edit screen). Accepts the profile's own password, or the
+    admin password as an override. A profile with no password always
+    unlocks. Like `admin_login`, this holds no session state — the frontend
+    keeps the password and sends it on later edits as `X-Profile-Password`."""
+    if session.get(Profile, profile_id) is None:
+        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+    profile_passwords.require_profile_access(session, profile_id, payload.password, None)
 
 
 @app.post("/api/profile-photos/remix", response_model=ProfilePhotoRemixResponse)
@@ -228,12 +256,26 @@ def admin_login(payload: AdminLoginRequest) -> None:
     verify_admin_password(payload.password)
 
 
-@app.patch("/api/profiles/{profile_id}", response_model=Profile, dependencies=[Depends(require_admin)])
-def patch_profile(profile_id: int, payload: ProfileUpdate, session: Session = Depends(get_session)) -> Profile:
-    """Admin-only (see `app/admin_auth.py`) — backs the edit-profile screen."""
+@app.patch("/api/profiles/{profile_id}", response_model=ProfileRead)
+def patch_profile(
+    profile_id: int,
+    payload: ProfileUpdate,
+    session: Session = Depends(get_session),
+    x_profile_password: Optional[str] = Header(default=None),
+    x_admin_password: Optional[str] = Header(default=None),
+) -> ProfileRead:
+    """Backs the edit-profile screen. A password-protected profile needs its
+    own password (`X-Profile-Password`) or the admin password (either header)
+    — see `app/services/profile_passwords.py`. A profile with no password is
+    editable by anyone, same as creating one."""
     profile = session.get(Profile, profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+    profile_passwords.require_profile_access(session, profile_id, x_profile_password, x_admin_password)
+    if payload.password is not None and payload.remove_password:
+        raise HTTPException(status_code=422, detail="send either password or remove_password, not both")
+    if payload.password is not None:
+        profile_passwords.validated_new_password(payload.password)
 
     if payload.name is not None:
         profile.name = _validated_profile_name(payload.name)
@@ -252,12 +294,17 @@ def patch_profile(profile_id: int, payload: ProfileUpdate, session: Session = De
         _validate_profile_avatar(payload.avatar)
         profile.avatar = payload.avatar
 
+    if payload.password is not None:
+        profile_passwords.set_password(session, profile_id, payload.password)
+    elif payload.remove_password:
+        profile_passwords.remove_password(session, profile_id)
+
     session.add(profile)
     session.commit()
     session.refresh(profile)
     if profile.avatar != previous_avatar:
         delete_profile_avatar(previous_avatar)
-    return profile
+    return ProfileRead.of(profile, profile_passwords.has_password(session, profile_id))
 
 
 @app.delete("/api/profiles/{profile_id}", status_code=204, dependencies=[Depends(require_admin)])
@@ -293,6 +340,7 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
         PracticeConfig,
         PathfinderLevelCompletion,
         PathfinderCustomMap,
+        ProfilePassword,
     ):
         for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
             session.delete(row)

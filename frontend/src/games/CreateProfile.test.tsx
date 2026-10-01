@@ -59,7 +59,7 @@ describe('CreateProfile', () => {
     fillValidForm()
     fireEvent.click(screen.getByRole('button', { name: 'Create profile' }))
 
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(createdProfile))
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(createdProfile, null))
 
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/profiles',
@@ -71,6 +71,7 @@ describe('CreateProfile', () => {
           birth_year: 2019,
           reading_support: false,
           avatar_image_data_url: null,
+          password: null,
         }),
       }),
     )
@@ -97,5 +98,26 @@ describe('CreateProfile', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('sends the password and hands it to onCreated once both boxes match', async () => {
+    const createdProfile = { id: 3, name: 'Nora', avatar: 'cat', birth_year: 2019, has_password: true }
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => createdProfile } as Response)) as unknown as typeof fetch
+    const onCreated = vi.fn()
+
+    render(<CreateProfile onCreated={onCreated} onCancel={vi.fn()} />)
+    fillValidForm()
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'abc' } })
+    fireEvent.change(screen.getByLabelText('Type the password again'), { target: { value: 'abc' } })
+    expect(screen.getByText(/at least 4 characters/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create profile' }))
+    expect(global.fetch).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'tiger42' } })
+    fireEvent.change(screen.getByLabelText('Type the password again'), { target: { value: 'tiger42' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create profile' }))
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(createdProfile, 'tiger42'))
+    expect(JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body)).password).toBe('tiger42')
   })
 })

@@ -79,7 +79,7 @@ export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmi
                 <button
                   type="button"
                   onClick={() => p.id != null && onSelect(p)}
-                  aria-label={`Play as ${p.name}`}
+                  aria-label={p.has_password ? `Play as ${p.name} (needs a password)` : `Play as ${p.name}`}
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 8 }}
                 >
                   <div style={{ width: 150, height: 150, borderRadius: 9999, padding: 6, background: theme.ring, boxShadow: `0 8px 0 ${theme.lip}`, boxSizing: 'border-box' }}>
@@ -87,7 +87,10 @@ export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmi
                       <ProfileAvatar avatar={p.avatar} name={p.name} />
                     </div>
                   </div>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: 'var(--fg-primary)' }}>{p.name}</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: 'var(--fg-primary)' }}>
+                    {p.has_password && <span aria-hidden="true" style={{ fontSize: 18, marginRight: 6 }}>🔒</span>}
+                    {p.name}
+                  </span>
                 </button>
                 <button
                   type="button"

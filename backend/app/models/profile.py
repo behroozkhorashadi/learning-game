@@ -39,6 +39,9 @@ class ProfileCreate(BaseModel):
     # A captured (and possibly AI-remixed) photo as a data URL; when set it
     # replaces `avatar` with the saved file's /static path.
     avatar_image_data_url: Optional[str] = None
+    # Optional — a profile without one works exactly as before (anyone can
+    # pick it). See `app/services/profile_passwords.py`.
+    password: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -53,6 +56,17 @@ class ProfileUpdate(BaseModel):
     # Same meaning as on `ProfileCreate` — a new photo that replaces whatever
     # avatar the profile had. Takes precedence over `avatar` if both are sent.
     avatar_image_data_url: Optional[str] = None
+    # Sets (or changes) the profile's password. `remove_password` clears it;
+    # sending both is a 422.
+    password: Optional[str] = None
+    remove_password: bool = False
+
+
+class ProfileUnlockRequest(BaseModel):
+    """Inbound POST body for /api/profiles/{profile_id}/unlock — the
+    profile's own password, or the admin password as an override."""
+
+    password: str
 
 
 class ProfilePhotoRemixRequest(BaseModel):
@@ -83,6 +97,35 @@ class Profile(SQLModel, table=True):
     def age(self) -> int:
         """Approximate current age, derived rather than stored so it never goes stale."""
         return date.today().year - self.birth_year
+
+
+class ProfileRead(BaseModel):
+    """What the API returns for a profile: `Profile` plus whether it's
+    password-protected. Exported to the frontend *as* `Profile` (see
+    `scripts/generate_ts_types.py`), since this — not the table row — is the
+    shape the frontend ever sees."""
+
+    id: Optional[int] = None
+    name: str
+    avatar: str
+    birth_year: int
+    reading_support: bool = False
+    created_at: Optional[datetime] = None
+    has_password: bool = False
+
+    @classmethod
+    def of(cls, profile: "Profile", has_password: bool) -> "ProfileRead":
+        return cls(**profile.model_dump(), has_password=has_password)
+
+
+class ProfilePassword(SQLModel, table=True):
+    """A profile's password hash, one row per protected profile. Its own
+    table rather than a `Profile` column so the hash can never ride along in
+    a serialized `Profile`, and so existing databases pick it up through
+    `create_all` with no migration."""
+
+    profile_id: int = Field(foreign_key="profile.id", primary_key=True)
+    password_hash: str
 
 
 class SkillState(SQLModel, table=True):

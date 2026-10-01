@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { DenButton } from './den/DenButton'
 
-// Shared by AdminPanel.tsx and EditProfile.tsx — both gate profile edits
-// behind the same admin password (see `backend/app/admin_auth.py`).
+// The admin screen's password gate (see `backend/app/admin_auth.py`), plus the
+// card layout shared with the profile edit/unlock screens.
 
 export function CardShell({ children }: { children: ReactNode }) {
   return (

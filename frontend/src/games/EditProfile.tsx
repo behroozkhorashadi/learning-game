@@ -1,43 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { DenButton } from '../components/den/DenButton'
-import { CardShell, LoginForm } from '../components/AdminLoginForm'
+import { CardShell } from '../components/AdminLoginForm'
 import { ProfileFormFields, MIN_AGE, MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
 import { ProfilePhotoCapture } from '../components/ProfilePhotoCapture'
+import { ProfilePasswordFields, EMPTY_PASSWORD_DRAFT, passwordDraftError } from '../components/ProfilePasswordFields'
 import type { Profile, ProfileUpdate } from '../types/generated'
 
 /**
- * Edit-profile screen: name, birthday, reading support, and the avatar
- * (an animal, the saved photo, or a new photo, optionally remixed). Used two
- * ways: `EditProfileForm` inside AdminPanel (already logged in), and
- * `EditProfile` from the pencil on ProfilePicker / GamePicker, which runs the
- * admin-password check itself (PATCH /api/profiles/{id} is admin-only).
+ * Edit-profile screen: name, birthday, reading support, password, and the
+ * avatar (an animal, the saved photo, or a new photo, optionally remixed).
+ *
+ * The caller has already checked whoever is editing and passes the matching
+ * header in `authHeaders`: `X-Profile-Password` from App (the password typed
+ * into ProfileUnlock — the profile's own, or the admin password as an
+ * override), or `X-Admin-Password` from AdminPanel. An unprotected profile
+ * needs no header at all.
  */
 
 const isPhotoAvatar = (avatar: string) => avatar.startsWith('/static/')
 
-export function EditProfileForm({
-  profile,
-  adminPassword,
-  onSaved,
-  onCancel,
-}: {
+interface Props {
   profile: Profile
-  adminPassword: string
-  onSaved: (profile: Profile) => void
+  authHeaders: Record<string, string>
+  /** `password` is the profile's new password if it was set or changed,
+   * null if it was removed, and undefined if it didn't change. */
+  onSaved: (profile: Profile, password?: string | null) => void
   onCancel: () => void
-}) {
+}
+
+export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) {
   const [name, setName] = useState(profile.name)
   const [birthday, setBirthday] = useState(`${profile.birth_year}-01-01`)
   const [avatar, setAvatar] = useState<string | null>(isPhotoAvatar(profile.avatar) ? null : profile.avatar)
   const [photo, setPhoto] = useState<string | null>(isPhotoAvatar(profile.avatar) ? profile.avatar : null)
   const [readingSupport, setReadingSupport] = useState(profile.reading_support ?? false)
+  const [passwordDraft, setPasswordDraft] = useState(EMPTY_PASSWORD_DRAFT)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const birthYear = birthday ? birthYearOf(birthday) : null
   const age = birthYear != null ? ageOf(birthYear) : null
   const ageInRange = age != null && age >= MIN_AGE && age <= MAX_AGE
-  const canSubmit = name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && !submitting
+  const canSubmit =
+    name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && passwordDraftError(passwordDraft) == null && !submitting
 
   async function handleSubmit() {
     if (!canSubmit || birthYear == null) return
@@ -46,10 +51,12 @@ export function EditProfileForm({
     const payload: ProfileUpdate = { name: name.trim(), birth_year: birthYear, reading_support: readingSupport }
     if (photo?.startsWith('data:')) payload.avatar_image_data_url = photo
     else payload.avatar = photo ?? avatar
+    if (passwordDraft.remove) payload.remove_password = true
+    else if (passwordDraft.password) payload.password = passwordDraft.password
     try {
       const res = await fetch(`/api/profiles/${profile.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
@@ -57,7 +64,7 @@ export function EditProfileForm({
         throw new Error(body?.detail ?? `PATCH /api/profiles/${profile.id} -> ${res.status}`)
       }
       const updated: Profile = await res.json()
-      onSaved(updated)
+      onSaved(updated, passwordDraft.remove ? null : passwordDraft.password || undefined)
     } catch (err) {
       setError(String(err))
     } finally {
@@ -85,6 +92,8 @@ export function EditProfileForm({
         onReadingSupportChange={setReadingSupport}
       />
 
+      <ProfilePasswordFields draft={passwordDraft} onChange={setPasswordDraft} hasPassword={profile.has_password ?? false} />
+
       <div className="profile-avatar-divider"><span>or use a photo</span></div>
       <ProfilePhotoCapture
         value={photo}
@@ -104,43 +113,4 @@ export function EditProfileForm({
       </div>
     </CardShell>
   )
-}
-
-interface Props {
-  profile: Profile
-  onSaved: (profile: Profile) => void
-  onCancel: () => void
-}
-
-/** Standalone entry point. Tries the empty password first so a setup with no
- * `ADMIN_PASSWORD` goes straight to the form; otherwise asks for it. */
-export function EditProfile({ profile, onSaved, onCancel }: Props) {
-  const [adminPassword, setAdminPassword] = useState<string | null>(null)
-  const [needsPassword, setNeedsPassword] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: '' }),
-    })
-      .then((res) => {
-        if (cancelled) return
-        if (res.ok) setAdminPassword('')
-        else setNeedsPassword(true)
-      })
-      .catch(() => !cancelled && setNeedsPassword(true))
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (adminPassword != null) {
-    return <EditProfileForm profile={profile} adminPassword={adminPassword} onSaved={onSaved} onCancel={onCancel} />
-  }
-  if (needsPassword) {
-    return <LoginForm onAuthenticated={setAdminPassword} onCancel={onCancel} />
-  }
-  return null
 }

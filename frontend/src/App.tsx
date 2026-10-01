@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ProfilePicker } from './games/ProfilePicker'
 import { CreateProfile } from './games/CreateProfile'
 import { EditProfile } from './games/EditProfile'
+import { ProfileUnlock } from './games/ProfileUnlock'
 import { AdminPanel } from './games/AdminPanel'
 import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
 import { GamePicker } from './games/GamePicker'
@@ -20,14 +21,20 @@ import type { Profile } from './types/generated'
 
 function App() {
   const [profile, setProfile] = useState<Profile | null>(null)
+  // The password that unlocked `profile` (its own, or the admin override),
+  // kept in memory only so "Edit profile" doesn't ask again. Null for an
+  // unprotected profile.
+  const [profilePassword, setProfilePassword] = useState<string | null>(null)
   const [gameId, setGameId] = useState<string | null>(null)
   const [showBadges, setShowBadges] = useState(false)
   const [showStorybook, setShowStorybook] = useState(false)
   const [creatingProfile, setCreatingProfile] = useState(false)
-  // Set from either picker's pencil; `editReturnsToGames` records which one
-  // so Save/Cancel lands back where the edit started.
-  const [editingProfile, setEditingProfile] = useState<Profile | null>(null)
-  const [editReturnsToGames, setEditReturnsToGames] = useState(false)
+  // A protected profile picked on ProfilePicker (to play, or via its edit
+  // pencil) waiting on its password.
+  const [unlocking, setUnlocking] = useState<{ profile: Profile; next: 'play' | 'edit' } | null>(null)
+  // Set from either picker's pencil; `returnToGames` records which one so
+  // Save/Cancel lands back where the edit started.
+  const [editing, setEditing] = useState<{ profile: Profile; password: string | null; returnToGames: boolean } | null>(null)
   const [showAdmin, setShowAdmin] = useState(false)
   const [practiceSettingsGameId, setPracticeSettingsGameId] = useState<string | null>(null)
 
@@ -44,32 +51,60 @@ function App() {
   } else if (creatingProfile) {
     content = (
       <CreateProfile
-        onCreated={(newProfile) => {
+        onCreated={(newProfile, password) => {
           setCreatingProfile(false)
           setProfile(newProfile)
+          setProfilePassword(password)
         }}
         onCancel={() => setCreatingProfile(false)}
       />
     )
-  } else if (editingProfile != null) {
+  } else if (unlocking != null) {
+    content = (
+      <ProfileUnlock
+        profile={unlocking.profile}
+        onUnlocked={(password) => {
+          setUnlocking(null)
+          if (unlocking.next === 'play') {
+            setProfile(unlocking.profile)
+            setProfilePassword(password)
+          } else {
+            setEditing({ profile: unlocking.profile, password, returnToGames: false })
+          }
+        }}
+        onCancel={() => setUnlocking(null)}
+      />
+    )
+  } else if (editing != null) {
     content = (
       <EditProfile
-        profile={editingProfile}
-        onSaved={(updated) => {
-          setEditingProfile(null)
-          if (editReturnsToGames) setProfile(updated)
+        profile={editing.profile}
+        authHeaders={editing.password != null ? { 'X-Profile-Password': editing.password } : {}}
+        onSaved={(updated, newPassword) => {
+          setEditing(null)
+          if (editing.returnToGames) {
+            setProfile(updated)
+            if (newPassword !== undefined) setProfilePassword(newPassword)
+          }
         }}
-        onCancel={() => setEditingProfile(null)}
+        onCancel={() => setEditing(null)}
       />
     )
   } else if (profile == null) {
     content = (
       <ProfilePicker
-        onSelect={setProfile}
+        onSelect={(p) => {
+          if (p.has_password) {
+            setUnlocking({ profile: p, next: 'play' })
+          } else {
+            setProfile(p)
+            setProfilePassword(null)
+          }
+        }}
         onAddPlayer={() => setCreatingProfile(true)}
         onEditProfile={(p) => {
-          setEditReturnsToGames(false)
-          setEditingProfile(p)
+          if (p.has_password) setUnlocking({ profile: p, next: 'edit' })
+          else setEditing({ profile: p, password: null, returnToGames: false })
         }}
         onOpenAdmin={() => setShowAdmin(true)}
       />
@@ -92,11 +127,11 @@ function App() {
       <GamePicker
         profile={profile}
         onSelectGame={setGameId}
-        onSwitchProfile={() => setProfile(null)}
-        onEditProfile={() => {
-          setEditReturnsToGames(true)
-          setEditingProfile(profile)
+        onSwitchProfile={() => {
+          setProfile(null)
+          setProfilePassword(null)
         }}
+        onEditProfile={() => setEditing({ profile, password: profilePassword, returnToGames: true })}
         onViewBadges={() => setShowBadges(true)}
         onOpenStorybook={() => setShowStorybook(true)}
         onOpenPracticeSettings={setPracticeSettingsGameId}

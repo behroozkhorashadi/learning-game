@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { DenButton } from '../components/den/DenButton'
 import { ProfileFormFields, MIN_AGE, MAX_AGE, READING_SUPPORT_DEFAULT_MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
 import { ProfilePhotoCapture } from '../components/ProfilePhotoCapture'
+import { ProfilePasswordFields, EMPTY_PASSWORD_DRAFT, passwordDraftError } from '../components/ProfilePasswordFields'
 import type { Profile, ProfileCreate } from '../types/generated'
 
 /**
@@ -17,7 +18,9 @@ import type { Profile, ProfileCreate } from '../types/generated'
 const CURRENT_YEAR = new Date().getFullYear()
 
 interface Props {
-  onCreated: (profile: Profile) => void
+  /** `password` is the one just set, or null — App keeps it so the new
+   * player can edit their profile without being asked for it again. */
+  onCreated: (profile: Profile, password: string | null) => void
   onCancel: () => void
 }
 
@@ -28,13 +31,15 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
   const [photo, setPhoto] = useState<string | null>(null)
   const [readingSupport, setReadingSupport] = useState(false)
   const [readingSupportTouched, setReadingSupportTouched] = useState(false)
+  const [passwordDraft, setPasswordDraft] = useState(EMPTY_PASSWORD_DRAFT)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const birthYear = birthday ? birthYearOf(birthday) : null
   const age = birthYear != null ? ageOf(birthYear) : null
   const ageInRange = age != null && age >= MIN_AGE && age <= MAX_AGE
-  const canSubmit = name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && !submitting
+  const canSubmit =
+    name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && passwordDraftError(passwordDraft) == null && !submitting
 
   function handleBirthdayChange(value: string) {
     setBirthday(value)
@@ -53,6 +58,7 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
       birth_year: birthYear,
       reading_support: readingSupport,
       avatar_image_data_url: photo,
+      password: passwordDraft.password || null,
     }
     try {
       const res = await fetch('/api/profiles', {
@@ -65,7 +71,7 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
         throw new Error(body?.detail ?? `POST /api/profiles -> ${res.status}`)
       }
       const profile: Profile = await res.json()
-      onCreated(profile)
+      onCreated(profile, payload.password ?? null)
     } catch (err) {
       setError(String(err))
     } finally {
@@ -106,6 +112,8 @@ export function CreateProfile({ onCreated, onCancel }: Props) {
             if (value) setAvatar(null)
           }}
         />
+
+        <ProfilePasswordFields draft={passwordDraft} onChange={setPasswordDraft} />
 
         {error && <div style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>{error}</div>}
 

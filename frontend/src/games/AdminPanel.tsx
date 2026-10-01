@@ -3,7 +3,7 @@ import { DenButton } from '../components/den/DenButton'
 import { CardShell, LoginForm } from '../components/AdminLoginForm'
 import { ageOf } from '../components/ProfileFormFields'
 import { ProfileAvatar } from './ProfilePicker'
-import { EditProfileForm } from './EditProfile'
+import { EditProfile } from './EditProfile'
 import type { Profile } from '../types/generated'
 
 /**
@@ -83,7 +83,10 @@ function ProfileRow({
           </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--fg-primary)' }}>{profile.name}</div>
-            <div style={{ fontSize: 13, color: 'var(--fg-tertiary)' }}>Age {ageOf(profile.birth_year)}</div>
+            <div style={{ fontSize: 13, color: 'var(--fg-tertiary)' }}>
+              Age {ageOf(profile.birth_year)}
+              {profile.has_password && ' · 🔒 Has a password'}
+            </div>
           </div>
         </div>
 
@@ -138,9 +141,9 @@ export function AdminPanel({ onClose }: Props) {
 
   if (editingProfile != null) {
     return (
-      <EditProfileForm
+      <EditProfile
         profile={editingProfile}
-        adminPassword={adminPassword}
+        authHeaders={{ 'X-Admin-Password': adminPassword }}
         onSaved={() => {
           setEditingProfile(null)
           refetchProfiles()

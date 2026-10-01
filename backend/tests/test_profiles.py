@@ -137,18 +137,120 @@ def test_admin_endpoints_open_without_header_when_no_password_is_configured(clie
     assert response.json()["name"] == "Renamed"
 
 
-def test_patch_profile_without_admin_header_is_rejected(client):
+@pytest.fixture
+def admin_password(monkeypatch):
+    monkeypatch.setattr(admin_auth, "ADMIN_PASSWORD", "admin-secret")
+    return "admin-secret"
+
+
+def test_patch_unprotected_profile_needs_no_password(client, admin_password):
+    """A profile with no password is editable by anyone, same as creating one."""
     profile = _create_profile(client)
     response = client.patch(f"/api/profiles/{profile['id']}", json={"name": "New Name"})
-    assert response.status_code == 401
+    assert response.status_code == 200
+    assert response.json()["name"] == "New Name"
 
 
-def test_patch_profile_with_wrong_admin_header_is_rejected(client):
-    profile = _create_profile(client)
-    response = client.patch(
-        f"/api/profiles/{profile['id']}", json={"name": "New Name"}, headers={"X-Admin-Password": "nope"}
+def test_profile_password_is_never_returned(client):
+    profile = _create_profile(client, password="tiger42")
+
+    assert profile["has_password"] is True
+    assert not any("hash" in key or key == "password" for key in profile)
+    listed = next(p for p in client.get("/api/profiles").json() if p["id"] == profile["id"])
+    assert listed["has_password"] is True
+    assert not any("hash" in key or key == "password" for key in listed)
+
+
+def test_create_profile_rejects_too_short_password(client):
+    response = client.post(
+        "/api/profiles", json={"name": "Ada", "avatar": "fox", "birth_year": date.today().year - 6, "password": "abc"}
     )
-    assert response.status_code == 401
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("password", "expected"),
+    [("tiger42", 204), ("wrong", 401), ("", 401), ("admin-secret", 204)],
+)
+def test_unlock_accepts_profile_password_or_admin_override(client, admin_password, password, expected):
+    profile = _create_profile(client, password="tiger42")
+    response = client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": password})
+    assert response.status_code == expected
+
+
+def test_unlock_without_configured_admin_password_has_no_blank_override(client, no_admin_password):
+    """With ADMIN_PASSWORD unset, the admin password is "" — that must not
+    turn a blank entry into a skeleton key for every protected profile."""
+    profile = _create_profile(client, password="tiger42")
+
+    assert client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": ""}).status_code == 401
+    assert client.patch(f"/api/profiles/{profile['id']}", json={"name": "X"}).status_code == 401
+    assert client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": "tiger42"}).status_code == 204
+
+
+def test_unlock_unprotected_profile_always_succeeds(client):
+    profile = _create_profile(client)
+    assert client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": ""}).status_code == 204
+
+
+@pytest.mark.parametrize(
+    ("headers", "expected"),
+    [
+        ({}, 401),
+        ({"X-Profile-Password": "wrong"}, 401),
+        ({"X-Profile-Password": "tiger42"}, 200),
+        ({"X-Profile-Password": "admin-secret"}, 200),
+        ({"X-Admin-Password": "admin-secret"}, 200),
+        ({"X-Admin-Password": "wrong"}, 401),
+    ],
+)
+def test_patch_protected_profile_needs_its_password_or_admin(client, admin_password, headers, expected):
+    profile = _create_profile(client, password="tiger42")
+    response = client.patch(f"/api/profiles/{profile['id']}", json={"name": "Renamed"}, headers=headers)
+    assert response.status_code == expected
+
+
+def test_change_and_remove_profile_password(client, admin_password):
+    profile = _create_profile(client, password="tiger42")
+    url = f"/api/profiles/{profile['id']}"
+
+    changed = client.patch(url, json={"password": "lion99"}, headers={"X-Profile-Password": "tiger42"})
+    assert changed.status_code == 200 and changed.json()["has_password"] is True
+    assert client.post(f"{url}/unlock", json={"password": "tiger42"}).status_code == 401
+    assert client.post(f"{url}/unlock", json={"password": "lion99"}).status_code == 204
+
+    # Forgotten password: the admin override can clear it.
+    removed = client.patch(url, json={"remove_password": True}, headers={"X-Admin-Password": "admin-secret"})
+    assert removed.status_code == 200 and removed.json()["has_password"] is False
+    assert client.patch(url, json={"name": "Open again"}).status_code == 200
+
+
+def test_patch_rejects_setting_and_removing_password_together(client):
+    profile = _create_profile(client)
+    response = client.patch(f"/api/profiles/{profile['id']}", json={"password": "lion99", "remove_password": True})
+    assert response.status_code == 422
+
+
+def test_patch_rejects_bad_new_password_without_changing_anything(client):
+    profile = _create_profile(client, name="Before")
+    response = client.patch(f"/api/profiles/{profile['id']}", json={"name": "After", "password": "ab"})
+    assert response.status_code == 422
+    listed = next(p for p in client.get("/api/profiles").json() if p["id"] == profile["id"])
+    assert listed["name"] == "Before" and listed["has_password"] is False
+
+
+def test_delete_profile_removes_its_password(client, admin_password):
+    from sqlmodel import Session
+
+    from app.db import engine
+    from app.models.profile import ProfilePassword
+
+    profile = _create_profile(client, password="tiger42")
+    response = client.delete(f"/api/profiles/{profile['id']}", headers={"X-Admin-Password": "admin-secret"})
+
+    assert response.status_code == 204
+    with Session(engine) as session:
+        assert session.get(ProfilePassword, profile["id"]) is None
 
 
 def test_patch_profile_updates_only_provided_fields(client):

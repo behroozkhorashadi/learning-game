@@ -43,10 +43,11 @@ from app.models.pathfinder import (  # noqa: E402
 )
 from app.models.practice_config import PracticeConfig, PracticeConfigUpsert  # noqa: E402
 from app.models.profile import (  # noqa: E402
-    Profile,
     ProfileCreate,
     ProfilePhotoRemixRequest,
     ProfilePhotoRemixResponse,
+    ProfileRead,
+    ProfileUnlockRequest,
     ProfileUpdate,
     SkillState,
 )
@@ -58,9 +59,10 @@ from app.models.verification import Verification, VerificationCreate  # noqa: E4
 
 # The exported surface: every model the frontend contract touches.
 MODELS = [
-    Profile,
+    ProfileRead,
     ProfileCreate,
     ProfileUpdate,
+    ProfileUnlockRequest,
     ProfilePhotoRemixRequest,
     ProfilePhotoRemixResponse,
     PracticeConfig,
@@ -101,6 +103,12 @@ MODELS = [
     TurnLineCreate,
     TurnLine,
 ]
+
+# Models exported under a different TS name than their Python class. The API
+# returns `ProfileRead` (the table row plus `has_password`, minus anything
+# secret) everywhere a profile goes out, so the frontend's `Profile` *is* that
+# shape — the `Profile` table class itself is never sent to the browser.
+TS_NAMES = {ProfileRead: "Profile"}
 
 OUTPUT_PATH = BACKEND_ROOT.parent / "frontend" / "src" / "types" / "generated.ts"
 
@@ -169,13 +177,14 @@ def generate() -> str:
             else:
                 chunks.append(_render_interface(def_name, def_schema))
 
-        if model.__name__ in emitted:
+        ts_name = TS_NAMES.get(model, model.__name__)
+        if ts_name in emitted:
             continue
-        emitted.add(model.__name__)
+        emitted.add(ts_name)
         if "enum" in schema:
-            chunks.append(_render_enum(model.__name__, schema))
+            chunks.append(_render_enum(ts_name, schema))
         else:
-            chunks.append(_render_interface(model.__name__, schema))
+            chunks.append(_render_interface(ts_name, schema))
 
     return "\n".join(chunks) + "\n"
 
