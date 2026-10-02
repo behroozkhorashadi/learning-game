@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AVATAR_OPTIONS } from '../components/ProfileFormFields'
 import type { Profile } from '../types/generated'
 
 /**
@@ -23,26 +24,31 @@ interface Props {
   onOpenAdmin: () => void
 }
 
-/** `profile.avatar` is a bare key (e.g. `"fox"`, `"rami"`), not a path —
- * this looks it up under `/images/avatars/<avatar>.png` and falls back to
- * the profile's own initial (the picker's original look) if that key has
- * no real art yet, the same `onError`-driven pattern `SessionStart.tsx`'s
- * `HeroArt` already uses for missing badge art. */
+/** `profile.avatar` is one of three things:
+ * - an animal key from the create-profile list (`"fox"`, …) — shown as its
+ *   emoji right away, since none of those has real art yet (requesting a
+ *   missing PNG first left an empty circle until the 404 came back);
+ * - a saved photo's `/static/...` URL;
+ * - any other bare key (e.g. a local seed's `"rami"`), looked up under
+ *   `/images/avatars/<avatar>.png`.
+ * An image that fails to load falls back to the profile's own initial, the
+ * same `onError`-driven pattern `SessionStart.tsx`'s `HeroArt` uses for
+ * missing badge art. */
 export function ProfileAvatar({ avatar, name }: { avatar: string; name: string }) {
-  const [broken, setBroken] = useState(false)
+  // Tracks *which* src failed, so a tile whose avatar changes gets a fresh try.
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null)
 
-  if (broken) {
+  const animal = AVATAR_OPTIONS.find((option) => option.key === avatar)
+  if (animal) {
+    return <span style={{ fontSize: '0.9em', lineHeight: 1 }}>{animal.emoji}</span>
+  }
+
+  const src = avatar.startsWith('/static/') ? avatar : `/images/avatars/${avatar}.png`
+  if (brokenSrc === src) {
     return <>{name.charAt(0).toUpperCase()}</>
   }
 
-  return (
-    <img
-      src={avatar.startsWith('/static/') ? avatar : `/images/avatars/${avatar}.png`}
-      alt=""
-      onError={() => setBroken(true)}
-      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-    />
-  )
+  return <img src={src} alt="" onError={() => setBrokenSrc(src)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 }
 
 export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmin }: Props) {
