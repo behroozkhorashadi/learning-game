@@ -391,6 +391,318 @@
       },
       "expected": "miss",
       "recorded": "head"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960692136-s3397",
+      "ndc": {
+        "x": -0.08386749146280015,
+        "y": 0.04790813978079944
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960696771-pd8ri",
+      "ndc": {
+        "x": -0.11336281699602535,
+        "y": 0.0770560939502134
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960700038-wgin0",
+      "ndc": {
+        "x": -0.13472680960644912,
+        "y": 0.04000845950014309
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960717174-l10gk",
+      "ndc": {
+        "x": -0.08672255500195936,
+        "y": 0.009691103840364201
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960720560-prflv",
+      "ndc": {
+        "x": -0.11453143368974972,
+        "y": -0.016732393665327194
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960723853-7o559",
+      "ndc": {
+        "x": -0.10605021552930638,
+        "y": 0.026199569560727998
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960727555-d7vi2",
+      "ndc": {
+        "x": -0.12982141857470753,
+        "y": 0.005610639065473988
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960730086-i82l7",
+      "ndc": {
+        "x": -0.10093489335497952,
+        "y": -0.030578604928902964
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960735485-qm87l",
+      "ndc": {
+        "x": -0.09901052454794823,
+        "y": 0.05786049289028772
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960750706-noefh",
+      "ndc": {
+        "x": -0.10344007165649671,
+        "y": -0.11697747036064832
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960761059-6co4y",
+      "ndc": {
+        "x": -0.1201505906062812,
+        "y": -0.08791659928094253
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960765808-j5i1h",
+      "ndc": {
+        "x": -0.12443318591501984,
+        "y": -0.17407909632633767
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960767718-dxdhv",
+      "ndc": {
+        "x": -0.10356603034204781,
+        "y": -0.1579189629648059
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960769335-fek46",
+      "ndc": {
+        "x": -0.12783407042490058,
+        "y": -0.1406889516440044
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960770953-2crvm",
+      "ndc": {
+        "x": -0.09431506465879191,
+        "y": -0.07602353731510392
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960771970-i4chr",
+      "ndc": {
+        "x": -0.07917203157364383,
+        "y": -0.1261460756627646
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960773858-oxmic",
+      "ndc": {
+        "x": -0.06353915915579689,
+        "y": -0.16912780065436728
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960775807-qrhd6",
+      "ndc": {
+        "x": -0.15806415495717407,
+        "y": -0.13788985233196072
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960780037-btk3r",
+      "ndc": {
+        "x": -0.13714801545093214,
+        "y": -0.09715984723137971
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960782070-ifsmn",
+      "ndc": {
+        "x": -0.14443962380339248,
+        "y": -0.11664157844320311
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960783506-es7h1",
+      "ndc": {
+        "x": -0.16485892627218268,
+        "y": -0.17147904407648373
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960784871-sgxta",
+      "ndc": {
+        "x": -0.13850557017298326,
+        "y": -0.255949641093266
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960787109-osihj",
+      "ndc": {
+        "x": -0.08903179757039692,
+        "y": -0.258363086722317
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "sporty_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790960788888-w7jgf",
+      "ndc": {
+        "x": -0.09891955438616129,
+        "y": -0.20965875869275852
+      },
+      "expected": "body",
+      "recorded": "miss"
     }
   ]
 }

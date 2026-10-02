@@ -13,8 +13,10 @@ import type { Carrier } from '../lib/zombieWaveEngine'
  * Outbreak scene (same camera, lanes, environment colliders and zombie
  * hit testing) with a single frozen zombie. You shoot, the lab shows what the
  * game's hit logic decided, and you label what it *should* have been
- * (H = head, B = body, M = miss). Labeled shots persist in localStorage and
- * export as JSON; "Re-score" replays every saved shot against whatever hit
+ * (H = head, B = body, M = miss). Labeled shots persist in localStorage;
+ * "Save to test set" merges them into the Playwright eval's fixture
+ * (`e2e/fixtures/zombie-hit-lab-shots.json`, via a dev-server endpoint in
+ * `vite.config.ts`); "Re-score" replays every saved shot against whatever hit
  * logic is current, so a hitbox change can be measured against the labels.
  *
  * The canvas is pinned to 16:9 so a shot's NDC maps to the same world ray
@@ -46,6 +48,19 @@ interface LabShot extends LabConfig {
 }
 
 const STORAGE_KEY = 'zombieHitLab.shots.v1'
+
+/** Starting setup, optionally from the URL (`&character=&lane=&distance=&pose=`)
+ * so the Playwright eval can open each labeled setup directly. */
+function initialConfig(): LabConfig {
+  const params = new URLSearchParams(window.location.search)
+  const num = (key: string, fallback: number) => (params.has(key) ? Number(params.get(key)) : fallback)
+  return {
+    characterId: params.get('character') ?? ZOMBIE_CHARACTER_REGISTRY[0].id,
+    lane: num('lane', 1),
+    distance: num('distance', 0.5),
+    poseTime: num('pose', 0.5),
+  }
+}
 const ASPECT = 16 / 9
 const CARRIER_ID = 'lab-zombie'
 
@@ -125,7 +140,8 @@ async function settleScene(hasZombie: () => boolean) {
 const OUTCOME_COLOR: Record<Outcome, string> = { head: '#FF2D55', body: '#2D9CFF', miss: '#9AA0A6' }
 
 export function ZombieHitLab() {
-  const [config, setConfig] = useState<LabConfig>({ characterId: ZOMBIE_CHARACTER_REGISTRY[0].id, lane: 1, distance: 0.5, poseTime: 0.5 })
+  const [config, setConfig] = useState<LabConfig>(initialConfig)
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
   const [shots, setShots] = useState<LabShot[]>(loadShots)
   const [aimNdc, setAimNdc] = useState<{ x: number; y: number } | null>(null)
   const [recoilSignal, setRecoilSignal] = useState(0)
@@ -211,6 +227,22 @@ export function ZombieHitLab() {
     setShots((prev) => prev.map((s) => (results.has(s.id) ? { ...s, rescored: results.get(s.id) } : s)))
     setConfig(original)
     setRescoring(false)
+  }
+
+  async function saveToTestSet() {
+    setSaveStatus('Saving…')
+    try {
+      const res = await fetch('/__hit-lab/append', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shots: labeled }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const { added, total } = (await res.json()) as { added: number; total: number }
+      setSaveStatus(`Added ${added} new shot${added === 1 ? '' : 's'} — test set now has ${total}`)
+    } catch (err) {
+      setSaveStatus(`Save failed: ${String(err)}`)
+    }
   }
 
   function exportJson() {
@@ -378,8 +410,12 @@ export function ZombieHitLab() {
         <button style={btn} disabled={rescoring || !shots.length} onClick={rescoreAll}>
           {rescoring ? 'Re-scoring…' : 'Re-score all'}
         </button>
+        <button style={btn} onClick={saveToTestSet} disabled={!labeled.length}>
+          Save to test set
+        </button>
+        {saveStatus && <span>{saveStatus}</span>}
         <button style={btn} onClick={exportJson} disabled={!labeled.length}>
-          Export JSON
+          Download JSON
         </button>
         <button style={btn} onClick={() => fileInputRef.current?.click()}>
           Import JSON
