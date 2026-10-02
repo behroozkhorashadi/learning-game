@@ -48,6 +48,26 @@ describe('PathfinderEditor', () => {
     expect(screen.getByRole('button', { name: 'My Maps' })).toBeTruthy()
   })
 
+  it('lets you type a two-digit size like 12 one keystroke at a time', () => {
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    const rowsInput = screen.getByLabelText('Rows') as HTMLInputElement
+    fireEvent.change(rowsInput, { target: { value: '' } })
+    fireEvent.change(rowsInput, { target: { value: '1' } })
+    expect(rowsInput.value).toBe('1')
+    fireEvent.change(rowsInput, { target: { value: '12' } })
+    expect(rowsInput.value).toBe('12')
+    expect(screen.getByRole('group', { name: /12 rows by 6 columns/ })).toBeTruthy()
+  })
+
+  it('clamps an out-of-range size once the field loses focus', () => {
+    render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
+    const columnsInput = screen.getByLabelText('Columns') as HTMLInputElement
+    fireEvent.change(columnsInput, { target: { value: '1' } })
+    fireEvent.blur(columnsInput)
+    expect(columnsInput.value).toBe('3')
+    expect(screen.getByRole('group', { name: /6 rows by 3 columns/ })).toBeTruthy()
+  })
+
   it('placing only one dot leaves Check My Puzzle inert (DenButton drops onClick while disabled)', () => {
     render(<PathfinderEditor profileId={PROFILE_ID} username="mia" onPlay={vi.fn()} onViewMyMaps={vi.fn()} />)
     fireEvent.click(gridCell(1, 1))

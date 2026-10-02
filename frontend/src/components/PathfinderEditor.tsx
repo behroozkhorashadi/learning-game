@@ -157,25 +157,11 @@ export function PathfinderEditor({ profileId, username, onPlay, onViewMyMaps }: 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--fg-secondary)' }}>
           Rows
-          <input
-            type="number"
-            min={MIN_SIZE}
-            max={MAX_SIZE}
-            value={rows}
-            onChange={(e) => resizeGrid(clamp(Number(e.target.value)), columns)}
-            style={{ width: 56, padding: '4px 8px', borderRadius: 8, border: '1px solid var(--border-default)' }}
-          />
+          <SizeInput value={rows} onCommit={(n) => resizeGrid(n, columns)} />
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--fg-secondary)' }}>
           Columns
-          <input
-            type="number"
-            min={MIN_SIZE}
-            max={MAX_SIZE}
-            value={columns}
-            onChange={(e) => resizeGrid(rows, clamp(Number(e.target.value)))}
-            style={{ width: 56, padding: '4px 8px', borderRadius: 8, border: '1px solid var(--border-default)' }}
-          />
+          <SizeInput value={columns} onCommit={(n) => resizeGrid(rows, n)} />
         </label>
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-tertiary)' }}>Max {MAX_SIZE}x{MAX_SIZE}</span>
         <DenButton label="My Maps" variant="quiet" onClick={onViewMyMaps} />
@@ -258,6 +244,44 @@ export function PathfinderEditor({ profileId, username, onPlay, onViewMyMaps }: 
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Number box for a grid dimension. Holds the raw text while typing so a
+ * multi-digit size can pass through an out-of-range prefix — typing "12"
+ * goes via "1", which clamping on every keystroke would snap to 3 before
+ * the "2" ever arrived. In-range values apply live; anything else is
+ * clamped once the field loses focus (or Enter is pressed).
+ */
+function SizeInput({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  function commit() {
+    if (draft === null) return
+    const n = clamp(Number(draft === '' ? NaN : draft))
+    setDraft(null)
+    if (n !== value) onCommit(n)
+  }
+
+  return (
+    <input
+      type="number"
+      min={MIN_SIZE}
+      max={MAX_SIZE}
+      value={draft ?? value}
+      onChange={(e) => {
+        const text = e.target.value
+        setDraft(text)
+        const n = Number(text)
+        if (text !== '' && Number.isInteger(n) && n >= MIN_SIZE && n <= MAX_SIZE && n !== value) onCommit(n)
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit()
+      }}
+      style={{ width: 56, padding: '4px 8px', borderRadius: 8, border: '1px solid var(--border-default)' }}
+    />
   )
 }
 
