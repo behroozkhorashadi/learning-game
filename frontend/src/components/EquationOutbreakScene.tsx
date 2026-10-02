@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { PerspectiveCamera } from '@react-three/drei'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
@@ -81,6 +81,10 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
   const groupRef = useRef<THREE.Group>(null!)
   const modelRef = useRef<THREE.Group>(null!)
   const headBoneRef = useRef<THREE.Object3D | null>(null)
+  // Bumped each time ZombieCharacter3D mounts a fresh model clone (e.g. this
+  // carrier's character changes), so the tagging below re-runs on the new
+  // meshes instead of leaving them untagged — and unhittable.
+  const [modelVersion, setModelVersion] = useState(0)
 
   // The outer group's position is the sole source of truth for where a
   // zombie sits along its lane — see `positionAlongLane`, driven by the
@@ -124,7 +128,7 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
         skinned.boundingSphere!.radius *= BOUNDING_SPHERE_PADDING
       }
     })
-  }, [canBeHit, carrier.id])
+  }, [canBeHit, carrier.id, modelVersion])
 
   // The true nearest hit (this zombie, another zombie in front of it, or an
   // environment collider) comes from `resolveRaycastOutcome` over every
@@ -149,6 +153,7 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
           phaseOffsetSeconds={phaseOffsetSeconds}
           onBonesReady={(bones) => {
             headBoneRef.current = bones.head
+            setModelVersion((v) => v + 1)
           }}
         />
       </group>
