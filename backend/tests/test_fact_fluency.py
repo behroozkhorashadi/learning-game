@@ -122,19 +122,16 @@ def test_generate_item_from_practice_config_produces_true_facts():
         assert apply_operator(p["operator"], p["left"], p["right"]) == p["answer"]
 
 
-def test_max_level_for_age_keeps_a_young_profile_off_the_operator_tier():
-    """Regression guard mirroring equation_builder's: a profile too young for
-    multiplication/division (PRD §4) must never have Loop A promote or
-    stretch it into the tier that introduces `×`/`÷`."""
+def test_typical_level_for_age_is_below_the_operator_tier_until_its_min_age():
+    """`typical_level_for_age` only paces promotion (it is not a ceiling), but
+    it should still mark ×/÷ as beyond-typical for a kid younger than the
+    operator tier's `min_age`, so reaching it takes longer streaks."""
     operator_tier = _TIERS[-1]
-    assert operator_tier.operations == ALL_OPERATORS
-
     for age in range(operator_tier.min_age):
-        capped = GAME.max_level_for_age(age)
-        allowed = _tier_for_level(capped).operations
-        assert "×" not in allowed and "÷" not in allowed
+        typical = GAME.typical_level_for_age(age)
+        assert "×" not in _tier_for_level(typical).operations
 
-    assert GAME.max_level_for_age(operator_tier.min_age) == GAME.metadata.max_level
+    assert GAME.typical_level_for_age(operator_tier.min_age) == GAME.metadata.max_level
 
 
 def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their_ceiling():
@@ -147,7 +144,7 @@ def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their
     eight = GAME.starting_level_for_age(8)
     twelve = GAME.starting_level_for_age(12)
 
-    assert eight <= twelve < GAME.max_level_for_age(12)
+    assert eight <= twelve < GAME.typical_level_for_age(12)
 
     # Always the entry level of some tier, never partway/at the end of one.
     for age in range(8, 13):

@@ -8,6 +8,8 @@ covered exhaustively in `test_loop_a_engine.py`; these tests only check that
 the service plugs it into the DB and event log correctly.
 """
 
+from datetime import date
+
 from sqlmodel import Session, select
 
 from app.db import engine
@@ -160,30 +162,19 @@ def test_support_serves_a_confidence_item_on_the_next_request_only(client):
     assert shown_again[-1].payload["pacing"] != "confidence"
 
 
-def test_a_six_year_old_is_never_promoted_or_stretched_into_multiplication_division(client):
-    """Regression guard for the reported bug: a 6-year-old profile acing
-    equation_builder was eventually served a multiplication/division item —
-    a jarring jump PRD §4's 6-year-old persona ("early number sense",
-    addition/subtraction only) never intends. Runs enough correct-streak
-    windows to promote all the way to the game's raw ceiling (level 10) if
-    the age cap weren't wired in, and checks every served item along the way."""
+def test_a_young_kid_who_keeps_mastering_is_promoted_past_their_age_level(client):
+    """Age sets the pace, never a ceiling: a 6-year-old acing equation_builder
+    must eventually reach the ×/÷ tier (level 8+), which is typical from age 8.
+    Previously the age cap held them at level 7 forever no matter how well they
+    played."""
     with Session(engine) as session:
         profile_id = 2000
-        session.add(Profile(id=profile_id, name="Young Kid", avatar="owl", birth_year=2020))
+        session.add(Profile(id=profile_id, name="Young Kid", avatar="owl", birth_year=date.today().year - 6))
         session.commit()
 
     game_id = "equation_builder"
-
-    def get_item() -> dict:
-        response = client.get(
-            "/api/items/next", params={"profile_id": profile_id, "game_id": game_id}
-        )
-        assert response.status_code == 200
-        return response.json()
-
-    for _ in range(20 * 5):  # 20 full mastery windows: enough to hit the ceiling if uncapped
-        item = get_item()
-        assert item["payload"]["operator"] in ("+", "-"), item["payload"]
+    for _ in range(20 * 5):
+        item = client.get("/api/items/next", params={"profile_id": profile_id, "game_id": game_id}).json()
         client.post(
             "/api/attempts",
             json={
@@ -199,7 +190,43 @@ def test_a_six_year_old_is_never_promoted_or_stretched_into_multiplication_divis
         level = session.exec(
             select(Level).where(Level.profile_id == profile_id, Level.game_id == game_id)
         ).first()
-    assert level.value <= 7  # never crossed into the ×/÷ tier (level 8-10)
+    assert level.value >= 8
+
+
+def test_promotion_past_age_level_needs_a_longer_streak(client):
+    """A 9-year-old in fact_fluency sits at L6, the top of the age-typical
+    +/− range. The usual 3 fast correct answers no longer promote; a 4th does."""
+    profile_id = 2002
+    game_id = "fact_fluency"
+    with Session(engine) as session:
+        session.add(Profile(id=profile_id, name="Nine", avatar="owl", birth_year=date.today().year - 9))
+        session.add(Level(profile_id=profile_id, game_id=game_id, value=6))
+        session.commit()
+
+    def answer() -> None:
+        item = client.get("/api/items/next", params={"profile_id": profile_id, "game_id": game_id}).json()
+        client.post(
+            "/api/attempts",
+            json={
+                "item_id": item["item_id"],
+                "profile_id": profile_id,
+                "game_id": game_id,
+                "telemetry": {"correct": True, "hints_used": 0, "time_ms": 1500},
+                "details": {},
+            },
+        )
+
+    def current_level() -> int:
+        with Session(engine) as session:
+            return session.exec(
+                select(Level).where(Level.profile_id == profile_id, Level.game_id == game_id)
+            ).first().value
+
+    for _ in range(3):
+        answer()
+    assert current_level() == 6
+    answer()
+    assert current_level() == 7
 
 
 def test_a_brand_new_older_profiles_first_item_starts_above_level_one(client):

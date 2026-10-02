@@ -42,17 +42,16 @@ class GameModule(ABC):
         concept and no session-level exclusion is applied."""
         return None
 
-    def max_level_for_age(self, age: int) -> int:
-        """Age-aware ceiling on top of `metadata.max_level`, used as the
-        `max_level` passed to Loop A's promote/stretch clamp (PRD §5.1) so a
-        kid can never be promoted, or session-paced into a stretch item,
-        past what's age-appropriate — PRD §4's per-age personas are explicit
-        that e.g. a 6-year-old's math stays addition/subtraction ("early
-        number sense") while multiplication/division wait for the 9-year-old
-        persona. Most games have no such age-gated tiers, so the default is
-        just `metadata.max_level` unchanged; `equation_builder` and
-        `fact_fluency` override this since their tiers introduce operators
-        partway up the level range."""
+    def typical_level_for_age(self, age: int) -> int:
+        """Highest level whose content is typical for this age (PRD §4's
+        per-age personas — e.g. multiplication/division belong to the
+        9-year-old persona, not the 6-year-old's). Never a ceiling: Loop A
+        can promote any kid all the way to `metadata.max_level`. It only
+        sets the pace — promotions past this level need progressively longer
+        correct streaks (`app.engine.loop_a.pace_for_age`). Most games have
+        no age-gated tiers, so the default is `metadata.max_level` (no age
+        pacing); `equation_builder` and `fact_fluency` override this since
+        their tiers introduce operators partway up the level range."""
         return self.metadata.max_level
 
     def starting_level_for_age(self, age: int) -> int:
@@ -63,7 +62,7 @@ class GameModule(ABC):
         Loop A's adaptive promote/support rules take over. Most games have
         no age-gated tiers to calibrate a starting point from, so the
         default is level 1 unchanged; `equation_builder` and `fact_fluency`
-        override this alongside `max_level_for_age`."""
+        override this alongside `typical_level_for_age`."""
         return 1
 
     def supports_practice_config(self) -> bool:

@@ -683,7 +683,7 @@ def get_next_item(
             session,
             profile_id=profile_id,
             game_id=game_id,
-            max_level=game.max_level_for_age(profile.age),
+            max_level=game.metadata.max_level,
             starting_level=game.starting_level_for_age(profile.age),
             rng=Random(),
         )
@@ -764,8 +764,9 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
     _decision, hint_offered = process_attempt(
         session,
         attempt=attempt,
-        max_level=game.max_level_for_age(profile.age),
+        max_level=game.metadata.max_level,
         starting_level=game.starting_level_for_age(profile.age),
+        age_level=game.typical_level_for_age(profile.age),
         config=loop_config,
     )
 

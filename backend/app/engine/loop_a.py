@@ -54,6 +54,26 @@ class LoopAConfig(BaseModel):
     rapid_promotion_time_ms: int | None = Field(default=None, ge=1)
     """Optional average response-time ceiling for early promotion. Disabled by default."""
 
+    promote_window_size: int | None = Field(default=None, ge=1)
+    """Attempts the promote rule looks at. None means `window_size`. Can be
+    larger than `window_size` so promotion needs more evidence than support
+    does — see `pace_for_age`."""
+
+    extra_promotion_attempts_per_level_beyond_age: int = Field(default=1, ge=0)
+    """Age pacing (`pace_for_age`): each level a promotion would land past the
+    level typical for the kid's age adds this many attempts to both promotion
+    streaks (regular and rapid)."""
+
+    @property
+    def effective_promote_window_size(self) -> int:
+        return self.promote_window_size or self.window_size
+
+    @property
+    def history_size(self) -> int:
+        """How many recent attempts at the current level the caller must load
+        so every rule (support, promote, rapid promotion) can see its full window."""
+        return max(self.window_size, self.effective_promote_window_size, self.rapid_promotion_window_size)
+
 
 class WindowAttempt(BaseModel):
     """One attempt's engine-relevant signal, derived from the `TelemetryCore`
@@ -102,6 +122,27 @@ class NextItemDirective(BaseModel):
     kind: NextItemKind
 
 
+def pace_for_age(config: LoopAConfig, current_level: int, age_level: int) -> LoopAConfig:
+    """Age sets how fast a kid climbs, never how far — PRD §4 calibrates
+    difficulty from age, but a hard age ceiling stalls a kid who has clearly
+    mastered everything below it. `age_level` is the highest level typical for
+    the kid's age (`GameModule.typical_level_for_age`). Promotions that stay
+    within it use `config` unchanged. Each level a promotion would land past it
+    adds `extra_promotion_attempts_per_level_beyond_age` attempts to both
+    promotion streaks, so moving up past the age-typical range takes
+    progressively more sustained evidence. Support (moving down) is unchanged."""
+    levels_beyond = current_level + 1 - age_level
+    extra = levels_beyond * config.extra_promotion_attempts_per_level_beyond_age
+    if extra <= 0:
+        return config
+    return config.model_copy(
+        update={
+            "promote_window_size": config.effective_promote_window_size + extra,
+            "rapid_promotion_window_size": config.rapid_promotion_window_size + extra,
+        }
+    )
+
+
 def evaluate_level(
     current_level: int,
     window: list[WindowAttempt],
@@ -110,8 +151,10 @@ def evaluate_level(
 ) -> LevelDecision:
     """Promote/hold/support rules — PRD §5.1.
 
-    Evaluated only once the window is full (`len(window) == config.window_size`);
-    returns a no-op `PENDING` decision otherwise. The window is assumed to
+    Evaluated only once the window is full (`len(window) >= config.window_size`);
+    returns a no-op `PENDING` decision otherwise. Support and hold look at the
+    last `window_size` attempts; promote looks at the last
+    `effective_promote_window_size`, which may be longer (`pace_for_age`). The window is assumed to
     already hold only attempts made at `current_level` since it was last set —
     resetting it on a level change is the caller's invariant to uphold, not
     this function's (see `app.services.loop_a_service`).
@@ -157,25 +200,32 @@ def evaluate_level(
             reset_window=False,
         )
 
+    promote_size = config.effective_promote_window_size
+    if len(window) >= promote_size:
+        promote_window = window[-promote_size:]
+        n = len(promote_window)
+        correct_count = sum(1 for a in promote_window if a.correct)
+        hint_rate = sum(a.hints_used for a in promote_window) / n
+        if correct_count / n >= config.promote_accuracy and hint_rate < config.hint_rate_threshold:
+            new_level = min(current_level + 1, max_level)
+            changed = new_level != current_level
+            if changed:
+                reason = f"promoted to L{new_level}: {correct_count}/{n} correct, {hint_rate:.1f} avg hints"
+            else:
+                reason = f"held at ceiling L{current_level}: {correct_count}/{n} correct, {hint_rate:.1f} avg hints"
+            return LevelDecision(
+                action=LevelAction.PROMOTE,
+                level=new_level,
+                changed=changed,
+                reason=reason,
+                reset_window=changed,
+            )
+
+    window = window[-config.window_size :]
     n = len(window)
     correct_count = sum(1 for a in window if a.correct)
     accuracy = correct_count / n
     hint_rate = sum(a.hints_used for a in window) / n
-
-    if accuracy >= config.promote_accuracy and hint_rate < config.hint_rate_threshold:
-        new_level = min(current_level + 1, max_level)
-        changed = new_level != current_level
-        if changed:
-            reason = f"promoted to L{new_level}: {correct_count}/{n} correct, {hint_rate:.1f} avg hints"
-        else:
-            reason = f"held at ceiling L{current_level}: {correct_count}/{n} correct, {hint_rate:.1f} avg hints"
-        return LevelDecision(
-            action=LevelAction.PROMOTE,
-            level=new_level,
-            changed=changed,
-            reason=reason,
-            reset_window=changed,
-        )
 
     if accuracy < config.support_accuracy:
         new_level = max(current_level - 1, config.min_level)

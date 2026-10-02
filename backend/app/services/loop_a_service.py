@@ -35,6 +35,7 @@ from app.engine.loop_a import (
     WindowAttempt,
     check_frustration_guard,
     evaluate_level,
+    pace_for_age,
     select_next_item_level,
 )
 from app.events.log import append_event
@@ -64,7 +65,7 @@ def _load_window(
             Attempt.created_at >= level_row.updated_at,
         )
         .order_by(Attempt.created_at.desc())
-        .limit(config.window_size)
+        .limit(config.history_size)
     ).all()
     rows.reverse()
     return [
@@ -79,6 +80,7 @@ def process_attempt(
     attempt: Attempt,
     max_level: int,
     starting_level: int = 1,
+    age_level: Optional[int] = None,
     config: Optional[LoopAConfig] = None,
 ) -> tuple[LevelDecision, bool]:
     """Runs Loop A for one already-persisted `Attempt` — PRD §5.1.
@@ -91,10 +93,14 @@ def process_attempt(
 
     `starting_level` (PRD §4: age as the base difficulty is calibrated from)
     only matters the first time this (profile, game) pair is seen — see
-    `get_or_create_level`.
+    `get_or_create_level`. `age_level` (the game's `typical_level_for_age`)
+    slows promotion past the age-typical range via `pace_for_age`; None
+    applies no age pacing.
     """
     config = config or LoopAConfig()
     level_row = get_or_create_level(session, attempt.profile_id, attempt.game_id, starting_level)
+    if age_level is not None:
+        config = pace_for_age(config, level_row.value, age_level)
 
     window = _load_window(session, level_row, config)
     hint_offered = check_frustration_guard(window)

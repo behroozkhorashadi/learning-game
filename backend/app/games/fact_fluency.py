@@ -46,8 +46,9 @@ class Tier(NamedTuple):
     be non-decreasing with level); `approach_ms` — how long a kid has before
     time runs out — is the second, and must be non-increasing with level
     (faster is harder). `min_age` is the youngest PRD §4 persona this tier's
-    operations suit — Loop A's level ceiling is clamped to it (see
-    `max_level_for_age`), mirroring `equation_builder`'s identical rule."""
+    operations typically suit — not a gate: a younger kid can still be
+    promoted into it, just more slowly (see `typical_level_for_age`),
+    mirroring `equation_builder`'s identical rule."""
 
     max_level: int
     operand_max: int
@@ -61,7 +62,7 @@ class Tier(NamedTuple):
 # graduates *within* this game's own 8-11 audience (PRD §7.2's "Fact Fluency
 # (math, 9/11)") rather than sitting flat at the game's own `min_age=8` for
 # every tier: a fresh 8-year-old still starts on addition/subtraction, and
-# multiplication/division (the last tier) wait for age 10, one step past
+# multiplication/division (the last tier) are typical from age 10, one step past
 # equation_builder's introduction of it — Fact Fluency layers time pressure
 # on top of the same operators, so it earns a slightly later start.
 _TIERS: list[Tier] = [
@@ -138,7 +139,7 @@ def _band_progress(level: int, tier_index: int) -> float:
     return (level - start) / (end - start)
 
 
-def _max_level_for_age(age: int) -> int:
+def _typical_level_for_age(age: int) -> int:
     """Highest `Tier.max_level` among tiers this age has reached, per
     `Tier.min_age` — falls back to the first tier's ceiling for an age below
     every tier (never crashes on an out-of-range profile age)."""
@@ -151,10 +152,10 @@ def _starting_level_for_age(age: int) -> int:
     operator band (see `_band_bounds`) just *below* the highest one this age
     has reached, mirroring
     `equation_builder`'s identical rule: deliberately one tier short of the
-    age ceiling rather than landing right on it, so a kid still has to earn
-    the hardest currently-unlocked tier via a genuine promotion. Loop A's
+    age-typical level rather than landing right on it, so a kid still has to earn
+    the hardest age-typical tier via a genuine promotion. Loop A's
     promote/support rules do the actual fine-tuning from there."""
-    ceiling_band_first, _ = _band_bounds(_tier_index_for_level(_max_level_for_age(age)))
+    ceiling_band_first, _ = _band_bounds(_tier_index_for_level(_typical_level_for_age(age)))
     if ceiling_band_first == 0:
         return 1
     start_band_first, _ = _band_bounds(ceiling_band_first - 1)
@@ -173,8 +174,8 @@ class FactFluencyGame(GameModule):
         max_level=10,
     )
 
-    def max_level_for_age(self, age: int) -> int:
-        return _max_level_for_age(age)
+    def typical_level_for_age(self, age: int) -> int:
+        return _typical_level_for_age(age)
 
     def starting_level_for_age(self, age: int) -> int:
         return _starting_level_for_age(age)

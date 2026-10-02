@@ -39,10 +39,10 @@ class Tier(NamedTuple):
     """One difficulty rung — PRD §14.5: number range, allowed operations, and
     which token can be blanked all escalate together. `operand_max` is the
     primary axis (PRD §11: must be non-decreasing with level). `min_age` is
-    the youngest PRD §4 persona this tier's operations suit — Loop A's level
-    ceiling is clamped to it (see `max_level_for_age`) so a young kid is
-    never promoted, or session-paced into a stretch item, into a tier whose
-    operations that persona hasn't met yet."""
+    the youngest PRD §4 persona this tier's operations typically suit — not a
+    gate: a younger kid who keeps mastering levels is still promoted into it,
+    just with progressively longer streaks required (see
+    `typical_level_for_age` and `app.engine.loop_a.pace_for_age`)."""
 
     max_level: int
     operand_max: int
@@ -106,7 +106,7 @@ def _tier_progress(level: int, tier_index: int) -> float:
     return (level - start) / (end - start)
 
 
-def _max_level_for_age(age: int) -> int:
+def _typical_level_for_age(age: int) -> int:
     """Highest `Tier.max_level` among tiers this age has reached, per
     `Tier.min_age` — falls back to the first tier's ceiling for an age below
     every tier (never crashes on an out-of-range profile age)."""
@@ -116,7 +116,7 @@ def _max_level_for_age(age: int) -> int:
 
 def _starting_level_for_age(age: int) -> int:
     """Where a *brand-new* profile starts this game — the first level of the
-    tier just *below* the highest one this age has reached (`_max_level_for_age`),
+    tier just *below* the highest one this age has reached (`_typical_level_for_age`),
     not level 1 for everyone: an older kid starts calibrated near their
     developmental level (PRD §4) instead of grinding through tiers clearly
     below it. Deliberately one tier short of the ceiling rather than landing
@@ -126,7 +126,7 @@ def _starting_level_for_age(age: int) -> int:
     own promote/support rules do the actual fine-tuning from there, and
     `draw_operator_with_ramp` eases in anything a *later* tier introduces
     once promotion does get there."""
-    ceiling_index = _tier_index_for_level(_max_level_for_age(age))
+    ceiling_index = _tier_index_for_level(_typical_level_for_age(age))
     start_index = max(0, ceiling_index - 1)
     return _tier_start_level(start_index)
 
@@ -147,8 +147,8 @@ class EquationBuilderGame(GameModule):
         max_level=10,
     )
 
-    def max_level_for_age(self, age: int) -> int:
-        return _max_level_for_age(age)
+    def typical_level_for_age(self, age: int) -> int:
+        return _typical_level_for_age(age)
 
     def starting_level_for_age(self, age: int) -> int:
         return _starting_level_for_age(age)

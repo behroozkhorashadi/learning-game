@@ -17,6 +17,7 @@ from app.engine.loop_a import (
     WindowAttempt,
     check_frustration_guard,
     evaluate_level,
+    pace_for_age,
     select_next_item_level,
 )
 
@@ -230,3 +231,43 @@ def test_confidence_item_floored_at_min_level():
     directive = select_next_item_level(1, 10, Random(0), DEFAULT, force_confidence_item=True)
     assert directive.kind == NextItemKind.CONFIDENCE
     assert directive.level == 1
+
+
+# --- pace_for_age: age sets the pace, never a ceiling ------------------------
+
+
+def test_age_pacing_leaves_config_unchanged_within_the_age_typical_range():
+    assert pace_for_age(DEFAULT, current_level=4, age_level=6) is DEFAULT
+    assert pace_for_age(DEFAULT, current_level=5, age_level=6) is DEFAULT
+
+
+def test_age_pacing_lengthens_promotion_streaks_more_the_further_past_age_level():
+    one_past = pace_for_age(DEFAULT, current_level=6, age_level=6)
+    two_past = pace_for_age(DEFAULT, current_level=7, age_level=6)
+    assert one_past.effective_promote_window_size == DEFAULT.window_size + 1
+    assert one_past.rapid_promotion_window_size == DEFAULT.rapid_promotion_window_size + 1
+    assert two_past.effective_promote_window_size == DEFAULT.window_size + 2
+    # Support still evaluates on the unchanged window.
+    assert two_past.window_size == DEFAULT.window_size
+
+
+def test_age_paced_promotion_needs_the_longer_streak_but_still_happens():
+    config = pace_for_age(LoopAConfig(window_size=3, promote_accuracy=0.67), current_level=6, age_level=6)
+    assert evaluate_level(6, _window([True] * 3), max_level=10, config=config).action == LevelAction.HOLD
+    decision = evaluate_level(6, _window([True] * 4), max_level=10, config=config)
+    assert decision.action == LevelAction.PROMOTE
+    assert decision.level == 7
+
+
+def test_age_paced_support_still_fires_on_the_normal_window():
+    config = pace_for_age(LoopAConfig(window_size=3), current_level=8, age_level=6)
+    decision = evaluate_level(8, _window([False, False, True]), max_level=10, config=config)
+    assert decision.action == LevelAction.SUPPORT
+    assert decision.level == 7
+
+
+def test_age_paced_rapid_promotion_needs_a_longer_fast_streak():
+    config = pace_for_age(LoopAConfig(rapid_promotion_time_ms=3000), current_level=6, age_level=6)
+    fast = lambda n: [WindowAttempt(correct=True, hints_used=0, time_ms=1000) for _ in range(n)]
+    assert evaluate_level(6, fast(3), max_level=10, config=config).action == LevelAction.PENDING
+    assert evaluate_level(6, fast(4), max_level=10, config=config).action == LevelAction.PROMOTE

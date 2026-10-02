@@ -84,22 +84,16 @@ def test_repeat_key_matches_the_shown_equation_and_blank():
     assert key == f"{p['left']}{p['operator']}{p['right']}={p['answer']}|{p['missing']}"
 
 
-def test_max_level_for_age_keeps_a_six_year_old_off_the_operator_tier():
-    """Regression guard for the reported bug: a 6-year-old profile getting a
-    surprise multiplication/division item after a streak of easy addition —
-    PRD §4's 6-year-old persona is addition/subtraction only ("early number
-    sense"); multiplication/division is the 9-year-old persona's. The tier
-    that introduces `×`/`÷` must stay out of reach until its `min_age`."""
+def test_typical_level_for_age_is_below_the_operator_tier_until_its_min_age():
+    """`typical_level_for_age` only paces promotion (it is not a ceiling), but
+    it should still mark ×/÷ as beyond-typical for a kid younger than the
+    operator tier's `min_age`, so reaching it takes longer streaks."""
     operator_tier = _TIERS[-1]
-    assert operator_tier.operations == ("+", "-", "×", "÷")
-
     for age in range(operator_tier.min_age):
-        capped = GAME.max_level_for_age(age)
-        allowed = _tier_for_level(capped).operations
-        assert "×" not in allowed and "÷" not in allowed
+        typical = GAME.typical_level_for_age(age)
+        assert "×" not in _tier_for_level(typical).operations
 
-    assert GAME.max_level_for_age(operator_tier.min_age) == GAME.metadata.max_level
-    assert _tier_for_level(GAME.max_level_for_age(operator_tier.min_age)) is operator_tier
+    assert GAME.typical_level_for_age(operator_tier.min_age) == GAME.metadata.max_level
 
 
 def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their_ceiling():
@@ -112,8 +106,8 @@ def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their
     six = GAME.starting_level_for_age(6)
     nine = GAME.starting_level_for_age(9)
 
-    assert 1 < six < GAME.max_level_for_age(6)
-    assert six <= nine < GAME.max_level_for_age(9)
+    assert 1 < six < GAME.typical_level_for_age(6)
+    assert six <= nine < GAME.typical_level_for_age(9)
 
     # Always the entry level of some tier, never partway/at the end of one.
     for age in range(6, 12):
