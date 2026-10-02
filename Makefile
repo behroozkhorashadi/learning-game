@@ -1,4 +1,4 @@
-.PHONY: help serve test gen-types gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend
+.PHONY: help serve test e2e gen-types gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -17,6 +17,9 @@ frontend: ## Run the Vite dev server (proxies /api to localhost:8000)
 
 test: ## Run the backend pytest suite
 	cd backend && .venv/bin/pytest -v
+
+e2e: ## Run the on-demand Playwright happy-path suite (own temp DB + ports 8100/5174; not in CI)
+	cd frontend && . "$$NVM_DIR/nvm.sh" && nvm use && npm run e2e
 
 gen-types: ## Regenerate frontend/src/types/generated.ts from the Python models
 	cd backend && .venv/bin/python scripts/generate_ts_types.py

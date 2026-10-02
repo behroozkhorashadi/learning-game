@@ -16,6 +16,7 @@ make install-frontend   # npm install in frontend/
 ```
 make serve       # run the FastAPI server on the LAN (0.0.0.0:8000)
 make test        # run the backend pytest suite
+make e2e         # on-demand Playwright happy paths (own temp DB, ports 8100/5174; not in CI)
 make gen-types   # regenerate frontend/src/types/generated.ts from the Python models
 make frontend    # run the Vite dev server (proxies /api to localhost:8000)
 ```
@@ -26,6 +27,13 @@ post back a hardcoded valid result.
 
 Re-run `make gen-types` any time a model in `backend/app/models/` changes —
 it is not run automatically.
+
+`make e2e` runs the browser happy-path suite in `frontend/e2e/` (profiles,
+passwords, saved pictures, admin) against a throwaway backend and database,
+so it never touches real data or calls OpenAI. It's meant to be run every so
+often, not on every change, and isn't part of CI. It drives your installed
+Google Chrome and saves screenshots of key screens to `frontend/e2e-screens/`;
+the `e2e-happy-path` Claude Code skill runs it and reviews those screenshots.
 
 ## What's here
 
