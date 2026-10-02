@@ -12,13 +12,13 @@ export const AVATAR_OPTIONS: { key: string; emoji: string }[] = [
   { key: 'rabbit', emoji: '🐰' },
 ]
 
-export const MIN_AGE = 3
-export const MAX_AGE = 14
+export const MIN_AGE = 1
+export const MAX_AGE = 99
 export const READING_SUPPORT_DEFAULT_MAX_AGE = 6
 
 const TODAY = new Date()
 export const MAX_BIRTHDAY = TODAY.toISOString().slice(0, 10)
-export const MIN_BIRTHDAY = `${TODAY.getFullYear() - MAX_AGE - 1}-01-01`
+export const MIN_BIRTHDAY = `${TODAY.getFullYear() - MAX_AGE}-01-01`
 
 export function birthYearOf(birthday: string): number {
   return Number(birthday.split('-')[0])
@@ -84,7 +84,7 @@ export function ProfileFormFields({
         />
         {birthday && !ageInRange && (
           <span style={{ display: 'block', marginTop: 8, fontSize: 14, color: '#CD2A20' }}>
-            {`This game is built for ages ${MIN_AGE}–${MAX_AGE}.`}
+            Please enter a valid birthday.
           </span>
         )}
         {age != null && ageInRange && (

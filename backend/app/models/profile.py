@@ -24,8 +24,8 @@ AVATAR_OPTIONS = ["fox", "owl", "bear", "cat", "panda", "rabbit"]
 # Sanity bounds on a new profile's age, not a product requirement — just wide
 # enough to catch an obvious typo (a future date, or a birth year that'd make
 # the player an infant or an adult) without guessing at a "real" min/max.
-MIN_AGE = 3
-MAX_AGE = 14
+MIN_AGE = 1
+MAX_AGE = 99
 
 
 class NewProfilePhoto(BaseModel):
