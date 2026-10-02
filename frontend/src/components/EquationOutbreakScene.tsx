@@ -7,7 +7,7 @@ import { AnswerLabel3D } from './AnswerLabel3D'
 import { EquationBlaster } from './EquationBlaster'
 import { ScienceFairEnvironment } from './ScienceFairEnvironment'
 import { LaneDebugOverlay } from './LaneDebugOverlay'
-import { collectRaycastHits } from './EnvironmentCollider'
+import { collectRaycastHits, type RaycastUserData } from './EnvironmentCollider'
 import { resolveRaycastOutcome } from '../lib/raycastOutcome'
 import { buildLanes, computeLaneLayout, positionAlongLane, type Lane, type Vec3 } from '../lib/laneNavigation'
 import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '../lib/characterDefinitions'
@@ -24,8 +24,8 @@ import type { Carrier, HitZone, WeaponPhase as EngineWeaponPhase } from '../lib/
  * only thing allowed to call into `zombieWaveEngine`.
  *
  * Raycasting uses React Three Fiber's built-in pointer-event system rather
- * than a hand-rolled `THREE.Raycaster`: every hitbox (a zombie's head/body,
- * or a solid environment prop's invisible collider — see
+ * than a hand-rolled `THREE.Raycaster`: every hit target (a zombie's own
+ * model mesh, or a solid environment prop's invisible collider — see
  * `EnvironmentCollider.tsx`) is tagged via `userData.raycastKind`, and its
  * handler calls the same pure `resolveRaycastOutcome` this file's tests and
  * `raycastOutcome.test.ts` both exercise: whichever tagged object is
@@ -36,12 +36,13 @@ import type { Carrier, HitZone, WeaponPhase as EngineWeaponPhase } from '../lib/
  * nothing" case. Both paths funnel into the same `onHit`/`onMiss` the
  * parent already uses, so cooldown and telemetry stay single-sourced.
  *
- * Hitboxes are anchored at a fixed local offset within each zombie's own
- * group rather than literally parented to the animated head/torso bones —
- * a deliberate "forgiving hitbox" simplification (explicitly permitted by
- * the spec) justified by the asset audit's finding that the approach/idle
- * clips have near-zero net bone drift, so a fixed offset stays aligned
- * throughout normal gameplay.
+ * A zombie is hit-tested against its actual skinned mesh in its current
+ * animated pose (three.js applies bone transforms when raycasting a
+ * SkinnedMesh), so hair, hats, hands and feet all count — what you see is
+ * what you can hit. Head vs. body is decided per shot by whether the hit
+ * point is above the `Head` bone. This replaced a fixed head sphere + torso
+ * capsule that, measured in the dev hit lab (`?screen=zombie-hit-lab`), sat
+ * roughly a head-height too low and missed the head, legs and feet.
  */
 
 export type WavePhase = 'intro' | 'playing' | 'frozen'
@@ -71,8 +72,15 @@ interface ZombieInstanceProps {
   onMiss: () => void
 }
 
+// The skinned mesh's bounding sphere is computed once (from whatever pose
+// it's in at the time) and then reused as the raycast early-out; padding it
+// keeps a later pose — an arm swung forward mid-stride — from being culled.
+const BOUNDING_SPHERE_PADDING = 1.5
+
 function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phaseOffsetSeconds, onHit, onMiss }: ZombieInstanceProps) {
   const groupRef = useRef<THREE.Group>(null!)
+  const modelRef = useRef<THREE.Group>(null!)
+  const headBoneRef = useRef<THREE.Object3D | null>(null)
 
   // The outer group's position is the sole source of truth for where a
   // zombie sits along its lane — see `positionAlongLane`, driven by the
@@ -96,11 +104,31 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
   const canBeHit = carrier.status === 'active'
   const labelColor = LANE_COLORS[carrier.lane % LANE_COLORS.length]
 
-  // Both hitbox meshes below share this one handler rather than each
-  // hardcoding their own zone: the true nearest hit (head vs. body, or an
-  // environment collider in front of either) comes from
-  // `resolveRaycastOutcome`, which the two hitboxes could otherwise
-  // disagree with if they geometrically overlap along the ray.
+  // Tag the model's own meshes as this carrier's hit target while it's
+  // hittable; untagged (defeated) meshes are ignored by `resolveRaycastOutcome`.
+  useLayoutEffect(() => {
+    const headWorld = new THREE.Vector3()
+    function zoneAt(point: THREE.Vector3): HitZone {
+      const head = headBoneRef.current
+      if (!head) return 'body'
+      head.getWorldPosition(headWorld)
+      return point.y >= headWorld.y ? 'head' : 'body'
+    }
+    modelRef.current.traverse((obj) => {
+      if (!(obj as THREE.Mesh).isMesh) return
+      const tag: RaycastUserData = canBeHit ? { raycastKind: 'zombie', carrierId: carrier.id, zoneAt } : {}
+      obj.userData = tag
+      const skinned = obj as THREE.SkinnedMesh
+      if (canBeHit && skinned.isSkinnedMesh) {
+        skinned.computeBoundingSphere()
+        skinned.boundingSphere!.radius *= BOUNDING_SPHERE_PADDING
+      }
+    })
+  }, [canBeHit, carrier.id])
+
+  // The true nearest hit (this zombie, another zombie in front of it, or an
+  // environment collider) comes from `resolveRaycastOutcome` over every
+  // intersection, not from which handler happened to fire.
   function handleHitboxPointerDown(event: ThreeEvent<PointerEvent>) {
     event.stopPropagation()
     const outcome = resolveRaycastOutcome(collectRaycastHits(event))
@@ -113,24 +141,17 @@ function ZombieInstance({ carrier, lane, character, phase, speedMultiplier, phas
 
   return (
     <group ref={groupRef}>
-      <ZombieCharacter3D character={character} clipRole={clipRole} speed={speed} phaseOffsetSeconds={phaseOffsetSeconds} />
-
-      {canBeHit && (
-        <>
-          <mesh position={[0, character.hitbox.headCenterY, 0]} userData={{ raycastKind: 'zombie', carrierId: carrier.id, zone: 'head' }} onPointerDown={handleHitboxPointerDown}>
-            <sphereGeometry args={[character.hitbox.headRadius, 12, 12]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-          </mesh>
-          <mesh
-            position={[0, character.hitbox.torsoCenterY, 0]}
-            userData={{ raycastKind: 'zombie', carrierId: carrier.id, zone: 'body' }}
-            onPointerDown={handleHitboxPointerDown}
-          >
-            <capsuleGeometry args={[character.hitbox.torsoRadius, character.hitbox.torsoHeight, 4, 8]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-          </mesh>
-        </>
-      )}
+      <group ref={modelRef} onPointerDown={canBeHit ? handleHitboxPointerDown : undefined}>
+        <ZombieCharacter3D
+          character={character}
+          clipRole={clipRole}
+          speed={speed}
+          phaseOffsetSeconds={phaseOffsetSeconds}
+          onBonesReady={(bones) => {
+            headBoneRef.current = bones.head
+          }}
+        />
+      </group>
 
       <group position={[0, character.answerLabelYOffset, 0]}>
         <AnswerLabel3D label={carrier.label} color={labelColor} hidden={carrier.status === 'defeated'} />
@@ -166,6 +187,9 @@ interface Props {
   weaponView?: WeaponViewConfig
   hideRightArm?: boolean
   hideLeftArm?: boolean
+  /** Dev-only (hit lab): pin every zombie's animation phase instead of the
+   * per-carrier random one, so a frozen pose is reproducible. */
+  fixedPhaseOffsetSeconds?: number
 }
 
 export function EquationOutbreakScene({
@@ -187,6 +211,7 @@ export function EquationOutbreakScene({
   weaponView,
   hideRightArm = false,
   hideLeftArm = false,
+  fixedPhaseOffsetSeconds,
 }: Props) {
   const phaseOffsets = useRef<Record<string, number>>({})
   for (const carrier of carriers) {
@@ -228,7 +253,7 @@ export function EquationOutbreakScene({
           character={charactersByLane[carrier.lane] ?? SCIENTIST_ZOMBIE}
           phase={phase}
           speedMultiplier={speedMultiplier}
-          phaseOffsetSeconds={phaseOffsets.current[carrier.id] ?? 0}
+          phaseOffsetSeconds={fixedPhaseOffsetSeconds ?? phaseOffsets.current[carrier.id] ?? 0}
           onHit={onHit}
           onMiss={onMiss}
         />

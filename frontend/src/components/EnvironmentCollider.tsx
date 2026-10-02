@@ -1,3 +1,4 @@
+import type * as THREE from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { EnvironmentCollider as ColliderData } from '../lib/environmentColliders'
 import { resolveRaycastOutcome, type RaycastHit } from '../lib/raycastOutcome'
@@ -8,14 +9,12 @@ import type { HitZone } from '../lib/zombieWaveEngine'
  * `environmentColliders.ts`'s collision math exactly (same `collider`
  * object), not the decorative mesh a `ScienceFairBooth`/`ExperimentPortal`
  * draws next to it. Invisible via a fully transparent material rather than
- * `visible={false}`, mirroring the existing zombie-hitbox pattern in
- * `EquationOutbreakScene.tsx` — an invisible-but-`visible`-true mesh stays
+ * `visible={false}`, so it stays raycastable — an invisible-but-`visible`-true mesh stays
  * raycastable; toggling `visible` off would not.
  *
- * Blocking works the same way head/body hitbox priority already does on a
- * single zombie: `stopPropagation` plus Three.js/R3F's nearest-object-first
- * pointer dispatch means whichever tagged mesh (this, or a zombie hitbox)
- * is geometrically nearest along the ray fires first. That handler then
+ * Blocking: `stopPropagation` plus Three.js/R3F's nearest-object-first
+ * pointer dispatch means whichever tagged mesh (this, or a zombie's
+ * model) is geometrically nearest along the ray fires first. That handler then
  * re-derives the *true* nearest relevant hit via `resolveRaycastOutcome`
  * from `event.intersections` — the full sorted hit list R3F attaches to
  * every pointer event — rather than assuming "I fired, so I must be
@@ -28,12 +27,26 @@ interface ZombieHitMeta {
   zone: HitZone
 }
 
-export function collectRaycastHits(event: ThreeEvent<PointerEvent>): RaycastHit<ZombieHitMeta>[] {
-  return event.intersections.map((intersection) => {
-    const data = intersection.object.userData as { raycastKind?: 'zombie' | 'environment' | 'debug'; carrierId?: string; zone?: HitZone }
-    const meta = data.carrierId && data.zone ? { carrierId: data.carrierId, zone: data.zone } : undefined
+/** What a tagged object carries in `userData`. A zombie's model mesh has
+ * no fixed zone — `zoneAt` decides head vs. body from the hit point. */
+export interface RaycastUserData {
+  raycastKind?: 'zombie' | 'environment' | 'debug'
+  carrierId?: string
+  zone?: HitZone
+  zoneAt?: (point: THREE.Vector3) => HitZone
+}
+
+export function classifyIntersections(intersections: THREE.Intersection[]): RaycastHit<ZombieHitMeta>[] {
+  return intersections.map((intersection) => {
+    const data = intersection.object.userData as RaycastUserData
+    const zone = data.zone ?? data.zoneAt?.(intersection.point)
+    const meta = data.carrierId && zone ? { carrierId: data.carrierId, zone } : undefined
     return { kind: data.raycastKind ?? 'debug', distance: intersection.distance, meta }
   })
+}
+
+export function collectRaycastHits(event: ThreeEvent<PointerEvent>): RaycastHit<ZombieHitMeta>[] {
+  return classifyIntersections(event.intersections)
 }
 
 interface Props {
@@ -54,7 +67,7 @@ export function EnvironmentCollider({ collider, onBlockedShot }: Props) {
     // A zombie/miss outcome here would mean this collider fired even though
     // it wasn't actually the nearest relevant hit — shouldn't happen given
     // R3F's dispatch order, but if it ever did, doing nothing is correct:
-    // whichever hitbox truly is nearest already got (or will get) its own
+    // whichever hit target truly is nearest already got (or will get) its own
     // pointerdown dispatch on this same event, since intersections are
     // computed once per event.
   }

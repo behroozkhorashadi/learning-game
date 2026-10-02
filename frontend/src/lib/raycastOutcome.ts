@@ -4,11 +4,11 @@
  * debug-is-invisible rules can be unit tested directly, without a WebGL
  * context. The renderer feeds this the raw, unsorted list of everything a
  * raycast intersected (each tagged with a `kind` via `userData` — see
- * `EnvironmentCollider.tsx` and the zombie hitboxes in
+ * `EnvironmentCollider.tsx` and the zombie model meshes in
  * `EquationOutbreakScene.tsx`) and acts on whatever comes back.
  *
  * Three.js/R3F's own nearest-object-first event dispatch already makes an
- * environment collider block a farther zombie hitbox in practice (each
+ * environment collider block a farther zombie in practice (each
  * tagged mesh's handler calls `stopPropagation`, so only the nearest one
  * ever runs) — this function is the second, independently-testable source
  * of truth for that same rule, and is what the real handler actually calls

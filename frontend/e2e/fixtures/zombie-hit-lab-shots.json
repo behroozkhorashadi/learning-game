@@ -1,0 +1,396 @@
+{
+  "version": 1,
+  "aspect": 1.7777777777777777,
+  "shots": [
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957675994-a8q4r",
+      "ndc": {
+        "x": -0.08470021832838825,
+        "y": 0.07938245648955622
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957687745-domjv",
+      "ndc": {
+        "x": -0.12926160219448024,
+        "y": 0.07445604170035958
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957695671-2jx4v",
+      "ndc": {
+        "x": -0.10769467614622408,
+        "y": 0.07935757560678258
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957700205-wbcgf",
+      "ndc": {
+        "x": -0.08870290544701342,
+        "y": 0.029819738004304375
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957704055-3n49y",
+      "ndc": {
+        "x": -0.0813553154565303,
+        "y": 0.05502407225408357
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957708088-9oojt",
+      "ndc": {
+        "x": -0.13461484633040366,
+        "y": 0.040157744796785355
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957711672-6urvs",
+      "ndc": {
+        "x": -0.13333426636063372,
+        "y": 0.010201161937225534
+      },
+      "expected": "head",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957716327-1ttbr",
+      "ndc": {
+        "x": -0.10787661646979796,
+        "y": 0.0063321846659119
+      },
+      "expected": "head",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957719971-ushf7",
+      "ndc": {
+        "x": -0.17386497228908915,
+        "y": -0.04137690805269778
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957725954-1b9p4",
+      "ndc": {
+        "x": -0.14742764373285566,
+        "y": -0.029496286528245985
+      },
+      "expected": "body",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957729821-axwyp",
+      "ndc": {
+        "x": -0.1415005878071992,
+        "y": -0.06273714591393698
+      },
+      "expected": "body",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957732854-zlorw",
+      "ndc": {
+        "x": -0.12668644684543473,
+        "y": -0.051341701603572876
+      },
+      "expected": "body",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957740688-w0yl1",
+      "ndc": {
+        "x": -0.1071068689469854,
+        "y": -0.04727367727006948
+      },
+      "expected": "body",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957744020-5gtlv",
+      "ndc": {
+        "x": -0.08439231931926328,
+        "y": -0.05888060908401038
+      },
+      "expected": "body",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957747338-2thg2",
+      "ndc": {
+        "x": -0.06895538263449585,
+        "y": -0.09551770896831413
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957750271-9aldb",
+      "ndc": {
+        "x": -0.10042406090802214,
+        "y": -0.11772389684386009
+      },
+      "expected": "body",
+      "recorded": "body"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957753737-bxeo8",
+      "ndc": {
+        "x": -0.13556653417679,
+        "y": -0.21563017055845135
+      },
+      "expected": "body",
+      "recorded": "body"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957756903-x0c0q",
+      "ndc": {
+        "x": -0.09013043721659297,
+        "y": -0.23710237239217258
+      },
+      "expected": "body",
+      "recorded": "body"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957760086-xlzdx",
+      "ndc": {
+        "x": -0.08021468958181721,
+        "y": -0.31327519500391876
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957763320-na3ra",
+      "ndc": {
+        "x": -0.14297710351004866,
+        "y": -0.2922010872945773
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957767904-vnvmy",
+      "ndc": {
+        "x": -0.13050019593573303,
+        "y": -0.15515718497692288
+      },
+      "expected": "body",
+      "recorded": "body"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957771553-duenc",
+      "ndc": {
+        "x": -0.15632172647371667,
+        "y": -0.04599231180722296
+      },
+      "expected": "body",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957775737-eb53n",
+      "ndc": {
+        "x": -0.12762413928231542,
+        "y": -0.11135439085378751
+      },
+      "expected": "body",
+      "recorded": "body"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957832271-ya33v",
+      "ndc": {
+        "x": -0.09619044953255329,
+        "y": -0.1646368013137105
+      },
+      "expected": "body",
+      "recorded": "body"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957841015-f6n8v",
+      "ndc": {
+        "x": -0.11616889660191454,
+        "y": 0.04243434557058079
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957845365-3vp8j",
+      "ndc": {
+        "x": -0.09648435313217263,
+        "y": 0.05211300896955828
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957852616-c5yoo",
+      "ndc": {
+        "x": -0.0942170967922521,
+        "y": 0.09881442593583223
+      },
+      "expected": "head",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957857215-k4mvv",
+      "ndc": {
+        "x": -0.09472792923920959,
+        "y": 0.004752248609780629
+      },
+      "expected": "head",
+      "recorded": "head"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957860832-f7lie",
+      "ndc": {
+        "x": -0.0779404355371438,
+        "y": 0.0052623067066419615
+      },
+      "expected": "miss",
+      "recorded": "miss"
+    },
+    {
+      "characterId": "scientist_zombie",
+      "lane": 1,
+      "distance": 0.5,
+      "poseTime": 0.5,
+      "id": "1790957865300-sql21",
+      "ndc": {
+        "x": -0.12331355315456527,
+        "y": -0.020414764315837886
+      },
+      "expected": "miss",
+      "recorded": "head"
+    }
+  ]
+}

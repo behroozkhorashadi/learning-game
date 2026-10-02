@@ -3,7 +3,7 @@
  * renderer. The scene/renderer consumes `CharacterDefinition`s rather than
  * depending on any specific GLB directly, so a new zombie is a matter of
  * registering one more entry here — no changes to `ZombieCharacter3D`, the
- * wave engine, or the scene's lane/hitbox/label logic. This is what lets
+ * wave engine, or the scene's lane/hit-test/label logic. This is what lets
  * the roster grow toward the eventual 20+-character pool
  * (`lib/zombieRoster.ts` picks a session's four from whatever's `enabled`
  * here) without touching gameplay code.
@@ -26,18 +26,6 @@ export interface CharacterAnimationClips {
   deadHeadshot: string
   deadBody: string
   reach: string
-}
-
-/** All values here are in *final scene units* — i.e. already accounting for
- * `CharacterDefinition.scale` — not the model's own pre-scale local space.
- * Ground truth for a given model should be read off its rendered height
- * (e.g. via the dev POC scene at `?screen=zombie-3d-poc`), not assumed. */
-export interface CharacterHitboxSizing {
-  headCenterY: number
-  headRadius: number
-  torsoCenterY: number
-  torsoRadius: number
-  torsoHeight: number
 }
 
 export interface CharacterAttribution {
@@ -79,7 +67,6 @@ export interface CharacterDefinition {
   torsoBoneName: string
   rootBoneName: string
   clips: CharacterAnimationClips
-  hitbox: CharacterHitboxSizing
   answerLabelYOffset: number
   supportsTint: boolean
   heldProp?: HeldPropInfo
@@ -111,13 +98,6 @@ const MESHY_TEMPLATE_CLIPS: CharacterAnimationClips = {
   reach: 'Right_Hand_Sword_Slash',
 }
 
-/** Shared by every current GLB — same 24-joint rig, same bind-pose scale
- * (confirmed by direct inspection of each file's mesh bounding box), same
- * proportions close enough that per-character hitbox tuning isn't needed
- * yet. A future character with meaningfully different proportions should
- * get its own `hitbox`/`scale` values rather than reusing this constant. */
-const MESHY_TEMPLATE_HITBOX: CharacterHitboxSizing = { headCenterY: 1.4, headRadius: 0.3, torsoCenterY: 0.82, torsoRadius: 0.3, torsoHeight: 0.35 }
-
 function meshyAttribution(localPath: string, dateAcquired: string, attributionText: string): CharacterAttribution {
   return {
     toolOrSource: 'Meshy AI',
@@ -141,7 +121,6 @@ export const SCIENTIST_ZOMBIE: CharacterDefinition = {
   torsoBoneName: 'Spine01',
   rootBoneName: 'Hips',
   clips: MESHY_TEMPLATE_CLIPS,
-  hitbox: MESHY_TEMPLATE_HITBOX,
   answerLabelYOffset: 2.5,
   supportsTint: true,
   groanSoundUrl: '/audio/equation-outbreak/zombies/groan_scientist.wav',
@@ -164,7 +143,6 @@ export const HOCKEY_ZOMBIE: CharacterDefinition = {
   torsoBoneName: 'Spine01',
   rootBoneName: 'Hips',
   clips: MESHY_TEMPLATE_CLIPS,
-  hitbox: MESHY_TEMPLATE_HITBOX,
   answerLabelYOffset: 2.5,
   supportsTint: true,
   heldProp: { label: 'Hockey stick', description: 'Baked into the base mesh — no separate attachable node.' },
@@ -188,7 +166,6 @@ export const SKATER_ZOMBIE: CharacterDefinition = {
   torsoBoneName: 'Spine01',
   rootBoneName: 'Hips',
   clips: MESHY_TEMPLATE_CLIPS,
-  hitbox: MESHY_TEMPLATE_HITBOX,
   answerLabelYOffset: 2.5,
   supportsTint: true,
   // No `heldProp`: confirmed via the dev POC scene (?screen=zombie-3d-poc)
@@ -214,7 +191,6 @@ export const SPORTY_ZOMBIE: CharacterDefinition = {
   torsoBoneName: 'Spine01',
   rootBoneName: 'Hips',
   clips: MESHY_TEMPLATE_CLIPS,
-  hitbox: MESHY_TEMPLATE_HITBOX,
   answerLabelYOffset: 2.5,
   supportsTint: true,
   // No `heldProp`: confirmed via the dev POC scene — a backwards cap,

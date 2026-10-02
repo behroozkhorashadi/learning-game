@@ -804,8 +804,14 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
                   height: 36,
                   borderRadius: 9999,
                   border: '2.5px solid #FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
+              >
+                {/* Marks the exact pixel the shot is cast through. */}
+                <div style={{ width: 3, height: 3, borderRadius: 9999, background: '#FFFFFF' }} />
+              </div>
             )}
 
             {(phase === 'impact' || phase === 'life_lost_frozen') && (

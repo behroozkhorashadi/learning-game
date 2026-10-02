@@ -21,7 +21,7 @@ import { resolveZombieClip } from '../lib/zombieAnimationFallback'
  * or material, so this does not cause extra GPU uploads.
  *
  * This component owns only *rendering* (which clip plays, cross-fades, bone
- * lookup for hitbox anchoring) — it has no gameplay authority. The wave
+ * lookup for head/body hit zones) — it has no gameplay authority. The wave
  * engine decides *when* a zombie is hit or defeated; this component just
  * reflects that decision as an animation name.
  */
@@ -64,8 +64,8 @@ interface Props {
   phaseOffsetSeconds?: number
   /** Fires once when a one-shot clip (hit react, death, reach) completes. */
   onClipFinished?: () => void
-  /** Reports this instance's head/torso bone objects once resolved, so the
-   * parent can anchor invisible hitboxes to them. */
+  /** Reports this instance's head/torso bone objects once resolved — the
+   * scene uses the head bone to split head shots from body shots. */
   onBonesReady?: (bones: ZombieBones) => void
 }
 
