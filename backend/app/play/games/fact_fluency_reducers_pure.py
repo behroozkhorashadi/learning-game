@@ -68,9 +68,9 @@ class Tier(NamedTuple):
 
 # Explicit and monotonic by construction: operand_max non-decreasing,
 # approach_ms non-increasing, mirroring equation_builder's `TIERS`. `min_age`
-# graduates *within* this game's own 8-11 audience (PRD §7.2's "Fact Fluency
-# (math, 9/11)") rather than sitting flat at the game's own `min_age=8` for
-# every tier: a fresh 8-year-old still starts on addition/subtraction, and
+# graduates *within* this game's own 6-12 audience rather than sitting flat at
+# the game's own `min_age=6` for every tier: a fresh 6-year-old still starts on
+# addition, and
 # multiplication/division (the last tier) are typical from age 10, one step past
 # equation_builder's introduction of it — Fact Fluency layers time pressure
 # on top of the same operators, so it earns a slightly later start.
@@ -80,9 +80,9 @@ class Tier(NamedTuple):
 # game targets, so they're never age-typical: a brand-new profile never starts
 # on them, and reaching them is earned by promotion alone.
 TIERS: tuple[Tier, ...] = (
-    Tier(max_level=1, operand_max=5, operations=("+",), approach_ms=9000, min_age=8),
-    Tier(max_level=2, operand_max=8, operations=("+",), approach_ms=8250, min_age=8),
-    Tier(max_level=3, operand_max=10, operations=("+",), approach_ms=7500, min_age=8),
+    Tier(max_level=1, operand_max=5, operations=("+",), approach_ms=9000, min_age=6),
+    Tier(max_level=2, operand_max=8, operations=("+",), approach_ms=8250, min_age=6),
+    Tier(max_level=3, operand_max=10, operations=("+",), approach_ms=7500, min_age=6),
     Tier(max_level=4, operand_max=10, operations=("+", "-"), approach_ms=7000, min_age=8),
     Tier(max_level=5, operand_max=12, operations=("+", "-"), approach_ms=6500, min_age=9),
     Tier(max_level=6, operand_max=12, operations=("+", "-"), approach_ms=6000, min_age=9),
@@ -190,7 +190,7 @@ class FactFluencyGame(GameModule):
         title="Equation Outbreak",
         tagline="Solve the facts. Stop the horde.",
         skill_ids=["arithmetic_fluency"],
-        min_age=8,
+        min_age=6,
         max_age=12,
         icon="\U0001f4a5",
         max_level=12,
