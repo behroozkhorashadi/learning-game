@@ -7,7 +7,7 @@ import { GAMES } from './home_fixtures.test.lib.ts'
 /** The bound home over a fake catalog. */
 function Bound(): ReactElement {
   const [GamePicker] = useState(() => bindGamePicker({ listGames: () => Promise.resolve(GAMES) }))
-  return <GamePicker profile={{ name: 'Mia' }} onSelectGame={fn()} onSwitchProfile={fn()} onEditProfile={fn()} onViewBadges={fn()} onOpenPracticeSettings={fn()} />
+  return <GamePicker profile={{ name: 'Mia', birth_year: new Date().getFullYear() - 7 }} onSelectGame={fn()} onSwitchProfile={fn()} onEditProfile={fn()} onViewBadges={fn()} onOpenPracticeSettings={fn()} />
 }
 
 const meta = {

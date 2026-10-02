@@ -7,7 +7,7 @@ import { GAMES } from './home_fixtures.test.lib.ts'
 afterEach(cleanup)
 
 function renderPicker(overrides: Partial<GamePickerViewProps> = {}): GamePickerViewProps {
-  const props: GamePickerViewProps = { games: loaded(GAMES), profile: { name: 'Rami' }, onSelectGame: vi.fn(), onSwitchProfile: vi.fn(), onEditProfile: vi.fn(), onViewBadges: vi.fn(), onOpenPracticeSettings: vi.fn(), ...overrides }
+  const props: GamePickerViewProps = { games: loaded(GAMES), profile: { name: 'Rami', birth_year: new Date().getFullYear() - 9 }, onSelectGame: vi.fn(), onSwitchProfile: vi.fn(), onEditProfile: vi.fn(), onViewBadges: vi.fn(), onOpenPracticeSettings: vi.fn(), ...overrides }
   render(<GamePickerView {...props} />)
   return props
 }
@@ -19,6 +19,11 @@ describe('GamePickerView', () => {
     expect(screen.getByText('Equation Outbreak')).toBeTruthy()
     expect(screen.getByText('Pathfinder')).toBeTruthy()
     expect(screen.queryByText('Syllable Builder')).toBeNull()
+  })
+
+  it('shows Syllable Builder to players aged 6 through 8', () => {
+    renderPicker({ profile: { name: 'Rami', birth_year: new Date().getFullYear() - 7 } })
+    expect(screen.getByText('Syllable Builder')).toBeTruthy()
   })
 
   it('shows a practice-settings gear only on Equation Outbreak', () => {

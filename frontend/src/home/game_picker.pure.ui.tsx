@@ -50,8 +50,7 @@ function GameIcon({ gameId, emoji, background }: { readonly gameId: string; read
 
 /** What the app shell handles. */
 export interface GamePickerProps {
-  /** Only the name is shown. */
-  readonly profile: { readonly name: string }
+  readonly profile: { readonly name: string; readonly birth_year: number }
   readonly onSelectGame: (gameId: string) => void
   readonly onSwitchProfile: () => void
   readonly onEditProfile: () => void
@@ -66,6 +65,7 @@ export interface GamePickerViewProps extends GamePickerProps {
 /** The kid home, props only: the game list arrives as a QueryState from game_picker.effect.ui.tsx. */
 export function GamePickerView({ games, profile, onSelectGame, onSwitchProfile, onEditProfile, onViewBadges, onOpenPracticeSettings }: GamePickerViewProps): ReactElement {
   const theme0 = CARD_THEMES[0]
+  const age = new Date().getFullYear() - profile.birth_year
 
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
@@ -128,7 +128,7 @@ export function GamePickerView({ games, profile, onSelectGame, onSwitchProfile, 
         {/* The My Storybook entry is hidden by the same temporary roster trim as VISIBLE_GAME_IDS. */}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 22 }}>
-          {visibleGames(games.kind === 'loaded' ? games.data : []).map((game, i) => {
+          {visibleGames(games.kind === 'loaded' ? games.data : [], age).map((game, i) => {
             const theme = CARD_THEMES[i % CARD_THEMES.length] ?? theme0
             return (
               <div key={game.id} style={{ position: 'relative' }}>
