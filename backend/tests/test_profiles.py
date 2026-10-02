@@ -77,7 +77,7 @@ def test_create_profile_rejects_unknown_avatar(client):
 def test_create_profile_rejects_age_outside_bounds(client):
     too_old = client.post(
         "/api/profiles",
-        json={"name": "Ada", "avatar": "fox", "birth_year": date.today().year - 40},
+        json={"name": "Ada", "avatar": "fox", "birth_year": date.today().year - 100},
     )
     too_young = client.post(
         "/api/profiles",
