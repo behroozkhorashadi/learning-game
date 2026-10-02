@@ -40,10 +40,10 @@ describe('CreateProfile', () => {
     render(<CreateProfile onCreated={vi.fn()} onCancel={vi.fn()} />)
 
     fireEvent.change(screen.getByPlaceholderText('What should we call them?'), { target: { value: 'Nora' } })
-    fireEvent.change(screen.getByLabelText('Birthday'), { target: { value: '1990-01-01' } })
+    fireEvent.change(screen.getByLabelText('Birthday'), { target: { value: `${new Date().getFullYear() - 100}-01-01` } })
     fireEvent.click(screen.getByRole('button', { name: 'Choose the cat avatar' }))
 
-    expect(screen.getByText(/built for ages/i)).toBeTruthy()
+    expect(screen.getByText(/please enter a valid birthday/i)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Create profile' }))
     expect(global.fetch).not.toHaveBeenCalled()
   })
