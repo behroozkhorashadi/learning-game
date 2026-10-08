@@ -147,9 +147,10 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 def _seed_test_profiles(session: Session) -> None:
-    if session.get(Profile, 1) is None:
+    if session.exec(select(Profile)).first() is None:
         session.add(Profile(id=1, name="Demo Kid", avatar="fox", birth_year=2020))
     _seed_local_profile(session)
+    _remove_demo_profile_if_needed(session)
     session.commit()
 
 
@@ -164,6 +165,17 @@ def _seed_local_profile(session: Session) -> None:
     avatar = os.environ.get("LOCAL_SEED_PROFILE_AVATAR", "fox")
     birth_year = int(os.environ.get("LOCAL_SEED_PROFILE_BIRTH_YEAR", "2019"))
     session.add(Profile(id=2, name=name, avatar=avatar, birth_year=birth_year))
+
+
+def _demo_profile(session: Session) -> Optional[Profile]:
+    profile = session.get(Profile, 1)
+    return profile if profile is not None and profile.name == "Demo Kid" else None
+
+
+def _remove_demo_profile_if_needed(session: Session) -> None:
+    demo = _demo_profile(session)
+    if demo is not None and session.exec(select(Profile).where(Profile.id != demo.id)).first() is not None:
+        _delete_profile_rows(session, demo)
 
 
 @app.get("/api/profiles", response_model=list[ProfileRead])
@@ -212,6 +224,7 @@ def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)
         profile.avatar = photo_avatar
     if payload.password is not None:
         profile_passwords.set_password(session, profile.id, payload.password)
+    _remove_demo_profile_if_needed(session)
     session.commit()
     session.refresh(profile)
     return ProfileRead.of(profile, payload.password is not None)
@@ -350,6 +363,13 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
     if profile is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
 
+    _delete_profile_rows(session, profile)
+    session.commit()
+
+
+def _delete_profile_rows(session: Session, profile: Profile) -> None:
+    """Delete a profile and all dependent rows; the caller owns the commit."""
+    profile_id = profile.id
     piece_ids = [p.id for p in session.exec(select(Piece).where(Piece.profile_id == profile_id)).all()]
     for model in (Illustration, RevisionPass, RemixVersion, TurnLine):
         for row in session.exec(select(model).where(model.piece_id.in_(piece_ids))).all():
@@ -381,7 +401,6 @@ def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> 
 
     profile_photos.delete_all_photos(session, profile)
     session.delete(profile)
-    session.commit()
 
 
 def _get_practice_config(session: Session, profile_id: int, game_id: str) -> Optional[PracticeConfig]:
