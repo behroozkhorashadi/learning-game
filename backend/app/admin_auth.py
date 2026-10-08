@@ -11,12 +11,9 @@ real.
 
 The password itself lives in `backend/.env` (gitignored — see
 `backend/.env.example` for the key), loaded via `app/__init__.py`'s
-`load_dotenv()`, not hardcoded here. **An unset or empty `ADMIN_PASSWORD`
-means the password is the empty string** — i.e. no password at all: admin
-features stay fully available and any request without the header passes.
-That's the deliberate default for the LAN/dev case, where being locked out
-of your own admin screen is a worse failure than the screen being open.
-Set `ADMIN_PASSWORD` to turn the gate on.
+`load_dotenv()`, not hardcoded here. The app refuses to start without it:
+an unset or empty `ADMIN_PASSWORD` raises at import, so a misconfigured
+deploy fails loudly instead of coming up with the admin gate wide open.
 """
 
 import os
@@ -25,10 +22,12 @@ from typing import Optional
 from fastapi import Header, HTTPException
 from pydantic import BaseModel
 
-# Normalized to "" rather than left as None, so the "unset" and "set to
-# empty" cases are one code path and the comparison below never has to
-# special-case a missing value.
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or ""
+if not ADMIN_PASSWORD:
+    raise RuntimeError(
+        "ADMIN_PASSWORD is not set. Add it to backend/.env (see backend/.env.example) "
+        "before starting the server."
+    )
 
 
 class AdminLoginRequest(BaseModel):
@@ -36,9 +35,8 @@ class AdminLoginRequest(BaseModel):
 
 
 def verify_admin_password(password: Optional[str]) -> None:
-    """Raises 401 unless `password` matches. A missing header (`None`) is
-    treated as the empty string, so when no `ADMIN_PASSWORD` is configured
-    an unauthenticated request is the *correct* password and passes."""
+    """Raises 401 unless `password` matches. A missing header (`None`) never
+    matches, since `ADMIN_PASSWORD` is guaranteed non-empty."""
     if (password or "") != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="invalid admin password")
 

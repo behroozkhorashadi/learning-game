@@ -44,7 +44,7 @@ export function LoginForm({ onAuthenticated, onCancel }: { onAuthenticated: (pas
   return (
     <CardShell>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 32, color: 'var(--fg-primary)', textAlign: 'center' }}>Admin</div>
-      <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Enter the admin password. Leave it blank if none is set.</div>
+      <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Enter the admin password.</div>
 
       <input
         type="password"

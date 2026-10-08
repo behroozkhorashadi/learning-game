@@ -8,10 +8,7 @@ The password is checked when a kid picks their profile (POST
 endpoints themselves still trust whatever profile id the client sends.
 
 The admin password works as an override anywhere a profile password is asked
-for — but only when an admin password is actually configured. With
-`ADMIN_PASSWORD` unset the admin password is the empty string, and letting
-that through here would make every profile password bypassable by leaving
-the box blank.
+for.
 """
 
 from __future__ import annotations
@@ -53,8 +50,7 @@ def _matches_hash(password: str, stored: str) -> bool:
 
 
 def is_admin_override(password: Optional[str]) -> bool:
-    configured = admin_auth.ADMIN_PASSWORD
-    return bool(configured) and hmac.compare_digest((password or "").encode(), configured.encode())
+    return hmac.compare_digest((password or "").encode(), admin_auth.ADMIN_PASSWORD.encode())
 
 
 def validated_new_password(password: str) -> str:

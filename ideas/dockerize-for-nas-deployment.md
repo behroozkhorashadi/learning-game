@@ -23,9 +23,10 @@ with no LLM/model-provider layer wired in — deployment only needs to cover
 what exists today (FastAPI API + static asset serving + SQLite), not any
 future external-API-calling component.
 
-The backend also now refuses to start without `ADMIN_PASSWORD` set (gates the
-admin screen's edit/remove-player actions — see `backend/app/admin_auth.py`).
-Today it's read from `backend/.env` via `load_dotenv()`
+`ADMIN_PASSWORD` gates the admin screen's edit/remove-player actions (see
+`backend/app/admin_auth.py`) and is required — the backend refuses to start
+without it. Today it's read from `backend/.env` via
+`load_dotenv()`
 (`backend/app/__init__.py`), which is gitignored and won't be baked into a
 Docker image — the container needs its own way to receive it (and
 `OPENAI_API_KEY`, same story), e.g. `docker run --env-file` / a `.env` +

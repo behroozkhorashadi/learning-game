@@ -16,11 +16,6 @@ import type { Profile } from '../types/generated'
  * endpoints with curl, not a motivated attacker — see
  * `backend/app/admin_auth.py`'s docstring for the full caveat. Nothing here
  * should be treated as securing anything beyond that.
- *
- * An empty password is deliberately submittable: an unset `ADMIN_PASSWORD`
- * on the backend means the password *is* the empty string, so blocking a
- * blank submit here would lock the admin screen out of exactly the
- * no-password setup the backend supports.
  */
 
 interface Props {

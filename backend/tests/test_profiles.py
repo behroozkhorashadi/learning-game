@@ -3,7 +3,11 @@
 (app/admin_auth.py's hardcoded password gate)."""
 
 import base64
+import os
+import subprocess
+import sys
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -11,14 +15,6 @@ from app import admin_auth
 from app.admin_auth import ADMIN_PASSWORD
 
 ADMIN_HEADERS = {"X-Admin-Password": ADMIN_PASSWORD}
-
-
-@pytest.fixture
-def no_admin_password(monkeypatch):
-    """Simulates an unset/empty ADMIN_PASSWORD. The module reads the env var
-    once at import, so the fixture patches the module global rather than the
-    environment — `verify_admin_password` resolves it at call time."""
-    monkeypatch.setattr(admin_auth, "ADMIN_PASSWORD", "")
 
 
 def _create_profile(client, **overrides) -> dict:
@@ -98,27 +94,25 @@ def test_admin_login_rejects_wrong_password(client):
     assert response.status_code == 401
 
 
-def test_admin_login_accepts_empty_password_when_none_is_configured(client, no_admin_password):
-    """An unset ADMIN_PASSWORD means the password is the empty string — the
-    admin screen must open rather than being 503'd or 401'd shut."""
+def test_admin_login_rejects_empty_password(client):
     response = client.post("/api/admin/login", json={"password": ""})
-    assert response.status_code == 204
-
-
-def test_admin_login_rejects_nonempty_password_when_none_is_configured(client, no_admin_password):
-    response = client.post("/api/admin/login", json={"password": "nope"})
     assert response.status_code == 401
 
 
-def test_admin_endpoints_open_without_header_when_no_password_is_configured(client, no_admin_password):
-    """The header is absent (None), not empty — it still has to be treated as
-    the empty string and pass, or a no-password setup can't edit anything."""
-    profile = _create_profile(client)
-
-    response = client.patch(f"/api/profiles/{profile['id']}", json={"name": "Renamed"})
-
-    assert response.status_code == 200
-    assert response.json()["name"] == "Renamed"
+@pytest.mark.parametrize("value", [None, ""])
+def test_app_refuses_to_start_without_admin_password(value):
+    """Run in a subprocess: the check fires at import, and this session's
+    `app.admin_auth` is already imported with conftest's password."""
+    env = {k: v for k, v in os.environ.items() if k != "ADMIN_PASSWORD"}
+    if value is not None:
+        env["ADMIN_PASSWORD"] = value
+    backend_dir = Path(__file__).resolve().parent.parent
+    # Point load_dotenv at nothing so a developer's real backend/.env can't
+    # supply the password and mask the failure.
+    script = "import dotenv; dotenv.load_dotenv = lambda *a, **k: False; import app.admin_auth"
+    result = subprocess.run([sys.executable, "-c", script], cwd=backend_dir, env=env, capture_output=True, text=True)
+    assert result.returncode != 0
+    assert "ADMIN_PASSWORD is not set" in result.stderr
 
 
 @pytest.fixture
@@ -160,16 +154,6 @@ def test_unlock_accepts_profile_password_or_admin_override(client, admin_passwor
     profile = _create_profile(client, password="tiger42")
     response = client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": password})
     assert response.status_code == expected
-
-
-def test_unlock_without_configured_admin_password_has_no_blank_override(client, no_admin_password):
-    """With ADMIN_PASSWORD unset, the admin password is "" — that must not
-    turn a blank entry into a skeleton key for every protected profile."""
-    profile = _create_profile(client, password="tiger42")
-
-    assert client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": ""}).status_code == 401
-    assert client.patch(f"/api/profiles/{profile['id']}", json={"name": "X"}).status_code == 401
-    assert client.post(f"/api/profiles/{profile['id']}/unlock", json={"password": "tiger42"}).status_code == 204
 
 
 def test_unlock_unprotected_profile_always_succeeds(client):
