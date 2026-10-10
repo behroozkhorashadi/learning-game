@@ -1,0 +1,67 @@
+flowchart TB
+  client["React SPA"] -- "/api/*" --> main
+
+  subgraph API["HTTP layer — app/main.py (FastAPI)"]
+    main["App + lifespan<br/>CORS, /static mount, seed demo profile + badges"]
+    r_prof["Profiles and auth<br/>/profiles, /unlock, /photos, /admin/login"]
+    r_play["Gameplay<br/>/games, /items/next, /attempts"]
+    r_eval["Feedback<br/>/ratings, /verifications"]
+    r_write["Writing pieces<br/>/pieces, /illustrations, /revisions, /remixes, /turns"]
+    r_path["Pathfinder<br/>/completions, /maps, /published-maps"]
+    r_prog["Progress<br/>/badges, /stats, /practice-config, /client-errors"]
+    auth["admin_auth<br/>require_admin dependency"]
+  end
+
+  subgraph SVC["Services — app/services (IO + orchestration)"]
+    s_loop["loop_a_service<br/>choose_next_item_level, process_attempt"]
+    s_badge["badges_service<br/>stats, award badges"]
+    s_img["image_generation<br/>ImageGenerator: OpenAI or Noop"]
+    s_avatar["profile_avatars / photos<br/>photo remix + storage"]
+    s_pw["profile_passwords<br/>hashing"]
+    s_err["client_error_log"]
+  end
+
+  subgraph ENG["Engine — app/engine (pure, no IO)"]
+    loopa["loop_a<br/>evaluate_level: promote / hold / support<br/>select_next_item_level"]
+    lvl["level_selector<br/>get_or_create_level"]
+  end
+
+  subgraph GAMES["Game modules — app/games"]
+    reg["registry<br/>game_id to GameModule"]
+    base["GameModule contract<br/>generate_item, repeat_key, score_attempt"]
+    g1["syllable_builder"]
+    g2["equation_builder"]
+    g3["fact_fluency"]
+    g4["pathfinder"]
+    g5["prompt_forge, style_remix_lab<br/>tag_team_story, clue_master"]
+    arith["_arithmetic helpers"]
+  end
+
+  subgraph DATA["Persistence"]
+    events["events/log<br/>append_event: append-only"]
+    models["models/ SQLModel<br/>Profile, Level, Attempt, Event, Piece,<br/>Badge, Rating, Verification, PlaySession..."]
+    dbpy["db.py<br/>engine + get_session"]
+    sqlite[("SQLite")]
+  end
+
+  openai["OpenAI Images API"]
+
+  main --> r_prof & r_play & r_eval & r_write & r_path & r_prog
+  r_prof --> auth
+  r_prof --> s_pw & s_avatar
+  r_play --> s_loop
+  r_play --> reg
+  r_write --> s_img
+  r_prog --> s_badge & s_err
+  r_play --> s_badge
+  s_loop --> loopa
+  s_loop --> lvl
+  s_loop --> events
+  reg --> base
+  base --> g1 & g2 & g3 & g4 & g5
+  g2 & g3 --> arith
+  s_img --> openai
+  s_avatar --> openai
+  r_play & r_eval & r_write & r_path & r_prog & r_prof --> models
+  events --> models
+  models --> dbpy --> sqlite
