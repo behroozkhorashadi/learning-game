@@ -35,6 +35,14 @@ often, not on every change, and isn't part of CI. It drives your installed
 Google Chrome and saves screenshots of key screens to `frontend/e2e-screens/`;
 the `e2e-happy-path` Claude Code skill runs it and reviews those screenshots.
 
+## Architecture
+
+`docs/architecture/` holds the architecture diagrams: a system view plus the
+backend and frontend code layers. Open `learning-game-architecture.html` in a
+browser to see them rendered, or edit the Mermaid sources (`1-system.mmd`,
+`2-backend.mmd`, `3-frontend.mmd`) and rebuild the page with
+`python3 docs/architecture/build.py`.
+
 ## What's here
 
 - **`backend/app/models/`** — SQLModel/Pydantic definitions for every core

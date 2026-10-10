@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning Game Architecture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap">
+<style>
+/* Layout: single reading column; each diagram in its own pan/zoom plate */
+:root { --bg:#f6f7f4; --fg:#1d2420; --muted:#5b665f; --plate:#ffffff; --line:#d9ded8; --accent:#2f7a5b;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#131815; --fg:#e4e9e5; --muted:#9aa69e; --plate:#1b211d; --line:#2c352f; --accent:#6cc39b; color-scheme:dark; } }
+:root[data-theme="dark"] { --bg:#131815; --fg:#e4e9e5; --muted:#9aa69e; --plate:#1b211d; --line:#2c352f; --accent:#6cc39b; color-scheme:dark; }
+body { background:var(--bg); color:var(--fg); font:15px/1.6 var(--body); padding-inline:16px; padding-block:32px 64px; }
+main { max-width:1200px; margin:0 auto; display:grid; gap:40px; }
+h1 { font:600 2.2rem/1.1 var(--display); margin:0; text-wrap:balance; }
+h2 { font:600 1.4rem/1.2 var(--display); margin:0; }
+.eyebrow { font:600 .75rem var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--accent); }
+p { max-width:68ch; margin:0; color:var(--muted); }
+section { display:grid; gap:12px; min-width:0; }
+.plate { position:relative; background:var(--plate); border:1px solid var(--line); border-radius:6px; height:min(75vh, 760px); overflow:hidden; touch-action:none; cursor:grab; user-select:none; }
+.plate.dragging { cursor:grabbing; }
+.plate:fullscreen { height:100%; border-radius:0; }
+.stage { position:absolute; top:0; left:0; transform-origin:0 0; }
+.stage svg { display:block; max-width:none !important; }
+.status { position:absolute; inset:0; display:grid; place-items:center; font:.85rem var(--mono); color:var(--muted); }
+.zoombar { position:absolute; top:10px; right:10px; z-index:1; display:flex; gap:4px; cursor:default; }
+.zoombar button { font:600 .85rem var(--mono); min-width:34px; height:34px; padding:0 8px; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:4px; cursor:pointer; }
+.zoombar button:hover { border-color:var(--accent); color:var(--accent); }
+.zoombar button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.zoombar output { font:.75rem var(--mono); color:var(--muted); align-self:center; padding-inline:6px; font-variant-numeric:tabular-nums; }
+.hint { font:.75rem var(--mono); color:var(--muted); }
+details summary { cursor:pointer; font:.8rem var(--mono); color:var(--muted); }
+details pre { font:.75rem/1.5 var(--mono); background:var(--plate); border:1px solid var(--line); padding:12px; overflow-x:auto; }
+code { font-family:var(--mono); font-size:.9em; }
+</style>
+</head>
+<body>
+<main>
+<header style="display:grid;gap:10px">
+  <div class="eyebrow">Adaptive Learning Games · architecture</div>
+  <h1>Learning Game Architecture</h1>
+  <p>Two levels. The system view shows what runs where and how requests flow. The code views break the FastAPI backend and the React frontend into their layers.</p>
+</header>
+<section>
+  <div class="eyebrow">Level 1</div>
+  <h2>System</h2>
+  <p>A React SPA in the kid's browser talks to one FastAPI process through the Vite proxy. All state lives in a local SQLite file; OpenAI is the only external call, used for story illustrations and profile-photo remixes. Adaptive difficulty is decided server-side.</p>
+  <div class="plate"><div class="zoombar"><output aria-live="polite">100%</output><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit to view">Fit</button><button type="button" data-z="full" aria-label="Full screen">Full</button></div><div class="stage"></div><div class="status">Rendering diagram…</div></div>
+  <div class="hint">Drag to pan · pinch or Ctrl/⌘ + scroll to zoom · double-click to zoom in (Shift to zoom out)</div>
+  <details><summary>Mermaid source (1-system.mmd)</summary><pre>flowchart LR
+  subgraph Users[&quot;People (home LAN)&quot;]
+    kid[&quot;Kid player&lt;br/&gt;tablet / laptop browser&quot;]
+    parent[&quot;Parent / admin&quot;]
+  end
+
+  subgraph Browser[&quot;Browser runtime&quot;]
+    spa[&quot;React 19 SPA&lt;br/&gt;Vite build, TypeScript&quot;]
+    three[&quot;Three.js / R3F&lt;br/&gt;3D zombie arena&quot;]
+    webapis[&quot;Web Speech + Web Audio&lt;br/&gt;camera, localStorage&quot;]
+    glb[(&quot;public/ assets&lt;br/&gt;GLB models, word images, audio&quot;)]
+  end
+
+  subgraph Host[&quot;Home machine / Figma Make preview&quot;]
+    vite[&quot;Vite dev server :5173&lt;br/&gt;proxies /api and /static&quot;]
+    api[&quot;FastAPI + uvicorn :8000&lt;br/&gt;app.main&quot;]
+    db[(&quot;SQLite&lt;br/&gt;learning_game.db&quot;)]
+    static[(&quot;static/ dir&lt;br/&gt;generated illustrations, avatars&quot;)]
+    env[&quot;.env&lt;br/&gt;ADMIN_PASSWORD, OPENAI_API_KEY&quot;]
+  end
+
+  subgraph External[&quot;External services&quot;]
+    openai[&quot;OpenAI Images API&lt;br/&gt;generations + edits&quot;]
+  end
+
+  subgraph Tooling[&quot;Dev tooling&quot;]
+    gentypes[&quot;gen-types script&lt;br/&gt;Pydantic to generated.ts&quot;]
+    genassets[&quot;asset scripts&lt;br/&gt;word images, audio, badges&quot;]
+    ci[&quot;GitHub Actions CI&lt;br/&gt;pytest + vitest&quot;]
+    e2e[&quot;Playwright e2e&lt;br/&gt;temp DB, ports 8100/5174&quot;]
+  end
+
+  kid --&gt; spa
+  parent --&gt; spa
+  spa --- three
+  spa --- webapis
+  spa --&gt; glb
+  spa -- &quot;HTTP JSON /api/*&quot; --&gt; vite
+  vite -- proxy --&gt; api
+  api -- SQLModel --&gt; db
+  api -- writes/serves --&gt; static
+  env -.-&gt; api
+  api -- &quot;illustrations, photo remix&quot; --&gt; openai
+  gentypes -. &quot;keeps FE/BE types in sync&quot; .-&gt; spa
+  genassets -- uses --&gt; openai
+  genassets -. writes .-&gt; glb
+  e2e -. drives .-&gt; spa
+  ci -. tests .-&gt; api
+</pre></details>
+</section>
+<section>
+  <div class="eyebrow">Level 2 · backend</div>
+  <h2>Backend code (FastAPI, Python 3.12)</h2>
+  <p>Routes in <code>app/main.py</code> call services for IO and orchestration. The Loop A engine is pure functions with no DB access; <code>loop_a_service</code> wraps it with persistence and the append-only event log. Games plug in through the <code>GameModule</code> contract and self-register in the registry.</p>
+  <div class="plate"><div class="zoombar"><output aria-live="polite">100%</output><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit to view">Fit</button><button type="button" data-z="full" aria-label="Full screen">Full</button></div><div class="stage"></div><div class="status">Rendering diagram…</div></div>
+  <div class="hint">Drag to pan · pinch or Ctrl/⌘ + scroll to zoom · double-click to zoom in (Shift to zoom out)</div>
+  <details><summary>Mermaid source (2-backend.mmd)</summary><pre>flowchart TB
+  client[&quot;React SPA&quot;] -- &quot;/api/*&quot; --&gt; main
+
+  subgraph API[&quot;HTTP layer — app/main.py (FastAPI)&quot;]
+    main[&quot;App + lifespan&lt;br/&gt;CORS, /static mount, seed demo profile + badges&quot;]
+    r_prof[&quot;Profiles and auth&lt;br/&gt;/profiles, /unlock, /photos, /admin/login&quot;]
+    r_play[&quot;Gameplay&lt;br/&gt;/games, /items/next, /attempts&quot;]
+    r_eval[&quot;Feedback&lt;br/&gt;/ratings, /verifications&quot;]
+    r_write[&quot;Writing pieces&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&quot;]
+    r_path[&quot;Pathfinder&lt;br/&gt;/completions, /maps, /published-maps&quot;]
+    r_prog[&quot;Progress&lt;br/&gt;/badges, /stats, /practice-config, /client-errors&quot;]
+    auth[&quot;admin_auth&lt;br/&gt;require_admin dependency&quot;]
+  end
+
+  subgraph SVC[&quot;Services — app/services (IO + orchestration)&quot;]
+    s_loop[&quot;loop_a_service&lt;br/&gt;choose_next_item_level, process_attempt&quot;]
+    s_badge[&quot;badges_service&lt;br/&gt;stats, award badges&quot;]
+    s_img[&quot;image_generation&lt;br/&gt;ImageGenerator: OpenAI or Noop&quot;]
+    s_avatar[&quot;profile_avatars / photos&lt;br/&gt;photo remix + storage&quot;]
+    s_pw[&quot;profile_passwords&lt;br/&gt;hashing&quot;]
+    s_err[&quot;client_error_log&quot;]
+  end
+
+  subgraph ENG[&quot;Engine — app/engine (pure, no IO)&quot;]
+    loopa[&quot;loop_a&lt;br/&gt;evaluate_level: promote / hold / support&lt;br/&gt;select_next_item_level&quot;]
+    lvl[&quot;level_selector&lt;br/&gt;get_or_create_level&quot;]
+  end
+
+  subgraph GAMES[&quot;Game modules — app/games&quot;]
+    reg[&quot;registry&lt;br/&gt;game_id to GameModule&quot;]
+    base[&quot;GameModule contract&lt;br/&gt;generate_item, repeat_key, score_attempt&quot;]
+    g1[&quot;syllable_builder&quot;]
+    g2[&quot;equation_builder&quot;]
+    g3[&quot;fact_fluency&quot;]
+    g4[&quot;pathfinder&quot;]
+    g5[&quot;prompt_forge, style_remix_lab&lt;br/&gt;tag_team_story, clue_master&quot;]
+    arith[&quot;_arithmetic helpers&quot;]
+  end
+
+  subgraph DATA[&quot;Persistence&quot;]
+    events[&quot;events/log&lt;br/&gt;append_event: append-only&quot;]
+    models[&quot;models/ SQLModel&lt;br/&gt;Profile, Level, Attempt, Event, Piece,&lt;br/&gt;Badge, Rating, Verification, PlaySession...&quot;]
+    dbpy[&quot;db.py&lt;br/&gt;engine + get_session&quot;]
+    sqlite[(&quot;SQLite&quot;)]
+  end
+
+  openai[&quot;OpenAI Images API&quot;]
+
+  main --&gt; r_prof &amp; r_play &amp; r_eval &amp; r_write &amp; r_path &amp; r_prog
+  r_prof --&gt; auth
+  r_prof --&gt; s_pw &amp; s_avatar
+  r_play --&gt; s_loop
+  r_play --&gt; reg
+  r_write --&gt; s_img
+  r_prog --&gt; s_badge &amp; s_err
+  r_play --&gt; s_badge
+  s_loop --&gt; loopa
+  s_loop --&gt; lvl
+  s_loop --&gt; events
+  reg --&gt; base
+  base --&gt; g1 &amp; g2 &amp; g3 &amp; g4 &amp; g5
+  g2 &amp; g3 --&gt; arith
+  s_img --&gt; openai
+  s_avatar --&gt; openai
+  r_play &amp; r_eval &amp; r_write &amp; r_path &amp; r_prog &amp; r_prof --&gt; models
+  events --&gt; models
+  models --&gt; dbpy --&gt; sqlite
+</pre></details>
+</section>
+<section>
+  <div class="eyebrow">Level 2 · frontend</div>
+  <h2>Frontend code (React 19, Vite, Three.js)</h2>
+  <p><code>App.tsx</code> routes between screens with component state, not a router library. Screens fetch <code>/api</code> directly. Game rules live in pure, unit-tested modules under <code>src/lib</code>; components render them. Shared types come from <code>generated.ts</code>, produced from the backend models by <code>make gen-types</code>.</p>
+  <div class="plate"><div class="zoombar"><output aria-live="polite">100%</output><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit to view">Fit</button><button type="button" data-z="full" aria-label="Full screen">Full</button></div><div class="stage"></div><div class="status">Rendering diagram…</div></div>
+  <div class="hint">Drag to pan · pinch or Ctrl/⌘ + scroll to zoom · double-click to zoom in (Shift to zoom out)</div>
+  <details><summary>Mermaid source (3-frontend.mmd)</summary><pre>flowchart TB
+  main[&quot;main.tsx&lt;br/&gt;ErrorBoundary + errorReporting&quot;] --&gt; app
+
+  app[&quot;App.tsx&lt;br/&gt;state-driven screen router&lt;br/&gt;profile, gameId, editing, admin...&quot;]
+  dev[&quot;dev/ screens via ?screen=&lt;br/&gt;ZombieHitLab, WeaponPOC, ZombiePOC&quot;]
+  app -. &quot;DEV only&quot; .-&gt; dev
+
+  subgraph SCREENS[&quot;Screens — src/games&quot;]
+    prof[&quot;Profile flow&lt;br/&gt;ProfilePicker, CreateProfile,&lt;br/&gt;ProfileUnlock, EditProfile, AdminPanel&quot;]
+    picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
+    gWord[&quot;Word games&lt;br/&gt;SyllableBuilder, PromptForge,&lt;br/&gt;StyleRemixLab, TagTeamStory, ClueMaster&quot;]
+    gMath[&quot;Math games&lt;br/&gt;EquationBuilder, ZombieMathBlaster&quot;]
+    gPath[&quot;Pathfinder&quot;]
+    meta[&quot;BadgesAccomplishments, Storybook&quot;]
+  end
+
+  subgraph COMP[&quot;Components — src/components&quot;]
+    shared[&quot;Session shell&lt;br/&gt;SessionStart, SessionComplete,&lt;br/&gt;RatingPrompt, ParentVerify, CoachPanel, ProgressBar&quot;]
+    den[&quot;den/ design kit&lt;br/&gt;DenButton, DenCard, DenTabs, DenTile...&quot;]
+    arena[&quot;framework/ZombieArena + R3F scene&lt;br/&gt;EquationOutbreakScene, ZombieCharacter3D,&lt;br/&gt;EquationBlaster, ApproachLane, MuzzleFlash&quot;]
+    pathc[&quot;Pathfinder UI&lt;br/&gt;Board, Editor, MapBuilder, PlayTest,&lt;br/&gt;LevelGallery, MyMaps, PublishedMaps&quot;]
+    write[&quot;Writing UI&lt;br/&gt;WritingSurface, TileAssembly,&lt;br/&gt;IllustrationReveal, HandoffPencil&quot;]
+  end
+
+  subgraph LIB[&quot;Logic — src/lib (pure, unit-tested)&quot;]
+    zlib[&quot;Zombie engine&lt;br/&gt;zombieWaveEngine, raycastOutcome,&lt;br/&gt;laneNavigation, rootMotion, zombieRoster&quot;]
+    plib[&quot;Pathfinder engine&lt;br/&gt;Rules, Solver, Generator,&lt;br/&gt;Difficulty, Levels, usePathfinderPlay&quot;]
+    plat[&quot;Platform adapters&lt;br/&gt;gameAudio, speech, errorReporting,&lt;br/&gt;pathfinderProgress, pathfinderCustomMaps&quot;]
+  end
+
+  types[&quot;types/generated.ts&lt;br/&gt;generated from backend models&quot;]
+  api[[&quot;FastAPI /api/*&quot;]]
+  assets[(&quot;public/ GLB models, images, audio&quot;)]
+
+  app --&gt; prof &amp; picker &amp; gWord &amp; gMath &amp; gPath &amp; meta
+  gWord --&gt; shared &amp; write
+  gMath --&gt; shared &amp; arena
+  gPath --&gt; pathc
+  prof &amp; picker &amp; meta --&gt; den
+  arena --&gt; zlib
+  arena --&gt; assets
+  pathc --&gt; plib
+  gPath --&gt; plat
+  shared &amp; gWord &amp; gMath --&gt; plat
+  prof &amp; picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch&quot; --&gt; api
+  plat -- &quot;fetch&quot; --&gt; api
+  SCREENS -.-&gt; types
+  LIB -.-&gt; types
+</pre></details>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(async () => {
+  const dark = document.documentElement.dataset.theme === 'dark' ||
+    (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict',
+    flowchart: { htmlLabels: true } });
+
+  const plates = [...document.querySelectorAll('.plate')];
+  for (const [i, plate] of plates.entries()) {
+    const src = plate.parentElement.querySelector('details pre').textContent;
+    const stage = plate.querySelector('.stage');
+    const status = plate.querySelector('.status');
+    try {
+      const { svg } = await mermaid.render('arch-diagram-' + i, src);
+      stage.innerHTML = svg;
+      status.remove();
+      setUpZoom(plate, stage);
+    } catch (err) {
+      status.textContent = 'Diagram failed to render: ' + err.message;
+    }
+  }
+
+  function setUpZoom(plate, stage) {
+    const svg = stage.querySelector('svg');
+    const vb = svg.viewBox.baseVal;
+    const w = vb && vb.width ? vb.width : svg.getBBox().width;
+    const h = vb && vb.height ? vb.height : svg.getBBox().height;
+    svg.setAttribute('width', w);
+    svg.setAttribute('height', h);
+    svg.style.width = w + 'px';
+    svg.style.height = h + 'px';
+
+    const readout = plate.querySelector('output');
+    let k = 1, x = 0, y = 0, fitK = 1;
+    const MIN = 0.1, MAX = 12;
+    const apply = () => {
+      stage.style.transform = `translate(${x}px, ${y}px) scale(${k})`;
+      readout.textContent = Math.round(k / fitK * 100) + '%';
+    };
+    const fit = () => {
+      const pw = plate.clientWidth, ph = plate.clientHeight, pad = 24;
+      fitK = k = Math.min((pw - pad * 2) / w, (ph - pad * 2) / h);
+      x = (pw - w * k) / 2;
+      y = (ph - h * k) / 2;
+      apply();
+    };
+    // Zoom by `f` keeping the plate point (px, py) fixed under the cursor.
+    const zoomAt = (f, px, py) => {
+      const nk = Math.min(MAX, Math.max(MIN, k * f));
+      x = px - (px - x) * (nk / k);
+      y = py - (py - y) * (nk / k);
+      k = nk;
+      apply();
+    };
+    const zoomCenter = (f) => zoomAt(f, plate.clientWidth / 2, plate.clientHeight / 2);
+    const local = (e) => { const r = plate.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+    plate.querySelector('.zoombar').addEventListener('click', (e) => {
+      const z = e.target.closest('button')?.dataset.z;
+      if (z === 'in') zoomCenter(1.4);
+      else if (z === 'out') zoomCenter(1 / 1.4);
+      else if (z === 'fit') fit();
+      else if (z === 'full') {
+        if (document.fullscreenElement) document.exitFullscreen?.();
+        else plate.requestFullscreen?.().catch(() => {});
+      }
+    });
+
+    // Ctrl/Cmd + wheel (also what a trackpad pinch sends) zooms; plain wheel scrolls the page.
+    plate.addEventListener('wheel', (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      zoomAt(Math.exp(-e.deltaY * 0.01), ...local(e));
+    }, { passive: false });
+
+    plate.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.zoombar')) return;
+      zoomAt(e.shiftKey ? 1 / 1.6 : 1.6, ...local(e));
+    });
+
+    // Drag to pan with one pointer, pinch with two.
+    const pointers = new Map();
+    let pinchDist = 0;
+    plate.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.zoombar')) return;
+      plate.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, local(e));
+      plate.classList.add('dragging');
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      }
+    });
+    plate.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      const prev = pointers.get(e.pointerId);
+      const cur = local(e);
+      pointers.set(e.pointerId, cur);
+      if (pointers.size === 1) {
+        x += cur[0] - prev[0];
+        y += cur[1] - prev[1];
+        apply();
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (pinchDist) zoomAt(d / pinchDist, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+        pinchDist = d;
+      }
+    });
+    const release = (e) => {
+      pointers.delete(e.pointerId);
+      pinchDist = 0;
+      if (!pointers.size) plate.classList.remove('dragging');
+    };
+    plate.addEventListener('pointerup', release);
+    plate.addEventListener('pointercancel', release);
+
+    plate.addEventListener('fullscreenchange', () => requestAnimationFrame(fit));
+    new ResizeObserver(() => fit()).observe(plate);
+    fit();
+  }
+})();
+</script>
+</body>
+</html>
