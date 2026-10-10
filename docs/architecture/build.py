@@ -1,6 +1,7 @@
 """Builds learning-game-architecture.html from the .mmd diagram sources.
 
     python3 docs/architecture/build.py              # writes the standalone page
+    python3 docs/architecture/build.py --check      # fails if the committed page is stale (preflight + CI)
     python3 docs/architecture/build.py --fragment   # page body only, for publishing as a claude.ai artifact
 
 Mermaid is rendered by the page itself (UMD build from jsdelivr) rather than by
@@ -20,7 +21,9 @@ SECTIONS = [
         "System",
         "A React SPA in the kid's browser talks to one FastAPI process through the Vite proxy. All state "
         "lives in a local SQLite file; OpenAI is the only external call, used for story illustrations and "
-        "profile-photo remixes. Adaptive difficulty is decided server-side.",
+        "profile-photo remixes. Adaptive difficulty is decided server-side. The backend's OpenAPI schema "
+        "generates the frontend's API types, and <code>make preflight</code> (run again by CI) enforces the "
+        "architecture below.",
     ),
     (
         "2-backend.mmd",
@@ -28,16 +31,21 @@ SECTIONS = [
         "Backend code (FastAPI, Python 3.12)",
         "Routes in <code>app/main.py</code> call services for IO and orchestration. The Loop A engine is pure "
         "functions with no DB access; <code>loop_a_service</code> wraps it with persistence and the append-only "
-        "event log. Games plug in through the <code>GameModule</code> contract and self-register in the registry.",
+        "event log. Games plug in through the <code>GameModule</code> contract and self-register in the registry. "
+        "New-style features (<code>app/todo/</code> is the example) are built from factories and wired only in "
+        "<code>app/composition/</code>, which <code>app/main.py</code> calls to mount their routers. Legacy modules "
+        "migrate into that shape one at a time (<code>backend/MIGRATION.md</code>).",
     ),
     (
         "3-frontend.mmd",
         "Level 2 · frontend",
         "Frontend code (React 19, Vite, Three.js)",
-        "<code>App.tsx</code> routes between screens with component state, not a router library. Screens fetch "
-        "<code>/api</code> directly. Game rules live in pure, unit-tested modules under <code>src/lib</code>; "
-        "components render them. Shared types come from <code>generated.ts</code>, produced from the backend "
-        "models by <code>make gen-types</code>.",
+        "<code>App.tsx</code> routes between screens with component state, not a router library. Legacy screens "
+        "fetch <code>/api</code> directly, and game rules live in pure modules under <code>src/lib</code>. "
+        "Migrated code lives in feature folders whose filenames carry their layer: screens are bound with "
+        "injected capabilities, reach the server through <code>src/api/</code> adapters (zod-parsed, typed from "
+        "the backend's OpenAPI schema) and <code>useQuery</code>, and are assembled once. Legacy may import "
+        "new-style code, never the reverse (<code>MIGRATION.md</code>).",
     ),
 ]
 
@@ -235,14 +243,26 @@ def body() -> str:
 {SCRIPT}"""
 
 
+def page() -> str:
+    return (
+        '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        + body().replace("</style>\n<main>", "</style>\n</head>\n<body>\n<main>", 1)
+        + "</body>\n</html>\n"
+    )
+
+
+OUTPUT = HERE / "learning-game-architecture.html"
+
 if __name__ == "__main__":
     if "--fragment" in sys.argv:
         sys.stdout.write(body())
+    elif "--check" in sys.argv:
+        if not OUTPUT.exists() or OUTPUT.read_text() != page():
+            sys.stderr.write(
+                f"{OUTPUT.name} is stale: a .mmd source or build.py changed without rebuilding the page.\n"
+                "Run `python3 docs/architecture/build.py` and commit the result. See docs/architecture/AGENTS.md.\n"
+            )
+            sys.exit(1)
     else:
-        page = (
-            '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-            + body().replace("</style>\n<main>", "</style>\n</head>\n<body>\n<main>", 1)
-            + "</body>\n</html>\n"
-        )
-        (HERE / "learning-game-architecture.html").write_text(page)
+        OUTPUT.write_text(page())

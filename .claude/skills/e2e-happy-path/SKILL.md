@@ -20,8 +20,9 @@ The suite lives in `frontend/e2e/` and is configured by
 - Test admin password `e2e-admin-password` (`frontend/e2e/fixtures.ts`). Never
   use the real one from `backend/.env`.
 - `OPENAI_API_KEY` is blanked, so nothing can call OpenAI; remixes get a 503.
-- It drives the installed Google Chrome (`channel: 'chrome'`), so there's no
-  Playwright browser download.
+- It drives Playwright's bundled Chromium (`npx playwright install chromium`,
+  part of `make install-frontend`), not the installed Google Chrome, which on
+  managed machines can exit a few seconds after launch.
 
 ## Run it
 

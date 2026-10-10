@@ -26,7 +26,7 @@ npm run check:api       # FE types match the backend's OpenAPI (make gen-api to 
 ```
 
 Backend: `backend/scripts/preflight.sh` (ruff, pyright strict, import-linter, AST rules,
-cycles, pytest).
+cycles, pytest). Diagrams: `make check-docs`.
 
 A failing check is telling you where the code goes. Every lint message names the fix and
 links the doc. **Never silence a rule** (`oxlint-disable`, `@ts-ignore`, `# noqa`,
@@ -50,6 +50,7 @@ Each of these fails the build. The rule that enforces it is in parentheses.
 11. **No value import cycles** (`npm run check:cycles`).
 12. **The API contract is generated.** Backend changes regenerate `src/api/openapi_schema.pure.lib.ts`; CI fails on drift (`npm run check:api`).
 13. **Every change ships with tests**, and every new UI file with a story.
+14. **The architecture diagrams track the code.** Every feature folder must be drawn in `docs/architecture/`, and the generated page must be fresh (`make check-docs`). When you change what depends on what, redraw it in the same PR. [`docs/architecture/AGENTS.md`](docs/architecture/AGENTS.md) lists when.
 
 ## Adding a feature (copy the example)
 
@@ -65,6 +66,7 @@ The worked example is [`frontend/src/examples/todo/`](frontend/src/examples/todo
 7. **Assembly:** `<x>.assembly.main.ts`, where `assembleXs()` reads globals and flags, picks implementations, and calls `bind*`. Register it in a composition root (`src/main/`).
 8. **Tests and stories:** one colocated `.test.ts(x)` per file, one `.stories.tsx` per UI file (see Testing).
 9. **Backend endpoint?** Add it in `backend/app/<feature>/`, then run `make gen-api` and write the zod adapter in `src/api/`.
+10. **Draw it:** add the feature's node and arrows to `docs/architecture/3-frontend.mmd` (or `2-backend.mmd`), then run `python3 docs/architecture/build.py`. `make check-docs` fails until a new folder is drawn.
 
 Touching legacy code (anything on `frontend/scripts/lint/legacy_allowlist.json` or
 `backend/scripts/lint_py/legacy_allowlist.txt`)? Small fixes are fine in place. A new

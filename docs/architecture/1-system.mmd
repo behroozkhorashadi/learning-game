@@ -13,7 +13,7 @@ flowchart LR
 
   subgraph Host["Home machine / Figma Make preview"]
     vite["Vite dev server :5173<br/>proxies /api and /static"]
-    api["FastAPI + uvicorn :8000<br/>app.main"]
+    api["FastAPI + uvicorn :8000<br/>app.main + app/composition"]
     db[("SQLite<br/>learning_game.db")]
     static[("static/ dir<br/>generated illustrations, avatars")]
     env[".env<br/>ADMIN_PASSWORD, OPENAI_API_KEY"]
@@ -24,10 +24,17 @@ flowchart LR
   end
 
   subgraph Tooling["Dev tooling"]
-    gentypes["gen-types script<br/>Pydantic to generated.ts"]
+    genapi["make gen-api<br/>OpenAPI export to src/api/ types<br/>(CI fails on drift)"]
+    gentypes["make gen-types (legacy)<br/>Pydantic to types/generated.ts"]
     genassets["asset scripts<br/>word images, audio, badges"]
-    ci["GitHub Actions CI<br/>pytest + vitest"]
-    e2e["Playwright e2e<br/>temp DB, ports 8100/5174"]
+    e2e["Playwright e2e, on demand<br/>bundled Chromium, temp DB, ports 8100/5174"]
+  end
+
+  subgraph Guardrails["Guardrails (make preflight)"]
+    felint["Frontend: oxlint + local plugin,<br/>tsc strict, cycle check, docs sync"]
+    belint["Backend: ruff, pyright strict,<br/>import-linter, AST rules, cycles"]
+    hook["pre-commit hook<br/>lint on staged files"]
+    ci["GitHub Actions CI, 5 parallel jobs<br/>backend, FE static, unit,<br/>Storybook in Chromium, API contract"]
   end
 
   kid --> spa
@@ -41,8 +48,10 @@ flowchart LR
   api -- writes/serves --> static
   env -.-> api
   api -- "illustrations, photo remix" --> openai
-  gentypes -. "keeps FE/BE types in sync" .-> spa
+  genapi -. "backend OpenAPI to FE types" .-> spa
+  gentypes -. "legacy types" .-> spa
   genassets -- uses --> openai
   genassets -. writes .-> glb
   e2e -. drives .-> spa
-  ci -. tests .-> api
+  hook -. "before commit" .-> felint & belint
+  ci -. runs .-> felint & belint & genapi

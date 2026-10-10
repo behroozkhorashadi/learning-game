@@ -6,8 +6,8 @@ import { defineConfig } from 'vitest/config'
 
 const alias = { '@app': fileURLToPath(new URL('./src', import.meta.url)) }
 
-// Locally, drive the installed Google Chrome (as the e2e suite does); CI installs Playwright's chromium.
-const browserProvider = process.env['CI'] === undefined ? playwright({ launchOptions: { channel: 'chrome' } }) : playwright()
+// Playwright's bundled Chromium, locally and in CI (`npx playwright install chromium`).
+const browserProvider = playwright()
 
 export default defineConfig({
   plugins: [react()],

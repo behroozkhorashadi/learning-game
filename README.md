@@ -9,7 +9,7 @@ machines, not reviewers, keep it in shape. This README is the *why*. The *how* i
 
 ```
 make install-backend    # backend/.venv with runtime + dev tooling (ruff, pyright, import-linter)
-make install-frontend   # npm install in frontend/ (Node 22, see frontend/.nvmrc)
+make install-frontend   # npm install in frontend/ + Playwright's Chromium (Node 22, see frontend/.nvmrc)
 make install-hooks      # pre-commit hook: lint + format on staged files only
 
 make dev                # backend (:8000) + frontend (Vite) together. One command, Ctrl-C stops both
@@ -208,6 +208,7 @@ Each idea is written down once. Everything else links to it.
 | server state (`useQuery`) | [frontend/src/query/AGENTS.md](frontend/src/query/AGENTS.md) |
 | what the AI reviewer checks (only what lint can't) | [review-conventions.md](review-conventions.md) |
 | moving legacy code over | [MIGRATION.md](MIGRATION.md), [backend/MIGRATION.md](backend/MIGRATION.md) |
+| architecture diagrams (and when to update them) | [docs/architecture/AGENTS.md](docs/architecture/AGENTS.md) |
 | the worked example | `frontend/src/examples/todo/`, `backend/app/todo/` |
 
 ## Measure it
@@ -220,8 +221,8 @@ CI time, revert rate, time from ready-for-review to merged, and bugs filed.
 `make e2e` runs the browser happy-path suite in `frontend/e2e/` (profiles, passwords, saved
 pictures, admin) against a throwaway backend and database, so it never touches real data or
 calls OpenAI. It's meant to be run every so often, not on every change, and isn't part of
-CI. It drives your installed Google Chrome and saves screenshots of key screens to
-`frontend/e2e-screens/`; the `e2e-happy-path` Claude Code skill runs it and reviews those
+CI. It drives Playwright's bundled Chromium (installed by `make install-frontend`) and saves
+screenshots of key screens to `frontend/e2e-screens/`; the `e2e-happy-path` Claude Code skill runs it and reviews those
 screenshots.
 
 `make gen-types` (legacy) regenerates `frontend/src/types/generated.ts` from the Python
@@ -234,7 +235,8 @@ models. It isn't run automatically. New code uses the OpenAPI-generated types fr
 backend and frontend code layers. Open `learning-game-architecture.html` in a
 browser to see them rendered, or edit the Mermaid sources (`1-system.mmd`,
 `2-backend.mmd`, `3-frontend.mmd`) and rebuild the page with
-`python3 docs/architecture/build.py`.
+`python3 docs/architecture/build.py`. `make check-docs` (in preflight and CI)
+fails if a feature folder isn't drawn or the page is stale.
 
 ### What's here
 

@@ -23,6 +23,7 @@ same comment comes up again and again, propose a lint rule for it instead (see
 - **Code is cheap to write, expensive to own.** Prefer deleting and simplifying. Push back
   on speculative options, unused exports, and abstractions with one caller. A feature
   should be deletable as one folder.
+- **The diagrams still tell the truth.** `make check-docs` only proves every folder is drawn. If the PR changes a data flow, migrates a component, adds an endpoint group or external service, or changes CI, check that `docs/architecture/*.mmd` was redrawn to match (`docs/architecture/AGENTS.md`).
 - **Consistency beats cleverness.** New code should look like `examples/todo/`. A novel
   pattern needs a reason in the PR description.
 

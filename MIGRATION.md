@@ -81,7 +81,7 @@ Lessons from ProfilePicker:
 
 ## Known debt surfaced by the new rules (fix during migration)
 
-- **e2e and the local Chrome:** on this machine, the installed Google Chrome (155, `channel: 'chrome'` in `playwright.config.ts`) currently exits about 5.7s after launch, even on `about:blank`, so longer runs fail with "Target page, context or browser has been closed". That's environmental, not app code: with Playwright's bundled Chromium (`npx playwright install chromium`), all 15 specs pass.
+- **e2e and the local Chrome (resolved):** the installed Google Chrome 155 on this machine exits about 5.7s after launch, even on `about:blank`, so long runs failed with "Target page, context or browser has been closed". e2e and the Storybook tests now use Playwright's bundled Chromium, as CI does.
 
 - **`<Suspense>` without an error boundary** in 7 react-three-fiber spots:
   `components/EquationBlaster.tsx` (×3), `games/framework/ZombieArena.tsx`,

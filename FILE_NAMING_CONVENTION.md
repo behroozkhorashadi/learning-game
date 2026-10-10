@@ -75,6 +75,7 @@ frontend/
     profiles/               profile picker, avatars
     query/                  useQuery: the server-state seam
     components/ games/ lib/ dev/ types/ styles/   legacy (allowlisted, migrating)
+docs/architecture/          system/backend/frontend diagrams (.mmd sources → generated page; make check-docs)
 backend/
   app/<feature>/            new-style features (app/todo/ is the example)
   app/composition/          backend composition root (assemble_app)

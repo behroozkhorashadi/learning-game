@@ -1,7 +1,7 @@
 flowchart TB
   client["React SPA"] -- "/api/*" --> main
 
-  subgraph API["HTTP layer — app/main.py (FastAPI)"]
+  subgraph API["HTTP layer — app/main.py (FastAPI, legacy entry: uvicorn app.main:app)"]
     main["App + lifespan<br/>CORS, /static mount, seed demo profile + badges"]
     r_prof["Profiles and auth<br/>/profiles, /unlock, /photos, /admin/login"]
     r_play["Gameplay<br/>/games, /items/next, /attempts"]
@@ -44,9 +44,22 @@ flowchart TB
     sqlite[("SQLite")]
   end
 
+  subgraph NEW["Guardrailed — app/&lt;feature&gt;/&lt;name&gt;_&lt;kind&gt;_&lt;color&gt;.py (assembly → effect → pure)"]
+    comp["app/composition (assembly)<br/>AppSettings via load_settings()<br/>assemble_features(app, settings)"]
+    t_routes["todo/ todo_routes_effect<br/>bind_todo_routes(service): /api/examples/todos"]
+    t_svc["todo_service_effect<br/>make_todo_service(repository, clock, new_id)"]
+    t_repo["todo_repository_effect<br/>over an injected engine"]
+    t_pure["todo_reducers_pure, todo_schemas_pure,<br/>todo_ports_pure (no IO, no framework)"]
+  end
+
   openai["OpenAI Images API"]
 
   main --> r_prof & r_play & r_eval & r_write & r_path & r_prog
+  main -- "mounts new-style routers" --> comp
+  comp -- "builds + wires" --> t_routes & t_svc & t_repo
+  t_routes --> t_svc --> t_repo
+  t_routes & t_svc & t_repo --> t_pure
+  t_repo --> sqlite
   r_prof --> auth
   r_prof --> s_pw & s_avatar
   r_play --> s_loop

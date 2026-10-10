@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   backend:
-    name: backend (ruff, pyright, import-linter, AST rules, cycles, pytest)
+    name: backend (ruff, pyright, import-linter, AST rules, cycles, pytest) + diagrams
     runs-on: ubuntu-latest
     # backend/.env is gitignored (it holds real secrets — see backend/.env.example) and
     # never exists on the runner, but the app refuses to start without ADMIN_PASSWORD.
@@ -32,6 +32,11 @@ jobs:
           cache-dependency-path: backend/requirements*.txt
       - run: python -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - run: backend/scripts/preflight.sh
+      # Architecture diagrams track the code: every feature folder drawn, page regenerated.
+      - run: python docs/architecture/check_coverage.py
+      - run: python docs/architecture/build.py --check
+      - run: ../../backend/.venv/bin/pytest -q -p no:cacheprovider test_check_coverage.py
+        working-directory: docs/architecture
 
   frontend-static:
     name: frontend (typecheck, lint, cycles, lint-rule tests)

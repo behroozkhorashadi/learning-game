@@ -11,8 +11,10 @@ import { E2E_ADMIN_PASSWORD } from './e2e/fixtures.ts'
  * on 8000/5173. `reuseExistingServer: false` means a run fails rather than
  * silently testing whatever else is already on those ports.
  *
- * Uses the locally installed Google Chrome (`channel: 'chrome'`), so there's
- * no Playwright browser download.
+ * Uses Playwright's bundled Chromium (`npx playwright install chromium`, run by
+ * `make install-frontend`), the same browser CI uses. Not the installed Google
+ * Chrome: managed Chrome installs can exit on their own a few seconds after
+ * launch, which shows up as "Target page, context or browser has been closed".
  */
 
 const BACKEND_PORT = 8100
@@ -31,7 +33,6 @@ export default defineConfig({
   outputDir: 'e2e-results',
   use: {
     baseURL: `http://127.0.0.1:${FRONTEND_PORT}`,
-    channel: 'chrome',
     viewport: { width: 1280, height: 900 },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
