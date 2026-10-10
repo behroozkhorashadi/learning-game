@@ -1,0 +1,13 @@
+{
+  // Tooling: build/test config, the lint plugin, and repo scripts (run on Node).
+  "extends": "./tsconfig.strict.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tooling.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node", "vite/client"],
+    "module": "nodenext",
+    "allowImportingTsExtensions": true
+  },
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "oxlint.config.ts", "scripts/**/*.ts", ".storybook/*.ts"]
+}

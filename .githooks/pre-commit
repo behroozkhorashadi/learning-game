@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Pre-commit: lint + format check on STAGED files only (seconds). The point is to stop a
+# bad push before it happens; CI runs the full preflight behind this as the failsafe.
+# Install with `make install-hooks`.
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+
+fe=()
+be=()
+while IFS= read -r f; do
+  case "$f" in
+    frontend/*.ts | frontend/*.tsx) fe+=("${f#frontend/}") ;;
+    backend/*.py) be+=("$f") ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ ${#fe[@]} -gt 0 ]; then
+  cd "$root/frontend"
+  if [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" && nvm use >/dev/null; fi
+  npx oxlint -c oxlint.config.ts --type-aware --deny-warnings "${fe[@]}"
+fi
+
+if [ ${#be[@]} -gt 0 ]; then
+  cd "$root"
+  backend/scripts/precommit.sh "${be[@]}"
+fi

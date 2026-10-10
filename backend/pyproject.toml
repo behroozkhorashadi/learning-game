@@ -1,0 +1,227 @@
+# Backend guardrail config. Every rule is an error; see backend/AGENTS.md.
+# The legacy lists below must equal scripts/lint_py/legacy_allowlist.txt
+# (scripts/lint_py/test_legacy_allowlist.py enforces it) and may only shrink.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = [
+    # --- legacy (shrink-only) ---
+    "app/__init__.py",
+    "app/admin_auth.py",
+    "app/db.py",
+    "app/engine/__init__.py",
+    "app/engine/level_selector.py",
+    "app/engine/loop_a.py",
+    "app/events/__init__.py",
+    "app/events/log.py",
+    "app/games/__init__.py",
+    "app/games/_arithmetic.py",
+    "app/games/base.py",
+    "app/games/clue_master.py",
+    "app/games/equation_builder.py",
+    "app/games/fact_fluency.py",
+    "app/games/pathfinder.py",
+    "app/games/prompt_forge.py",
+    "app/games/registry.py",
+    "app/games/style_remix_lab.py",
+    "app/games/syllable_builder.py",
+    "app/games/tag_team_story.py",
+    "app/main.py",
+    "app/models/__init__.py",
+    "app/models/attempt.py",
+    "app/models/badge.py",
+    "app/models/enums.py",
+    "app/models/event.py",
+    "app/models/game.py",
+    "app/models/item.py",
+    "app/models/pathfinder.py",
+    "app/models/piece.py",
+    "app/models/practice_config.py",
+    "app/models/profile.py",
+    "app/models/rating.py",
+    "app/models/session.py",
+    "app/models/skill.py",
+    "app/models/stats.py",
+    "app/models/verification.py",
+    "app/services/__init__.py",
+    "app/services/badges_service.py",
+    "app/services/client_error_log.py",
+    "app/services/image_generation.py",
+    "app/services/loop_a_service.py",
+    "app/services/profile_avatars.py",
+    "app/services/profile_passwords.py",
+    "app/services/profile_photos.py",
+    "app/util.py",
+    "scripts/generate_badge_assets.py",
+    "scripts/generate_game_assets.py",
+    "scripts/generate_ts_types.py",
+    "scripts/generate_word_audio.py",
+    "scripts/generate_word_images.py",
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/test_api.py",
+    "tests/test_arithmetic.py",
+    "tests/test_badges.py",
+    "tests/test_equation_builder.py",
+    "tests/test_fact_fluency.py",
+    "tests/test_loop_a_engine.py",
+    "tests/test_loop_a_service.py",
+    "tests/test_pathfinder_api.py",
+    "tests/test_pathfinder.py",
+    "tests/test_pieces.py",
+    "tests/test_practice_config.py",
+    "tests/test_profiles.py",
+    "tests/test_syllable_builder.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W", "I", "B", "UP", "SIM", "RUF", "ANN", "ASYNC", "S", "BLE", "TRY", "DTZ", "T20",
+    "PT", "PL", "PGH", "TID", "ERA", "N", "C4", "RET", "PTH",
+]
+# RUF100 reports any `# noqa` that suppresses nothing; scripts/lint_py bans the rest.
+extend-select = ["RUF100"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+# Absolute imports everywhere (`from app.todo.todo_schemas_pure import Todo`).
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.environ".msg = "Read configuration in app/composition/app_settings_assembly.py (AppSettings) and inject the value. See backend/AGENTS.md#assembly."
+"os.getenv".msg = "Read configuration in app/composition/app_settings_assembly.py (AppSettings) and inject the value. See backend/AGENTS.md#assembly."
+"os.putenv".msg = "Don't mutate the environment; pass configuration explicitly. See backend/AGENTS.md#assembly."
+"datetime.datetime.now".msg = "Inject a clock (`clock: Callable[[], datetime]`) built in app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"datetime.datetime.utcnow".msg = "Inject a clock (`clock: Callable[[], datetime]`) built in app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"datetime.datetime.today".msg = "Inject a clock (`clock: Callable[[], datetime]`) built in app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"datetime.date.today".msg = "Inject a clock (`clock: Callable[[], datetime]`) built in app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"time.time".msg = "Inject a clock from app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"uuid.uuid1".msg = "Inject an id factory (`new_id: Callable[[], XId]`) from app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"uuid.uuid4".msg = "Inject an id factory (`new_id: Callable[[], XId]`) from app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"random".msg = "Inject a seeded `random.Random` (or a narrower callable) from app/composition/app_wiring_assembly.py. See backend/AGENTS.md#purity."
+"requests".msg = "Use an injected httpx.Client/AsyncClient built in app/composition/app_wiring_assembly.py. See backend/AGENTS.md#assembly."
+"unittest.mock.patch".msg = "Don't patch modules. Pass a fake through the factory (see tests/todo/todo_fakes.py). See backend/AGENTS.md#testing."
+"typing.cast".msg = "Parse external data with a pydantic model (`Model.model_validate(raw)`) instead of casting. See backend/AGENTS.md#parse-at-the-door."
+"fastapi.Depends".msg = "Routes get services from bind_<feature>_routes(service=...), not Depends. Register any Depends provider in app/composition/. See backend/AGENTS.md#routes."
+"dotenv".msg = "Configuration is AppSettings in app/composition/app_settings_assembly.py. See backend/AGENTS.md#assembly."
+
+[tool.ruff.lint.per-file-ignores]
+# Assembly is where globals, clocks, ids, env, and implementations are chosen.
+"app/**/*_assembly.py" = ["TID251"]
+# Tests assert with `assert` and may use literal values; they stay subject to the API bans.
+"tests/**" = ["S101", "PLR2004"]
+"scripts/**/test_*.py" = ["S101", "PLR2004"]
+# Tooling: reads env and prints reports.
+"scripts/**" = ["TID251", "T201"]
+
+[tool.ruff.lint.pylint]
+max-args = 6
+
+[tool.pyright]
+include = ["app", "tests", "scripts"]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+    # --- legacy (shrink-only) ---
+    "app/__init__.py",
+    "app/admin_auth.py",
+    "app/db.py",
+    "app/engine/__init__.py",
+    "app/engine/level_selector.py",
+    "app/engine/loop_a.py",
+    "app/events/__init__.py",
+    "app/events/log.py",
+    "app/games/__init__.py",
+    "app/games/_arithmetic.py",
+    "app/games/base.py",
+    "app/games/clue_master.py",
+    "app/games/equation_builder.py",
+    "app/games/fact_fluency.py",
+    "app/games/pathfinder.py",
+    "app/games/prompt_forge.py",
+    "app/games/registry.py",
+    "app/games/style_remix_lab.py",
+    "app/games/syllable_builder.py",
+    "app/games/tag_team_story.py",
+    "app/main.py",
+    "app/models/__init__.py",
+    "app/models/attempt.py",
+    "app/models/badge.py",
+    "app/models/enums.py",
+    "app/models/event.py",
+    "app/models/game.py",
+    "app/models/item.py",
+    "app/models/pathfinder.py",
+    "app/models/piece.py",
+    "app/models/practice_config.py",
+    "app/models/profile.py",
+    "app/models/rating.py",
+    "app/models/session.py",
+    "app/models/skill.py",
+    "app/models/stats.py",
+    "app/models/verification.py",
+    "app/services/__init__.py",
+    "app/services/badges_service.py",
+    "app/services/client_error_log.py",
+    "app/services/image_generation.py",
+    "app/services/loop_a_service.py",
+    "app/services/profile_avatars.py",
+    "app/services/profile_passwords.py",
+    "app/services/profile_photos.py",
+    "app/util.py",
+    "scripts/generate_badge_assets.py",
+    "scripts/generate_game_assets.py",
+    "scripts/generate_ts_types.py",
+    "scripts/generate_word_audio.py",
+    "scripts/generate_word_images.py",
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/test_api.py",
+    "tests/test_arithmetic.py",
+    "tests/test_badges.py",
+    "tests/test_equation_builder.py",
+    "tests/test_fact_fluency.py",
+    "tests/test_loop_a_engine.py",
+    "tests/test_loop_a_service.py",
+    "tests/test_pathfinder_api.py",
+    "tests/test_pathfinder.py",
+    "tests/test_pieces.py",
+    "tests/test_practice_config.py",
+    "tests/test_profiles.py",
+    "tests/test_syllable_builder.py",
+]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+# `# type: ignore` does nothing; a suppression must be `# pyright: ignore[rule] -- reason`.
+enableTypeIgnoreComments = false
+reportUnnecessaryTypeIgnoreComment = "error"
+reportImplicitOverride = "error"
+reportImplicitStringConcatenation = "none"
+reportMissingSuperCall = "none"
+reportPropertyTypeMismatch = "error"
+reportUninitializedInstanceVariable = "error"
+reportUnusedCallResult = "none"
+deprecateTypingAliases = true
+reportDeprecated = "error"
+
+[tool.importlinter]
+root_packages = ["app"]
+include_external_packages = true
+contract_types = ["color_layers: scripts.lint_py.color_contract.ColorLayersContract"]
+
+[[tool.importlinter.contracts]]
+name = "Color layers: assembly -> effect -> pure, features independent, no new->legacy imports (backend/AGENTS.md#layers)"
+type = "color_layers"
+
+[[tool.importlinter.contracts]]
+name = "Composition sits above every new-style feature; only app.main imports it"
+type = "layers"
+layers = ["app.main", "app.composition", "app.todo"]
+
+[[tool.importlinter.contracts]]
+name = "Legacy packages never import the composition root"
+type = "forbidden"
+source_modules = ["app.models", "app.services", "app.games", "app.engine", "app.events", "app.db", "app.admin_auth", "app.util"]
+forbidden_modules = ["app.composition"]

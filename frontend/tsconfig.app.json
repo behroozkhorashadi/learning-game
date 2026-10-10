@@ -1,26 +1,19 @@
 {
+  // New-style app code: every file under src/ that carries a <color>.<kind> suffix.
+  // Legacy files (scripts/lint/legacy_allowlist.json) are typechecked by
+  // tsconfig.legacy.json until they migrate.
+  "extends": "./tsconfig.strict.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
-    "skipLibCheck": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
     "jsx": "react-jsx",
-
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "paths": { "@app/*": ["./src/*"] }
   },
-  "include": ["src"]
+  "include": ["src/**/*.pure.*", "src/**/*.effect.*", "src/**/*.assembly.*", "src/**/*.test.*.ts", "src/**/*.test.*.tsx"]
 }

@@ -1,25 +1,26 @@
 name: CI
 
-# Runs the existing backend (pytest) and frontend (vitest) suites on every
-# push to main and every pull request, so a broken change gets a red X on
-# the PR instead of surfacing later. See Makefile / package.json for the
-# same commands run locally (`make test`, `npm test`).
+# The full preflight, split into parallel jobs so the slowest one sets the wall-clock.
+# Every job blocks the merge. Locally: `make preflight` runs the same checks, and the
+# pre-commit hook (`make install-hooks`) catches lint on staged files first, so lint
+# should never fail for the first time here.
 
 on:
   push:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  backend-tests:
+  backend:
+    name: backend (ruff, pyright, import-linter, AST rules, cycles, pytest)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    # backend/.env is gitignored (it holds real secrets — see
-    # backend/.env.example) and never exists on the runner, but app/admin_auth.py
-    # refuses to start without ADMIN_PASSWORD set. Any value works here — the
-    # test suite exercises the admin-auth logic, not the real password.
+    # backend/.env is gitignored (it holds real secrets — see backend/.env.example) and
+    # never exists on the runner, but the app refuses to start without ADMIN_PASSWORD.
+    # Any value works here — the suite exercises the admin-auth logic, not the real password.
     env:
       ADMIN_PASSWORD: ci-test-password
     steps:
@@ -27,10 +28,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: pytest -v
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: python -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+      - run: backend/scripts/preflight.sh
 
-  frontend-tests:
+  frontend-static:
+    name: frontend (typecheck, lint, cycles, lint-rule tests)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,5 +44,71 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run check:cycles
+      - run: npm run test:lint-rules
+
+  frontend-unit:
+    name: frontend (unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm test
+
+  frontend-storybook:
+    name: frontend (stories as browser tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:storybook
+      # Test evidence: on failure, attach the browser screenshots Vitest captured.
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-failure-screenshots
+          path: frontend/**/__screenshots__/
+          if-no-files-found: ignore
+
+  api-contract:
+    name: FE↔BE contract (OpenAPI → TS, fails on drift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: scripts/gen_api.sh --check
+        working-directory: frontend

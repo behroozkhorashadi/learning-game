@@ -1,7 +1,9 @@
 {
+  // Solution file: `tsc -b` checks every project. App and tooling never share a project.
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.legacy.json" },
+    { "path": "./tsconfig.tooling.json" }
   ]
 }

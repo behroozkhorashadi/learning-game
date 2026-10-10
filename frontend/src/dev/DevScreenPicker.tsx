@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
+import { assembleDevScreens } from '@app/main/dev_screens.assembly.main.ts'
 import { ProfilePicker } from '../games/ProfilePicker'
 import { CreateProfile } from '../games/CreateProfile'
 import { AdminPanel } from '../games/AdminPanel'
@@ -142,7 +143,20 @@ interface ScreenEntry {
   render: () => ReactNode
 }
 
+/** Renders a new-style screen, assembling it once per mount (see src/main/dev_screens.assembly.main.ts). */
+function AssembledScreen({ assemble }: { assemble: () => ComponentType }) {
+  const [Screen] = useState(() => assemble())
+  return <Screen />
+}
+
+const ASSEMBLED_SCREENS: ScreenEntry[] = Object.entries(assembleDevScreens()).map(([id, { label, assemble }]) => ({
+  id,
+  label,
+  render: () => <AssembledScreen assemble={assemble} />,
+}))
+
 const SCREENS: ScreenEntry[] = [
+  ...ASSEMBLED_SCREENS,
   {
     id: 'profile-picker',
     label: 'Profile picker',

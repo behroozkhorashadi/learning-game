@@ -6,9 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "typecheck": "tsc -b",
+    "lint": "oxlint -c oxlint.config.ts --type-aware --deny-warnings",
+    "lint:fix": "oxlint -c oxlint.config.ts --type-aware --fix",
+    "test": "vitest run --project unit",
+    "test:lint-rules": "vitest run --project tooling",
+    "test:storybook": "vitest run --project storybook",
+    "check:cycles": "node scripts/check_cycles.ts",
+    "check:api": "scripts/gen_api.sh --check",
+    "gen:api": "scripts/gen_api.sh",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "preflight": "npm run typecheck && npm run lint && npm run check:cycles && npm run test:lint-rules && npm test && npm run test:storybook",
     "preview": "vite preview",
-    "test": "vitest run",
     "e2e": "playwright test"
   },
   "dependencies": {
@@ -16,20 +26,34 @@
     "@react-three/fiber": "9.7.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "three": "0.186.0"
+    "three": "0.186.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@oxlint/plugins": "^1.87.0",
     "@playwright/test": "^1.63.0",
+    "@storybook/addon-vitest": "^10.6.1",
+    "@storybook/react-vite": "^10.6.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
     "jsdom": "^27.0.1",
-    "oxlint": "^1.71.0",
+    "openapi-typescript": "^7.13.0",
+    "oxlint": "^1.87.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "storybook": "^10.6.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -81,6 +82,7 @@ function hitLabFixturePlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), hitLabFixturePlugin()],
+  resolve: { alias: { '@app': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     host: '0.0.0.0', // LAN-reachable, per PRD §9
     proxy: {

@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test'
-import { E2E_ADMIN_PASSWORD } from './e2e/fixtures'
+import { E2E_ADMIN_PASSWORD } from './e2e/fixtures.ts'
 
 /**
  * On-demand happy-path e2e suite — `npm run e2e` / `make e2e`. Not part of

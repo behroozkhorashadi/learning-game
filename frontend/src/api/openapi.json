@@ -1,0 +1,3715 @@
+{
+  "components": {
+    "schemas": {
+      "AdminLoginRequest": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "AdminLoginRequest",
+        "type": "object"
+      },
+      "AttemptCreate": {
+        "description": "Inbound POST body for /api/attempts. Not a table \u2014 `Attempt` is the\npersisted shape.",
+        "properties": {
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "telemetry": {
+            "$ref": "#/components/schemas/TelemetryCore"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "item_id",
+          "profile_id",
+          "game_id",
+          "telemetry"
+        ],
+        "title": "AttemptCreate",
+        "type": "object"
+      },
+      "AttemptRead": {
+        "description": "Response shape for POST /api/attempts.",
+        "properties": {
+          "correct": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "hint_offered": {
+            "title": "Hint Offered",
+            "type": "boolean"
+          },
+          "hints_used": {
+            "title": "Hints Used",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "time_ms": {
+            "title": "Time Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "correct",
+          "score",
+          "hints_used",
+          "time_ms",
+          "event_id",
+          "hint_offered"
+        ],
+        "title": "AttemptRead",
+        "type": "object"
+      },
+      "BadgeStatus": {
+        "description": "Response shape for GET /api/profiles/{profile_id}/badges \u2014 a Badge\njoined with whether (and when) this profile earned it.",
+        "properties": {
+          "art_url": {
+            "title": "Art Url",
+            "type": "string"
+          },
+          "awarded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awarded At"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "earned": {
+            "title": "Earned",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "art_url",
+          "earned"
+        ],
+        "title": "BadgeStatus",
+        "type": "object"
+      },
+      "ClientErrorReport": {
+        "properties": {
+          "component_stack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Component Stack"
+          },
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "stack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stack"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "user_agent": {
+            "title": "User Agent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "source",
+          "url",
+          "user_agent"
+        ],
+        "title": "ClientErrorReport",
+        "type": "object"
+      },
+      "GameMetadata": {
+        "description": "Static per-game-module definition \u2014 PRD \u00a76. Not a DB table.",
+        "properties": {
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "max_age": {
+            "title": "Max Age",
+            "type": "integer"
+          },
+          "max_level": {
+            "title": "Max Level",
+            "type": "integer"
+          },
+          "min_age": {
+            "title": "Min Age",
+            "type": "integer"
+          },
+          "skill_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skill Ids",
+            "type": "array"
+          },
+          "tagline": {
+            "title": "Tagline",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "tagline",
+          "skill_ids",
+          "min_age",
+          "max_age",
+          "icon",
+          "max_level"
+        ],
+        "title": "GameMetadata",
+        "type": "object"
+      },
+      "GridPosition": {
+        "properties": {
+          "col": {
+            "title": "Col",
+            "type": "integer"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "col"
+        ],
+        "title": "GridPosition",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Illustration": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "is_hero": {
+            "default": false,
+            "title": "Is Hero",
+            "type": "boolean"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "piece_id": {
+            "title": "Piece Id",
+            "type": "string"
+          },
+          "prompt_excerpt": {
+            "title": "Prompt Excerpt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "piece_id",
+          "prompt_excerpt",
+          "image_url"
+        ],
+        "title": "Illustration",
+        "type": "object"
+      },
+      "IllustrationCreate": {
+        "description": "Inbound POST body for /api/pieces/{piece_id}/illustrations.",
+        "properties": {
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "is_hero": {
+            "default": false,
+            "title": "Is Hero",
+            "type": "boolean"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "prompt_excerpt": {
+            "title": "Prompt Excerpt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt_excerpt",
+          "image_url"
+        ],
+        "title": "IllustrationCreate",
+        "type": "object"
+      },
+      "IllustrationGenerateRequest": {
+        "description": "Inbound POST body for /api/pieces/{piece_id}/illustrations/generate \u2014\nsame shape as IllustrationCreate minus `image_url`, since the server\ngenerates that itself (app/services/image_generation.py).",
+        "properties": {
+          "is_hero": {
+            "default": false,
+            "title": "Is Hero",
+            "type": "boolean"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "prompt_excerpt": {
+            "title": "Prompt Excerpt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt_excerpt"
+        ],
+        "title": "IllustrationGenerateRequest",
+        "type": "object"
+      },
+      "Item": {
+        "properties": {
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "item_id",
+          "game_id",
+          "level",
+          "payload"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "NewProfilePhoto": {
+        "description": "One photo (the camera original or an AI remix of it) to add to a\nprofile's saved pictures on create/update. Every version a kid made gets\nsaved, so they can switch back to any of them later; `use_as_avatar`\nmarks the one to show right now (at most one per request).",
+        "properties": {
+          "image_data_url": {
+            "title": "Image Data Url",
+            "type": "string"
+          },
+          "label": {
+            "default": "Photo",
+            "title": "Label",
+            "type": "string"
+          },
+          "use_as_avatar": {
+            "default": false,
+            "title": "Use As Avatar",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "image_data_url"
+        ],
+        "title": "NewProfilePhoto",
+        "type": "object"
+      },
+      "PathfinderCompletionsCreate": {
+        "description": "Inbound POST body for /api/profiles/{id}/pathfinder/completions.\nA list so a bulk import is one request; already-completed ids are\nignored, so re-posting is harmless.",
+        "properties": {
+          "level_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Level Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "level_ids"
+        ],
+        "title": "PathfinderCompletionsCreate",
+        "type": "object"
+      },
+      "PathfinderCustomMap": {
+        "properties": {
+          "columns": {
+            "title": "Columns",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "dots": {
+            "items": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Dots",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "published": {
+            "default": false,
+            "title": "Published",
+            "type": "boolean"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "name",
+          "difficulty",
+          "rows",
+          "columns",
+          "dots"
+        ],
+        "title": "PathfinderCustomMap",
+        "type": "object"
+      },
+      "PathfinderCustomMapCreate": {
+        "description": "Inbound POST body for /api/profiles/{id}/pathfinder/maps. Not a table\n\u2014 `PathfinderCustomMap` is the persisted shape.",
+        "properties": {
+          "columns": {
+            "title": "Columns",
+            "type": "integer"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "dots": {
+            "items": {
+              "$ref": "#/components/schemas/GridPosition"
+            },
+            "title": "Dots",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "difficulty",
+          "rows",
+          "columns",
+          "dots"
+        ],
+        "title": "PathfinderCustomMapCreate",
+        "type": "object"
+      },
+      "PathfinderCustomMapUpdate": {
+        "description": "Inbound PATCH body \u2014 rename and publish/unpublish. All fields\noptional, same pattern as `PieceUpdate`.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published"
+          }
+        },
+        "title": "PathfinderCustomMapUpdate",
+        "type": "object"
+      },
+      "Piece": {
+        "properties": {
+          "art_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Style"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "constraints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Constraints",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "revised_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revised At"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "word_count": {
+            "default": 0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "game_id"
+        ],
+        "title": "Piece",
+        "type": "object"
+      },
+      "PieceCreate": {
+        "description": "Inbound POST body for /api/pieces. Not a table \u2014 `Piece` is the\npersisted shape.",
+        "properties": {
+          "art_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Style"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "constraints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Constraints",
+            "type": "array"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "profile_id",
+          "game_id"
+        ],
+        "title": "PieceCreate",
+        "type": "object"
+      },
+      "PieceUpdate": {
+        "description": "Inbound PATCH body for /api/pieces/{piece_id} \u2014 the revise step edits\ntitle and/or body; both are optional so a caller can send just one.",
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "PieceUpdate",
+        "type": "object"
+      },
+      "PracticeConfig": {
+        "properties": {
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "integer"
+          },
+          "focus_numbers": {
+            "additionalProperties": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Focus Numbers",
+            "type": "object"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "operations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operations",
+            "type": "array"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "game_id",
+          "operations",
+          "difficulty"
+        ],
+        "title": "PracticeConfig",
+        "type": "object"
+      },
+      "PracticeConfigUpsert": {
+        "description": "Inbound PUT body for /api/practice-config. Not a table \u2014 `PracticeConfig`\nis the persisted shape.",
+        "properties": {
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "integer"
+          },
+          "focus_numbers": {
+            "additionalProperties": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "default": {},
+            "title": "Focus Numbers",
+            "type": "object"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operations",
+            "type": "array"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "game_id",
+          "operations",
+          "difficulty"
+        ],
+        "title": "PracticeConfigUpsert",
+        "type": "object"
+      },
+      "ProfileCreate": {
+        "description": "Inbound POST body for /api/profiles. Not a table \u2014 `Profile` is the\npersisted shape.",
+        "properties": {
+          "avatar": {
+            "title": "Avatar",
+            "type": "string"
+          },
+          "birth_year": {
+            "title": "Birth Year",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "new_photos": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/NewProfilePhoto"
+            },
+            "title": "New Photos",
+            "type": "array"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "reading_support": {
+            "default": false,
+            "title": "Reading Support",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "avatar",
+          "birth_year"
+        ],
+        "title": "ProfileCreate",
+        "type": "object"
+      },
+      "ProfilePhotoRead": {
+        "description": "A saved picture as GET /api/profiles/{id}/photos returns it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "label",
+          "created_at"
+        ],
+        "title": "ProfilePhotoRead",
+        "type": "object"
+      },
+      "ProfilePhotoRemixRequest": {
+        "description": "Inbound POST body for /api/profile-photos/remix \u2014 a preview only;\nnothing is saved until the chosen result comes back on a create/update.",
+        "properties": {
+          "idea": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idea"
+          },
+          "image_data_url": {
+            "title": "Image Data Url",
+            "type": "string"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          }
+        },
+        "required": [
+          "image_data_url"
+        ],
+        "title": "ProfilePhotoRemixRequest",
+        "type": "object"
+      },
+      "ProfilePhotoRemixResponse": {
+        "properties": {
+          "image_data_url": {
+            "title": "Image Data Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image_data_url"
+        ],
+        "title": "ProfilePhotoRemixResponse",
+        "type": "object"
+      },
+      "ProfileRead": {
+        "description": "What the API returns for a profile: `Profile` plus whether it's\npassword-protected. Exported to the frontend *as* `Profile` (see\n`scripts/generate_ts_types.py`), since this \u2014 not the table row \u2014 is the\nshape the frontend ever sees.",
+        "properties": {
+          "avatar": {
+            "title": "Avatar",
+            "type": "string"
+          },
+          "birth_year": {
+            "title": "Birth Year",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "has_password": {
+            "default": false,
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reading_support": {
+            "default": false,
+            "title": "Reading Support",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "avatar",
+          "birth_year"
+        ],
+        "title": "ProfileRead",
+        "type": "object"
+      },
+      "ProfileStats": {
+        "properties": {
+          "avg_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Rating"
+          },
+          "day_streak": {
+            "title": "Day Streak",
+            "type": "integer"
+          },
+          "last_session_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Session At"
+          },
+          "minutes_this_week": {
+            "title": "Minutes This Week",
+            "type": "integer"
+          },
+          "most_played_game": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Most Played Game"
+          },
+          "progress_delta_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Delta Pct"
+          },
+          "total_stars": {
+            "title": "Total Stars",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_stars",
+          "day_streak",
+          "minutes_this_week"
+        ],
+        "title": "ProfileStats",
+        "type": "object"
+      },
+      "ProfileUnlockRequest": {
+        "description": "Inbound POST body for /api/profiles/{profile_id}/unlock \u2014 the\nprofile's own password, or the admin password as an override.",
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "ProfileUnlockRequest",
+        "type": "object"
+      },
+      "ProfileUpdate": {
+        "description": "Inbound PATCH body for /api/profiles/{profile_id} (admin-only \u2014 see\n`app/admin_auth.py`). All fields optional so a caller can send just the\nones changing, same pattern as `PieceUpdate`.",
+        "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "new_photos": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/NewProfilePhoto"
+            },
+            "title": "New Photos",
+            "type": "array"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "reading_support": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading Support"
+          },
+          "remove_password": {
+            "default": false,
+            "title": "Remove Password",
+            "type": "boolean"
+          }
+        },
+        "title": "ProfileUpdate",
+        "type": "object"
+      },
+      "PublishedPathfinderMap": {
+        "description": "Outbound row for the Published Maps screen \u2014 a published custom map\nplus its builder's name, so players can see whose map they're playing.",
+        "properties": {
+          "author_name": {
+            "title": "Author Name",
+            "type": "string"
+          },
+          "author_profile_id": {
+            "title": "Author Profile Id",
+            "type": "integer"
+          },
+          "columns": {
+            "title": "Columns",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "dots": {
+            "items": {
+              "$ref": "#/components/schemas/GridPosition"
+            },
+            "title": "Dots",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "difficulty",
+          "rows",
+          "columns",
+          "dots",
+          "author_profile_id",
+          "author_name",
+          "created_at"
+        ],
+        "title": "PublishedPathfinderMap",
+        "type": "object"
+      },
+      "Rating": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/RatingScale"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "profile_id",
+          "game_id",
+          "scale",
+          "value"
+        ],
+        "title": "Rating",
+        "type": "object"
+      },
+      "RatingCreate": {
+        "description": "Inbound POST body for /api/ratings. Not a table \u2014 `Rating` is the\npersisted shape. `value` is bounded to 1-5 for both scales currently\ndefined (RatingScale.FACES and .STARS_1_5 are both 5-point scales).",
+        "properties": {
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/RatingScale"
+          },
+          "value": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Value",
+            "type": "integer"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "profile_id",
+          "game_id",
+          "scale",
+          "value"
+        ],
+        "title": "RatingCreate",
+        "type": "object"
+      },
+      "RatingScale": {
+        "description": "Explicit engagement rating scale \u2014 PRD \u00a75.2.",
+        "enum": [
+          "faces",
+          "stars_1_5"
+        ],
+        "title": "RatingScale",
+        "type": "string"
+      },
+      "RemixVersion": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "is_favourite": {
+            "default": false,
+            "title": "Is Favourite",
+            "type": "boolean"
+          },
+          "piece_id": {
+            "title": "Piece Id",
+            "type": "string"
+          },
+          "style_key": {
+            "title": "Style Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "piece_id",
+          "style_key",
+          "body"
+        ],
+        "title": "RemixVersion",
+        "type": "object"
+      },
+      "RemixVersionCreate": {
+        "description": "Inbound POST body for /api/pieces/{piece_id}/remixes \u2014 Style Remix Lab only.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "is_favourite": {
+            "default": false,
+            "title": "Is Favourite",
+            "type": "boolean"
+          },
+          "style_key": {
+            "title": "Style Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "style_key",
+          "body"
+        ],
+        "title": "RemixVersionCreate",
+        "type": "object"
+      },
+      "RevisionPass": {
+        "properties": {
+          "changed": {
+            "default": false,
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "piece_id": {
+            "title": "Piece Id",
+            "type": "string"
+          },
+          "questions_asked": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions Asked",
+            "type": "array"
+          }
+        },
+        "required": [
+          "piece_id"
+        ],
+        "title": "RevisionPass",
+        "type": "object"
+      },
+      "RevisionPassCreate": {
+        "description": "Inbound POST body for /api/pieces/{piece_id}/revisions \u2014 recorded once\nper coach pass, whether or not the kid actually changed anything (the\nillustration gate needs to know `changed`, not just that the step ran).",
+        "properties": {
+          "changed": {
+            "default": false,
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "questions_asked": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions Asked",
+            "type": "array"
+          }
+        },
+        "title": "RevisionPassCreate",
+        "type": "object"
+      },
+      "TelemetryCore": {
+        "description": "The mandatory floor of every Attempt payload \u2014 PRD \u00a75.3, \u00a76.",
+        "properties": {
+          "correct": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct"
+          },
+          "hints_used": {
+            "minimum": 0.0,
+            "title": "Hints Used",
+            "type": "integer"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "time_ms": {
+            "minimum": 0.0,
+            "title": "Time Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hints_used",
+          "time_ms"
+        ],
+        "title": "TelemetryCore",
+        "type": "object"
+      },
+      "Todo": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "done"
+        ],
+        "title": "Todo",
+        "type": "object"
+      },
+      "TodoCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "TodoCreate",
+        "type": "object"
+      },
+      "TodoUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "done"
+        ],
+        "title": "TodoUpdate",
+        "type": "object"
+      },
+      "TurnAuthor": {
+        "description": "Who wrote a given `TurnLine` in the Tag-Team Story game \u2014 HANDOFF.md \u00a74.\nTag-Team turns are one line at a time; the kid writes most of them.",
+        "enum": [
+          "kid",
+          "ai"
+        ],
+        "title": "TurnAuthor",
+        "type": "string"
+      },
+      "TurnLine": {
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/TurnAuthor"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "piece_id": {
+            "title": "Piece Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "piece_id",
+          "author",
+          "text"
+        ],
+        "title": "TurnLine",
+        "type": "object"
+      },
+      "TurnLineCreate": {
+        "description": "Inbound POST body for /api/pieces/{piece_id}/turns \u2014 Tag-Team Story only.",
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/TurnAuthor"
+          },
+          "order": {
+            "default": 0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "author",
+          "text"
+        ],
+        "title": "TurnLineCreate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Verification": {
+        "properties": {
+          "attempt_id": {
+            "title": "Attempt Id",
+            "type": "integer"
+          },
+          "correct": {
+            "title": "Correct",
+            "type": "boolean"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          },
+          "verified_by": {
+            "default": "parent",
+            "title": "Verified By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "correct"
+        ],
+        "title": "Verification",
+        "type": "object"
+      },
+      "VerificationCreate": {
+        "description": "Inbound POST body for /api/verifications. Not a table \u2014 `Verification`\nis the persisted shape.",
+        "properties": {
+          "attempt_id": {
+            "title": "Attempt Id",
+            "type": "integer"
+          },
+          "correct": {
+            "title": "Correct",
+            "type": "boolean"
+          },
+          "verified_by": {
+            "default": "parent",
+            "title": "Verified By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "correct"
+        ],
+        "title": "VerificationCreate",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Adaptive Learning Games API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/admin/login": {
+      "post": {
+        "description": "Lets the admin screen check a password before showing itself \u2014 a UX\nnicety, not the actual gate. `require_admin` (checked per-request on the\nadmin-only endpoints below) is what actually protects anything; this\nendpoint holds no session state of its own.",
+        "operationId": "admin_login_api_admin_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Login"
+      }
+    },
+    "/api/attempts": {
+      "post": {
+        "operationId": "post_attempt_api_attempts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Attempt"
+      }
+    },
+    "/api/client-errors": {
+      "post": {
+        "operationId": "post_client_error_api_client_errors_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientErrorReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Client Error"
+      }
+    },
+    "/api/examples/todos": {
+      "get": {
+        "operationId": "list_todos_api_examples_todos_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Todo"
+                  },
+                  "title": "Response List Todos Api Examples Todos Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Todos",
+        "tags": [
+          "examples"
+        ]
+      },
+      "post": {
+        "operationId": "add_todo_api_examples_todos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Todo",
+        "tags": [
+          "examples"
+        ]
+      },
+      "put": {
+        "operationId": "replace_todos_api_examples_todos_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/Todo"
+                },
+                "title": "Todos",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Todo"
+                  },
+                  "title": "Response Replace Todos Api Examples Todos Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Todos",
+        "tags": [
+          "examples"
+        ]
+      }
+    },
+    "/api/examples/todos/{todo_id}": {
+      "patch": {
+        "operationId": "update_todo_api_examples_todos__todo_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "todo_id",
+            "required": true,
+            "schema": {
+              "title": "Todo Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Todo",
+        "tags": [
+          "examples"
+        ]
+      }
+    },
+    "/api/games": {
+      "get": {
+        "description": "Backs the Game Picker screen \u2014 lists every registered game module.",
+        "operationId": "list_games_api_games_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GameMetadata"
+                  },
+                  "title": "Response List Games Api Games Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Games"
+      }
+    },
+    "/api/items/next": {
+      "get": {
+        "operationId": "get_next_item_api_items_next_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Next Item"
+      }
+    },
+    "/api/pathfinder/published-maps": {
+      "get": {
+        "description": "Every profile's published maps, newest first. Unpublishing a map just\ndrops it from this list.",
+        "operationId": "list_published_pathfinder_maps_api_pathfinder_published_maps_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublishedPathfinderMap"
+                  },
+                  "title": "Response List Published Pathfinder Maps Api Pathfinder Published Maps Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Published Pathfinder Maps"
+      }
+    },
+    "/api/pieces": {
+      "get": {
+        "description": "Backs the Storybook shelf \u2014 every piece a kid has saved, optionally\nfiltered to one game.",
+        "operationId": "list_pieces_api_pieces_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "game_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Piece"
+                  },
+                  "title": "Response List Pieces Api Pieces Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pieces"
+      },
+      "post": {
+        "operationId": "post_piece_api_pieces_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PieceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Piece"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Piece"
+      }
+    },
+    "/api/pieces/{piece_id}": {
+      "delete": {
+        "description": "Lets a kid pull a finished story off the shelf. Removes the piece's\nchild rows first since there's no DB-level cascade configured.",
+        "operationId": "delete_piece_api_pieces__piece_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Piece"
+      },
+      "get": {
+        "operationId": "get_piece_api_pieces__piece_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Piece"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Piece"
+      },
+      "patch": {
+        "description": "The revise step edits `title` and/or `body` \u2014 HANDOFF.md \u00a73's illustration\ngate (at least one revision change) reads `revised_at`/`word_count` off of this.",
+        "operationId": "patch_piece_api_pieces__piece_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PieceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Piece"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Piece"
+      }
+    },
+    "/api/pieces/{piece_id}/illustrations": {
+      "get": {
+        "operationId": "list_illustrations_api_pieces__piece_id__illustrations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Illustration"
+                  },
+                  "title": "Response List Illustrations Api Pieces  Piece Id  Illustrations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Illustrations"
+      },
+      "post": {
+        "operationId": "post_illustration_api_pieces__piece_id__illustrations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IllustrationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Illustration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Illustration"
+      }
+    },
+    "/api/pieces/{piece_id}/illustrations/generate": {
+      "post": {
+        "description": "Generates the actual art via whichever `ImageGenerator` is configured\n(app/services/image_generation.py) and persists it. Falls back to an\nempty `image_url` \u2014 the frontend's tinted placeholder \u2014 if no provider is\nconfigured or generation fails, rather than failing the request.",
+        "operationId": "generate_illustration_api_pieces__piece_id__illustrations_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IllustrationGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Illustration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Illustration"
+      }
+    },
+    "/api/pieces/{piece_id}/remixes": {
+      "post": {
+        "description": "Style Remix Lab only \u2014 one row per style the kid tries on the same piece.",
+        "operationId": "post_remix_version_api_pieces__piece_id__remixes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemixVersionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemixVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Remix Version"
+      }
+    },
+    "/api/pieces/{piece_id}/revisions": {
+      "post": {
+        "description": "Records one coach pass. `changed` (not just that the pass ran) is what\nHANDOFF.md \u00a73's illustration gate cares about.",
+        "operationId": "post_revision_pass_api_pieces__piece_id__revisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionPassCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionPass"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Revision Pass"
+      }
+    },
+    "/api/pieces/{piece_id}/turns": {
+      "post": {
+        "description": "Tag-Team Story only \u2014 appends one line, kid- or AI-authored, to the piece.",
+        "operationId": "post_turn_line_api_pieces__piece_id__turns_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "piece_id",
+            "required": true,
+            "schema": {
+              "title": "Piece Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TurnLineCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnLine"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Turn Line"
+      }
+    },
+    "/api/practice-config": {
+      "delete": {
+        "description": "Reverts this profile/game to the server-adaptive Level.",
+        "operationId": "delete_practice_config_api_practice_config_delete",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Practice Config"
+      },
+      "get": {
+        "description": "Backs the practice-settings screen (e.g. Equation Outbreak's focus\npicker). 404 means \"no config yet \u2014 this game is on automatic\ndifficulty,\" not an error.",
+        "operationId": "get_practice_config_api_practice_config_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PracticeConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Practice Config"
+      },
+      "put": {
+        "description": "Creates or replaces the (profile_id, game_id) config \u2014 no auth (PRD \u00a72\nnon-goals): this is a practice preference, not a destructive action, so\nit doesn't need the admin screen's password gate.",
+        "operationId": "put_practice_config_api_practice_config_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PracticeConfigUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PracticeConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Practice Config"
+      }
+    },
+    "/api/profile-photos/remix": {
+      "post": {
+        "description": "Backs the photo \"remix\" panel on the create/edit-profile screens: sends\nthe captured photo plus a preset style and/or the kid's own idea to the\nimage provider and hands the result straight back for preview. Nothing is\nsaved here \u2014 the versions the kid keeps come back as `new_photos` on the\nprofile create/update. No auth, same trust model as POST /api/profiles.",
+        "operationId": "remix_profile_photo_preview_api_profile_photos_remix_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePhotoRemixRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilePhotoRemixResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remix Profile Photo Preview"
+      }
+    },
+    "/api/profiles": {
+      "get": {
+        "description": "Read-only listing for the profile-picker screen. No auth (PRD \u00a72 non-goals)\n\u2014 `has_password` tells the picker which profiles to ask a password for.",
+        "operationId": "list_profiles_api_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileRead"
+                  },
+                  "title": "Response List Profiles Api Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Profiles"
+      },
+      "post": {
+        "description": "Backs the create-profile screen. No auth (PRD \u00a72 non-goals) \u2014 anyone on\nthe LAN can add a player, same trust model as everything else here.",
+        "operationId": "post_profile_api_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Profile"
+      }
+    },
+    "/api/profiles/{profile_id}": {
+      "delete": {
+        "description": "Admin-only (see `app/admin_auth.py`) \u2014 backs the admin screen's remove\naction. Removes every row that hangs off this profile first since\nthere's no DB-level cascade configured (same reasoning as `delete_piece`).",
+        "operationId": "delete_profile_api_profiles__profile_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-admin-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Password"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Profile"
+      },
+      "patch": {
+        "description": "Backs the edit-profile screen. A password-protected profile needs its\nown password (`X-Profile-Password`) or the admin password (either header)\n\u2014 see `app/services/profile_passwords.py`. A profile with no password is\neditable by anyone, same as creating one.",
+        "operationId": "patch_profile_api_profiles__profile_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-profile-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Profile-Password"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-admin-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Password"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Profile"
+      }
+    },
+    "/api/profiles/{profile_id}/badges": {
+      "get": {
+        "description": "Backs the Accomplishments screen's badge shelf \u2014 every seeded badge,\nannotated with whether (and when) this profile earned it.",
+        "operationId": "get_profile_badges_api_profiles__profile_id__badges_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BadgeStatus"
+                  },
+                  "title": "Response Get Profile Badges Api Profiles  Profile Id  Badges Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Profile Badges"
+      }
+    },
+    "/api/profiles/{profile_id}/pathfinder/completions": {
+      "get": {
+        "description": "Ids of every curated Pathfinder level this kid has finished \u2014 the\nlevel map derives locked/unlocked/completed from these.",
+        "operationId": "get_pathfinder_completions_api_profiles__profile_id__pathfinder_completions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Pathfinder Completions Api Profiles  Profile Id  Pathfinder Completions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pathfinder Completions"
+      },
+      "post": {
+        "description": "Records finished levels. Idempotent: already-recorded ids are skipped,\nso a replayed level keeps its original completion time. Returns the full\nupdated list so the client doesn't need a second round trip.",
+        "operationId": "add_pathfinder_completions_api_profiles__profile_id__pathfinder_completions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathfinderCompletionsCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Add Pathfinder Completions Api Profiles  Profile Id  Pathfinder Completions Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Pathfinder Completions"
+      }
+    },
+    "/api/profiles/{profile_id}/pathfinder/maps": {
+      "get": {
+        "description": "Backs My Maps \u2014 most recently created first.",
+        "operationId": "list_pathfinder_maps_api_profiles__profile_id__pathfinder_maps_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PathfinderCustomMap"
+                  },
+                  "title": "Response List Pathfinder Maps Api Profiles  Profile Id  Pathfinder Maps Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pathfinder Maps"
+      },
+      "post": {
+        "operationId": "create_pathfinder_map_api_profiles__profile_id__pathfinder_maps_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathfinderCustomMapCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathfinderCustomMap"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Pathfinder Map"
+      }
+    },
+    "/api/profiles/{profile_id}/pathfinder/maps/{map_id}": {
+      "delete": {
+        "operationId": "delete_pathfinder_map_api_profiles__profile_id__pathfinder_maps__map_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "map_id",
+            "required": true,
+            "schema": {
+              "title": "Map Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Pathfinder Map"
+      },
+      "patch": {
+        "description": "Rename and/or publish/unpublish. `id` and `created_at` never change.",
+        "operationId": "update_pathfinder_map_api_profiles__profile_id__pathfinder_maps__map_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "map_id",
+            "required": true,
+            "schema": {
+              "title": "Map Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathfinderCustomMapUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathfinderCustomMap"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Pathfinder Map"
+      }
+    },
+    "/api/profiles/{profile_id}/photos": {
+      "get": {
+        "description": "Backs the edit screen's \"Your pictures\" strip \u2014 every saved photo and\nAI remix, oldest first. Same access rule as PATCH.",
+        "operationId": "list_profile_photos_api_profiles__profile_id__photos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-profile-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Profile-Password"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-admin-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Password"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfilePhotoRead"
+                  },
+                  "title": "Response List Profile Photos Api Profiles  Profile Id  Photos Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Profile Photos"
+      }
+    },
+    "/api/profiles/{profile_id}/photos/{photo_id}": {
+      "delete": {
+        "description": "Removes one saved picture (row and file). 409 for the current profile\npicture \u2014 switch to another first. Same access rule as PATCH.",
+        "operationId": "delete_profile_photo_api_profiles__profile_id__photos__photo_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "photo_id",
+            "required": true,
+            "schema": {
+              "title": "Photo Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-profile-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Profile-Password"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-admin-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Password"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Profile Photo"
+      }
+    },
+    "/api/profiles/{profile_id}/stats": {
+      "get": {
+        "description": "Backs the Accomplishments screen's parent-facing stats \u2014 derived live\nfrom the Rating/Attempt/Event log rather than stored (HANDOFF.md \u00a74).",
+        "operationId": "get_profile_stats_api_profiles__profile_id__stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Profile Stats"
+      }
+    },
+    "/api/profiles/{profile_id}/unlock": {
+      "post": {
+        "description": "Backs the password prompt shown when a kid picks a protected profile\n(or opens its edit screen). Accepts the profile's own password, or the\nadmin password as an override. A profile with no password always\nunlocks. Like `admin_login`, this holds no session state \u2014 the frontend\nkeeps the password and sends it on later edits as `X-Profile-Password`.",
+        "operationId": "unlock_profile_api_profiles__profile_id__unlock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlock Profile"
+      }
+    },
+    "/api/ratings": {
+      "post": {
+        "operationId": "post_rating_api_ratings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rating"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Rating"
+      }
+    },
+    "/api/verifications": {
+      "post": {
+        "operationId": "post_verification_api_verifications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Verification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Verification"
+      }
+    }
+  }
+}

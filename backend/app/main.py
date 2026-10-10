@@ -58,6 +58,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
+from app.composition.app_settings_assembly import load_settings
+from app.composition.app_wiring_assembly import assemble_features
 from app.admin_auth import AdminLoginRequest, require_admin, verify_admin_password
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
@@ -144,6 +146,9 @@ app.add_middleware(
 
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# New-style features (backend/AGENTS.md) are wired in app/composition/, not here.
+assemble_features(app, load_settings())
 
 
 def _seed_test_profiles(session: Session) -> None:
