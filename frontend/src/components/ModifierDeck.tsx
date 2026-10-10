@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip, type DenChipTone } from './den/DenChip'
 import { DenFlipCard } from './den/DenFlipCard'
 

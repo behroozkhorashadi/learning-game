@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRightIcon } from './icons'
+import { ArrowRightIcon } from '@app/den/icons.pure.ui.tsx'
 import { listCustomMaps } from '../lib/pathfinderCustomMaps'
 import type { LevelStatus } from '../lib/pathfinderProgress'
 import type { Difficulty } from '../lib/pathfinderTypes'

@@ -70,6 +70,8 @@ frontend/
     api/                    HTTP adapters + generated OpenAPI types
     flags/                  feature-flag client (assembly-only)
     boundary/               <AsyncBoundary>
+    den/                    design system (DenButton, icons), migrating from components/den/
+    session/                session-flow UI (ProgressBar)
     components/ games/ lib/ dev/ types/ styles/   legacy (allowlisted, migrating)
 backend/
   app/<feature>/            new-style features (app/todo/ is the example)

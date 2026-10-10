@@ -5,11 +5,11 @@ import { CoachPanel } from '../components/CoachPanel'
 import { WritingSurface } from '../components/WritingSurface'
 import { IllustrationReveal } from '../components/IllustrationReveal'
 import { CARDS, type ModifierCard } from '../components/ModifierDeck'
-import { DenButton } from '../components/den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '../components/den/DenChip'
 import { DenTile, type DenTileTheme } from '../components/den/DenTile'
 import { DenFlipCard } from '../components/den/DenFlipCard'
-import { ArrowLeftIcon } from '../components/icons'
+import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RevisionPassCreate } from '../types/generated'
 
 /**

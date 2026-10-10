@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { PathfinderBoard } from './PathfinderBoard'
 import { coordKey } from '../lib/pathfinderRules'
 import { solvePuzzle } from '../lib/pathfinderSolver'

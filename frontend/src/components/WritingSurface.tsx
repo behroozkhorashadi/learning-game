@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenJar } from './den/DenJar'
 
 /**

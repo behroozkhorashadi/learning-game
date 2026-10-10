@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 /**
  * Star-rating prompt — ported from the Claude Design handoff bundle

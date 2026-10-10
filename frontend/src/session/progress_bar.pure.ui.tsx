@@ -1,5 +1,6 @@
-import { CircleCheckIcon } from './icons'
-import { DenButton } from './den/DenButton'
+import type { ReactElement } from 'react'
+import { CircleCheckIcon } from '@app/den/icons.pure.ui.tsx'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 /**
  * Session progress bar — ported from the Claude Design handoff bundle
@@ -7,16 +8,16 @@ import { DenButton } from './den/DenButton'
  * the session: done (green check), current (pulsing blue), upcoming (gray).
  */
 
-const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
+const BACK_ICON: readonly string[] = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 
 interface Props {
-  total: number
+  readonly total: number
   /** 0-based index of the item currently being worked on. */
-  currentIndex: number
-  onBack: () => void
+  readonly currentIndex: number
+  readonly onBack: () => void
 }
 
-export function ProgressBar({ total, currentIndex, onBack }: Props) {
+export function ProgressBar({ total, currentIndex, onBack }: Props): ReactElement {
   return (
     <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 28, padding: '22px 24px', boxShadow: '0 10px 24px -14px rgba(0,13,51,0.12)', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>

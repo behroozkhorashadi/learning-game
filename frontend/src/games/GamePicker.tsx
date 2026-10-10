@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GameMetadata, Profile } from '../types/generated'
-import { BadgeIcon } from '../components/icons'
-import { DenButton } from '../components/den/DenButton'
+import { BadgeIcon } from '@app/den/icons.pure.ui.tsx'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { PENCIL_ICON } from './ProfilePicker'
 
 const SWITCH_ICON = ['M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.75 13M9.75 13H19.25']

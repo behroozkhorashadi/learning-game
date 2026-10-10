@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react'
+
 /**
  * Icon set ported from the Claude Design handoff bundle (`assets/icons/*.svg`).
  * Plain inline SVGs using `currentColor` so they inherit the button's text
@@ -5,10 +7,10 @@
  */
 
 interface IconProps {
-  size?: number
+  readonly size?: number
 }
 
-export function ArrowLeftIcon({ size = 24 }: IconProps) {
+export function ArrowLeftIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -16,7 +18,7 @@ export function ArrowLeftIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function ArrowRightIcon({ size = 24 }: IconProps) {
+export function ArrowRightIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M13.75 6.75L19.25 12L13.75 17.25M4.75 12H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -24,7 +26,7 @@ export function ArrowRightIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function BadgeIcon({ size = 24 }: IconProps) {
+export function BadgeIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="9" r="5.25" stroke="currentColor" strokeWidth="1.5" />
@@ -33,7 +35,7 @@ export function BadgeIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function TrashIcon({ size = 24 }: IconProps) {
+export function TrashIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -47,7 +49,7 @@ export function TrashIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function UndoIcon({ size = 24 }: IconProps) {
+export function UndoIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M9.25 4.75L4.75 9L9.25 13.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -56,7 +58,7 @@ export function UndoIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function SpeakerIcon({ size = 24 }: IconProps) {
+export function SpeakerIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -70,7 +72,7 @@ export function SpeakerIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function HelpCircleIcon({ size = 24 }: IconProps) {
+export function HelpCircleIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -84,7 +86,7 @@ export function HelpCircleIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function CircleCheckIcon({ size = 24 }: IconProps) {
+export function CircleCheckIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -98,7 +100,7 @@ export function CircleCheckIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function SparklesIcon({ size = 24 }: IconProps) {
+export function SparklesIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M17 4.75C17 5.89705 15.8971 7 14.75 7C15.8971 7 17 8.10295 17 9.25C17 8.10295 18.1029 7 19.25 7C18.1029 7 17 5.89705 17 4.75Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -108,7 +110,7 @@ export function SparklesIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function SwitchIcon({ size = 24 }: IconProps) {
+export function SwitchIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -122,7 +124,7 @@ export function SwitchIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function PlayIcon({ size = 24 }: IconProps) {
+export function PlayIcon({ size = 24 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M7.75 5.5L18.25 12L7.75 18.5V5.5Z" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -130,7 +132,7 @@ export function PlayIcon({ size = 24 }: IconProps) {
   )
 }
 
-export function ImagePlaceholderIcon({ size = 32 }: IconProps) {
+export function ImagePlaceholderIcon({ size = 32 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2" stroke="currentColor" strokeWidth="1.5" />

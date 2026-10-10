@@ -1,4 +1,4 @@
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 /**
  * Revise & coach view — ported from the Claude Design handoff bundle

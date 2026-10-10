@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DenButton } from '../components/den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { CardShell } from '../components/AdminLoginForm'
 import { ProfileFormFields, MIN_AGE, MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
 import { ProfilePhotoCapture, type NewPhoto } from '../components/ProfilePhotoCapture'

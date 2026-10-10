@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 // The admin screen's password gate (see `backend/app/admin_auth.py`), plus the
 // card layout shared with the profile edit/unlock screens.

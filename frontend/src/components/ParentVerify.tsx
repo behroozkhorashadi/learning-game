@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ImagePlaceholderIcon } from './icons'
+import { ImagePlaceholderIcon } from '@app/den/icons.pure.ui.tsx'
 
 /**
  * PIN-gated parent verification — ported from the Claude Design handoff

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactElement } from 'react'
 
 export type DenButtonVariant = 'primary' | 'dark' | 'blue' | 'quiet' | 'ghost' | 'softBlue' | 'softGreen' | 'softAmber'
 export type DenButtonShape = 'rounded' | 'pill'
@@ -6,26 +6,26 @@ export type DenButtonSize = 'sm' | 'md' | 'lg' | 'xl'
 export type DenButtonLipColor = '#0037DB' | '#3F7A22' | '#C98208'
 
 interface IconPath {
-  d: string
-  fill?: string
+  readonly d: string
+  readonly fill?: string
 }
 
 interface Props {
-  label?: string
-  variant?: DenButtonVariant
-  shape?: DenButtonShape
-  size?: DenButtonSize
-  disabled?: boolean
-  iconOnly?: boolean
-  full?: boolean
-  lipColor?: DenButtonLipColor
-  boxSize?: number
-  iconSize?: number
-  iconFill?: string
-  ariaLabel?: string
-  titleText?: string
-  iconPaths?: (string | IconPath)[]
-  onClick?: () => void
+  readonly label?: string
+  readonly variant?: DenButtonVariant
+  readonly shape?: DenButtonShape
+  readonly size?: DenButtonSize
+  readonly disabled?: boolean
+  readonly iconOnly?: boolean
+  readonly full?: boolean
+  readonly lipColor?: DenButtonLipColor
+  readonly boxSize?: number
+  readonly iconSize?: number
+  readonly iconFill?: string
+  readonly ariaLabel?: string
+  readonly titleText?: string
+  readonly iconPaths?: readonly (string | IconPath)[]
+  readonly onClick?: () => void
 }
 
 const SIZES: Record<DenButtonShape, Record<DenButtonSize, { font: number; padX: number; padY: number; radius: number; icon: number; box: number; gap?: number; lip?: number }>> = {
@@ -70,7 +70,7 @@ export function DenButton({
   titleText,
   iconPaths = [],
   onClick,
-}: Props) {
+}: Props): ReactElement {
   const [hovered, setHovered] = useState(false)
 
   const m = SIZES[shape][size]

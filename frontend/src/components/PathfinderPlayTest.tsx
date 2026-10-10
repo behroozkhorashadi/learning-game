@@ -1,5 +1,5 @@
 import { PathfinderBoard } from './PathfinderBoard'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { usePathfinderPlay } from '../lib/usePathfinderPlay'
 import type { DotPuzzle } from '../lib/pathfinderTypes'
 

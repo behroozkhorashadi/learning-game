@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon } from './icons'
+import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon } from '@app/den/icons.pure.ui.tsx'
 import type { BadgeStatus, ProfileStats } from '../types/generated'
 
 /**

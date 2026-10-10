@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import type { ProfilePhotoRead, ProfilePhotoRemixRequest, ProfilePhotoRemixResponse } from '../types/generated'
 
 /**

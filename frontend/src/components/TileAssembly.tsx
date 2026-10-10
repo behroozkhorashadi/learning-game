@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CircleCheckIcon, HelpCircleIcon, SparklesIcon, SpeakerIcon, UndoIcon } from './icons'
+import { CircleCheckIcon, HelpCircleIcon, SparklesIcon, SpeakerIcon, UndoIcon } from '@app/den/icons.pure.ui.tsx'
 import { speakWord } from '../lib/speech'
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DenButton } from '../components/den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { CardShell, LoginForm } from '../components/AdminLoginForm'
 import { ageOf } from '../components/ProfileFormFields'
 import { ProfileAvatar } from './ProfilePicker'

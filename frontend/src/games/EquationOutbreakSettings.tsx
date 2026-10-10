@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DenButton } from '../components/den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import type { PracticeConfig } from '../types/generated'
 
 /**

@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 156 legacy frontend files (155 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 153 legacy frontend files (152 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -62,10 +62,15 @@ fast unit tests and a story, so the change itself gets faster. That DX is the in
 
 | | component | why | effort |
 |---|---|---|---|
-| [ ] | `components/ProgressBar.tsx` | simple: props only, no state | _record actual time here_ |
+| [x] | `components/ProgressBar.tsx` → `session/progress_bar.pure.ui.tsx` | simple: props only, no state | ~3 min (agent). Its two legacy deps had to migrate with it: `DenButton` → `den/den_button.pure.ui.tsx`, `icons` → `den/icons.pure.ui.tsx`. 3 files moved (`git mv`, history kept), 36 legacy importers repointed to `@app/…`, then explicit return types and `readonly` props (strict tsc already passed). 21 tests and 10 stories added. |
 | [ ] | `games/ProfilePicker.tsx` | coupled: calls `fetch('/api/profiles')` in an effect, owns loading/error state | _record actual time here_ |
 
 Record the time each took, plus anything the steps above missed, then update this file.
+
+Lessons from ProgressBar:
+- **Leaf dependencies set the real scope.** The component itself was trivial; the work was its legacy imports. Check `grep "^import"` first, and migrate shared leaves (design-system pieces like `den/`) whole, since many later migrations need them.
+- **Shared leaves are cheap to move:** legacy may import new-style code, so repointing importers is a mechanical path rewrite with no behavior change.
+- **Found while writing tests:** the progress dots carry `aria-label` on a plain `div`, which screen readers may ignore. Not changed in a move-only migration; candidate follow-up: `role="progressbar"` with `aria-valuenow`/`aria-valuemax`.
 
 ## Known debt surfaced by the new rules (fix during migration)
 
@@ -87,7 +92,7 @@ Record the time each took, plus anything the steps above missed, then update thi
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 156 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 153 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

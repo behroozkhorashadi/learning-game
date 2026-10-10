@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { DenButton } from './den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { formatLevelCode } from '../lib/pathfinderExport'
 import { deleteCustomMap, listCustomMaps, renameCustomMap, setCustomMapPublished, type CustomMapRecord } from '../lib/pathfinderCustomMaps'
 import type { Difficulty, DotPuzzle } from '../lib/pathfinderTypes'

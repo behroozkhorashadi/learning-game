@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { ArrowRightIcon } from './icons'
+import { ArrowRightIcon } from '@app/den/icons.pure.ui.tsx'
 import { Cover } from './Storybook'
 import type { Illustration, Piece } from '../types/generated'
 

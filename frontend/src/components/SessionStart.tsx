@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { SparklesIcon } from './icons'
-import { DenButton } from './den/DenButton'
+import { SparklesIcon } from '@app/den/icons.pure.ui.tsx'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { speakText } from '../lib/speech'
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']

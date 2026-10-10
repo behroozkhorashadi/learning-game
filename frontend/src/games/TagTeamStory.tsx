@@ -3,9 +3,9 @@ import { randomId } from '../lib/id'
 import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
 import { CoachPanel } from '../components/CoachPanel'
 import { IllustrationReveal } from '../components/IllustrationReveal'
-import { DenButton } from '../components/den/DenButton'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '../components/den/DenChip'
-import { ArrowLeftIcon } from '../components/icons'
+import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RevisionPassCreate, TurnAuthor, TurnLineCreate } from '../types/generated'
 
 /**

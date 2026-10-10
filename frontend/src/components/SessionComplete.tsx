@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { SparklesIcon } from './icons'
-import { DenButton } from './den/DenButton'
+import { SparklesIcon } from '@app/den/icons.pure.ui.tsx'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 const REPLAY_ICON = ['M4.75 12C4.75 8 8 4.75 12 4.75C15.5 4.75 17.5 6.5 18.5 8M19.25 5.5V8H16.75M19.25 12C19.25 16 16 19.25 12 19.25C8.5 19.25 6.5 17.5 5.5 16M4.75 18.5V16H7.25']
 const DONE_ICON = [
