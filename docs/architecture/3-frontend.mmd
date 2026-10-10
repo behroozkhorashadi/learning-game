@@ -1,0 +1,48 @@
+flowchart TB
+  main["main.tsx<br/>ErrorBoundary + errorReporting"] --> app
+
+  app["App.tsx<br/>state-driven screen router<br/>profile, gameId, editing, admin..."]
+  dev["dev/ screens via ?screen=<br/>ZombieHitLab, WeaponPOC, ZombiePOC"]
+  app -. "DEV only" .-> dev
+
+  subgraph SCREENS["Screens — src/games"]
+    prof["Profile flow<br/>ProfilePicker, CreateProfile,<br/>ProfileUnlock, EditProfile, AdminPanel"]
+    picker["GamePicker<br/>+ EquationOutbreakSettings"]
+    gWord["Word games<br/>SyllableBuilder, PromptForge,<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
+    gMath["Math games<br/>EquationBuilder, ZombieMathBlaster"]
+    gPath["Pathfinder"]
+    meta["BadgesAccomplishments, Storybook"]
+  end
+
+  subgraph COMP["Components — src/components"]
+    shared["Session shell<br/>SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, CoachPanel, ProgressBar"]
+    den["den/ design kit<br/>DenButton, DenCard, DenTabs, DenTile..."]
+    arena["framework/ZombieArena + R3F scene<br/>EquationOutbreakScene, ZombieCharacter3D,<br/>EquationBlaster, ApproachLane, MuzzleFlash"]
+    pathc["Pathfinder UI<br/>Board, Editor, MapBuilder, PlayTest,<br/>LevelGallery, MyMaps, PublishedMaps"]
+    write["Writing UI<br/>WritingSurface, TileAssembly,<br/>IllustrationReveal, HandoffPencil"]
+  end
+
+  subgraph LIB["Logic — src/lib (pure, unit-tested)"]
+    zlib["Zombie engine<br/>zombieWaveEngine, raycastOutcome,<br/>laneNavigation, rootMotion, zombieRoster"]
+    plib["Pathfinder engine<br/>Rules, Solver, Generator,<br/>Difficulty, Levels, usePathfinderPlay"]
+    plat["Platform adapters<br/>gameAudio, speech, errorReporting,<br/>pathfinderProgress, pathfinderCustomMaps"]
+  end
+
+  types["types/generated.ts<br/>generated from backend models"]
+  api[["FastAPI /api/*"]]
+  assets[("public/ GLB models, images, audio")]
+
+  app --> prof & picker & gWord & gMath & gPath & meta
+  gWord --> shared & write
+  gMath --> shared & arena
+  gPath --> pathc
+  prof & picker & meta --> den
+  arena --> zlib
+  arena --> assets
+  pathc --> plib
+  gPath --> plat
+  shared & gWord & gMath --> plat
+  prof & picker & gWord & gMath & meta -- "fetch" --> api
+  plat -- "fetch" --> api
+  SCREENS -.-> types
+  LIB -.-> types

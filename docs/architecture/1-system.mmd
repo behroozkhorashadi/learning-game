@@ -1,0 +1,48 @@
+flowchart LR
+  subgraph Users["People (home LAN)"]
+    kid["Kid player<br/>tablet / laptop browser"]
+    parent["Parent / admin"]
+  end
+
+  subgraph Browser["Browser runtime"]
+    spa["React 19 SPA<br/>Vite build, TypeScript"]
+    three["Three.js / R3F<br/>3D zombie arena"]
+    webapis["Web Speech + Web Audio<br/>camera, localStorage"]
+    glb[("public/ assets<br/>GLB models, word images, audio")]
+  end
+
+  subgraph Host["Home machine / Figma Make preview"]
+    vite["Vite dev server :5173<br/>proxies /api and /static"]
+    api["FastAPI + uvicorn :8000<br/>app.main"]
+    db[("SQLite<br/>learning_game.db")]
+    static[("static/ dir<br/>generated illustrations, avatars")]
+    env[".env<br/>ADMIN_PASSWORD, OPENAI_API_KEY"]
+  end
+
+  subgraph External["External services"]
+    openai["OpenAI Images API<br/>generations + edits"]
+  end
+
+  subgraph Tooling["Dev tooling"]
+    gentypes["gen-types script<br/>Pydantic to generated.ts"]
+    genassets["asset scripts<br/>word images, audio, badges"]
+    ci["GitHub Actions CI<br/>pytest + vitest"]
+    e2e["Playwright e2e<br/>temp DB, ports 8100/5174"]
+  end
+
+  kid --> spa
+  parent --> spa
+  spa --- three
+  spa --- webapis
+  spa --> glb
+  spa -- "HTTP JSON /api/*" --> vite
+  vite -- proxy --> api
+  api -- SQLModel --> db
+  api -- writes/serves --> static
+  env -.-> api
+  api -- "illustrations, photo remix" --> openai
+  gentypes -. "keeps FE/BE types in sync" .-> spa
+  genassets -- uses --> openai
+  genassets -. writes .-> glb
+  e2e -. drives .-> spa
+  ci -. tests .-> api

@@ -1,6 +1,7 @@
 """Piece API tests — HANDOFF.md §4: a piece and its child records (illustrations,
 revision passes, remixes, turns) persist, and lifecycle events append."""
 
+import pytest
 from sqlmodel import Session, select
 
 from app.db import engine
@@ -9,6 +10,22 @@ from app.models.enums import EventType
 from app.models.event import Event
 from app.models.piece import Illustration
 from app.services.image_generation import GeneratedImage, get_image_generator
+
+
+_OWN_PROFILE: dict[str, int] = {}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _own_profile(client):
+    """This module's own profile, so it never depends on the seeded demo profile (id 1),
+    which is removed as soon as any other test creates a real profile."""
+    response = client.post("/api/profiles", json={"name": "Piece Tester", "avatar": "fox", "birth_year": 2018})
+    assert response.status_code == 201
+    _OWN_PROFILE["id"] = response.json()["id"]
+
+
+def _pid() -> int:
+    return _OWN_PROFILE["id"]
 
 
 def _event_count(profile_id: int, event_type: EventType) -> int:
@@ -20,7 +37,7 @@ def _event_count(profile_id: int, event_type: EventType) -> int:
 
 
 def _post_piece(client, **overrides) -> dict:
-    payload = {"profile_id": 1, "game_id": "prompt_forge", "body": "Once upon a time"}
+    payload = {"profile_id": _pid(), "game_id": "prompt_forge", "body": "Once upon a time"}
     payload.update(overrides)
     response = client.post("/api/pieces", json=payload)
     assert response.status_code == 201
@@ -34,13 +51,13 @@ def test_piece_for_unknown_profile_is_rejected(client):
 
 
 def test_creating_a_piece_computes_word_count_and_appends_one_event(client):
-    before = _event_count(profile_id=1, event_type=EventType.PIECE_CREATED)
+    before = _event_count(profile_id=_pid(), event_type=EventType.PIECE_CREATED)
 
     piece = _post_piece(client, body="Once upon a time there was a fox")
 
     assert piece["word_count"] == 8
     assert piece["revised_at"] is None
-    after = _event_count(profile_id=1, event_type=EventType.PIECE_CREATED)
+    after = _event_count(profile_id=_pid(), event_type=EventType.PIECE_CREATED)
     assert after - before == 1
 
 
@@ -62,15 +79,15 @@ def test_get_unknown_piece_is_404(client):
 def test_list_pieces_filters_by_profile(client):
     _post_piece(client)
 
-    response = client.get("/api/pieces", params={"profile_id": 1})
+    response = client.get("/api/pieces", params={"profile_id": _pid()})
 
     assert response.status_code == 200
-    assert all(p["profile_id"] == 1 for p in response.json())
+    assert all(p["profile_id"] == _pid() for p in response.json())
 
 
 def test_patch_piece_recomputes_word_count_and_sets_revised_at(client):
     piece = _post_piece(client, body="one two three")
-    before = _event_count(profile_id=1, event_type=EventType.PIECE_REVISED)
+    before = _event_count(profile_id=_pid(), event_type=EventType.PIECE_REVISED)
 
     response = client.patch(f"/api/pieces/{piece['id']}", json={"body": "one two three four five"})
 
@@ -78,13 +95,13 @@ def test_patch_piece_recomputes_word_count_and_sets_revised_at(client):
     body = response.json()
     assert body["word_count"] == 5
     assert body["revised_at"] is not None
-    after = _event_count(profile_id=1, event_type=EventType.PIECE_REVISED)
+    after = _event_count(profile_id=_pid(), event_type=EventType.PIECE_REVISED)
     assert after - before == 1
 
 
 def test_illustration_lifecycle(client):
     piece = _post_piece(client)
-    before = _event_count(profile_id=1, event_type=EventType.ILLUSTRATION_ADDED)
+    before = _event_count(profile_id=_pid(), event_type=EventType.ILLUSTRATION_ADDED)
 
     response = client.post(
         f"/api/pieces/{piece['id']}/illustrations",
@@ -93,7 +110,7 @@ def test_illustration_lifecycle(client):
 
     assert response.status_code == 201
     assert response.json()["piece_id"] == piece["id"]
-    after = _event_count(profile_id=1, event_type=EventType.ILLUSTRATION_ADDED)
+    after = _event_count(profile_id=_pid(), event_type=EventType.ILLUSTRATION_ADDED)
     assert after - before == 1
 
     listed = client.get(f"/api/pieces/{piece['id']}/illustrations")
@@ -197,13 +214,13 @@ def test_turn_line_appends_kid_or_ai_authored_line(client):
 
 def test_delete_piece_removes_it_and_appends_one_event(client):
     piece = _post_piece(client)
-    before = _event_count(profile_id=1, event_type=EventType.PIECE_DELETED)
+    before = _event_count(profile_id=_pid(), event_type=EventType.PIECE_DELETED)
 
     response = client.delete(f"/api/pieces/{piece['id']}")
 
     assert response.status_code == 204
     assert client.get(f"/api/pieces/{piece['id']}").status_code == 404
-    after = _event_count(profile_id=1, event_type=EventType.PIECE_DELETED)
+    after = _event_count(profile_id=_pid(), event_type=EventType.PIECE_DELETED)
     assert after - before == 1
 
 

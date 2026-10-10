@@ -1,6 +1,6 @@
 # Backend migration: legacy → feature/color layout
 
-66 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
+67 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
 unchanged, but new code can't import them. Don't big-bang rename. **Migrate a module when
 you're already changing it and you need it from new-style code.**
 

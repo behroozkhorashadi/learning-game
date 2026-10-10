@@ -227,6 +227,14 @@ screenshots.
 models. It isn't run automatically. New code uses the OpenAPI-generated types from
 `make gen-api` instead, which CI checks for drift.
 
+### Architecture
+
+`docs/architecture/` holds the architecture diagrams: a system view plus the
+backend and frontend code layers. Open `learning-game-architecture.html` in a
+browser to see them rendered, or edit the Mermaid sources (`1-system.mmd`,
+`2-backend.mmd`, `3-frontend.mmd`) and rebuild the page with
+`python3 docs/architecture/build.py`.
+
 ### What's here
 
 - **`backend/app/models/`** — SQLModel/Pydantic definitions for every core
