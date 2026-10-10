@@ -81,7 +81,7 @@ Lessons from ProfilePicker:
 
 ## Known debt surfaced by the new rules (fix during migration)
 
-- **The e2e suite (`make e2e`, not in CI) fails 6 of 15 on `main`.** At `8d14f9f`, before the guardrails, 1 fails (`zombie-hit-lab` real clicks). Upstream's `2011b75` merge, whose demo profile is now removed once real profiles exist, breaks 4 more that assume "Demo Kid" is present (`admin`, `passwords` forgot-password, `profiles` seeded-demo, and edit-from-game-picker), plus the other hit-lab spec. Same set with and without the ProfilePicker migration. Fix the specs to create their own profiles, the way `backend/tests/test_pieces.py` now does.
+- **e2e and the local Chrome:** on this machine, the installed Google Chrome (155, `channel: 'chrome'` in `playwright.config.ts`) currently exits about 5.7s after launch, even on `about:blank`, so longer runs fail with "Target page, context or browser has been closed". That's environmental, not app code: with Playwright's bundled Chromium (`npx playwright install chromium`), all 15 specs pass.
 
 - **`<Suspense>` without an error boundary** in 7 react-three-fiber spots:
   `components/EquationBlaster.tsx` (×3), `games/framework/ZombieArena.tsx`,

@@ -1,11 +1,16 @@
 import { test, expect, openPicker, createProfile, switchPlayer, playButton, expectGamePicker, snap, uniqueName } from './fixtures'
 
-test('profile picker loads with the seeded demo profile', async ({ page }) => {
-  await openPicker(page)
+// The seeded "Demo Kid" only exists until a real profile does (backend
+// tests/test_demo_profile.py), and this suite shares one database, so every
+// test brings its own player rather than relying on the demo.
+test('profile picker lists each player with play and edit buttons, plus Add a player', async ({ page }) => {
+  const name = uniqueName('Pia')
+  await createProfile(page, { name })
+  await switchPlayer(page)
 
-  await expect(playButton(page, 'Demo Kid')).toBeVisible()
+  await expect(playButton(page, name)).toBeVisible()
+  await expect(page.getByRole('button', { name: `Edit ${name}` })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add a player' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Edit Demo Kid' })).toBeVisible()
   await snap(page, '01-profile-picker')
 })
 

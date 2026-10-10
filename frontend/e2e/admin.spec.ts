@@ -17,7 +17,9 @@ test('admin screen: wrong password is refused, right one lists players and can r
 
   const row = page.locator('div', { has: page.getByText(name, { exact: true }) }).filter({ has: page.getByRole('button', { name: 'Delete' }) }).last()
   await row.getByRole('button', { name: 'Delete' }).click()
-  await row.getByRole('button', { name: 'Yes, remove' }).click()
+  // Confirming replaces the row's Delete button, so `row` (filtered on having one)
+  // no longer matches. Only one confirmation is ever open, so find it on the page.
+  await page.getByRole('button', { name: 'Yes, remove' }).click()
   await expect(page.getByText(name, { exact: true })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Back' }).click()
