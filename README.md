@@ -205,6 +205,7 @@ Each idea is written down once. Everything else links to it.
 | backend layers, naming, factories | [backend/AGENTS.md](backend/AGENTS.md) |
 | composition roots | [frontend/src/main/AGENTS.md](frontend/src/main/AGENTS.md), [backend/app/composition/AGENTS.md](backend/app/composition/AGENTS.md) |
 | FE↔BE contract | [frontend/src/api/AGENTS.md](frontend/src/api/AGENTS.md) |
+| server state (`useQuery`) | [frontend/src/query/AGENTS.md](frontend/src/query/AGENTS.md) |
 | what the AI reviewer checks (only what lint can't) | [review-conventions.md](review-conventions.md) |
 | moving legacy code over | [MIGRATION.md](MIGRATION.md), [backend/MIGRATION.md](backend/MIGRATION.md) |
 | the worked example | `frontend/src/examples/todo/`, `backend/app/todo/` |

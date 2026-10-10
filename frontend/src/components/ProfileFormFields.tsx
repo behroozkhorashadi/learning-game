@@ -3,14 +3,8 @@
 // Mirrors backend/app/models/profile.py's AVATAR_OPTIONS/MIN_AGE/MAX_AGE by
 // hand, since these are sanity bounds rather than values expected to change
 // independently on either side.
-export const AVATAR_OPTIONS: { key: string; emoji: string }[] = [
-  { key: 'fox', emoji: '🦊' },
-  { key: 'owl', emoji: '🦉' },
-  { key: 'bear', emoji: '🐻' },
-  { key: 'cat', emoji: '🐱' },
-  { key: 'panda', emoji: '🐼' },
-  { key: 'rabbit', emoji: '🐰' },
-]
+// AVATAR_OPTIONS lives in src/profiles/avatar_options.pure.lib.ts (migrated).
+import { AVATAR_OPTIONS } from '@app/profiles/avatar_options.pure.lib.ts'
 
 export const MIN_AGE = 1
 export const MAX_AGE = 99

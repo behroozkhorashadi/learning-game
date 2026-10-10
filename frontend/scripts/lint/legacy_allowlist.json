@@ -85,8 +85,6 @@
   "src/games/GamePicker.tsx",
   "src/games/Pathfinder.test.tsx",
   "src/games/Pathfinder.tsx",
-  "src/games/ProfilePicker.test.tsx",
-  "src/games/ProfilePicker.tsx",
   "src/games/ProfileUnlock.test.tsx",
   "src/games/ProfileUnlock.tsx",
   "src/games/PromptForge.test.tsx",

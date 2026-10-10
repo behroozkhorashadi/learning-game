@@ -1,70 +1,37 @@
-import { useEffect, useState } from 'react'
-import { AVATAR_OPTIONS } from '../components/ProfileFormFields'
-import type { Profile } from '../types/generated'
+import type { ReactElement } from 'react'
+import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
+import { PENCIL_ICON } from '@app/den/icon_paths.pure.lib.ts'
+import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { ProfileAvatar } from './profile_avatar.pure.ui.tsx'
 
 /**
  * Profile picker — ported from the Claude Design handoff bundle
- * (`Entry Screens.dc.html`, "PROFILE PICKER" section). Lists real profiles
- * from `GET /api/profiles`; picking one is purely a client-side navigation
- * choice, nothing the server needs to know about ahead of time.
+ * (`Entry Screens.dc.html`, "PROFILE PICKER" section). Props only: the list
+ * arrives as a QueryState from the bound screen (profile_picker.effect.ui.tsx);
+ * picking one is purely a client-side navigation choice, nothing the server
+ * needs to know about ahead of time.
  */
-
-export const PENCIL_ICON = 'M4.75 19.25L9 18.25L18.29 8.96C18.68 8.57 18.68 7.93 18.29 7.54L16.46 5.71C16.07 5.32 15.43 5.32 15.04 5.71L5.75 15L4.75 19.25ZM14 7L17 10'
 
 const RING_THEMES = [
   { ring: '#EBDCFE', lip: '#CBA6FC', text: '#5006B2' },
   { ring: '#DBE4FF', lip: '#A3BAFF', text: '#00289E' },
   { ring: '#DBF5D1', lip: '#A1E486', text: '#2C6416' },
-]
+] as const
 
-interface Props {
-  onSelect: (profile: Profile) => void
-  onAddPlayer: () => void
-  onEditProfile: (profile: Profile) => void
-  onOpenAdmin: () => void
+/** What the screen's caller (the app shell) handles. */
+export interface ProfilePickerProps {
+  readonly onSelect: (profile: ProfileRecord) => void
+  readonly onAddPlayer: () => void
+  readonly onEditProfile: (profile: ProfileRecord) => void
+  readonly onOpenAdmin: () => void
 }
 
-/** `profile.avatar` is one of three things:
- * - an animal key from the create-profile list (`"fox"`, …) — shown as its
- *   emoji right away, since none of those has real art yet (requesting a
- *   missing PNG first left an empty circle until the 404 came back);
- * - a saved photo's `/static/...` URL;
- * - any other bare key (e.g. a local seed's `"rami"`), looked up under
- *   `/images/avatars/<avatar>.png`.
- * An image that fails to load falls back to the profile's own initial, the
- * same `onError`-driven pattern `SessionStart.tsx`'s `HeroArt` uses for
- * missing badge art. */
-export function ProfileAvatar({ avatar, name }: { avatar: string; name: string }) {
-  // Tracks *which* src failed, so a tile whose avatar changes gets a fresh try.
-  const [brokenSrc, setBrokenSrc] = useState<string | null>(null)
-
-  const animal = AVATAR_OPTIONS.find((option) => option.key === avatar)
-  if (animal) {
-    return <span style={{ fontSize: '0.9em', lineHeight: 1 }}>{animal.emoji}</span>
-  }
-
-  const src = avatar.startsWith('/static/') ? avatar : `/images/avatars/${avatar}.png`
-  if (brokenSrc === src) {
-    return <>{name.charAt(0).toUpperCase()}</>
-  }
-
-  return <img src={src} alt="" onError={() => setBrokenSrc(src)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+export interface ProfilePickerViewProps extends ProfilePickerProps {
+  readonly state: QueryState<readonly ProfileRecord[]>
 }
 
-export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmin }: Props) {
-  const [profiles, setProfiles] = useState<Profile[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/profiles')
-      .then((res) => {
-        if (!res.ok) throw new Error(`GET /api/profiles -> ${res.status}`)
-        return res.json()
-      })
-      .then(setProfiles)
-      .catch((err) => setError(String(err)))
-  }, [])
-
+export function ProfilePickerView({ state, onSelect, onAddPlayer, onEditProfile, onOpenAdmin }: ProfilePickerViewProps): ReactElement {
+  const profiles = state.kind === 'loaded' ? state.data : []
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
       <div style={{ width: '100%', maxWidth: 820, background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 32, padding: '52px 44px', boxShadow: 'var(--elevation-600)', textAlign: 'center' }}>
@@ -73,18 +40,20 @@ export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmi
         </div>
         <div style={{ marginTop: 10, fontSize: 18, color: 'var(--fg-tertiary)' }}>Tap your face to start.</div>
 
-        {error && (
-          <pre style={{ marginTop: 24, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>Error: {error}</pre>
+        {state.kind === 'failed' && (
+          <pre style={{ marginTop: 24, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>Error: {state.message}</pre>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap', marginTop: 40 }}>
-          {(profiles ?? []).map((p, i) => {
-            const theme = RING_THEMES[i % RING_THEMES.length]
+          {profiles.map((p, i) => {
+            const theme = RING_THEMES[i % RING_THEMES.length] ?? RING_THEMES[0]
             return (
               <div key={p.id} style={{ position: 'relative' }}>
                 <button
                   type="button"
-                  onClick={() => p.id != null && onSelect(p)}
+                  onClick={() => {
+                    onSelect(p)
+                  }}
                   aria-label={p.has_password ? `Play as ${p.name} (needs a password)` : `Play as ${p.name}`}
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 8 }}
                 >
@@ -100,7 +69,9 @@ export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmi
                 </button>
                 <button
                   type="button"
-                  onClick={() => onEditProfile(p)}
+                  onClick={() => {
+                    onEditProfile(p)
+                  }}
                   aria-label={`Edit ${p.name}`}
                   title={`Edit ${p.name}`}
                   style={{ position: 'absolute', top: 8, right: 4, width: 40, height: 40, borderRadius: 9999, border: '2px solid var(--border-default)', background: 'var(--surface-default)', color: 'var(--fg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
@@ -113,7 +84,7 @@ export function ProfilePicker({ onSelect, onAddPlayer, onEditProfile, onOpenAdmi
             )
           })}
 
-          {profiles != null && (
+          {state.kind === 'loaded' && (
             <button
               type="button"
               onClick={onAddPlayer}

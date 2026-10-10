@@ -72,6 +72,8 @@ frontend/
     boundary/               <AsyncBoundary>
     den/                    design system (DenButton, icons), migrating from components/den/
     session/                session-flow UI (ProgressBar)
+    profiles/               profile picker, avatars
+    query/                  useQuery: the server-state seam
     components/ games/ lib/ dev/ types/ styles/   legacy (allowlisted, migrating)
 backend/
   app/<feature>/            new-style features (app/todo/ is the example)

@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { assembleDevScreens } from '@app/main/dev_screens.assembly.main.ts'
-import { ProfilePicker } from '../games/ProfilePicker'
+import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
 import { CreateProfile } from '../games/CreateProfile'
 import { AdminPanel } from '../games/AdminPanel'
 import { GamePicker } from '../games/GamePicker'
@@ -143,6 +143,19 @@ interface ScreenEntry {
   render: () => ReactNode
 }
 
+/** The real, API-backed picker, assembled once per mount. */
+function DevProfilePicker() {
+  const [ProfilePicker] = useState(assembleProfilePicker)
+  return (
+    <ProfilePicker
+      onSelect={(p) => console.log('onSelect', p)}
+      onAddPlayer={() => console.log('onAddPlayer')}
+      onEditProfile={(p) => console.log('onEditProfile', p)}
+      onOpenAdmin={() => console.log('onOpenAdmin')}
+    />
+  )
+}
+
 /** Renders a new-style screen, assembling it once per mount (see src/main/dev_screens.assembly.main.ts). */
 function AssembledScreen({ assemble }: { assemble: () => ComponentType }) {
   const [Screen] = useState(() => assemble())
@@ -160,14 +173,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'profile-picker',
     label: 'Profile picker',
-    render: () => (
-      <ProfilePicker
-        onSelect={(p) => console.log('onSelect', p)}
-        onAddPlayer={() => console.log('onAddPlayer')}
-        onEditProfile={(p) => console.log('onEditProfile', p)}
-        onOpenAdmin={() => console.log('onOpenAdmin')}
-      />
-    ),
+    render: () => <DevProfilePicker />,
   },
   {
     id: 'create-profile',

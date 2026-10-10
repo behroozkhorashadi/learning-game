@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { HttpFetch, HttpResponse } from './http.pure.lib.ts'
 import type { components } from './openapi_schema.pure.lib.ts'
 
 /**
@@ -9,18 +10,6 @@ import type { components } from './openapi_schema.pure.lib.ts'
  */
 
 type ApiTodo = components['schemas']['Todo']
-
-/** The narrow slice of `fetch` this adapter needs; assembly passes the real one, tests pass a fake. */
-export interface HttpResponse {
-  readonly ok: boolean
-  readonly status: number
-  readonly json: () => Promise<unknown>
-}
-
-export type HttpFetch = (
-  url: string,
-  init: { readonly method: 'GET' | 'PUT'; readonly headers: Readonly<Record<string, string>>; readonly body?: string },
-) => Promise<HttpResponse>
 
 // `satisfies` makes a backend schema change (new required field, renamed field) a compile error here.
 const todoSchema = z.object({ id: z.string(), title: z.string(), done: z.boolean() }).readonly() satisfies z.ZodType<ApiTodo>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { CardShell } from '../components/AdminLoginForm'
-import { ProfileAvatar } from './ProfilePicker'
+import { ProfileAvatar } from '@app/profiles/profile_avatar.pure.ui.tsx'
 import type { Profile, ProfileUnlockRequest } from '../types/generated'
 
 /**

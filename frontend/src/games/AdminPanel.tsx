@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { CardShell, LoginForm } from '../components/AdminLoginForm'
 import { ageOf } from '../components/ProfileFormFields'
-import { ProfileAvatar } from './ProfilePicker'
+import { ProfileAvatar } from '@app/profiles/profile_avatar.pure.ui.tsx'
 import { EditProfile } from './EditProfile'
 import type { Profile } from '../types/generated'
 

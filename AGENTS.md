@@ -78,7 +78,8 @@ feature or a real rework means migrating the touched component first:
 | reducer | call the pure function, assert the snapshot | `todo_reducers.pure.lib.test.ts` |
 | adapter | bind it over a fake handle (a `Map` for storage, a fake `fetch`) | `todo_repository.effect.lib.test.ts`, `todos_api.effect.lib.test.ts` |
 | async operation | a remote whose promises settle when the test says; assert each state, the stale-result policy, and that results land on the right instance | `todo_backup.effect.lib.test.ts` |
-| pure UI | render with props and `vi.fn()`, query by role and name | `todo.pure.ui.test.tsx` |
+| pure UI | render with props and `vi.fn()`, query by role and name; for a `QueryState` prop, render each of `LOADING`, `loaded(...)`, `failed(...)` | `todo.pure.ui.test.tsx`, `profile_picker.pure.ui.test.tsx` |
+| hook | `renderHook` over a deferred promise; assert each state and that a late result after unmount is dropped | `use_query.pure.hook.test.ts` |
 | feature | `bindX` with in-memory fakes, drive it like a user, assert what is visible and what was saved | `todos.effect.ui.test.tsx` |
 | composition | one real-graph test of `assembleX()`; replace only the network edge | `todo.assembly.main.test.tsx` |
 | story | the real bound component with fake capabilities and seeded state, plus a `play` function; runs in Chrome in CI | `todos.effect.ui.stories.tsx` |

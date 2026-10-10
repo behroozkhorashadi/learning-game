@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 153 legacy frontend files (152 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 151 legacy frontend files (150 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -63,7 +63,7 @@ fast unit tests and a story, so the change itself gets faster. That DX is the in
 | | component | why | effort |
 |---|---|---|---|
 | [x] | `components/ProgressBar.tsx` → `session/progress_bar.pure.ui.tsx` | simple: props only, no state | ~3 min (agent). Its two legacy deps had to migrate with it: `DenButton` → `den/den_button.pure.ui.tsx`, `icons` → `den/icons.pure.ui.tsx`. 3 files moved (`git mv`, history kept), 36 legacy importers repointed to `@app/…`, then explicit return types and `readonly` props (strict tsc already passed). 21 tests and 10 stories added. |
-| [ ] | `games/ProfilePicker.tsx` | coupled: calls `fetch('/api/profiles')` in an effect, owns loading/error state | _record actual time here_ |
+| [x] | `games/ProfilePicker.tsx` → `profiles/` | coupled: calls `fetch('/api/profiles')` in an effect, owns loading/error state | ~13 min (agent), about half of it e2e baseline verification. New seams it needed: `api/profiles_api.effect.lib.ts` + `profiles_schema.pure.lib.ts` (zod, tied to the OpenAPI type), `api/http.pure.lib.ts` (shared `HttpFetch`), and `query/` (`useQuery` + `QueryState`, the server-state seam). Split into a props-only view (all states renderable) + `bindProfilePicker({ listProfiles })` + `assembleProfilePicker()`. Shared exports moved out: `ProfileAvatar` → `profiles/profile_avatar.pure.ui.tsx`, `AVATAR_OPTIONS` → `profiles/avatar_options.pure.lib.ts`, `PENCIL_ICON` → `den/icon_paths.pure.lib.ts`. The 8 legacy tests (which mocked `global.fetch`) are ported; 34 tests + 8 stories now. e2e: no change vs. baseline (see Known debt). |
 
 Record the time each took, plus anything the steps above missed, then update this file.
 
@@ -72,7 +72,16 @@ Lessons from ProgressBar:
 - **Shared leaves are cheap to move:** legacy may import new-style code, so repointing importers is a mechanical path rewrite with no behavior change.
 - **Found while writing tests:** the progress dots carry `aria-label` on a plain `div`, which screen readers may ignore. Not changed in a move-only migration; candidate follow-up: `role="progressbar"` with `aria-valuenow`/`aria-valuemax`.
 
+Lessons from ProfilePicker:
+- **The first coupled component pays for the seams** (API adapter, `HttpFetch`, `useQuery`). The next screen that fetches reuses all three, so it should take a fraction of the time.
+- **Split view from binding.** A props-only view taking a `QueryState` makes loading, failed, and empty renderable in stories and tests without a fake network. The legacy component could only be tested by mocking `global.fetch`.
+- **Parse stricter than the schema where the UI depends on it** (`id` required). A malformed row is now a visible error instead of a silently unclickable tile.
+- **Run the e2e suite against a baseline,** not just after. Stash the migration and run it on the previous commit, or you can't tell your failures from existing ones.
+- **Legacy callers assemble once** with `useState(assembleX)` (`App.tsx`, `DevScreenPicker.tsx`), until the shell itself migrates to `src/main/`.
+
 ## Known debt surfaced by the new rules (fix during migration)
+
+- **The e2e suite (`make e2e`, not in CI) fails 6 of 15 on `main`.** At `8d14f9f`, before the guardrails, 1 fails (`zombie-hit-lab` real clicks). Upstream's `2011b75` merge, whose demo profile is now removed once real profiles exist, breaks 4 more that assume "Demo Kid" is present (`admin`, `passwords` forgot-password, `profiles` seeded-demo, and edit-from-game-picker), plus the other hit-lab spec. Same set with and without the ProfilePicker migration. Fix the specs to create their own profiles, the way `backend/tests/test_pieces.py` now does.
 
 - **`<Suspense>` without an error boundary** in 7 react-three-fiber spots:
   `components/EquationBlaster.tsx` (×3), `games/framework/ZombieArena.tsx`,
@@ -92,7 +101,7 @@ Lessons from ProgressBar:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 153 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 151 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

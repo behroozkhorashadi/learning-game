@@ -123,6 +123,9 @@ fine; re-exports are not (`app/flags-in-assembly`).
   and saves; it is **not** the live source of truth.
 - **One writer per durable value.** No second cached copy. Don't mirror server state into
   client state.
+- **Server state goes through `useQuery(load)`** (`@app/query/use_query.pure.hook.ts`), with
+  `load` an injected adapter method. Views take the resulting `QueryState` as a prop. See
+  [`frontend/src/query/AGENTS.md`](frontend/src/query/AGENTS.md).
 - **Async operations are a separate layer** (`*.effect.lib.ts`). Reducers stay synchronous
   (`saving()`, `saved(n)`, `failed(msg)`). The operation receives a narrow capability plus
   bound commands, drives `idle → saving → saved | failed`, and owns retries, cancellation,

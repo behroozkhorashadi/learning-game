@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { bindTodosApi, type HttpFetch, type HttpResponse } from './todos_api.effect.lib.ts'
+import type { HttpFetch, HttpResponse } from './http.pure.lib.ts'
+import { bindTodosApi } from './todos_api.effect.lib.ts'
 
 function respond(status: number, body: unknown): HttpResponse {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }
