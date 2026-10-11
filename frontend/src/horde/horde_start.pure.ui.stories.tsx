@@ -1,0 +1,35 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, fn, userEvent, within } from 'storybook/test'
+import { loaded } from '@app/query/query_state.pure.lib.ts'
+import { ArmoryShop } from './armory_shop.pure.ui.tsx'
+import { fakeArmory } from './horde_fakes.test.ui.tsx'
+import { HordeStart } from './horde_start.pure.ui.tsx'
+
+const meta = {
+  title: 'app/horde/HordeStart',
+  component: HordeStart,
+  args: {
+    shop: <ArmoryShop armory={loaded(fakeArmory({ balance: 140 }).state())} choice={{ weaponId: 'starter_blaster', bulletId: 'standard_rounds' }} onChoose={fn()} onBuy={fn()} buying={null} buyError={null} />,
+    starting: false,
+    onHearInstructions: fn(),
+    onStart: fn(),
+    onBack: fn(),
+  },
+} satisfies Meta<typeof HordeStart>
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Ready: Story = {
+  play: async ({ args, canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Start' }))
+    await expect(args.onStart).toHaveBeenCalled()
+  },
+}
+
+export const Starting: Story = {
+  args: { starting: true },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole('button', { name: 'Loading…' })).toBeVisible()
+  },
+}

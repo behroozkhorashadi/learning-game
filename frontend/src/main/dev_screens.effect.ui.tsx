@@ -2,6 +2,7 @@ import { useState, type ComponentType, type ReactElement, type ReactNode } from 
 import type { AdminPanelProps } from '@app/admin/admin_panel.effect.ui.tsx'
 import type { BadgesProps } from '@app/badges/badges.effect.ui.tsx'
 import type { GamePickerProps } from '@app/home/game_picker.pure.ui.tsx'
+import type { ZombieHordeProps } from '@app/horde/zombie_horde.effect.ui.tsx'
 import type { OutbreakSettingsProps } from '@app/outbreak/outbreak_settings.effect.ui.tsx'
 import type { ZombieArenaProps } from '@app/outbreak/zombie_arena.effect.ui.tsx'
 import type { PathfinderMapBuilderProps } from '@app/pathfinder/pathfinder_map_builder.effect.ui.tsx'
@@ -40,6 +41,7 @@ export interface DevScreensDeps {
   readonly OutbreakSettings: ComponentType<OutbreakSettingsProps>
   readonly SyllableBuilder: ComponentType<SyllableBuilderProps>
   readonly ZombieMathBlaster: ComponentType<ZombieArenaProps>
+  readonly ZombieHorde: ComponentType<ZombieHordeProps>
   readonly ZombiePOCScene: ComponentType
   readonly ZombieHitLab: ComponentType
   readonly WeaponPOCScene: ComponentType
@@ -120,6 +122,7 @@ export function bindDevScreens(d: DevScreensDeps): readonly DevScreen[] {
     screen('zombie-hit-lab', 'Equation Outbreak hit lab (label shots, score hitboxes)', d.ZombieHitLab),
     screen('weapon-3d-poc', 'Equation Outbreak weapon-assembly POC', d.WeaponPOCScene),
     screen('equation-outbreak-live', 'Equation Outbreak (live — hits the backend)', () => <d.ZombieMathBlaster profileId={MOCK_PROFILE.id} onBack={back} />),
+    screen('zombie-horde-live', 'Zombie Horde (live — hits the backend)', () => <d.ZombieHorde profileId={MOCK_PROFILE.id} onBack={back} />),
     screen('badges', 'Badges & Accomplishments', () => <d.Badges profileId={MOCK_PROFILE.id} kidName={MOCK_PROFILE.name} onBack={back} />),
     screen('session-start', 'Session start', () => (
       <CardWrapper>

@@ -417,6 +417,67 @@ export interface paths {
         readonly patch: operations["patch_profile_api_profiles__profile_id__patch"];
         readonly trace?: never;
     };
+    readonly "/api/profiles/{profile_id}/armory": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get Armory
+         * @description The balance, owned items, grenades left, and the catalog with prices.
+         */
+        readonly get: operations["get_armory_api_profiles__profile_id__armory_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/profiles/{profile_id}/armory/purchases": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Purchase Armory Item
+         * @description Buys one item. 409 when it's already owned, needs another item first, or
+         *     costs more than the balance.
+         */
+        readonly post: operations["purchase_armory_item_api_profiles__profile_id__armory_purchases_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/profiles/{profile_id}/armory/rounds": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Record Armory Round
+         * @description Banks a finished round's points and spends the grenades it threw.
+         */
+        readonly post: operations["record_armory_round_api_profiles__profile_id__armory_rounds_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/profiles/{profile_id}/badges": {
         readonly parameters: {
             readonly query?: never;
@@ -636,6 +697,67 @@ export interface components {
         readonly AdminLoginRequest: {
             /** Password */
             readonly password: string;
+        };
+        /**
+         * ArmoryItem
+         * @description One thing the armory sells. `price` 0 means every profile starts owning it.
+         *     A grenade pack can be bought again and again and adds `quantity` grenades; a
+         *     weapon or bullet is bought once. `requires` names an item that must be owned
+         *     first (the next weapon tier needs the one before it).
+         */
+        readonly ArmoryItem: {
+            /** Description */
+            readonly description: string;
+            /** Id */
+            readonly id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            readonly kind: "weapon" | "bullet" | "grenade";
+            /** Name */
+            readonly name: string;
+            /** Price */
+            readonly price: number;
+            /** Quantity */
+            readonly quantity: number;
+            /** Requires */
+            readonly requires: string | null;
+        };
+        /** ArmoryPurchaseCreate */
+        readonly ArmoryPurchaseCreate: {
+            /** Item Id */
+            readonly item_id: string;
+        };
+        /**
+         * ArmoryRoundCreate
+         * @description A finished Zombie Horde round: the points it scored and the grenades it threw.
+         */
+        readonly ArmoryRoundCreate: {
+            /** Grenades Used */
+            readonly grenades_used: number;
+            /** Points */
+            readonly points: number;
+        };
+        /**
+         * ArmoryState
+         * @description Everything the armory screen and a round's loadout need, in one response.
+         */
+        readonly ArmoryState: {
+            /** Balance */
+            readonly balance: number;
+            /** Catalog */
+            readonly catalog: readonly components["schemas"]["ArmoryItem"][];
+            /** Earned */
+            readonly earned: number;
+            /** Grenades */
+            readonly grenades: number;
+            /** Owned */
+            readonly owned: readonly string[];
+            /** Profile Id */
+            readonly profile_id: number;
+            /** Spent */
+            readonly spent: number;
         };
         /**
          * AttemptCreate
@@ -2340,6 +2462,107 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ProfileRead"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_armory_api_profiles__profile_id__armory_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArmoryState"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly purchase_armory_item_api_profiles__profile_id__armory_purchases_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ArmoryPurchaseCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArmoryState"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly record_armory_round_api_profiles__profile_id__armory_rounds_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ArmoryRoundCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArmoryState"];
                 };
             };
             /** @description Validation Error */

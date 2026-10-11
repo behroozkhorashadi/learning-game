@@ -18,6 +18,7 @@ function deps(overrides: Partial<DevScreensDeps> = {}): DevScreensDeps {
     OutbreakSettings: NONE,
     SyllableBuilder: NONE,
     ZombieMathBlaster: NONE,
+    ZombieHorde: NONE,
     ZombiePOCScene: NONE,
     ZombieHitLab: NONE,
     WeaponPOCScene: NONE,

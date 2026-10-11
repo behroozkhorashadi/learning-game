@@ -12,7 +12,7 @@ flowchart TB
     session["session/<br/>session shell: SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, HandoffPencil, ProgressBar"]
     den["den/<br/>DenButton, DenCard, DenChip, DenFlipCard,<br/>DenJar, DenTile, icons, icon_paths"]
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
-    apiad["api/<br/>profiles, admin, pathfinder, practice, pieces, badges,<br/>practice_config, todos (zod at the door)<br/>openapi_schema (generated), http types"]
+    apiad["api/<br/>profiles, admin, pathfinder, practice, pieces, badges,<br/>practice_config, armory, todos (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
     practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
@@ -33,6 +33,7 @@ flowchart TB
     science_fair["science_fair/<br/>the gym: booths, portal, lanes,<br/>colliders that block shots"]
     blaster["blaster/<br/>EquationBlaster, MuzzleFlash (pixel textures),<br/>ChargeHud, pose maths, dev tuning panel"]
     motion["motion/<br/>usePrefersReducedMotion over an injected preference"]
+    horde["horde/<br/>Zombie Horde: bindZombieHorde + useHordeRound,<br/>pure engine (roaming, health, cover, grenades), armory shop,<br/>HordeViewport + HordeScene (R3F)"]
     zombie_lab["zombie_lab/<br/>dev: hit lab (labels shots for the e2e eval),<br/>zombie and weapon POC scenes"]
     example["examples/todo/<br/>the worked example to copy"]
   end
@@ -74,5 +75,9 @@ flowchart TB
   arena --> zombies & science_fair & blaster & boundary
   science_fair --> arena
   zombie_lab --> arena & zombies & blaster
+  app -- "assembleZombieHorde() once" --> horde
+  dev -- "live screen" --> horde
+  horde --> zombies & arena & blaster & science_fair & outbreak & motion & den & query & apiad & speech & ids & boundary
+  horde -- "injected timers, rAF,<br/>Web Audio, matchMedia" --> webapis
   zombies & blaster & science_fair -- "GLB models, audio" --> assets
   outbreak -- "injected timers, rAF,<br/>Web Audio, matchMedia" --> webapis[["Browser APIs"]]

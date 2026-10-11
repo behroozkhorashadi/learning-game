@@ -1,0 +1,167 @@
+import type { ReactElement } from 'react'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import type { FeedbackKind } from './use_horde_round.pure.hook.ts'
+
+/**
+ * Everything drawn over the 3D view during a round: Back, the clock, lives,
+ * grenades, mute, the question, the answers as real buttons (the same
+ * targets for keyboard and screen-reader players, independent of the
+ * canvas), the crosshair, and the hit/hurt flashes. Props only.
+ */
+
+export interface HudAnswer {
+  readonly zombieId: string
+  readonly label: string
+}
+
+export interface HordeHudProps {
+  readonly question: string | null
+  /** The question fills the screen before the horde moves. */
+  readonly intro: boolean
+  readonly secondsLeft: number
+  readonly lives: number
+  readonly grenades: number
+  readonly grenadeArmed: boolean
+  readonly muted: boolean
+  readonly answers: readonly HudAnswer[]
+  readonly feedback: { readonly kind: FeedbackKind; readonly id: number } | null
+  readonly aimNdc: { readonly x: number; readonly y: number } | null
+  readonly reducedMotion: boolean
+  readonly onBack: () => void
+  readonly onToggleGrenade: () => void
+  readonly onToggleMute: () => void
+  /** Zaps a zombie's body from the answer buttons. */
+  readonly onZap: (zombieId: string) => void
+}
+
+const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
+const MUTED_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 8.5L21 15.5M21 8.5L17 15.5']
+const SOUND_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 9C17.8 9.7 18.25 10.8 18.25 12C18.25 13.2 17.8 14.3 17 15']
+
+const FLASH: Record<FeedbackKind, string> = {
+  correct: 'radial-gradient(ellipse at center, transparent 58%, rgba(34,197,94,0.6) 100%)',
+  boom: 'radial-gradient(ellipse at center, transparent 50%, rgba(255,159,28,0.6) 100%)',
+  wrong: 'radial-gradient(ellipse at center, transparent 58%, rgba(245,158,11,0.55) 100%)',
+  dud: 'radial-gradient(ellipse at center, transparent 58%, rgba(156,163,175,0.55) 100%)',
+  hurt: 'radial-gradient(ellipse at center, transparent 40%, rgba(205,42,32,0.65) 100%)',
+}
+
+const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 9999, background: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' } as const
+
+export function HordeHud({ question, intro, secondsLeft, lives, grenades, grenadeArmed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleMute, onZap }: HordeHudProps): ReactElement {
+  return (
+    <>
+      <div style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 200, pointerEvents: 'none' }}>
+        <span style={{ pointerEvents: 'auto' }}>
+          <DenButton label="Back" variant="quiet" shape="pill" size="md" iconOnly boxSize={44} iconPaths={BACK_ICON} onClick={onBack} />
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
+            ⏱ {secondsLeft}s
+          </div>
+          <div role="img" aria-label={`${String(lives)} lives left`} style={{ fontSize: 22 }}>
+            {'❤️'.repeat(Math.max(lives, 0))}
+          </div>
+          <span style={{ pointerEvents: 'auto' }}>
+            <button
+              type="button"
+              aria-pressed={grenadeArmed}
+              aria-label={`Grenade (${String(grenades)} left)${grenadeArmed ? ': armed, click the floor to throw' : ''}`}
+              disabled={grenades <= 0}
+              onClick={onToggleGrenade}
+              style={{ ...PILL, border: grenadeArmed ? '3px solid #FF9F1C' : '3px solid transparent', cursor: grenades > 0 ? 'pointer' : 'not-allowed', opacity: grenades > 0 ? 1 : 0.5 }}
+            >
+              💣 {grenades}
+            </button>
+          </span>
+          <span style={{ pointerEvents: 'auto' }}>
+            <DenButton label={muted ? 'Unmute' : 'Mute'} variant="quiet" shape="pill" size="md" iconOnly boxSize={44} onClick={onToggleMute} iconPaths={muted ? MUTED_ICON : SOUND_ICON} />
+          </span>
+        </div>
+      </div>
+
+      {question !== null && (
+        <div
+          aria-label="Question"
+          role="heading"
+          aria-level={2}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: intro ? '50%' : 72,
+            transform: intro ? 'translate(-50%, -50%) scale(1.4)' : 'translate(-50%, 0) scale(1)',
+            transition: reducedMotion ? 'none' : 'top 500ms cubic-bezier(0.2,0,0,1), transform 500ms cubic-bezier(0.2,0,0,1)',
+            zIndex: 150,
+            padding: '14px 24px',
+            borderRadius: 20,
+            background: '#FFFFFF',
+            boxShadow: '0 10px 24px -12px rgba(0,13,51,0.35)',
+            fontFamily: 'var(--font-display)',
+            fontWeight: 800,
+            fontSize: 34,
+            color: '#2A2E37',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          {question}
+        </div>
+      )}
+
+      {grenadeArmed && (
+        <div role="status" style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, padding: '8px 16px', borderRadius: 9999, background: '#FF9F1C', color: '#FFFFFF', fontWeight: 800, pointerEvents: 'none' }}>
+          Grenade ready: click near the right zombie
+        </div>
+      )}
+
+      <div style={{ position: 'absolute', bottom: 12, left: 16, right: 16, zIndex: 200, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {answers.map((answer) => (
+          <button
+            key={answer.zombieId}
+            type="button"
+            onClick={() => {
+              onZap(answer.zombieId)
+            }}
+            aria-label={`Zap the zombie carrying ${answer.label}`}
+            style={{ height: 36, padding: '0 12px', borderRadius: 9999, border: '1px solid rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.35)', color: '#FFFFFF', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            {answer.label}
+          </button>
+        ))}
+      </div>
+
+      {feedback !== null && (
+        <div
+          key={feedback.id}
+          aria-hidden="true"
+          data-feedback-kind={feedback.kind}
+          className="answer-feedback-vignette"
+          style={{ position: 'absolute', inset: 0, zIndex: 205, pointerEvents: 'none', background: FLASH[feedback.kind], animation: reducedMotion ? 'none' : 'vignettePulse 420ms ease-out' }}
+        />
+      )}
+
+      {aimNdc !== null && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: `${String(((aimNdc.x + 1) / 2) * 100)}%`,
+            top: `${String(((1 - aimNdc.y) / 2) * 100)}%`,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 210,
+            width: grenadeArmed ? 52 : 36,
+            height: grenadeArmed ? 52 : 36,
+            borderRadius: 9999,
+            border: `2.5px solid ${grenadeArmed ? '#FF9F1C' : '#FFFFFF'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ width: 3, height: 3, borderRadius: 9999, background: grenadeArmed ? '#FF9F1C' : '#FFFFFF' }} />
+        </div>
+      )}
+    </>
+  )
+}

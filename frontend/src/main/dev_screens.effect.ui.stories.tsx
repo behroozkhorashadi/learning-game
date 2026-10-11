@@ -20,6 +20,7 @@ function Bound({ screen }: { readonly screen: string }): ReactElement {
   OutbreakSettings: NONE,
   SyllableBuilder: NONE,
   ZombieMathBlaster: NONE,
+  ZombieHorde: NONE,
   ZombiePOCScene: NONE,
   ZombieHitLab: NONE,
   WeaponPOCScene: NONE,

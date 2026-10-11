@@ -4,6 +4,7 @@ import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { assembleClueMaster } from '@app/clue_master/clue_master.assembly.main.ts'
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
 import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
+import { assembleZombieHorde } from '@app/horde/zombie_horde.assembly.main.ts'
 import { assembleOutbreakSettings } from '@app/outbreak/outbreak_settings.assembly.main.ts'
 import { assembleZombieMathBlaster } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
 import { assemblePathfinder } from '@app/pathfinder/pathfinder.assembly.main.ts'
@@ -33,6 +34,7 @@ export function assembleAppScreens(): AppScreens {
     StoryLibrary: assembleStoryLibrary(),
     OutbreakSettings: assembleOutbreakSettings(),
     ZombieMathBlaster: assembleZombieMathBlaster(),
+    ZombieHorde: assembleZombieHorde(),
     SyllableBuilder: assembleSyllableBuilder(),
     EquationBuilder: assembleEquationBuilder(),
     PromptForge: assemblePromptForge(),

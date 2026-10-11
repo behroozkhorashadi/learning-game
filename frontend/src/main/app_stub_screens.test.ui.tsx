@@ -63,6 +63,7 @@ export const STUB_SCREENS: AppScreens = {
   StoryLibrary: any('StoryLibrary'),
   OutbreakSettings: any('OutbreakSettings'),
   ZombieMathBlaster: any('ZombieMathBlaster'),
+  ZombieHorde: any('ZombieHorde'),
   SyllableBuilder: any('SyllableBuilder'),
   EquationBuilder: any('EquationBuilder'),
   PromptForge: any('PromptForge'),

@@ -14,6 +14,160 @@
         "title": "AdminLoginRequest",
         "type": "object"
       },
+      "ArmoryItem": {
+        "additionalProperties": false,
+        "description": "One thing the armory sells. `price` 0 means every profile starts owning it.\nA grenade pack can be bought again and again and adds `quantity` grenades; a\nweapon or bullet is bought once. `requires` names an item that must be owned\nfirst (the next weapon tier needs the one before it).",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "weapon",
+              "bullet",
+              "grenade"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "minimum": 0.0,
+            "title": "Price",
+            "type": "integer"
+          },
+          "quantity": {
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "requires": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requires"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "description",
+          "price",
+          "quantity",
+          "requires"
+        ],
+        "title": "ArmoryItem",
+        "type": "object"
+      },
+      "ArmoryPurchaseCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id"
+        ],
+        "title": "ArmoryPurchaseCreate",
+        "type": "object"
+      },
+      "ArmoryRoundCreate": {
+        "additionalProperties": false,
+        "description": "A finished Zombie Horde round: the points it scored and the grenades it threw.",
+        "properties": {
+          "grenades_used": {
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Grenades Used",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 2000.0,
+            "minimum": 0.0,
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "points",
+          "grenades_used"
+        ],
+        "title": "ArmoryRoundCreate",
+        "type": "object"
+      },
+      "ArmoryState": {
+        "additionalProperties": false,
+        "description": "Everything the armory screen and a round's loadout need, in one response.",
+        "properties": {
+          "balance": {
+            "title": "Balance",
+            "type": "integer"
+          },
+          "catalog": {
+            "items": {
+              "$ref": "#/components/schemas/ArmoryItem"
+            },
+            "title": "Catalog",
+            "type": "array"
+          },
+          "earned": {
+            "title": "Earned",
+            "type": "integer"
+          },
+          "grenades": {
+            "title": "Grenades",
+            "type": "integer"
+          },
+          "owned": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned",
+            "type": "array"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "spent": {
+            "title": "Spent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "balance",
+          "earned",
+          "spent",
+          "owned",
+          "grenades",
+          "catalog"
+        ],
+        "title": "ArmoryState",
+        "type": "object"
+      },
       "AttemptCreate": {
         "description": "Inbound POST body for /api/attempts. Not a table \u2014 `Attempt` is the\npersisted shape.",
         "properties": {
@@ -3071,6 +3225,155 @@
           }
         },
         "summary": "Patch Profile"
+      }
+    },
+    "/api/profiles/{profile_id}/armory": {
+      "get": {
+        "description": "The balance, owned items, grenades left, and the catalog with prices.",
+        "operationId": "get_armory_api_profiles__profile_id__armory_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmoryState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Armory",
+        "tags": [
+          "armory"
+        ]
+      }
+    },
+    "/api/profiles/{profile_id}/armory/purchases": {
+      "post": {
+        "description": "Buys one item. 409 when it's already owned, needs another item first, or\ncosts more than the balance.",
+        "operationId": "purchase_armory_item_api_profiles__profile_id__armory_purchases_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmoryPurchaseCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmoryState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Purchase Armory Item",
+        "tags": [
+          "armory"
+        ]
+      }
+    },
+    "/api/profiles/{profile_id}/armory/rounds": {
+      "post": {
+        "description": "Banks a finished round's points and spends the grenades it threw.",
+        "operationId": "record_armory_round_api_profiles__profile_id__armory_rounds_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmoryRoundCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmoryState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Armory Round",
+        "tags": [
+          "armory"
+        ]
       }
     },
     "/api/profiles/{profile_id}/badges": {

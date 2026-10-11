@@ -1,0 +1,143 @@
+import type { ReactElement } from 'react'
+import type { ArmoryItemRecord, ArmoryStateRecord } from '@app/api/armory_schema.pure.lib.ts'
+import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { GRENADE, bulletById, hitsToDefeat, loadoutFor, shotPower, weaponById } from './horde_armory.pure.lib.ts'
+
+/**
+ * The armory on Zombie Horde's start screen: the points balance, and every
+ * weapon, bullet, and grenade pack with what it does, its price, and whether
+ * it's owned. Owned weapons and bullets can be equipped for the next round.
+ * Props only: the feature component owns loading, buying, and the selection.
+ */
+
+export interface LoadoutChoice {
+  readonly weaponId: string
+  readonly bulletId: string
+}
+
+export interface ArmoryShopProps {
+  readonly armory: QueryState<ArmoryStateRecord>
+  readonly choice: LoadoutChoice
+  readonly onChoose: (choice: LoadoutChoice) => void
+  readonly onBuy: (itemId: string) => void
+  /** The item a purchase is in flight for, if any. */
+  readonly buying: string | null
+  readonly buyError: string | null
+}
+
+const plural = (n: number, one: string): string => `${String(n)} ${one}${n === 1 ? '' : 's'}`
+
+/** What an item does, in a kid's words, with the currently chosen gear. */
+function effectLine(item: ArmoryItemRecord, choice: LoadoutChoice, owned: readonly string[]): string {
+  if (item.kind === 'grenade') return `${plural(item.quantity, 'grenade')}. Blast reach ${String(GRENADE.radius)}m.`
+  const weapon = item.kind === 'weapon' ? item.id : choice.weaponId
+  const bullet = item.kind === 'bullet' ? item.id : choice.bulletId
+  // Show the item's own numbers even before it's owned.
+  const power = shotPower(loadoutFor(weapon, bullet, [...owned, item.id]))
+  const hits = `Head ${plural(hitsToDefeat(power, 'head'), 'hit')} · Body ${plural(hitsToDefeat(power, 'body'), 'hit')} · Leg ${plural(hitsToDefeat(power, 'leg'), 'hit')}`
+  const reload = item.kind === 'weapon' ? weaponById(item.id)?.cooldownMs : undefined
+  return reload === undefined ? hits : `Reload ${(reload / 1000).toFixed(2)}s · ${hits}`
+}
+
+function ItemCard({ item, armory, choice, onChoose, onBuy, buying }: { readonly item: ArmoryItemRecord; readonly armory: ArmoryStateRecord; readonly choice: LoadoutChoice; readonly onChoose: (choice: LoadoutChoice) => void; readonly onBuy: (itemId: string) => void; readonly buying: string | null }): ReactElement {
+  const owned = item.kind !== 'grenade' && armory.owned.includes(item.id)
+  const equipped = (item.kind === 'weapon' && choice.weaponId === item.id) || (item.kind === 'bullet' && choice.bulletId === item.id)
+  const locked = item.requires !== null && !armory.owned.includes(item.requires)
+  const affordable = item.price <= armory.balance
+  const known = item.kind === 'grenade' || weaponById(item.id) !== null || bulletById(item.id) !== null
+  const needs = item.requires === null ? null : (armory.catalog.find((other) => other.id === item.requires)?.name ?? item.requires)
+
+  function action(): ReactElement {
+    if (owned) {
+      if (equipped) return <span style={{ fontWeight: 800, color: '#3F7A22', fontSize: 14 }}>Equipped</span>
+      return (
+        <DenButton
+          label="Equip"
+          ariaLabel={`Equip ${item.name}`}
+          variant="softGreen"
+          shape="pill"
+          size="sm"
+          onClick={() => {
+            onChoose(item.kind === 'weapon' ? { ...choice, weaponId: item.id } : { ...choice, bulletId: item.id })
+          }}
+        />
+      )
+    }
+    if (locked) return <span style={{ fontSize: 13, color: '#8896AA' }}>Needs {needs}</span>
+    return (
+      <DenButton
+        label={buying === item.id ? 'Buying…' : `Buy · ${String(item.price)}`}
+        ariaLabel={`Buy ${item.name} for ${String(item.price)} points`}
+        variant="blue"
+        shape="pill"
+        size="sm"
+        disabled={!affordable || buying !== null || !known}
+        onClick={() => {
+          onBuy(item.id)
+        }}
+      />
+    )
+  }
+
+  return (
+    <li style={{ listStyle: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 18, background: equipped ? '#EEF8E8' : '#FFFFFF', border: `1px solid ${equipped ? '#B9E3A3' : '#EEE4D2'}` }}>
+      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' }}>{item.name}</div>
+        <div style={{ fontSize: 13, color: '#5B6576', marginTop: 2 }}>{item.description}</div>
+        <div style={{ fontSize: 12, color: '#8896AA', marginTop: 4 }}>{effectLine(item, choice, armory.owned)}</div>
+      </div>
+      <div style={{ flex: 'none' }}>{action()}</div>
+    </li>
+  )
+}
+
+const SECTIONS = [
+  { kind: 'weapon', title: 'Blasters' },
+  { kind: 'bullet', title: 'Rounds' },
+  { kind: 'grenade', title: 'Grenades' },
+] as const
+
+export function ArmoryShop({ armory, choice, onChoose, onBuy, buying, buyError }: ArmoryShopProps): ReactElement {
+  if (armory.kind === 'loading') return <p style={{ color: '#8896AA' }}>Opening the armory…</p>
+  if (armory.kind === 'failed') {
+    return (
+      <p role="alert" style={{ color: '#CD2A20' }}>
+        The armory couldn&apos;t load ({armory.message}). You can still play with the starter blaster.
+      </p>
+    )
+  }
+  const data = armory.data
+  return (
+    <section aria-label="Armory" style={{ textAlign: 'left' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: '#2A2E37' }}>Armory</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <span role="status" aria-label="Points" style={{ padding: '6px 14px', borderRadius: 9999, background: '#FDECCE', color: '#7F5305', fontWeight: 800 }}>
+            ⭐ {data.balance} points
+          </span>
+          <span role="status" aria-label="Grenades" style={{ padding: '6px 14px', borderRadius: 9999, background: '#E9F1FF', color: '#0037DB', fontWeight: 800 }}>
+            💣 {data.grenades}
+          </span>
+        </div>
+      </div>
+      {buyError !== null && (
+        <p role="alert" style={{ color: '#CD2A20', margin: '0 0 10px' }}>
+          {buyError}
+        </p>
+      )}
+      {SECTIONS.map((section) => (
+        <div key={section.kind} style={{ marginBottom: 14 }}>
+          <h3 style={{ margin: '0 0 8px', fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#98A2B3' }}>{section.title}</h3>
+          <ul aria-label={section.title} style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {data.catalog
+              .filter((item) => item.kind === section.kind)
+              .map((item) => (
+                <ItemCard key={item.id} item={item} armory={data} choice={choice} onChoose={onChoose} onBuy={onBuy} buying={buying} />
+              ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  )
+}

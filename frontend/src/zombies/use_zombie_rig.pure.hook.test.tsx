@@ -56,4 +56,18 @@ describe('useZombieRig', () => {
     expect(frozen).not.toBe(0)
     expect(head?.quaternion.y).toBe(frozen)
   })
+
+  it('plays the get-up backwards: from the fall\'s last frame toward its first', async () => {
+    const renderer = await ReactThreeTestRenderer.create(<Rig role="getUp" />)
+    const head = renderer.scene.instance.getObjectByName(SCIENTIST_ZOMBIE.headBoneName)
+    await ReactThreeTestRenderer.act(async () => {
+      await renderer.advanceFrames(1, 0.01)
+    })
+    const start = head?.quaternion.y ?? 0
+    await ReactThreeTestRenderer.act(async () => {
+      await renderer.advanceFrames(5, 0.1)
+    })
+    expect(start).toBeGreaterThan(0.09)
+    expect(head?.quaternion.y ?? 1).toBeLessThan(start)
+  })
 })

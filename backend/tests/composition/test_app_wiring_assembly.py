@@ -67,6 +67,7 @@ def test_the_entry_point_serves_every_route_group(monkeypatch: pytest.MonkeyPatc
         "/api/profiles/{profile_id}/badges",
         "/api/practice-config",
         "/api/pathfinder/published-maps",
+        "/api/profiles/{profile_id}/armory",
         "/api/client-errors",
     ):
         assert path in paths
@@ -122,6 +123,7 @@ def test_deleting_a_profile_removes_everything_other_features_keep_for_it(tmp_pa
             "/api/practice-config",
             json={"profile_id": kid, "game_id": "fact_fluency", "operations": ["+"], "difficulty": 2},
         )
+        client.post(f"/api/profiles/{kid}/armory/rounds", json={"points": 300, "grenades_used": 0})
 
         assert client.delete(f"/api/profiles/{kid}", headers=dict(ADMIN)).status_code == 204
 
@@ -131,3 +133,4 @@ def test_deleting_a_profile_removes_everything_other_features_keep_for_it(tmp_pa
         # The map id is free again, so its row really went.
         assert client.post(f"/api/profiles/{other}/pathfinder/maps", json=game_map).status_code == 201
         assert client.get(f"/api/profiles/{other}/stats").json()["total_stars"] == 0
+        assert client.get(f"/api/profiles/{other}/armory").json()["earned"] == 0

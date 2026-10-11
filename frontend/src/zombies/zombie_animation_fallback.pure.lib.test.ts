@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveZombieClip } from './zombie_animation_fallback.pure.lib.ts'
+import { isOneShotRole, isReversedRole, resolveZombieClip } from './zombie_animation_fallback.pure.lib.ts'
 
 describe('resolveZombieClip', () => {
   it('uses the configured clip when it exists, and reports no fallback', () => {
@@ -47,5 +47,16 @@ describe('resolveZombieClip', () => {
     for (const role of roles) {
       expect(() => resolveZombieClip('NotReal', role, [])).not.toThrow()
     }
+  })
+
+  it("loops the horde's walk and dodge, plays falls once, and plays the get-up backwards", () => {
+    expect(resolveZombieClip('Walking', 'walk', ['Dead'])).toEqual({ clipName: 'Dead', usedFallback: true })
+    expect(isOneShotRole('walk')).toBe(false)
+    expect(isOneShotRole('dodge')).toBe(false)
+    expect(isOneShotRole('knockedDown')).toBe(true)
+    expect(isOneShotRole('getUp')).toBe(true)
+    expect(isReversedRole('getUp')).toBe(true)
+    expect(isReversedRole('knockedDown')).toBe(false)
+    expect(isReversedRole('deadHeadshot')).toBe(false)
   })
 })

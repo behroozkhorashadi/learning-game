@@ -14,6 +14,7 @@ def test_every_game_is_listed_in_the_order_the_picker_has_always_shown() -> None
         "tag_team_story",
         "clue_master",
         "pathfinder_no_way_back",
+        "zombie_horde",
     ]
 
 

@@ -26,6 +26,14 @@ export interface CharacterAnimationClips {
   readonly deadHeadshot: string
   readonly deadBody: string
   readonly reach: string
+  /** Zombie Horde's free-roaming walk (Outbreak's approach is the shamble). */
+  readonly walk: string
+  /** A quick sidestep, played while the zombie slides sideways. */
+  readonly dodge: string
+  /** Falling to the floor; the last frame is held while it crawls. */
+  readonly knockedDown: string
+  /** Getting back up: played in reverse (see `isReversedRole`), so a fall clip stands in until a real get-up clip exists. */
+  readonly getUp: string
 }
 
 export interface CharacterAttribution {
@@ -96,6 +104,10 @@ const MESHY_TEMPLATE_CLIPS: CharacterAnimationClips = {
   deadHeadshot: 'Dead',
   deadBody: 'dying_backwards',
   reach: 'Right_Hand_Sword_Slash',
+  walk: 'Walking',
+  dodge: 'Running',
+  knockedDown: 'Dead',
+  getUp: 'Dead',
 }
 
 function meshyAttribution(localPath: string, dateAcquired: string, attributionText: string): CharacterAttribution {

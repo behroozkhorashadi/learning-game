@@ -2,6 +2,7 @@ import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { assembleTodos } from '@app/examples/todo/todo.assembly.main.ts'
 import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
+import { assembleZombieHorde } from '@app/horde/zombie_horde.assembly.main.ts'
 import { assembleOutbreakSettings } from '@app/outbreak/outbreak_settings.assembly.main.ts'
 import { assembleZombieMathBlaster } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
 import { assemblePathfinderLevelGallery, assemblePathfinderMapBuilder } from '@app/pathfinder/pathfinder.assembly.main.ts'
@@ -32,6 +33,7 @@ export function assembleDevScreens(): readonly DevScreen[] {
     OutbreakSettings: assembleOutbreakSettings(),
     SyllableBuilder: assembleSyllableBuilder(),
     ZombieMathBlaster: assembleZombieMathBlaster(),
+    ZombieHorde: assembleZombieHorde(),
     ZombiePOCScene,
     ZombieHitLab: assembleZombieHitLab(),
     WeaponPOCScene,

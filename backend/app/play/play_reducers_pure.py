@@ -30,9 +30,9 @@ def age_of(birth_year: int, current_year: int) -> int:
 
 
 def loop_config_for(game_id: str) -> LoopAConfig | None:
-    """Fact Fluency's speed rounds promote on a shorter, faster window; every other
-    game uses the defaults (None)."""
-    if game_id != "fact_fluency":
+    """Fact Fluency's speed rounds (and Zombie Horde, which plays the same facts) promote
+    on a shorter, faster window; every other game uses the defaults (None)."""
+    if game_id not in ("fact_fluency", "zombie_horde"):
         return None
     return LoopAConfig(
         window_size=3,

@@ -10,6 +10,7 @@ from app.play.games.equation_builder_reducers_pure import EquationBuilderGame
 from app.play.games.fact_fluency_reducers_pure import FactFluencyGame
 from app.play.games.game_module_reducers_pure import GameModule
 from app.play.games.syllable_builder_reducers_pure import SyllableBuilderGame
+from app.play.games.zombie_horde_reducers_pure import ZombieHordeGame
 from app.play.play_ports_pure import Rng
 from app.play.play_schemas_pure import GameMetadata, Item
 
@@ -79,5 +80,6 @@ def game_catalog() -> MappingProxyType[str, GameModule]:
             ),
             "is a puzzle game with hand-authored, client-side levels; it has no adaptive items",
         ),
+        ZombieHordeGame(),
     )
     return MappingProxyType({game.metadata.id: game for game in games})

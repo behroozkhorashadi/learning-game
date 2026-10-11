@@ -34,7 +34,7 @@ export function fakeZombieGltf(character: CharacterDefinition, options: { readon
   scene.add(mesh)
 
   const missing = new Set(options.missingClips ?? [])
-  const roles = ['idle', 'approach', 'hitReact', 'deadHeadshot', 'deadBody', 'reach'] as const
+  const roles = ['idle', 'approach', 'hitReact', 'deadHeadshot', 'deadBody', 'reach', 'walk', 'dodge', 'knockedDown', 'getUp'] as const
   const names = [...new Set(roles.map((role) => character.clips[role]))].filter((name) => !missing.has(name))
   const animations = names.map(
     (name) =>

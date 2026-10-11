@@ -10,7 +10,7 @@ describe('the character registry', () => {
 
   it('maps every clip role, bone, model, and groan for each character', () => {
     for (const c of ZOMBIE_CHARACTER_REGISTRY) {
-      expect(Object.keys(c.clips).sort()).toEqual(['approach', 'deadBody', 'deadHeadshot', 'hitReact', 'idle', 'reach'])
+      expect(Object.keys(c.clips).sort((a, b) => a.localeCompare(b))).toEqual(['approach', 'deadBody', 'deadHeadshot', 'dodge', 'getUp', 'hitReact', 'idle', 'knockedDown', 'reach', 'walk'])
       expect(c.modelUrl).toMatch(/\.glb$/)
       expect(c.groanSoundUrl).toMatch(/\.wav$/)
       expect([c.headBoneName, c.torsoBoneName, c.rootBoneName].every((name) => name.length > 0)).toBe(true)

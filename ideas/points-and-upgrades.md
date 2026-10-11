@@ -2,6 +2,17 @@
 
 **Status:** idea
 
+> **Update 2026-10-11:** Phase 2 (zombie health, hit zones, weapon and bullet
+> catalog) moved to a new game, now built: see `ideas/zombie-horde.md`. Its
+> points ledger (`backend/app/armory/`) is where Outbreak's phase 1 points
+> should go too. Equation
+> Outbreak stays as it is. Phase 1 here still stands. File paths below predate
+> the migration: `lib/zombieWaveEngine.ts` is now
+> `frontend/src/zombies/zombie_wave_engine.pure.lib.ts`,
+> `lib/weaponDefinitions.ts` is now
+> `frontend/src/blaster/weapon_definitions.pure.lib.ts`, and the arena lives in
+> `frontend/src/outbreak/`.
+
 ## Summary
 
 Give the player points for playing well, and let them spend those points on

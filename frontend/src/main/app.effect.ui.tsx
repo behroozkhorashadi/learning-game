@@ -4,6 +4,7 @@ import type { BadgesProps } from '@app/badges/badges.effect.ui.tsx'
 import type { ClueMasterProps } from '@app/clue_master/clue_master.effect.ui.tsx'
 import type { EquationBuilderProps } from '@app/equation_builder/equation_builder.effect.ui.tsx'
 import type { GamePickerProps } from '@app/home/game_picker.pure.ui.tsx'
+import type { ZombieHordeProps } from '@app/horde/zombie_horde.effect.ui.tsx'
 import type { OutbreakSettingsProps } from '@app/outbreak/outbreak_settings.effect.ui.tsx'
 import type { ZombieArenaProps } from '@app/outbreak/zombie_arena.effect.ui.tsx'
 import type { PathfinderProps } from '@app/pathfinder/pathfinder.effect.ui.tsx'
@@ -30,6 +31,7 @@ export interface AppScreens {
   readonly StoryLibrary: ComponentType<StoryLibraryProps>
   readonly OutbreakSettings: ComponentType<OutbreakSettingsProps>
   readonly ZombieMathBlaster: ComponentType<ZombieArenaProps>
+  readonly ZombieHorde: ComponentType<ZombieHordeProps>
   readonly SyllableBuilder: ComponentType<SyllableBuilderProps>
   readonly EquationBuilder: ComponentType<EquationBuilderProps>
   readonly PromptForge: ComponentType<PromptForgeProps>
@@ -136,6 +138,8 @@ export function bindApp({ screens: s, Overlay }: AppDeps): ComponentType {
         return <s.EquationBuilder profileId={id} onBack={home} />
       case 'fact_fluency':
         return <s.ZombieMathBlaster profileId={id} onBack={home} />
+      case 'zombie_horde':
+        return <s.ZombieHorde profileId={id} onBack={home} />
       case 'pathfinder_no_way_back':
         return <s.Pathfinder profileId={id} profileName={name} onBack={home} />
       default:

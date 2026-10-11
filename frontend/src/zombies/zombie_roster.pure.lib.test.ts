@@ -14,7 +14,7 @@ function makeCharacter(id: string, enabled = true): CharacterDefinition {
     headBoneName: 'Head',
     torsoBoneName: 'Spine01',
     rootBoneName: 'Hips',
-    clips: { idle: 'idle', approach: 'approach', hitReact: 'hit', deadHeadshot: 'dead', deadBody: 'dead_back', reach: 'reach' },
+    clips: { idle: 'idle', approach: 'approach', hitReact: 'hit', deadHeadshot: 'dead', deadBody: 'dead_back', reach: 'reach', walk: 'walk', dodge: 'dodge', knockedDown: 'down', getUp: 'down' },
     answerLabelYOffset: 2.5,
     supportsTint: true,
     groanSoundUrl: `/audio/equation-outbreak/zombies/${id}.wav`,

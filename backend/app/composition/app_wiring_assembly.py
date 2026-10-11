@@ -22,6 +22,9 @@ from sqlalchemy import Engine, create_engine
 
 from app.admin.admin_routes_effect import bind_admin_routes
 from app.admin.admin_service_effect import make_admin_service
+from app.armory.armory_repository_effect import make_sql_armory_repository
+from app.armory.armory_routes_effect import bind_armory_routes
+from app.armory.armory_service_effect import make_armory_service
 from app.badges.badges_ports_pure import BadgeNeighbors
 from app.badges.badges_repository_effect import make_sql_badge_repository
 from app.badges.badges_routes_effect import bind_badges_routes
@@ -113,6 +116,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
     badge_repository = make_sql_badge_repository(engine=engine)
     piece_repository = make_sql_piece_repository(engine=engine)
     profile_repository = make_sql_profile_repository(engine=engine)
+    armory_repository = make_sql_armory_repository(engine=engine)
     for create_schema in (
         events.create_schema,
         practice_configs.create_schema,
@@ -121,6 +125,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         badge_repository.create_schema,
         piece_repository.create_schema,
         profile_repository.create_schema,
+        armory_repository.create_schema,
     ):
         create_schema()
 
@@ -132,6 +137,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
             events.delete_for_profile,
             practice_configs.delete_for_profile,
             pathfinder.delete_for_profile,
+            armory_repository.delete_for_profile,
         ):
             delete_for_profile(profile_id)
 
@@ -209,6 +215,9 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         clock=utc_now,
     )
     app.include_router(bind_pathfinder_routes(service=pathfinder_service))
+
+    armory = make_armory_service(repository=armory_repository, profile_exists=profiles.exists, clock=utc_now)
+    app.include_router(bind_armory_routes(service=armory))
 
     crash_reports = make_crash_reports_service(log=make_file_client_error_log(log_dir=settings.log_dir))
     app.include_router(bind_crash_reports_routes(service=crash_reports))

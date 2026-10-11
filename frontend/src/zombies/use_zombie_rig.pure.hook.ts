@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import type { CharacterDefinition } from './character_definitions.pure.lib.ts'
 import { neutralizeHorizontalRootMotion } from './root_motion.pure.lib.ts'
-import { isOneShotRole, resolveZombieClip, type ZombieClipRole } from './zombie_animation_fallback.pure.lib.ts'
+import { isOneShotRole, isReversedRole, resolveZombieClip, type ZombieClipRole } from './zombie_animation_fallback.pure.lib.ts'
 
 const CROSSFADE_SECONDS = 0.15
 
@@ -105,8 +105,11 @@ export function useZombieRig({ cloned, animations, character, clipRole, speed, p
     action.reset()
     action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity)
     action.clampWhenFinished = oneShot
-    action.timeScale = latest.current.speed
-    if (!oneShot && latest.current.phaseOffsetSeconds !== 0) action.time = latest.current.phaseOffsetSeconds
+    const reversed = isReversedRole(clipRole)
+    action.timeScale = reversed ? -latest.current.speed : latest.current.speed
+    // A reversed clip starts from its last frame and plays back to its first.
+    if (reversed) action.time = clip.duration
+    else if (!oneShot && latest.current.phaseOffsetSeconds !== 0) action.time = latest.current.phaseOffsetSeconds
     action.fadeIn(previous ? CROSSFADE_SECONDS : 0)
     action.play()
     previous?.fadeOut(CROSSFADE_SECONDS)
@@ -117,6 +120,6 @@ export function useZombieRig({ cloned, animations, character, clipRole, speed, p
   useEffect(() => {
     const clip = activeClipRef.current
     const action = clip === null ? null : mixerRef.current?.existingAction(clip)
-    if (action) action.timeScale = speed
-  }, [speed])
+    if (action) action.timeScale = isReversedRole(clipRole) ? -speed : speed
+  }, [speed, clipRole])
 }

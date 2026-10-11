@@ -8,12 +8,13 @@ flowchart TB
     todo["todo/<br/>/api/examples/todos (the worked example)"]
     profiles["profiles/<br/>/profiles, /unlock, /photos, /profile-photos/remix<br/>passwords (scrypt), photo files, demo seeding"]
     admin["admin/<br/>/admin/login + the admin password check"]
-    play["play/<br/>/games, /items/next, /attempts, /ratings, /verifications<br/>games/ (item generators), Loop A (pure)"]
+    play["play/<br/>/games, /items/next, /attempts, /ratings, /verifications<br/>games/ (item generators, incl. zombie_horde), Loop A (pure)"]
     events["events/<br/>the append-only event log"]
     badges["badges/<br/>/profiles/{id}/badges, /stats<br/>seeded badges, awarding, live stats"]
     pieces["pieces/<br/>/pieces, /illustrations, /revisions, /remixes, /turns<br/>illustration files"]
     practice["practice/<br/>/api/practice-config"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
+    armory["armory/<br/>/profiles/{id}/armory, /rounds, /purchases<br/>Zombie Horde points ledger + catalog"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
   end
 
@@ -22,16 +23,16 @@ flowchart TB
   openai["OpenAI Images API"]
 
   main --> comp
-  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & crash
+  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & armory & crash
   profiles -- "is_admin_password" --> admin
-  profiles -- "erase a profile's data" --> play & events & badges & pieces & practice & pathfinder
+  profiles -- "erase a profile's data" --> play & events & badges & pieces & practice & pathfinder & armory
   play -- "birth year, practice config" --> profiles & practice
   play & pieces & badges -- "append events" --> events
   play & pieces -- "after an attempt / piece:<br/>award badges" --> badges
   badges -- "history: attempts, ratings,<br/>pieces, event times" --> play & pieces & events
   practice -- "game rules" --> play
-  practice & pathfinder & pieces & badges -- "profile lookups" --> profiles
-  todo & profiles & play & events & badges & pieces & practice & pathfinder --> sqlite
+  practice & pathfinder & pieces & badges & armory -- "profile lookups" --> profiles
+  todo & profiles & play & events & badges & pieces & practice & pathfinder & armory --> sqlite
   profiles & pieces --> files
   profiles -- "photo remix" --> openai
   pieces -- "illustrations" --> openai

@@ -33,6 +33,7 @@ def test_age_and_per_game_loop_tuning() -> None:
     tuned = loop_config_for("fact_fluency")
     assert tuned is not None
     assert (tuned.window_size, tuned.rapid_promotion_time_ms, tuned.promote_accuracy) == (3, 6000, 0.67)
+    assert loop_config_for("zombie_horde") == tuned
     assert loop_config_for("syllable_builder") is None
 
 

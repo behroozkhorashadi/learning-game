@@ -6,14 +6,21 @@
  * and only logs/falls back on the result; it never inlines this decision.
  */
 
-export type ZombieClipRole = 'idle' | 'approach' | 'hitReact' | 'deadHeadshot' | 'deadBody' | 'reach'
+export type ZombieClipRole = 'idle' | 'approach' | 'hitReact' | 'deadHeadshot' | 'deadBody' | 'reach' | 'walk' | 'dodge' | 'knockedDown' | 'getUp'
 
 /** Roles that loop for as long as a carrier stays in that state — a zombie
  * needs *some* continuous motion here, so a missing clip falls back to
  * whatever the GLB actually has rather than freezing mid-approach. */
-const LOOPING_ROLES: readonly ZombieClipRole[] = ['idle', 'approach']
+const LOOPING_ROLES: readonly ZombieClipRole[] = ['idle', 'approach', 'walk', 'dodge']
 
-/** Hit reactions, deaths, and the reach play once and hold their last frame; everything else loops. */
+/** Roles whose clip plays backwards, from its last frame to its first: `getUp` reuses a fall. */
+const REVERSED_ROLES: readonly ZombieClipRole[] = ['getUp']
+
+export function isReversedRole(role: ZombieClipRole): boolean {
+  return REVERSED_ROLES.includes(role)
+}
+
+/** Hit reactions, deaths, falls, and the reach play once and hold their last frame; everything else loops. */
 export function isOneShotRole(role: ZombieClipRole): boolean {
   return !LOOPING_ROLES.includes(role)
 }
