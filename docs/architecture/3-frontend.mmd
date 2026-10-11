@@ -9,29 +9,27 @@ flowchart TB
     picker["GamePicker<br/>+ EquationOutbreakSettings"]
     gWord["Writing games<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
     gMath["Math games<br/>ZombieMathBlaster"]
-    gPath["Pathfinder"]
     meta["Storybook"]
   end
 
   subgraph COMP["Legacy components — src/components"]
     arena["framework/ZombieArena + R3F scene<br/>EquationOutbreakScene, ZombieCharacter3D,<br/>EquationBlaster, ApproachLane, MuzzleFlash"]
-    pathc["Pathfinder UI<br/>Board, Editor, MapBuilder, PlayTest,<br/>LevelGallery, MyMaps, PublishedMaps"]
   end
 
   subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
     zlib["Zombie engine<br/>zombieWaveEngine, raycastOutcome,<br/>laneNavigation, rootMotion, zombieRoster"]
-    plib["Pathfinder engine<br/>Rules, Solver, Generator,<br/>Difficulty, Levels, usePathfinderPlay"]
-    plat["Platform adapters<br/>gameAudio, errorReporting,<br/>pathfinderProgress, pathfinderCustomMaps"]
+    plat["Platform adapters<br/>gameAudio, errorReporting"]
   end
 
   subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
     root["main/<br/>dev_screens.assembly.main"]
     profiles["profiles/<br/>picker, create, unlock, edit screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>CardShell, ProfileAvatar, AVATAR_OPTIONS"]
     admin["admin/<br/>AdminLogin + AdminPanel<br/>(X-Admin-Password, a UX gate)"]
+    pathfinder["pathfinder/<br/>game, level select, map builder (editor, My Maps,<br/>play-test), published maps, dev level gallery (bind* + assemble*);<br/>pure engine: rules, solver, difficulty, generator, levels"]
     session["session/<br/>session shell: SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, HandoffPencil, ProgressBar"]
     den["den/<br/>DenButton, DenCard, DenChip, DenFlipCard,<br/>DenJar, DenTile, icons, icon_paths"]
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
-    apiad["api/<br/>profiles_api, admin_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
+    apiad["api/<br/>profiles_api, admin_api, pathfinder_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
     practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
@@ -50,7 +48,11 @@ flowchart TB
   api[["FastAPI /api/*"]]
   assets[("public/ GLB models, images, audio")]
 
-  app --> picker & gWord & gMath & gPath & meta
+  app --> picker & gWord & gMath & meta
+  app -- "assemblePathfinder() once" --> pathfinder
+  dev -- "map builder, level gallery" --> pathfinder
+  pathfinder --> query & apiad & den & ids
+  pathfinder -- "injected timers, dialogs,<br/>window focus" --> browserWin[["Browser window"]]
   app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
   app -- "assembleAdminPanel() once" --> admin
   app -- "assembleBadges() once" --> badges
@@ -67,9 +69,7 @@ flowchart TB
   wgames --> writing & den
   gMath --> arena
   gWord & gMath --> session
-  gPath --> pathc
   picker & meta --> den
-  pathc --> den
   session --> den
   profiles --> query & apiad & den
   profiles -- "injected camera<br/>(navigator.mediaDevices)" --> browser[["Browser camera"]]
@@ -77,8 +77,6 @@ flowchart TB
   apiad -- "injected fetch" --> api
   arena --> zlib
   arena --> assets
-  pathc --> plib
-  gPath --> plat
   gWord & gMath --> plat
   gWord & gMath -- "assembleSpeech(), assembleRandomId()" --> speech & ids
   picker & gWord & gMath & meta -- "fetch (legacy)" --> api

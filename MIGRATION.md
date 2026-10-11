@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 107 legacy frontend files (106 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 72 legacy frontend files (71 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -91,11 +91,15 @@ Lessons from ProfilePicker:
 | `games/SyllableBuilder.tsx`, `games/EquationBuilder.tsx`, `components/TileAssembly.tsx` → `syllable_builder/`, `equation_builder/`, `practice/`, `tiles/` | ~40 min (agent) | The two games shared a copy-pasted session loop; it's now one seam: `practice/use_practice_session` over `PracticeDeps` (`loadItem`, `recordAttempt`, `rate`, `verify`, `createId`, `now`, `wait`), driving a pure `practice_session` reducer. Each game keeps only its zod payload parser, its board mapping, and its view (no more `payload as unknown as`). `TileAssembly` became `tiles/TileBoard` ("assembly" is a reserved filename token) over a pure placement reducer. It drags with pointer capture and slot refs instead of window listeners and `elementFromPoint`, and no longer hides a tray tile mid-drag (it used to vanish under the pointer). The item-change reset effect is gone because callers key it by item. `setTimeout(900)` is an injected `wait`. 6 legacy files out. |
 | `components/{CoachPanel,WritingSurface,IllustrationReveal,ModifierDeck}.tsx` → `writing/`, plus `timing/` and `api/pieces_api` | ~35 min (agent) | The shared writing pipeline, migrated ahead of the four writing games. `timing/` adds a `Timers` capability (`after`, `every`) with component-scoped `useScheduled`, plus a `manualTimers()` test clock, replacing four components' worth of hand-rolled `setTimeout` refs. IllustrationReveal became `bindIllustrationReveal({ generateIllustration, timers })` with its phase machine in `use_illustration_reveal`. ModifierDeck split into card data with a pure `drawCard(pool, random)`, a bound deck, and a props-only rule bar. Both textareas gained accessible names. Legacy games assemble the reveal once at module scope until they migrate. 4 legacy files out. |
 | `games/PromptForge.tsx` → `prompt_forge/` | ~25 min (agent) | First writing game on the shared pipeline: `writing/use_revision_pass` (coach thinking → questions → save piece + the game's own records + revision), `WritingGameDeps` (`pieces`, `timers`, `random`, `createId`), and the bound reveal injected as a component. The forge rules became `forge_recipe.pure.lib.ts`; the twist draw takes the injected random. The flip card's bare `<div onClick>` was dropped because the labelled "Flip the twist" button does the same job accessibly. Game tests use `StubReveal` and a manual clock, with no `fetch` stub. 2 legacy files out. |
+| Pathfinder (`lib/pathfinder*`, `lib/usePathfinderPlay`, `lib/fakePathfinderApi`, `components/Pathfinder*`, `games/Pathfinder`) → `pathfinder/` | ~60 min (agent, separate worktree) | The engine (rules, solver, difficulty, generator, levels, export) moved as pure libs with only strict-mode fixes; the generator already took a seeded `rng`. Every fetch is now `api/pathfinder_api.effect.lib.ts` (zod; `difficulty` parsed as the four tiers, stricter than the schema's `string`). New capabilities in `pathfinder_state.pure.lib.ts`: `LevelProgressStore`, `MapLibrary`, `ListPublishedMaps`, `ScheduleTimeout` (the invalid-move flash), `Dialogs` (`window.confirm`/`prompt`), `SubscribeToFocus` (published-list refresh). Effects moved to hooks (`use_level_progress`, `use_published_maps`, `useQuery`/`useReloadableQuery` for the map lists). React-compiler debt fixed: `usePathfinderPlay` no longer resets via set-state-in-effect; its attempt is tagged with the puzzle id. The game and play-test now share `pathfinder_play_panel.pure.ui.tsx`. Child screens are injected (`bindPathfinderMapBuilder({ Editor, MyMaps, PlayTest })`, `bindPathfinder({ LevelSelect, PublishedMaps, MapBuilder, ... })`). `fakePathfinderApi` (a `global.fetch` stub) became an in-memory capability fake plus an HTTP-level fake inside the adapter test. Wall-clock perf assertions became node-count / no-assertion checks (the `no-unstable-scenario-test` rule). My Maps buttons gained per-map accessible names (`Delete Spiral`). 35 legacy files out; 240 unit tests, 25 stories. |
 Lessons:
 - **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
 - **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
 - **Module-level `new Date()` is a hidden global.** `Date.now` is linted; `new Date()` isn't yet. Pass `today` in.
 - **Labels that grow hints break `getByLabelText`.** Hold on to the input element across edits.
+- **Tag per-item state with its key instead of resetting it in an effect** (`usePathfinderPlay`'s attempt carries `puzzleId`; a different puzzle reads as a fresh attempt). That's what clears `react/set-state-in-effect` without forcing callers to remount.
+- **A fake that seeds asynchronously races the first load in a story.** Give in-memory fakes a synchronous `seed` for setup.
+- **Don't assert on locale dates in tests:** a UTC timestamp renders as the previous day in a US timezone.
 
 ## Known debt surfaced by the new rules (fix during migration)
 
@@ -109,8 +113,8 @@ Lessons:
   has to live inside `<Canvas>` (it's a different reconciler), so this is a real change,
   not a find-and-replace. The rule is on for new-style code only until these migrate.
 - **React-compiler correctness** (`react/refs`, `react/purity`, `react/set-state-in-effect`)
-  in `EquationOutbreakScene`, `EquationBlaster`, `MuzzleFlash`, `TileAssembly`,
-  `ModifierDeck`, `Pathfinder`, and `lib/usePathfinderPlay`. Off for legacy, on for new code.
+  in `EquationOutbreakScene`, `EquationBlaster`, `MuzzleFlash`, and `ModifierDeck`
+  (Pathfinder's and TileAssembly's were fixed when they migrated). Off for legacy, on for new code.
 - **Legacy unit tests mock `global.fetch` directly.** Migrated tests inject a fake `fetch`
   through the adapter's bind args instead.
 - **`src/types/generated.ts`** (from `make gen-types`, the legacy model-walker) overlaps
@@ -121,7 +125,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 107 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 72 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

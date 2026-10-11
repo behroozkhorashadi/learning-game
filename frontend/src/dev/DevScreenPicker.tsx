@@ -29,8 +29,7 @@ import { ZombiePOCScene } from './ZombiePOCScene'
 import { ZombieHitLab } from './ZombieHitLab'
 import { WeaponPOCScene } from './WeaponPOCScene'
 import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
-import { PathfinderMapBuilder } from '../components/PathfinderMapBuilder'
-import { PathfinderLevelGallery } from '../components/PathfinderLevelGallery'
+import { assemblePathfinderLevelGallery, assemblePathfinderMapBuilder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import type { Profile } from '../types/generated'
 
 // Migrated (src/speech/); assembled once for this legacy module.
@@ -164,6 +163,16 @@ function DevSyllableBuilder() {
 function DevBadges() {
   const [Badges] = useState(assembleBadges)
   return <Badges profileId={1} kidName="Mia" onBack={() => console.log('onBack')} />
+}
+
+function DevPathfinderMapBuilder() {
+  const [PathfinderMapBuilder] = useState(assemblePathfinderMapBuilder)
+  return <PathfinderMapBuilder profileId={1} username={MOCK_PROFILE.name} />
+}
+
+function DevPathfinderLevelGallery() {
+  const [PathfinderLevelGallery] = useState(assemblePathfinderLevelGallery)
+  return <PathfinderLevelGallery />
 }
 
 function DevAdminPanel() {
@@ -411,7 +420,7 @@ const SCREENS: ScreenEntry[] = [
     label: 'Pathfinder: Map Builder (design new levels — saves to profile 1 on the backend)',
     render: () => (
       <CardWrapper wide>
-        <PathfinderMapBuilder profileId={1} username={MOCK_PROFILE.name} />
+        <DevPathfinderMapBuilder />
       </CardWrapper>
     ),
   },
@@ -420,7 +429,7 @@ const SCREENS: ScreenEntry[] = [
     label: 'Pathfinder: All Levels (QA — every level unlocked, scores shown)',
     render: () => (
       <CardWrapper wide>
-        <PathfinderLevelGallery />
+        <DevPathfinderLevelGallery />
       </CardWrapper>
     ),
   },

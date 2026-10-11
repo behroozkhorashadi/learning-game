@@ -1,0 +1,103 @@
+import { describe, it, expect } from 'vitest'
+import { assessDifficulty } from './pathfinder_difficulty.pure.lib.ts'
+import { ALL_LEVELS, LEVELS_BY_DIFFICULTY } from './pathfinder_levels.pure.lib.ts'
+import { solvePuzzle } from './pathfinder_solver.pure.lib.ts'
+import type { DotPuzzle, GridPosition } from './pathfinder_state.pure.lib.ts'
+
+function rectangle(rows: number, columns: number): GridPosition[] {
+  const dots: GridPosition[] = []
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) dots.push({ row, col })
+  }
+  return dots
+}
+
+describe('assessDifficulty', () => {
+  it('reports not solvable, with no tier or score, for an unsolvable board', () => {
+    const puzzle: DotPuzzle = {
+      id: 'disconnected',
+      difficulty: 'easy',
+      rows: 1,
+      columns: 3,
+      dots: [
+        { row: 0, col: 0 },
+        { row: 0, col: 2 },
+      ],
+    }
+    const result = assessDifficulty(puzzle)
+    expect(result.solvable).toBe(false)
+    expect(result.tier).toBeNull()
+    expect(result.score).toBeNull()
+  })
+
+  it('still reports structural metrics for an unsolvable board (dot count, junction ratio)', () => {
+    const puzzle: DotPuzzle = { id: 'small-open', difficulty: 'easy', rows: 1, columns: 3, dots: [{ row: 0, col: 0 }, { row: 0, col: 2 }] }
+    const result = assessDifficulty(puzzle)
+    expect(result.metrics.dotCount).toBe(2)
+  })
+
+  it('a small, fully open rectangle assesses as easy', () => {
+    const puzzle: DotPuzzle = { id: 'rect-3x2', difficulty: 'easy', rows: 3, columns: 2, dots: rectangle(3, 2) }
+    const result = assessDifficulty(puzzle)
+    expect(result.solvable).toBe(true)
+    expect(result.tier).toBe('easy')
+  })
+
+  it('a much larger, fully open board assesses strictly harder than a small one', () => {
+    const small = assessDifficulty({ id: 'small', difficulty: 'easy', rows: 3, columns: 3, dots: rectangle(3, 3) })
+    const big = assessDifficulty({ id: 'big', difficulty: 'easy', rows: 12, columns: 12, dots: rectangle(12, 12) })
+    expect(big.score ?? 0).toBeGreaterThan(small.score ?? Number.POSITIVE_INFINITY)
+  })
+
+  it('reuses a pre-computed solve result instead of solving twice', () => {
+    const puzzle: DotPuzzle = { id: 'rect-4x4', difficulty: 'easy', rows: 4, columns: 4, dots: rectangle(4, 4) }
+    const solveResult = solvePuzzle(puzzle)
+    const withoutReuse = assessDifficulty(puzzle)
+    const withReuse = assessDifficulty(puzzle, solveResult)
+    // Same board, same solver, same answer either way — reuse doesn't
+    // change the outcome, only avoids a redundant solve.
+    expect(withReuse.score).toBe(withoutReuse.score)
+    expect(withReuse.metrics.smartSearchCost).toBe(solveResult.nodesExplored)
+  })
+
+  it('a full, wide-open board at the 50x50 size ceiling is not automatically legendary', () => {
+    // The regression this guards against: the first version of this engine
+    // weighted raw size so heavily that a huge-but-trivial board (a
+    // straightforward sweep solves it with no backtracking at all) scored
+    // as Legendary. Size alone must never do that again — a full rectangle
+    // has no real traps regardless of how big it is.
+    const puzzle: DotPuzzle = { id: 'max-size', difficulty: 'easy', rows: 50, columns: 50, dots: rectangle(50, 50) }
+    const result = assessDifficulty(puzzle)
+    expect(result.solvable).toBe(true)
+    expect(result.tier).not.toBe('legendary')
+    expect(result.score).toBeLessThanOrEqual(100)
+  })
+
+  it('a small board can still reach Legendary — the tier tracks difficulty, not dot count', () => {
+    const smallestLegendary = [...LEVELS_BY_DIFFICULTY.legendary].sort((a, b) => a.dots.length - b.dots.length)[0]
+    const biggestEasy = [...LEVELS_BY_DIFFICULTY.easy].sort((a, b) => b.dots.length - a.dots.length)[0]
+    if (smallestLegendary === undefined || biggestEasy === undefined) throw new Error('needs curated easy and legendary levels')
+    expect(smallestLegendary.dots.length).toBeLessThan(biggestEasy.dots.length * 3)
+    expect(assessDifficulty(smallestLegendary).tier).toBe('legendary')
+  })
+})
+
+/**
+ * The actual point of this engine: every curated level's hand-picked
+ * `difficulty` label must agree with what the engine independently
+ * computes. Two levels didn't when this was first built (medium-big-diamond
+ * scored as hard; hard-wide-open-field scored as medium) — both were moved
+ * to the tier the engine assessed rather than leaving the label wrong, and
+ * the thresholds in pathfinderDifficulty.ts were calibrated against the
+ * resulting set. If this test starts failing, it means either a level's
+ * shape changed enough to shift its score, or the thresholds/weights were
+ * tuned without rechecking against the curated set — reconcile one or the
+ * other, the same way the original two mismatches were resolved.
+ */
+describe('curated levels agree with the difficulty engine', () => {
+  it.each(ALL_LEVELS.map((puzzle) => [puzzle.id, puzzle] as const))('%s', (_id, puzzle) => {
+    const assessment = assessDifficulty(puzzle)
+    expect(assessment.solvable).toBe(true)
+    expect(assessment.tier).toBe(puzzle.difficulty)
+  })
+})
