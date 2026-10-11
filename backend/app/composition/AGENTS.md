@@ -6,8 +6,14 @@ The only place allowed to:
 - create engines and HTTP clients, choose clocks and id factories (`datetime.now`, `uuid4` are allowed here and nowhere else);
 - call `bind_*` / `make_*` factories, always inside an `assemble_*` function, never at module scope.
 
-Nothing imports this package except `app/main.py` (the legacy uvicorn entry, which calls
-`assemble_features(app, load_settings())`) and tests. `lint-imports` enforces that.
+Nothing imports this package except `app/main.py` (the uvicorn entry:
+`app = assemble_app(load_settings())`) and tests. `lint-imports` enforces that.
+
+Features never import each other, so this is also where they meet: a feature declares the
+capability it needs from another as its own Protocol or callable (profiles' `erase_profile_data`,
+play's `PlayNeighbors`, badges' `BadgeNeighbors`), and `assemble_features` passes the other
+feature's implementation. When the two features' types differ, a small translation function
+at the bottom of `app_wiring_assembly.py` converts (e.g. `practice_settings`, `activity_of`).
 
 Adding a feature:
 1. Build it in `app/<feature>/` by copying `app/todo/`.

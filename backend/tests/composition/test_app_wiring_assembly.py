@@ -1,16 +1,19 @@
 """Boots the real assembled graph (real SQLite file, real clock and ids) end to end:
 startup seeding, and the flows that cross features through assembly."""
 
+import importlib
+import sys
 from pathlib import Path
 from types import MappingProxyType
 
 import httpx
+import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from app.composition.app_settings_assembly import AppSettings
 from app.composition.app_wiring_assembly import TODO_ROUTE_PREFIX, assemble_app
-from app.main import app as entry_app
+from tests.composition.test_app_settings_assembly import EnvOnlySettings as AppSettings
 
 ADMIN = MappingProxyType({"X-Admin-Password": "composition-test"})
 KID = MappingProxyType({"name": "Ada", "avatar": "owl", "birth_year": 2018})
@@ -45,7 +48,15 @@ def test_flag_off_does_not_mount_the_todo_example(tmp_path: Path) -> None:
         assert client.get(TODO_ROUTE_PREFIX).status_code == 404
 
 
-def test_the_entry_point_serves_every_route_group() -> None:
+def test_the_entry_point_serves_every_route_group(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """`uvicorn app.main:app` builds the whole app from the environment."""
+    monkeypatch.setenv("ADMIN_PASSWORD", "entry-test")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'entry.db'}")
+    monkeypatch.setenv("STATIC_DIR", str(tmp_path / "static"))
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
+    monkeypatch.delitem(sys.modules, "app.main", raising=False)
+    entry_app = getattr(importlib.import_module("app.main"), "app", None)
+    assert isinstance(entry_app, FastAPI)
     paths = entry_app.openapi()["paths"]
     for path in (
         TODO_ROUTE_PREFIX,

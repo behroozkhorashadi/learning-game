@@ -55,6 +55,10 @@ _MIN_FEATURE_DEPTH: Final = 3  # app/<feature>/<file>.py
 _SNAKE: Final = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
 DOCS: Final = "backend/AGENTS.md"
+# The ASGI entry (`uvicorn app.main:app`): `app = assemble_app(load_settings())` and nothing else.
+ENTRY_POINT: Final = "app/main.py"
+# Files allowed directly in app/: the package init (empty) and the entry point.
+APP_ROOT_FILES: Final = frozenset({"app/__init__.py", ENTRY_POINT})
 LEGACY_ALLOWLIST: Final = Path(__file__).resolve().parent / "legacy_allowlist.txt"
 
 

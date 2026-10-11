@@ -7,15 +7,6 @@ target-version = "py312"
 line-length = 120
 extend-exclude = [
     # --- legacy (shrink-only) ---
-    "app/__init__.py",
-    "app/main.py",
-    "scripts/generate_badge_assets.py",
-    "scripts/generate_game_assets.py",
-    "scripts/generate_ts_types.py",
-    "scripts/generate_word_audio.py",
-    "scripts/generate_word_images.py",
-    "tests/__init__.py",
-    "tests/conftest.py",
 ]
 
 [tool.ruff.lint]
@@ -69,15 +60,6 @@ exclude = [
     "**/__pycache__",
     ".venv",
     # --- legacy (shrink-only) ---
-    "app/__init__.py",
-    "app/main.py",
-    "scripts/generate_badge_assets.py",
-    "scripts/generate_game_assets.py",
-    "scripts/generate_ts_types.py",
-    "scripts/generate_word_audio.py",
-    "scripts/generate_word_images.py",
-    "tests/__init__.py",
-    "tests/conftest.py",
 ]
 pythonVersion = "3.12"
 venvPath = "."

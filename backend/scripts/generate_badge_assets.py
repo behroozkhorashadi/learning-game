@@ -1,61 +1,27 @@
 """Pre-generates achievement-badge art for the Accomplishments screen.
 
-Distinct from `generate_game_assets.py`'s per-game hero/completion-badge pair
-(which lives under `frontend/public/images/badges/{game_id}.png` and backs the
-Syllable Builder wrap-up screen): these are the cross-game achievement badges
-in `app.badges.badges_reducers_pure.SEED_BADGES` (Word Wizard, Sound Master, ...),
-shown on the Accomplishments screen (`BadgesAccomplishments.tsx`). They get
-their own output directory, keyed by badge `key`, so the two "badge" concepts
-never collide on a filename again.
+Distinct from `generate_game_assets.py`'s per-game hero/completion-badge pair (under
+`frontend/public/images/badges/{game_id}.png`, for the Syllable Builder wrap-up screen):
+these are the cross-game achievement badges in
+`app.badges.badges_reducers_pure.SEED_BADGES` (Word Wizard, Sound Master, ...), keyed by
+badge `key` in their own directory so the two "badge" concepts never collide.
 
-Run with `make gen-badge-assets` after adding a new entry to `SEED_BADGES`,
-then commit the resulting `frontend/public/images/achievements/*.png` files.
+Run with `make gen-badge-assets` after adding a new entry to `SEED_BADGES`, then commit
+the resulting `frontend/public/images/achievements/*.png` files.
 """
 
-import base64
-import os
-import sys
-from pathlib import Path
+from typing import Final
 
-import httpx
+from app.badges.badges_reducers_pure import SEED_BADGES
+from scripts.openai_assets import FRONTEND_PUBLIC, force_requested, generate_image, openai_client, write_unless_present
 
-BACKEND_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BACKEND_ROOT))
-
-from app.badges.badges_reducers_pure import SEED_BADGES  # noqa: E402
-
-ACHIEVEMENTS_OUTPUT_DIR = BACKEND_ROOT.parent / "frontend" / "public" / "images" / "achievements"
-MODEL = "gpt-image-1"
-SIZE = "1024x1024"
-
-
-def generate_image(client: httpx.Client, prompt: str) -> bytes:
-    resp = client.post(
-        "https://api.openai.com/v1/images/generations",
-        json={"model": MODEL, "prompt": prompt, "size": SIZE, "n": 1},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    b64 = resp.json()["data"][0]["b64_json"]
-    return base64.b64decode(b64)
+ACHIEVEMENTS_OUTPUT_DIR: Final = FRONTEND_PUBLIC / "images" / "achievements"
 
 
 def main() -> None:
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise SystemExit("OPENAI_API_KEY is not set")
-
-    force = "--force" in sys.argv
-    ACHIEVEMENTS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    with httpx.Client(headers={"Authorization": f"Bearer {api_key}"}) as client:
+    force = force_requested()
+    with openai_client(timeout=120) as client:
         for entry in SEED_BADGES:
-            key = entry.key
-            badge_path = ACHIEVEMENTS_OUTPUT_DIR / f"{key}.png"
-            if badge_path.exists() and not force:
-                print(f"skip {key} (exists)")
-                continue
-
             prompt = (
                 f"A round achievement badge sticker for a kids' learning app, "
                 f"celebrating: {entry.description}. Flat vector style, bold "
@@ -63,9 +29,12 @@ def main() -> None:
                 "background, no text or letters, looks like a collectible "
                 "sticker."
             )
-            print(f"generating {key} badge...")
-            badge_path.write_bytes(generate_image(client, prompt))
-
+            write_unless_present(
+                ACHIEVEMENTS_OUTPUT_DIR / f"{entry.key}.png",
+                f"{entry.key} badge",
+                lambda prompt=prompt: generate_image(client, prompt),
+                force=force,
+            )
     print(f"done -- wrote achievement badges to {ACHIEVEMENTS_OUTPUT_DIR}")
 
 

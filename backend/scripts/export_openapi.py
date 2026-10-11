@@ -22,7 +22,7 @@ BACKEND_ROOT: Final = Path(__file__).resolve().parents[1]
 
 def export_schema() -> str:
     with tempfile.TemporaryDirectory() as scratch:
-        # The legacy app reads these at import time; the schema doesn't depend on them.
+        # app.main builds the app from these at import; the schema doesn't depend on them.
         os.environ["ADMIN_PASSWORD"] = secrets.token_hex(16)
         os.environ["DATABASE_URL"] = f"sqlite:///{scratch}/openapi.db"
         os.environ["STATIC_DIR"] = f"{scratch}/static"

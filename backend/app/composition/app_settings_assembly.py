@@ -2,8 +2,7 @@
 flags live here too; code below assembly receives their effect, never the flag.
 
 Field names match the environment variables case-insensitively (`ADMIN_PASSWORD`,
-`DATABASE_URL`, `OPENAI_API_KEY`, ...). `backend/.env` is loaded into the environment
-by the legacy `app/__init__.py` until that goes; see `backend/.env.example`.
+`DATABASE_URL`, `OPENAI_API_KEY`, ...), and are also read from `backend/.env`.
 """
 
 from pathlib import Path
@@ -12,9 +11,12 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Real environment variables win over backend/.env (gitignored; see backend/.env.example).
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
 
 class AppSettings(BaseSettings):
-    model_config = SettingsConfigDict(frozen=True, extra="ignore")
+    model_config = SettingsConfigDict(frozen=True, extra="ignore", env_file=BACKEND_ROOT / ".env")
 
     # The admin screen's shared password (see app/admin/admin_ports_pure.py). Required:
     # the app refuses to start without one rather than come up with the gate open.

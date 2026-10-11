@@ -70,12 +70,15 @@ effect    needs injection: built by a bind_/make_ factory over injected handles
 pure      no injection, no I/O: same input -> same output
 ```
 
-| from \ may import | assembly | effect | pure | legacy (unmigrated) |
-|---|:-:|:-:|:-:|:-:|
-| assembly | ✅ | ✅ | ✅ | ✅ |
-| effect | ❌ | ✅ | ✅ | ❌ |
-| pure | ❌ | ❌ | ✅ | ❌ |
-| legacy | ❌ (only `app.main`) | ✅ | ✅ | ✅ |
+| from \ may import | assembly | effect | pure |
+|---|:-:|:-:|:-:|
+| assembly | ✅ | ✅ | ✅ |
+| effect | ❌ | ✅ | ✅ |
+| pure | ❌ | ❌ | ✅ |
+
+`app/main.py` is the one file outside a feature: the uvicorn entry (`uvicorn app.main:app`),
+which is exactly `app = assemble_app(load_settings())`. The AST rules exempt it, and only it,
+from the filename grammar and the no-module-level-construction rules.
 
 Pure modules may import only `pydantic`, `typing`, `dataclasses`, `enum`, `datetime` (the
 types, not `now()`), `collections`, `functools`, `itertools`, `math`, `re`, `decimal`, `base64`, and
@@ -83,10 +86,9 @@ the other entries in `PURE_EXTERNALS` (`scripts/lint_py/color_contract.py`). The
 `sqlalchemy`, `httpx`, `fastapi`, `os`, or `pydantic_settings`.
 
 Enforced by `lint-imports` (pyproject `[tool.importlinter]`): the custom `color_layers`
-contract classifies modules by filename, a stock `layers` contract keeps
-`app.main > app.composition > features`, and a `forbidden` contract stops legacy packages
-from importing composition. When you add a feature package, add it to the `layers` contract's
-bottom layer (`"app.todo | app.notes"`).
+contract classifies modules by filename, and a stock `layers` contract keeps
+`app.main > app.composition > features`. When you add a feature package, add it to the
+`layers` contract's bottom layer (`"app.todo | app.notes"`).
 
 Runtime import cycles fail `scripts/check_cycles.py`. Type-only imports under
 `if TYPE_CHECKING:` are allowed to cycle. A function-level import still counts.
@@ -147,7 +149,10 @@ injected service, and return a response model (the return annotation). They neve
 Anything from outside, whether a request body, a DB row, an external API response, env,
 or a queue message, goes through pydantic before it's used: `Model.model_validate(raw)`,
 `AppSettings()` for env. `typing.cast` is banned. Models use
-`ConfigDict(frozen=True, extra="forbid")`. The repository re-parses rows into `TodoRecord`,
+`ConfigDict(frozen=True, extra="forbid")`, except wire models that predate these rules:
+they keep pydantic's default `extra="ignore"` and their docstrings verbatim, because both
+show up in the published OpenAPI schema the frontend's types are generated from
+(`make check-api`). The repository re-parses rows into `TodoRecord`,
 so a bad row fails at the boundary instead of downstream.
 
 ## Testing
@@ -181,9 +186,6 @@ code, or to change the rule in `pyproject.toml` / `scripts/lint_py/` openly in a
 
 ## Legacy
 
-Everything that existed before these rules is listed in
-`scripts/lint_py/legacy_allowlist.txt` (9 files) and excluded from ruff, pyright strict,
-and the AST rules. New-style code may not import legacy modules, so migrate what you need or
-adapt it in assembly. The list can only shrink (`test_legacy_allowlist.py`). See
-`MIGRATION.md`. `app/main.py` is the legacy entry point (`uvicorn app.main:app`). It calls
-`assemble_features(app, load_settings())` to mount new-style routers.
+None left: every backend file follows these rules (`MIGRATION.md` records how it got
+here). `scripts/lint_py/legacy_allowlist.txt` is empty and `MAX_LEGACY_FILES` is 0; the
+machinery stays so nothing can quietly be exempted again (`test_legacy_allowlist.py`).

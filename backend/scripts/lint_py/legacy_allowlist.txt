@@ -4,12 +4,3 @@
 # Migrating a module = move/rename it to app/<feature>/<basename>_<kind>_<color>.py,
 # delete its line here, and delete the same path from pyproject.toml's
 # [tool.ruff] extend-exclude and [tool.pyright] exclude (a test keeps those in sync).
-app/__init__.py
-app/main.py
-scripts/generate_badge_assets.py
-scripts/generate_game_assets.py
-scripts/generate_ts_types.py
-scripts/generate_word_audio.py
-scripts/generate_word_images.py
-tests/__init__.py
-tests/conftest.py

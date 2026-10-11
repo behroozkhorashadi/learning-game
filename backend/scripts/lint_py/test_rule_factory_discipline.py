@@ -36,3 +36,7 @@ def test_assemble_outside_assembly_fails() -> None:
 
 def test_tests_may_construct_anything() -> None:
     assert run_rule(check, "tests/todo/test_x.py", "def test_it():\n    make_todo_service(repository=1)\n") == []
+
+
+def test_the_entry_point_may_call_assemble() -> None:
+    assert run_rule(check, "app/main.py", "app = assemble_app(load_settings())\n") == []
