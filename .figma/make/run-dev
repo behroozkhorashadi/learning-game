@@ -39,7 +39,13 @@ if ! curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/profiles >/dev/
 fi
 
 cd "$repo_root/frontend"
-npx vite --port "$port" --host &
+npx vite --port "$port" --host "${FIGMA_DEV_SERVER_HOST:-0.0.0.0}" --strictPort &
 frontend_pid=$!
 
-wait -n "$backend_pid" "$frontend_pid"
+# Exit (and let the trap stop the survivor) as soon as either server dies.
+# Polled rather than `wait -n`, which needs bash 4.3+.
+while kill -0 "$backend_pid" 2>/dev/null && kill -0 "$frontend_pid" 2>/dev/null; do
+  sleep 1
+done
+echo "A dev server exited unexpectedly" >&2
+exit 1
