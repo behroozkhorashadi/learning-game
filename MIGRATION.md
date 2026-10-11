@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 113 legacy frontend files (112 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 78 legacy frontend files (77 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -89,11 +89,15 @@ Lessons from ProfilePicker:
 | `lib/speech.ts` → `speech/`, `lib/id.ts` → `ids/` | ~8 min (agent) | Migrated ahead of their callers because both the zombie arena and the word games use them. `Speech` is a capability (`bindSpeech({ synthesis, makeUtterance, playClip })`); the UUID maths is pure (`uuidV4FromBytes`), and `crypto` is read only in `assembleRandomId()`. Legacy callers assemble once at module scope (`const randomId = assembleRandomId()`) until they migrate and take these injected. 2 legacy files out. |
 | `components/BadgesAccomplishments.tsx` → `badges/` | ~10 min (agent) | `api/badges_api` (badges + stats, zod). Split into a props-only `BadgesView` over a `QueryState` and `bindBadges({ loadBadges, loadStats, now })`; the date formatting became pure with an injected `now`. 2 legacy files out. |
 | `games/SyllableBuilder.tsx`, `games/EquationBuilder.tsx`, `components/TileAssembly.tsx` → `syllable_builder/`, `equation_builder/`, `practice/`, `tiles/` | ~40 min (agent) | The two games shared a copy-pasted session loop; it's now one seam: `practice/use_practice_session` over `PracticeDeps` (`loadItem`, `recordAttempt`, `rate`, `verify`, `createId`, `now`, `wait`), driving a pure `practice_session` reducer. Each game keeps only its zod payload parser, its board mapping, and its view (no more `payload as unknown as`). `TileAssembly` became `tiles/TileBoard` ("assembly" is a reserved filename token) over a pure placement reducer. It drags with pointer capture and slot refs instead of window listeners and `elementFromPoint`, and no longer hides a tray tile mid-drag (it used to vanish under the pointer). The item-change reset effect is gone because callers key it by item. `setTimeout(900)` is an injected `wait`. 6 legacy files out. |
+| Pathfinder (`lib/pathfinder*`, `lib/usePathfinderPlay`, `lib/fakePathfinderApi`, `components/Pathfinder*`, `games/Pathfinder`) → `pathfinder/` | ~60 min (agent, separate worktree) | The engine (rules, solver, difficulty, generator, levels, export) moved as pure libs with only strict-mode fixes; the generator already took a seeded `rng`. Every fetch is now `api/pathfinder_api.effect.lib.ts` (zod; `difficulty` parsed as the four tiers, stricter than the schema's `string`). New capabilities in `pathfinder_state.pure.lib.ts`: `LevelProgressStore`, `MapLibrary`, `ListPublishedMaps`, `ScheduleTimeout` (the invalid-move flash), `Dialogs` (`window.confirm`/`prompt`), `SubscribeToFocus` (published-list refresh). Effects moved to hooks (`use_level_progress`, `use_published_maps`, `useQuery`/`useReloadableQuery` for the map lists). React-compiler debt fixed: `usePathfinderPlay` no longer resets via set-state-in-effect; its attempt is tagged with the puzzle id. The game and play-test now share `pathfinder_play_panel.pure.ui.tsx`. Child screens are injected (`bindPathfinderMapBuilder({ Editor, MyMaps, PlayTest })`, `bindPathfinder({ LevelSelect, PublishedMaps, MapBuilder, ... })`). `fakePathfinderApi` (a `global.fetch` stub) became an in-memory capability fake plus an HTTP-level fake inside the adapter test. Wall-clock perf assertions became node-count / no-assertion checks (the `no-unstable-scenario-test` rule). My Maps buttons gained per-map accessible names (`Delete Spiral`). 35 legacy files out; 240 unit tests, 25 stories. |
 Lessons:
 - **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
 - **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
 - **Module-level `new Date()` is a hidden global.** `Date.now` is linted; `new Date()` isn't yet. Pass `today` in.
 - **Labels that grow hints break `getByLabelText`.** Hold on to the input element across edits.
+- **Tag per-item state with its key instead of resetting it in an effect** (`usePathfinderPlay`'s attempt carries `puzzleId`; a different puzzle reads as a fresh attempt). That's what clears `react/set-state-in-effect` without forcing callers to remount.
+- **A fake that seeds asynchronously races the first load in a story.** Give in-memory fakes a synchronous `seed` for setup.
+- **Don't assert on locale dates in tests:** a UTC timestamp renders as the previous day in a US timezone.
 
 ## Known debt surfaced by the new rules (fix during migration)
 
@@ -107,8 +111,8 @@ Lessons:
   has to live inside `<Canvas>` (it's a different reconciler), so this is a real change,
   not a find-and-replace. The rule is on for new-style code only until these migrate.
 - **React-compiler correctness** (`react/refs`, `react/purity`, `react/set-state-in-effect`)
-  in `EquationOutbreakScene`, `EquationBlaster`, `MuzzleFlash`, `TileAssembly`,
-  `ModifierDeck`, `Pathfinder`, and `lib/usePathfinderPlay`. Off for legacy, on for new code.
+  in `EquationOutbreakScene`, `EquationBlaster`, `MuzzleFlash`, and `ModifierDeck`
+  (Pathfinder's and TileAssembly's were fixed when they migrated). Off for legacy, on for new code.
 - **Legacy unit tests mock `global.fetch` directly.** Migrated tests inject a fake `fetch`
   through the adapter's bind args instead.
 - **`src/types/generated.ts`** (from `make gen-types`, the legacy model-walker) overlaps
@@ -119,7 +123,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 113 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 78 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

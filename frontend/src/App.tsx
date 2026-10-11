@@ -14,7 +14,7 @@ import { PromptForge } from './games/PromptForge'
 import { StyleRemixLab } from './games/StyleRemixLab'
 import { TagTeamStory } from './games/TagTeamStory'
 import { ClueMaster } from './games/ClueMaster'
-import { Pathfinder } from './games/Pathfinder'
+import { assemblePathfinder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { Storybook } from './components/Storybook'
 import { DevScreenPicker, DevScreenLink } from './dev/DevScreenPicker'
@@ -30,6 +30,7 @@ function App() {
   const [Badges] = useState(assembleBadges)
   const [SyllableBuilder] = useState(assembleSyllableBuilder)
   const [EquationBuilder] = useState(assembleEquationBuilder)
+  const [Pathfinder] = useState(assemblePathfinder)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
   // kept in memory only so "Edit profile" doesn't ask again. Null for an

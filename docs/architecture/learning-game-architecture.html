@@ -212,30 +212,28 @@ code { font-family:var(--mono); font-size:.9em; }
     picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
     gWord[&quot;Writing games&lt;br/&gt;PromptForge, StyleRemixLab,&lt;br/&gt;TagTeamStory, ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;ZombieMathBlaster&quot;]
-    gPath[&quot;Pathfinder&quot;]
     meta[&quot;Storybook&quot;]
   end
 
   subgraph COMP[&quot;Legacy components — src/components&quot;]
     arena[&quot;framework/ZombieArena + R3F scene&lt;br/&gt;EquationOutbreakScene, ZombieCharacter3D,&lt;br/&gt;EquationBlaster, ApproachLane, MuzzleFlash&quot;]
-    pathc[&quot;Pathfinder UI&lt;br/&gt;Board, Editor, MapBuilder, PlayTest,&lt;br/&gt;LevelGallery, MyMaps, PublishedMaps&quot;]
     write[&quot;Writing UI&lt;br/&gt;WritingSurface,&lt;br/&gt;IllustrationReveal, CoachPanel&quot;]
   end
 
   subgraph LIB[&quot;Legacy logic — src/lib (pure, unit-tested)&quot;]
     zlib[&quot;Zombie engine&lt;br/&gt;zombieWaveEngine, raycastOutcome,&lt;br/&gt;laneNavigation, rootMotion, zombieRoster&quot;]
-    plib[&quot;Pathfinder engine&lt;br/&gt;Rules, Solver, Generator,&lt;br/&gt;Difficulty, Levels, usePathfinderPlay&quot;]
-    plat[&quot;Platform adapters&lt;br/&gt;gameAudio, errorReporting,&lt;br/&gt;pathfinderProgress, pathfinderCustomMaps&quot;]
+    plat[&quot;Platform adapters&lt;br/&gt;gameAudio, errorReporting&quot;]
   end
 
   subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
     root[&quot;main/&lt;br/&gt;dev_screens.assembly.main&quot;]
     profiles[&quot;profiles/&lt;br/&gt;picker, create, unlock, edit screens (bind* + assemble*),&lt;br/&gt;photo panel (camera + remix), form &amp;amp; password fields,&lt;br/&gt;CardShell, ProfileAvatar, AVATAR_OPTIONS&quot;]
     admin[&quot;admin/&lt;br/&gt;AdminLogin + AdminPanel&lt;br/&gt;(X-Admin-Password, a UX gate)&quot;]
+    pathfinder[&quot;pathfinder/&lt;br/&gt;game, level select, map builder (editor, My Maps,&lt;br/&gt;play-test), published maps, dev level gallery (bind* + assemble*);&lt;br/&gt;pure engine: rules, solver, difficulty, generator, levels&quot;]
     session[&quot;session/&lt;br/&gt;session shell: SessionStart, SessionComplete,&lt;br/&gt;RatingPrompt, ParentVerify, HandoffPencil, ProgressBar&quot;]
     den[&quot;den/&lt;br/&gt;DenButton, DenCard, DenChip, DenFlipCard,&lt;br/&gt;DenJar, DenTile, icons, icon_paths&quot;]
     query[&quot;query/&lt;br/&gt;useQuery, useReloadableQuery + QueryState (server state)&quot;]
-    apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
+    apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, pathfinder_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
     flags[&quot;flags/&lt;br/&gt;feature flags, read in assembly only&quot;]
     practice[&quot;practice/&lt;br/&gt;usePracticeSession: next item → attempt →&lt;br/&gt;handoff/verify → rating (api/practice_api)&quot;]
     pgames[&quot;syllable_builder/, equation_builder/&lt;br/&gt;bind* games over practice/&quot;]
@@ -251,7 +249,11 @@ code { font-family:var(--mono); font-size:.9em; }
   api[[&quot;FastAPI /api/*&quot;]]
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
-  app --&gt; picker &amp; gWord &amp; gMath &amp; gPath &amp; meta
+  app --&gt; picker &amp; gWord &amp; gMath &amp; meta
+  app -- &quot;assemblePathfinder() once&quot; --&gt; pathfinder
+  dev -- &quot;map builder, level gallery&quot; --&gt; pathfinder
+  pathfinder --&gt; query &amp; apiad &amp; den &amp; ids
+  pathfinder -- &quot;injected timers, dialogs,&lt;br/&gt;window focus&quot; --&gt; browserWin[[&quot;Browser window&quot;]]
   app -- &quot;assemble* once:&lt;br/&gt;picker, create, unlock, edit&quot; --&gt; profiles
   app -- &quot;assembleAdminPanel() once&quot; --&gt; admin
   app -- &quot;assembleBadges() once&quot; --&gt; badges
@@ -265,9 +267,8 @@ code { font-family:var(--mono); font-size:.9em; }
   gWord --&gt; write
   gMath --&gt; arena
   gWord &amp; gMath --&gt; session
-  gPath --&gt; pathc
   picker &amp; meta --&gt; den
-  write &amp; pathc --&gt; den
+  write --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
   profiles -- &quot;injected camera&lt;br/&gt;(navigator.mediaDevices)&quot; --&gt; browser[[&quot;Browser camera&quot;]]
@@ -275,8 +276,6 @@ code { font-family:var(--mono); font-size:.9em; }
   apiad -- &quot;injected fetch&quot; --&gt; api
   arena --&gt; zlib
   arena --&gt; assets
-  pathc --&gt; plib
-  gPath --&gt; plat
   gWord &amp; gMath --&gt; plat
   gWord &amp; gMath &amp; write -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
   picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
