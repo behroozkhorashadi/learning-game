@@ -13,7 +13,7 @@ import { ZombieMathBlaster } from './games/ZombieMathBlaster'
 import { assemblePromptForge } from '@app/prompt_forge/prompt_forge.assembly.main.ts'
 import { assembleStyleRemix } from '@app/style_remix/style_remix.assembly.main.ts'
 import { assembleTagTeam } from '@app/tag_team/tag_team.assembly.main.ts'
-import { ClueMaster } from './games/ClueMaster'
+import { assembleClueMaster } from '@app/clue_master/clue_master.assembly.main.ts'
 import { assemblePathfinder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { assembleStoryLibrary } from '@app/story_library/story_library.assembly.main.ts'
@@ -34,6 +34,7 @@ function App() {
   const [PromptForge] = useState(assemblePromptForge)
   const [StyleRemixLab] = useState(assembleStyleRemix)
   const [TagTeamStory] = useState(assembleTagTeam)
+  const [ClueMaster] = useState(assembleClueMaster)
   const [Pathfinder] = useState(assemblePathfinder)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
@@ -194,8 +195,7 @@ function App() {
   } else if (gameId === 'clue_master') {
     content = (
       <ClueMaster
-        profileId={profile.id!}
-        profileName={profile.name}
+        profileId={profile.id}
         onBack={() => setGameId(null)}
         onFinished={() => {
           setGameId(null)

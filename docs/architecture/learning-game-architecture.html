@@ -210,7 +210,6 @@ code { font-family:var(--mono); font-size:.9em; }
 
   subgraph SCREENS[&quot;Legacy screens — src/games&quot;]
     picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
-    gWord[&quot;Writing games&lt;br/&gt;ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;ZombieMathBlaster&quot;]
   end
 
@@ -237,7 +236,7 @@ code { font-family:var(--mono); font-size:.9em; }
     pgames[&quot;syllable_builder/, equation_builder/&lt;br/&gt;bind* games over practice/&quot;]
     tiles[&quot;tiles/&lt;br/&gt;TileBoard + pure placement rules&quot;]
     writing[&quot;writing/&lt;br/&gt;WritingSurface, CoachPanel, ModifierDeck,&lt;br/&gt;bindIllustrationReveal (pieces_api + timers)&quot;]
-    wgames[&quot;prompt_forge/, style_remix/, tag_team/&lt;br/&gt;bind* writing games over writing/&quot;]
+    wgames[&quot;prompt_forge/, style_remix/, tag_team/, clue_master/&lt;br/&gt;bind* writing games over writing/&quot;]
     timing[&quot;timing/&lt;br/&gt;Timers capability + useScheduled&quot;]
     library[&quot;story_library/&lt;br/&gt;shelf + reader + home entry card&lt;br/&gt;(bindStoryLibrary, injected confirm)&quot;]
     badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
@@ -251,7 +250,7 @@ code { font-family:var(--mono); font-size:.9em; }
   api[[&quot;FastAPI /api/*&quot;]]
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
-  app --&gt; picker &amp; gWord &amp; gMath
+  app --&gt; picker &amp; gMath
   app -- &quot;assemblePathfinder() once&quot; --&gt; pathfinder
   dev -- &quot;map builder, level gallery&quot; --&gt; pathfinder
   pathfinder --&gt; query &amp; apiad &amp; den &amp; ids
@@ -268,12 +267,11 @@ code { font-family:var(--mono); font-size:.9em; }
   badges --&gt; query &amp; apiad &amp; den
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
   dev --&gt; root --&gt; example
-  gWord --&gt; writing
   writing --&gt; timing &amp; apiad &amp; den
-  app -- &quot;assemblePromptForge(), assembleStyleRemix(),&lt;br/&gt;assembleTagTeam() once&quot; --&gt; wgames
+  app -- &quot;assemblePromptForge(), assembleStyleRemix(),&lt;br/&gt;assembleTagTeam(), assembleClueMaster() once&quot; --&gt; wgames
   wgames --&gt; writing &amp; den
   gMath --&gt; arena
-  gWord &amp; gMath --&gt; session
+  gMath --&gt; session
   picker --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
@@ -282,9 +280,9 @@ code { font-family:var(--mono); font-size:.9em; }
   apiad -- &quot;injected fetch&quot; --&gt; api
   arena --&gt; zlib
   arena --&gt; assets
-  gWord &amp; gMath --&gt; plat
-  gWord &amp; gMath -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
-  picker &amp; gWord &amp; gMath -- &quot;fetch (legacy)&quot; --&gt; api
+  gMath --&gt; plat
+  gMath -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
+  picker &amp; gMath -- &quot;fetch (legacy)&quot; --&gt; api
   plat -- &quot;fetch&quot; --&gt; api
   SCREENS -.-&gt; types
   LIB -.-&gt; types

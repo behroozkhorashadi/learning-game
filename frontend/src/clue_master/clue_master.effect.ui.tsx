@@ -1,20 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
-import type { CoachQuestion, CoachStatus } from '@app/writing/coach_questions.pure.lib.ts'
+import { useState, type ComponentType, type ReactElement } from 'react'
+import type { PieceRecord } from '@app/api/pieces_schema.pure.lib.ts'
+import { useScheduled } from '@app/timing/use_scheduled.pure.hook.ts'
 import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
-import { assembleIllustrationReveal } from '@app/writing/writing.assembly.main.ts'
+import type { IllustrationRevealProps } from '@app/writing/illustration_reveal.effect.ui.tsx'
+import { useRevisionPass } from '@app/writing/use_revision_pass.pure.hook.ts'
+import { CARD_FLIP_MS, type WritingGameDeps } from '@app/writing/writing_game_state.pure.lib.ts'
+import { sentencesOf, wordCountOf } from '@app/writing/writing_text.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '@app/den/den_chip.pure.ui.tsx'
 import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { DenJar } from '@app/den/den_jar.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
-import type { Piece, PieceCreate, RevisionPassCreate } from '../types/generated'
-
-// Migrated (src/writing/); assembled once for this legacy module.
-const IllustrationReveal = assembleIllustrationReveal()
-
-// Migrated (src/ids/); assembled once for this legacy module.
-const randomId = assembleRandomId()
+import { GAME_ID, GUESS_READING_MS, MIN_DRAFT_WORDS, WORD_GOAL, coachQuestions, dealCase, type CaseFile } from './case_files.pure.lib.ts'
 
 /**
  * Clue Master — ported from the Claude Design handoff bundle (`Clue Master.dc.html`,
@@ -25,116 +22,28 @@ const randomId = assembleRandomId()
  * one who judges "hit" or "miss".
  */
 
-const GAME_ID = 'clue_master'
-const MIN_DRAFT_WORDS = 40
-const WORD_GOAL = 140
-
-function wordCountOf(text: string): number {
-  const trimmed = text.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
-}
-
-function sentencesOf(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
 const MAGNIFY_ICON = ['M11 4.75C7.54822 4.75 4.75 7.54822 4.75 11C4.75 14.4518 7.54822 17.25 11 17.25C14.4518 17.25 17.25 14.4518 17.25 11C17.25 7.54822 14.4518 4.75 11 4.75Z', 'M15.5 15.5L19.25 19.25']
-
-interface Clue {
-  title: string
-  note: string
-  keywords: string[]
-}
-
-interface CaseFile {
-  key: string
-  cardName: string
-  endingLine: string
-  job: string
-  hintLine: string
-  accent: string
-  tint: string
-  clues: Clue[]
-  guessText: string
-  guessBecause: string[]
-  confession: string
-}
-
-const CASE_FILES: CaseFile[] = [
-  {
-    key: 'umbrella',
-    cardName: 'The Wet Umbrella',
-    endingLine: 'The room was empty except for a single wet umbrella.',
-    job: 'Write the story that ends exactly there.',
-    hintLine: "that umbrella isn't yours, is it…",
-    accent: '#1F5FC4',
-    tint: '#EDF2FF',
-    clues: [
-      { title: 'Something out of place', note: 'A yellow umbrella nobody owns', keywords: ['umbrella'] },
-      { title: 'Someone who knows more', note: 'Try Dad — he said it in that voice', keywords: ['dad'] },
-    ],
-    guessText:
-      'Someone who used to live there came back after a long time away. They left the umbrella so someone would notice, and slipped out before anyone came downstairs.',
-    guessBecause: ["The umbrella wasn't anyone's in the house", 'It had been raining the night it showed up', 'Dad went quiet whenever it came up'],
-    confession:
-      "Dad's brother came back after eleven years. He stood in the hall for a bit, left the umbrella so someone would ask, and was gone before Mum came down.",
-  },
-  {
-    key: 'key',
-    cardName: 'The Spare Key',
-    endingLine: 'The spare key was back on the hook, exactly where it always hung.',
-    job: 'Write the story that ends exactly there.',
-    hintLine: "that key didn't just walk back to the hook…",
-    accent: '#7F5305',
-    tint: '#FFF7E6',
-    clues: [
-      { title: 'Something borrowed', note: 'The porch light stayed on all week', keywords: ['porch', 'light'] },
-      { title: 'A small repair, unexplained', note: 'Nobody ever said who fixed the fence', keywords: ['fence'] },
-    ],
-    guessText:
-      'Someone who still had a key let themselves in while the family was away — not to take anything, but to look after the place — then put the key back exactly where they found it.',
-    guessBecause: [
-      'The porch light being left on all week meant someone was checking in',
-      'The fence got fixed and nobody claimed credit',
-      'The key came back to the exact hook, which means whoever borrowed it wanted it found',
-    ],
-    confession:
-      "Grandma still had a key from before she moved out. She'd been coming by on Tuesdays to water the plants and fix what she could, and never told anyone because she didn't want to make a thing of it.",
-  },
-  {
-    key: 'letter',
-    cardName: 'The Unsent Letter',
-    endingLine: 'The letter was still in the drawer, stamped, never sent.',
-    job: 'Write the story that ends exactly there.',
-    hintLine: 'that stamp was never for nothing…',
-    accent: '#741553',
-    tint: '#FFF0F8',
-    clues: [
-      { title: 'A change of mind', note: 'She bought a stamp she never used', keywords: ['stamp'] },
-      { title: 'Something she almost said', note: 'She kept starting sentences and stopping', keywords: ['almost', 'stopped'] },
-    ],
-    guessText: "She wrote down everything she'd never said out loud, got as far as the stamp, and then decided saying it mattered more than sending it.",
-    guessBecause: ['She bought a stamp but the letter never left the house', 'She kept almost telling someone something all story long', 'Some things get written just so the writer can believe them'],
-    confession:
-      "She'd written to her sister to apologize for missing the funeral, but by the time she finished it, she'd already said it in person — so the letter just stayed in the drawer, finished but unnecessary.",
-  },
-]
 
 type Phase = 'dealing' | 'drafting' | 'revising' | 'guessing' | 'verdict' | 'revealing'
 type GuessState = 'reading' | 'guessed'
 type Verdict = 'hit' | 'miss'
 
-interface Props {
-  profileId: number
-  profileName?: string
-  onBack: () => void
-  onFinished: () => void
+export interface ClueMasterProps {
+  readonly profileId: number
+  readonly onBack: () => void
+  readonly onFinished: () => void
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
+export interface ClueMasterDeps extends WritingGameDeps {
+  readonly IllustrationReveal: ComponentType<IllustrationRevealProps>
+}
+
+interface RoundProps extends ClueMasterProps {
+  readonly sessionId: string
+  readonly onPlayAgain: () => void
+}
+
+function BackButton({ onClick }: { readonly onClick: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -148,58 +57,43 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-function pickCase(excludeKey?: string): CaseFile {
-  const pool = excludeKey ? CASE_FILES.filter((c) => c.key !== excludeKey) : CASE_FILES
-  return pool[Math.floor(Math.random() * pool.length)]
-}
+export function bindClueMaster(deps: ClueMasterDeps): ComponentType<ClueMasterProps> {
+  const { IllustrationReveal } = deps
 
-export function ClueMaster({ profileId, onBack, onFinished }: Props) {
+  /** One case, start to finish. "Play again" remounts it (new key), which resets every phase at once. */
+  function ClueRound({ profileId, sessionId, onBack, onFinished, onPlayAgain }: RoundProps): ReactElement {
   const [phase, setPhase] = useState<Phase>('dealing')
-  const [sessionId] = useState(() => randomId())
-  const [error, setError] = useState<string | null>(null)
-  const [piece, setPiece] = useState<Piece | null>(null)
+  const scheduled = useScheduled(deps.timers)
+  const pass = useRevisionPass(deps)
+  const [piece, setPiece] = useState<PieceRecord | null>(null)
 
   // -- dealing --
-  const [caseFile, setCaseFile] = useState<CaseFile | null>(null)
+  const [caseFile, setCaseFile] = useState<CaseFile>(() => dealCase(deps.random))
   const [cardState, setCardState] = useState<'down' | 'flipping' | 'up'>('down')
 
   // -- drafting --
   const [draft, setDraft] = useState('')
 
-  // -- revising --
-  const [reviseDraft, setReviseDraft] = useState('')
-  const [revisionStart, setRevisionStart] = useState('')
-  const [coachStatus, setCoachStatus] = useState<CoachStatus>('thinking')
-  const [saving, setSaving] = useState(false)
-
   // -- guessing / verdict --
   const [guessState, setGuessState] = useState<GuessState>('reading')
   const [verdict, setVerdict] = useState<Verdict | null>(null)
 
-  useEffect(() => {
-    if (phase === 'dealing' && !caseFile) setCaseFile(pickCase())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase])
+  const reviseDraft = pass.text
+  const questions = coachQuestions(pass.changed)
 
-  useEffect(() => {
-    if (phase !== 'guessing') return
-    setGuessState('reading')
-    const timer = setTimeout(() => setGuessState('guessed'), 1400)
-    return () => clearTimeout(timer)
-  }, [phase])
-
-  function flipCard() {
+  function flipCard(): void {
     if (cardState !== 'down') return
     setCardState('flipping')
-    setTimeout(() => setCardState('up'), 700)
+    scheduled.after(CARD_FLIP_MS, () => {
+      setCardState('up')
+    })
   }
 
-  function dealAnother() {
-    if (!caseFile) return
-    setCaseFile(pickCase(caseFile.key))
+  function dealAnother(): void {
+    setCaseFile(dealCase(deps.random, caseFile.key))
   }
 
-  function startWriting() {
+  function startWriting(): void {
     setDraft('')
     setPhase('drafting')
   }
@@ -207,84 +101,36 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
   const draftWordCount = wordCountOf(draft)
   const canGuess = draftWordCount >= MIN_DRAFT_WORDS
 
-  function goToRevising() {
+  function goToRevising(): void {
     if (!canGuess) return
-    setRevisionStart(draft)
-    setReviseDraft(draft)
+    pass.begin(draft)
     setPhase('revising')
-    setCoachStatus('thinking')
-    setTimeout(() => setCoachStatus('questions'), 1200)
   }
 
-  const coachQuestions: CoachQuestion[] = useMemo(() => {
-    const changed = reviseDraft !== revisionStart
-    return [
-      { id: 'opening', kind: 'opening', text: 'Read your last line out loud — does it land exactly on the ending you were dealt?', answered: changed },
-      { id: 'wordChoice', kind: 'wordChoice', text: "Find the line where you hid the reason. Swap one word so it's a little less obvious.", answered: changed },
-      { id: 'feeling', kind: 'feeling', text: 'Which line would give it away if I read it twice? Soften it just slightly.', answered: changed },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviseDraft, revisionStart])
-
-  async function finishRevising() {
-    if (!caseFile) return
-    setSaving(true)
-    setError(null)
-    const changed = reviseDraft !== revisionStart
-    const revisionPayload: RevisionPassCreate = { questions_asked: coachQuestions.map((q) => q.text), changed }
-    const piecePayload: PieceCreate = {
-      profile_id: profileId,
-      game_id: GAME_ID,
-      session_id: sessionId,
-      title: caseFile.cardName,
-      body: reviseDraft,
-      constraints: [caseFile.cardName],
-      art_style: 'storybook',
-    }
-    try {
-      const res = await fetch('/api/pieces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(piecePayload),
-      })
-      if (!res.ok) throw new Error(`POST /api/pieces -> ${res.status}`)
-      const created: Piece = await res.json()
-      await fetch(`/api/pieces/${created.id}/revisions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(revisionPayload),
-      })
-      setPiece(created)
-      setCoachStatus('done')
-      setPhase('guessing')
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setSaving(false)
-    }
+  async function finishRevising(): Promise<void> {
+    const saved = await pass.finish(
+      { profile_id: profileId, game_id: GAME_ID, session_id: sessionId, title: caseFile.cardName, body: reviseDraft, constraints: [caseFile.cardName], art_style: 'storybook' },
+      questions.map((q) => q.text),
+    )
+    if (saved === null) return
+    setPiece(saved)
+    setGuessState('reading')
+    setPhase('guessing')
+    scheduled.after(GUESS_READING_MS, () => {
+      setGuessState('guessed')
+    })
   }
 
-  function chooseVerdict(outcome: Verdict) {
+  function chooseVerdict(outcome: Verdict): void {
     setVerdict(outcome)
     setPhase('verdict')
   }
 
-  function proceedToReveal() {
+  function proceedToReveal(): void {
     setPhase('revealing')
   }
 
-  function playAgain() {
-    setPhase('dealing')
-    setCaseFile(null)
-    setCardState('down')
-    setDraft('')
-    setReviseDraft('')
-    setRevisionStart('')
-    setCoachStatus('thinking')
-    setGuessState('reading')
-    setVerdict(null)
-    setPiece(null)
-  }
+  const playAgain = onPlayAgain
 
   const sentences = sentencesOf(reviseDraft)
   const heroExcerpt = sentences[sentences.length - 1] ?? reviseDraft.slice(-80)
@@ -299,9 +145,13 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>}
+        {pass.error !== null && (
+          <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>
+            Error: {pass.error}
+          </pre>
+        )}
 
-        {phase === 'dealing' && caseFile && (
+        {phase === 'dealing' && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '30px 32px 34px', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)', boxSizing: 'border-box' }}>
             <div style={{ marginBottom: 22 }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B' }}>Clue Master</div>
@@ -327,7 +177,7 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <div onClick={flipCard} style={{ cursor: cardState === 'down' ? 'pointer' : 'default' }}>
+                <div style={{ cursor: cardState === 'down' ? 'pointer' : 'default' }}>
                   <DenFlipCard
                     flipped={cardState === 'up'}
                     backLabel="Case file"
@@ -356,7 +206,7 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {phase === 'drafting' && caseFile && (
+        {phase === 'drafting' && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, overflow: 'hidden', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)' }}>
             <div style={{ borderBottom: '1px solid #F0E9DA', background: '#FBF6EC', padding: '14px 26px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B' }}>Ends here, no matter what</div>
@@ -369,6 +219,7 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
               <div style={{ padding: '26px 30px 24px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 12 }}>Your lead-up</div>
                 <textarea
+                  aria-label="Your draft"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Start anywhere. Just make sure the last line lands exactly where I dealt it."
@@ -406,19 +257,19 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {phase === 'revising' && caseFile && (
+        {phase === 'revising' && (
           <CoachPanel
             pieceTitle={caseFile.cardName}
             value={reviseDraft}
-            onChange={setReviseDraft}
-            status={coachStatus}
-            questions={coachStatus === 'thinking' ? [] : coachQuestions}
-            onHappy={finishRevising}
-            happyReady={!saving && reviseDraft !== revisionStart}
+            onChange={pass.setText}
+            status={pass.status}
+            questions={pass.status === 'thinking' ? [] : questions}
+            onHappy={() => void finishRevising()}
+            happyReady={!pass.saving && pass.changed}
           />
         )}
 
-        {phase === 'guessing' && caseFile && (
+        {phase === 'guessing' && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, overflow: 'hidden', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)' }}>
             <div style={{ borderBottom: '1px solid #F0E9DA', background: '#FBF6EC', padding: '16px 28px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B' }}>Let me guess what happened</div>
@@ -466,7 +317,7 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {phase === 'verdict' && caseFile && verdict && (
+        {phase === 'verdict' && verdict && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, overflow: 'hidden', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)' }}>
             <div style={{ padding: '34px 32px 30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
               <DenChip label={verdict === 'hit' ? 'Clues worked' : 'You win'} tone={verdict === 'hit' ? 'green' : 'purple'} mono />
@@ -513,9 +364,9 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {phase === 'revealing' && piece && (
+        {phase === 'revealing' && piece !== null && (
           <IllustrationReveal
-            pieceId={piece.id!}
+            pieceId={piece.id}
             pieceTitle={piece.title ?? 'Your case'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}
@@ -527,4 +378,21 @@ export function ClueMaster({ profileId, onBack, onFinished }: Props) {
       </div>
     </div>
   )
+}
+
+  function ClueMaster(props: ClueMasterProps): ReactElement {
+    const [sessionId] = useState(deps.createId)
+    const [round, setRound] = useState(0)
+    return (
+      <ClueRound
+        key={round}
+        {...props}
+        sessionId={sessionId}
+        onPlayAgain={() => {
+          setRound((r) => r + 1)
+        }}
+      />
+    )
+  }
+  return ClueMaster
 }
