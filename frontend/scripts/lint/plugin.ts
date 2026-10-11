@@ -14,6 +14,7 @@ import hookFilename from './architecture/hook-filename.ts'
 import kindDiscipline from './architecture/kind-discipline.ts'
 import layerImports from './architecture/layer-imports.ts'
 import noBarrelIndex from './architecture/no-barrel-index.ts'
+import noDisableComments from './architecture/no-disable-comments.ts'
 import noComponentsInAssembly from './architecture/no-components-in-assembly.ts'
 import noServiceContext from './architecture/no-service-context.ts'
 import relativeWithinFeature from './architecture/relative-within-feature.ts'
@@ -47,6 +48,7 @@ export const rules = {
   'alias-targets-concrete-file': aliasTargetsConcreteFile,
   'relative-within-feature': relativeWithinFeature,
   'no-barrel-index': noBarrelIndex,
+  'no-disable-comments': noDisableComments,
   'no-service-context': noServiceContext,
   // types
   'no-unchecked-cast': noUncheckedCast,

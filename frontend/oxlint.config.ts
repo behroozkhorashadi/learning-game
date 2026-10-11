@@ -122,6 +122,7 @@ export default defineConfig({
     // Local plugin (scripts/lint/). Security, barrel, context and scenario rules apply to legacy files too.
     ...Object.fromEntries(APP_ARCHITECTURE_RULES.map((r) => [r, 'error'])),
     'app/no-barrel-index': 'error',
+    'app/no-disable-comments': 'error',
     'app/no-service-context': ['error', { allow: [] }],
     'app/require-error-boundary-for-suspense': 'error',
     'app/no-dangerous-html': ['error', { sanitizers: [] }],

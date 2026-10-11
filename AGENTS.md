@@ -30,7 +30,7 @@ cycles, pytest). Diagrams: `make check-docs`.
 
 A failing check is telling you where the code goes. Every lint message names the fix and
 links the doc. **Never silence a rule** (`oxlint-disable`, `@ts-ignore`, `# noqa`,
-`# type: ignore`) to land a change: move the code, or propose the rule change openly in
+`# type: ignore`; each is itself a lint error: `app/no-disable-comments`, `ban-ts-comment`, the backend's `no-suppressions`) to land a change: move the code, or propose the rule change openly in
 review.
 
 ## Non-negotiable principles
