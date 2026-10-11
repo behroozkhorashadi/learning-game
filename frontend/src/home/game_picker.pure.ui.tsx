@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
-import type { GameMetadata, Profile } from '../types/generated'
+import { useState, type CSSProperties, type ReactElement } from 'react'
+import type { GameRecord } from '@app/api/pieces_schema.pure.lib.ts'
+import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { GAMES_WITH_PRACTICE_SETTINGS, visibleGames } from './home_games.pure.lib.ts'
 import { BadgeIcon } from '@app/den/icons.pure.ui.tsx'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { PENCIL_ICON } from '@app/den/icon_paths.pure.lib.ts'
@@ -14,24 +16,15 @@ const SWITCH_ICON = ['M4.75 11L8.25 8.5L4.75 6M9.75 6H19.25M4.75 18L8.25 15.5L4.
  * game modules, so this only ever renders what the server actually registers.
  */
 
-/**
- * Temporary roster trim: only these games are shown while development is
- * focused on Equation Outbreak and Pathfinder. The other games stay fully
- * registered and playable (via ?screen= dev links, or a direct gameId) —
- * this only filters what GamePicker displays. Delete this filter (and the
- * `.filter` call below) to bring the full roster back.
- */
-const VISIBLE_GAME_IDS = new Set(['fact_fluency', 'pathfinder_no_way_back'])
-
-const CARD_THEMES = [
+const CARD_THEMES: readonly [{ readonly icon: string; readonly ring: string; readonly text: string }, ...{ readonly icon: string; readonly ring: string; readonly text: string }[]] = [
   { icon: '#EBDCFE', ring: '#CBA6FC', text: '#5006B2' },
   { icon: '#DBE4FF', ring: '#A3BAFF', text: '#00289E' },
   { icon: '#DBF5D1', ring: '#A1E486', text: '#2C6416' },
 ]
 
-function GameIcon({ gameId, emoji, background }: { gameId: string; emoji: string; background: string }) {
+function GameIcon({ gameId, emoji, background }: { readonly gameId: string; readonly emoji: string; readonly background: string }): ReactElement {
   const [broken, setBroken] = useState(false)
-  const boxStyle = { flex: 'none' as const, width: 108, height: 108, borderRadius: 22, background, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
+  const boxStyle: CSSProperties = { flex: 'none', width: 108, height: 108, borderRadius: 22, background, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
 
   if (broken) {
     return (
@@ -46,57 +39,41 @@ function GameIcon({ gameId, emoji, background }: { gameId: string; emoji: string
       <img
         src={`/images/games/${gameId}.png`}
         alt=""
-        onError={() => setBroken(true)}
+        onError={() => {
+          setBroken(true)
+        }}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
     </div>
   )
 }
 
-// Games with a parent-facing practice-settings screen (operations/focus-
-// numbers/difficulty) — see GameModule.supports_practice_config() on the
-// backend. Only fact_fluency (Equation Outbreak) has one today.
-const GAMES_WITH_PRACTICE_SETTINGS = new Set(['fact_fluency'])
-
-interface Props {
-  profile: Profile
-  onSelectGame: (gameId: string) => void
-  onSwitchProfile: () => void
-  onEditProfile: () => void
-  onViewBadges: () => void
-  onOpenStorybook: () => void
-  onOpenPracticeSettings: (gameId: string) => void
+/** What the app shell handles. */
+export interface GamePickerProps {
+  /** Only the name is shown. */
+  readonly profile: { readonly name: string }
+  readonly onSelectGame: (gameId: string) => void
+  readonly onSwitchProfile: () => void
+  readonly onEditProfile: () => void
+  readonly onViewBadges: () => void
+  readonly onOpenPracticeSettings: (gameId: string) => void
 }
 
-export function GamePicker({
-  profile,
-  onSelectGame,
-  onSwitchProfile,
-  onEditProfile,
-  onViewBadges,
-  onOpenStorybook: _onOpenStorybook,
-  onOpenPracticeSettings,
-}: Props) {
-  const [games, setGames] = useState<GameMetadata[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export interface GamePickerViewProps extends GamePickerProps {
+  readonly games: QueryState<readonly GameRecord[]>
+}
 
-  useEffect(() => {
-    fetch('/api/games')
-      .then((res) => {
-        if (!res.ok) throw new Error(`GET /api/games -> ${res.status}`)
-        return res.json()
-      })
-      .then(setGames)
-      .catch((err) => setError(String(err)))
-  }, [])
+/** The kid home, props only: the game list arrives as a QueryState from game_picker.effect.ui.tsx. */
+export function GamePickerView({ games, profile, onSelectGame, onSwitchProfile, onEditProfile, onViewBadges, onOpenPracticeSettings }: GamePickerViewProps): ReactElement {
+  const theme0 = CARD_THEMES[0]
 
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
       <div style={{ width: '100%', maxWidth: 820, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '36px 40px 44px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 34 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 9999, padding: 3, background: CARD_THEMES[0].icon, border: `3px solid ${CARD_THEMES[0].ring}`, boxSizing: 'border-box' }}>
-              <div style={{ width: '100%', height: '100%', borderRadius: 9999, overflow: 'hidden', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: CARD_THEMES[0].text }}>
+            <div style={{ width: 64, height: 64, borderRadius: 9999, padding: 3, background: theme0.icon, border: `3px solid ${theme0.ring}`, boxSizing: 'border-box' }}>
+              <div style={{ width: '100%', height: '100%', borderRadius: 9999, overflow: 'hidden', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: theme0.text }}>
                 {profile.name.charAt(0).toUpperCase()}
               </div>
             </div>
@@ -142,22 +119,24 @@ export function GamePicker({
           </div>
         </div>
 
-        {error && (
-          <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>Error: {error}</pre>
+        {games.kind === 'failed' && (
+          <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>
+            Error: {games.message}
+          </pre>
         )}
 
-        {/* My Storybook entry hidden as part of the same temporary roster
-            trim as VISIBLE_GAME_IDS above — StorybookEntryCard is untouched,
-            just not rendered here. */}
+        {/* The My Storybook entry is hidden by the same temporary roster trim as VISIBLE_GAME_IDS. */}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 22 }}>
-          {(games ?? []).filter((game) => VISIBLE_GAME_IDS.has(game.id)).map((game, i) => {
-            const theme = CARD_THEMES[i % CARD_THEMES.length]
+          {visibleGames(games.kind === 'loaded' ? games.data : []).map((game, i) => {
+            const theme = CARD_THEMES[i % CARD_THEMES.length] ?? theme0
             return (
               <div key={game.id} style={{ position: 'relative' }}>
                 <button
                   type="button"
-                  onClick={() => onSelectGame(game.id)}
+                  onClick={() => {
+                    onSelectGame(game.id)
+                  }}
                   style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 20, textAlign: 'left', padding: 22, borderRadius: 26, background: '#FFFFFF', border: '1px solid #F1ECE0', boxShadow: '0 10px 22px -16px rgba(0,13,51,0.18)', cursor: 'pointer' }}
                 >
                   <GameIcon gameId={game.id} emoji={game.icon} background={theme.icon} />

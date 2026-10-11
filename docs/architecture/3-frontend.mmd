@@ -1,12 +1,13 @@
 flowchart TB
-  main["main.tsx<br/>ErrorBoundary + errorReporting"] --> app
+  main["main.tsx"] --> app
+  main -- "assembleErrorHandling()" --> errors
 
   app["App.tsx<br/>state-driven screen router<br/>profile, gameId, editing, admin..."]
   dev["dev/ screens via ?screen=<br/>ZombieHitLab, WeaponPOC, ZombiePOC"]
   app -. "DEV only" .-> dev
 
   subgraph SCREENS["Legacy screens — src/games"]
-    picker["GamePicker<br/>+ EquationOutbreakSettings"]
+    picker["EquationOutbreakSettings"]
     gMath["Math games<br/>ZombieMathBlaster"]
   end
 
@@ -16,7 +17,7 @@ flowchart TB
 
   subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
     zlib["Zombie engine<br/>zombieWaveEngine, raycastOutcome,<br/>laneNavigation, rootMotion, zombieRoster"]
-    plat["Platform adapters<br/>gameAudio, errorReporting"]
+    plat["Platform adapters<br/>gameAudio"]
   end
 
   subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
@@ -34,6 +35,8 @@ flowchart TB
     tiles["tiles/<br/>TileBoard + pure placement rules"]
     writing["writing/<br/>WritingSurface, CoachPanel, ModifierDeck,<br/>bindIllustrationReveal (pieces_api + timers)"]
     wgames["prompt_forge/, style_remix/, tag_team/, clue_master/<br/>bind* writing games over writing/"]
+    home["home/<br/>GamePickerView + bindGamePicker (kid home)"]
+    errors["errors/<br/>ReportError capability, bound ErrorBoundary,<br/>window error listeners (assembly)"]
     timing["timing/<br/>Timers capability + useScheduled"]
     library["story_library/<br/>shelf + reader + home entry card<br/>(bindStoryLibrary, injected confirm)"]
     badges["badges/<br/>BadgesView (pure) + bindBadges"]
@@ -48,6 +51,9 @@ flowchart TB
   assets[("public/ GLB models, images, audio")]
 
   app --> picker & gMath
+  app -- "assembleGamePicker() once" --> home
+  home --> query & apiad & den
+  errors --> apiad & den
   app -- "assemblePathfinder() once" --> pathfinder
   dev -- "map builder, level gallery" --> pathfinder
   pathfinder --> query & apiad & den & ids

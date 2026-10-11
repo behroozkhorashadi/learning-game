@@ -6,7 +6,7 @@ import { assembleProfileUnlock } from '@app/profiles/profile_unlock.assembly.mai
 import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
-import { GamePicker } from './games/GamePicker'
+import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
 import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
 import { ZombieMathBlaster } from './games/ZombieMathBlaster'
@@ -35,6 +35,7 @@ function App() {
   const [StyleRemixLab] = useState(assembleStyleRemix)
   const [TagTeamStory] = useState(assembleTagTeam)
   const [ClueMaster] = useState(assembleClueMaster)
+  const [GamePicker] = useState(assembleGamePicker)
   const [Pathfinder] = useState(assemblePathfinder)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
@@ -151,7 +152,6 @@ function App() {
         }}
         onEditProfile={() => setEditing({ profile, password: profilePassword, returnToGames: true })}
         onViewBadges={() => setShowBadges(true)}
-        onOpenStorybook={() => setShowStorybook(true)}
         onOpenPracticeSettings={setPracticeSettingsGameId}
       />
     )

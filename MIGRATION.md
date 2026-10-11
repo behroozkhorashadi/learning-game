@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 63 legacy frontend files (62 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 58 legacy frontend files (57 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -95,6 +95,7 @@ Lessons from ProfilePicker:
 | `games/StyleRemixLab.tsx`, `games/TagTeamStory.tsx` → `style_remix/`, `tag_team/` | ~30 min (agent) | Both on the shared writing pipeline; the remixes and turns save through `use_revision_pass`'s `afterCreate`. Content and rules became pure libs (`remix_styles`, `tag_team_story`: `drawStyle`, `chooseStory`, `nextTurn`, `aiLine`, `wordShare`). Three effects were really event handlers. Style Remix's "draw on entering the phase" became a `useState` initializer plus the Draw-another handler. Tag-Team's "AI plays when it's its turn" and "assemble when full" became `addTurn`, which schedules the next AI line or moves to assembly. Leaving mid-thread now cancels the pending AI turn. Shelf buttons gained `aria-pressed` and short names (`Pick News Report`); the textareas gained labels. 4 legacy files out. |
 | `components/Storybook.tsx`, `components/StorybookEntryCard.tsx` → `story_library/` | ~25 min (agent) | Reuses `api/pieces_api`, `writing/illustration_style`, and `query/`. The per-piece illustration fan-out became one pure loader over the adapter (`loadLibrary`, `loadShelfPeek`, the latter never rejecting, as before). Split into props-only `StoryLibraryView`, `EntryCardView`, and `Cover` over `QueryState`, plus `bindStoryLibrary({ loadLibrary, removePiece, confirm })` and `bindStorybookEntryCard({ loadPeek })`. `window.confirm` is an injected capability read only in assembly. A delete now re-reads the library (`useReloadableQuery`) instead of filtering a local copy. Callers key both by profile id. 3 legacy files out. |
 | `games/ClueMaster.tsx` → `clue_master/` | ~20 min (agent) | Last writing game. Case files and the deal became `case_files.pure.lib.ts` (`dealCase` never repeats the case just dealt). Both effects were event handlers: the deal moved to a `useState` initializer, and the 1.4 s "reading it back" now starts when saving succeeds. "Play it again" remounts a keyed round component instead of resetting ten state variables by hand, which also resets the coach. 2 legacy files out. |
+| `components/ErrorBoundary.tsx`, `lib/errorReporting.ts`, `games/GamePicker.tsx` → `errors/`, `home/` | ~20 min (agent) | Error reporting became a `ReportError` capability (`bindErrorReporting({ fetch, page })`) and `installGlobalErrorReporting` over a narrow `ErrorEventTarget`. `window` listeners and `location.reload` are named only in `errors.assembly.main.ts`; the class boundary is bound over `{ report, reload }`. `main.tsx` calls `assembleErrorHandling()` once. GamePicker became a props-only `GamePickerView` over a `QueryState` plus `bindGamePicker({ listGames })`; the roster trim is `home_games.pure.lib.ts`, and the unused `onOpenStorybook` prop is gone. 5 legacy files out. |
 Lessons:
 - **Most effects in legacy screens are event handlers in disguise.** "When phase becomes X, do Y" belongs in whatever sets phase to X. Moving it there removes the effect, the `exhaustive-deps` disable, and the stale-closure bugs together.
 - **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
@@ -129,7 +130,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 63 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 58 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

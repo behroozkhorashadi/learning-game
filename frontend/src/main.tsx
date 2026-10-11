@@ -2,10 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { ErrorBoundary } from './components/ErrorBoundary.tsx'
-import { installGlobalErrorReporting } from './lib/errorReporting.ts'
+import { assembleErrorHandling } from '@app/errors/errors.assembly.main.ts'
 
-installGlobalErrorReporting()
+const { ErrorBoundary } = assembleErrorHandling()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

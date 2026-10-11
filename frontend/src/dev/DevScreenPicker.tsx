@@ -4,7 +4,7 @@ import { assembleDevScreens } from '@app/main/dev_screens.assembly.main.ts'
 import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
 import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.main.ts'
 import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
-import { GamePicker } from '../games/GamePicker'
+import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
 import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
 import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
@@ -169,6 +169,20 @@ function DevStorybookEntryCard() {
   return <StorybookEntryCard profileId={1} onOpen={() => console.log('onOpen')} />
 }
 
+function DevGamePicker() {
+  const [GamePicker] = useState(assembleGamePicker)
+  return (
+    <GamePicker
+      profile={MOCK_PROFILE}
+      onSelectGame={(id) => console.log('onSelectGame', id)}
+      onSwitchProfile={() => console.log('onSwitchProfile')}
+      onEditProfile={() => console.log('onEditProfile')}
+      onViewBadges={() => console.log('onViewBadges')}
+      onOpenPracticeSettings={(id) => console.log('onOpenPracticeSettings', id)}
+    />
+  )
+}
+
 function DevBadges() {
   const [Badges] = useState(assembleBadges)
   return <Badges profileId={1} kidName="Mia" onBack={() => console.log('onBack')} />
@@ -238,17 +252,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'game-picker',
     label: 'Game picker',
-    render: () => (
-      <GamePicker
-        profile={MOCK_PROFILE}
-        onSelectGame={(id) => console.log('onSelectGame', id)}
-        onSwitchProfile={() => console.log('onSwitchProfile')}
-        onEditProfile={() => console.log('onEditProfile')}
-        onViewBadges={() => console.log('onViewBadges')}
-        onOpenStorybook={() => console.log('onOpenStorybook')}
-        onOpenPracticeSettings={(id) => console.log('onOpenPracticeSettings', id)}
-      />
-    ),
+    render: () => <DevGamePicker />,
   },
   {
     id: 'equation-outbreak-settings',

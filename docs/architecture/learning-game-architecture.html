@@ -202,14 +202,15 @@ code { font-family:var(--mono); font-size:.9em; }
   <div class="plate"><div class="zoombar"><output aria-live="polite">100%</output><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit to view">Fit</button><button type="button" data-z="full" aria-label="Full screen">Full</button></div><div class="stage"></div><div class="status">Rendering diagram…</div></div>
   <div class="hint">Drag to pan · pinch or Ctrl/⌘ + scroll to zoom · double-click to zoom in (Shift to zoom out)</div>
   <details><summary>Mermaid source (3-frontend.mmd)</summary><pre>flowchart TB
-  main[&quot;main.tsx&lt;br/&gt;ErrorBoundary + errorReporting&quot;] --&gt; app
+  main[&quot;main.tsx&quot;] --&gt; app
+  main -- &quot;assembleErrorHandling()&quot; --&gt; errors
 
   app[&quot;App.tsx&lt;br/&gt;state-driven screen router&lt;br/&gt;profile, gameId, editing, admin...&quot;]
   dev[&quot;dev/ screens via ?screen=&lt;br/&gt;ZombieHitLab, WeaponPOC, ZombiePOC&quot;]
   app -. &quot;DEV only&quot; .-&gt; dev
 
   subgraph SCREENS[&quot;Legacy screens — src/games&quot;]
-    picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
+    picker[&quot;EquationOutbreakSettings&quot;]
     gMath[&quot;Math games&lt;br/&gt;ZombieMathBlaster&quot;]
   end
 
@@ -219,7 +220,7 @@ code { font-family:var(--mono); font-size:.9em; }
 
   subgraph LIB[&quot;Legacy logic — src/lib (pure, unit-tested)&quot;]
     zlib[&quot;Zombie engine&lt;br/&gt;zombieWaveEngine, raycastOutcome,&lt;br/&gt;laneNavigation, rootMotion, zombieRoster&quot;]
-    plat[&quot;Platform adapters&lt;br/&gt;gameAudio, errorReporting&quot;]
+    plat[&quot;Platform adapters&lt;br/&gt;gameAudio&quot;]
   end
 
   subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
@@ -237,6 +238,8 @@ code { font-family:var(--mono); font-size:.9em; }
     tiles[&quot;tiles/&lt;br/&gt;TileBoard + pure placement rules&quot;]
     writing[&quot;writing/&lt;br/&gt;WritingSurface, CoachPanel, ModifierDeck,&lt;br/&gt;bindIllustrationReveal (pieces_api + timers)&quot;]
     wgames[&quot;prompt_forge/, style_remix/, tag_team/, clue_master/&lt;br/&gt;bind* writing games over writing/&quot;]
+    home[&quot;home/&lt;br/&gt;GamePickerView + bindGamePicker (kid home)&quot;]
+    errors[&quot;errors/&lt;br/&gt;ReportError capability, bound ErrorBoundary,&lt;br/&gt;window error listeners (assembly)&quot;]
     timing[&quot;timing/&lt;br/&gt;Timers capability + useScheduled&quot;]
     library[&quot;story_library/&lt;br/&gt;shelf + reader + home entry card&lt;br/&gt;(bindStoryLibrary, injected confirm)&quot;]
     badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
@@ -251,6 +254,9 @@ code { font-family:var(--mono); font-size:.9em; }
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
   app --&gt; picker &amp; gMath
+  app -- &quot;assembleGamePicker() once&quot; --&gt; home
+  home --&gt; query &amp; apiad &amp; den
+  errors --&gt; apiad &amp; den
   app -- &quot;assemblePathfinder() once&quot; --&gt; pathfinder
   dev -- &quot;map builder, level gallery&quot; --&gt; pathfinder
   pathfinder --&gt; query &amp; apiad &amp; den &amp; ids

@@ -1,13 +1,19 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { reportClientError } from '../lib/errorReporting'
+import type { ReportError } from './error_report.pure.lib.ts'
 
-interface Props {
-  children: ReactNode
+export interface ErrorBoundaryProps {
+  readonly children: ReactNode
 }
 
 interface State {
-  failed: boolean
+  readonly failed: boolean
+}
+
+export interface ErrorBoundaryDeps {
+  readonly report: ReportError
+  /** Reloads the page (`location.reload`). */
+  readonly reload: () => void
 }
 
 // Top-level safety net: without this, an uncaught error anywhere in the tree
@@ -15,18 +21,19 @@ interface State {
 // leaves a silent blank page — nothing a kid can act on, and nothing that
 // tells a parent what happened. This catches it, reports it, and shows a
 // recoverable screen instead.
-export class ErrorBoundary extends Component<Props, State> {
-  state: State = { failed: false }
+export function bindErrorBoundary({ report, reload }: ErrorBoundaryDeps): ComponentType<ErrorBoundaryProps> {
+  class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
+  override state: State = { failed: false }
 
   static getDerivedStateFromError(): State {
     return { failed: true }
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    reportClientError('react-error-boundary', error.message, error.stack, info.componentStack ?? undefined)
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    report('react-error-boundary', { message: error.message, stack: error.stack, componentStack: info.componentStack ?? undefined })
   }
 
-  render() {
+  override render(): ReactNode {
     if (this.state.failed) {
       return (
         <div
@@ -49,10 +56,12 @@ export class ErrorBoundary extends Component<Props, State> {
           <div style={{ color: 'var(--fg-secondary)', maxWidth: 360 }}>
             Something went wrong. Let's try again.
           </div>
-          <DenButton label="Try again" size="lg" onClick={() => window.location.reload()} />
+          <DenButton label="Try again" size="lg" onClick={reload} />
         </div>
       )
     }
     return this.props.children
   }
+}
+  return ErrorBoundary
 }
