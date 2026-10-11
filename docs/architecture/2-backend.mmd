@@ -1,89 +1,56 @@
 flowchart TB
   client["React SPA"] -- "/api/*" --> main
 
-  subgraph API["HTTP layer — app/main.py (FastAPI, legacy entry: uvicorn app.main:app)"]
+  subgraph API["Legacy HTTP layer — app/main.py (FastAPI entry: uvicorn app.main:app)"]
     main["App + lifespan<br/>CORS, /static mount, seeds (via profiles/) + badges"]
-    r_play["Gameplay<br/>/games, /items/next, /attempts"]
-    r_eval["Feedback<br/>/ratings, /verifications"]
     r_write["Writing pieces<br/>/pieces, /illustrations, /revisions, /remixes, /turns"]
     r_prog["Progress<br/>/badges, /stats"]
   end
 
-  subgraph SVC["Services — app/services (IO + orchestration)"]
-    s_loop["loop_a_service<br/>choose_next_item_level, process_attempt"]
+  subgraph SVC["Legacy services — app/services"]
     s_badge["badges_service<br/>stats, award badges"]
     s_img["image_generation<br/>ImageGenerator: OpenAI or Noop"]
   end
 
-  subgraph ENG["Engine — app/engine (pure, no IO)"]
-    loopa["loop_a<br/>evaluate_level: promote / hold / support<br/>select_next_item_level"]
-    lvl["level_selector<br/>get_or_create_level"]
-  end
-
-  subgraph GAMES["Game modules — app/games"]
-    reg["registry<br/>game_id to GameModule"]
-    base["GameModule contract<br/>generate_item, repeat_key, score_attempt"]
-    g1["syllable_builder"]
-    g2["equation_builder"]
-    g3["fact_fluency"]
-    g4["pathfinder"]
-    g5["prompt_forge, style_remix_lab<br/>tag_team_story, clue_master"]
-    arith["_arithmetic helpers"]
-  end
-
-  subgraph DATA["Persistence"]
-    events["events/log<br/>append_event: append-only"]
-    models["models/ SQLModel<br/>Profile, Level, Attempt, Event, Piece,<br/>Badge, Rating, Verification, PlaySession..."]
+  subgraph DATA["Legacy persistence"]
+    elog["events/log<br/>append_event (pieces, badges)"]
+    models["models/ SQLModel<br/>Piece, Badge, Attempt/Rating (read by badges)"]
     dbpy["db.py<br/>engine + get_session"]
-    sqlite[("SQLite")]
   end
+
+  sqlite[("SQLite")]
 
   subgraph NEW["Guardrailed — app/&lt;feature&gt;/&lt;name&gt;_&lt;kind&gt;_&lt;color&gt;.py (assembly → effect → pure)"]
     comp["app/composition (assembly)<br/>AppSettings via load_settings()<br/>assemble_features(app, settings)"]
-    t_routes["todo/ todo_routes_effect<br/>bind_todo_routes(service): /api/examples/todos"]
-    t_svc["todo_service_effect<br/>make_todo_service(repository, clock, new_id)"]
-    t_repo["todo_repository_effect<br/>over an injected engine"]
-    t_pure["todo_reducers_pure, todo_schemas_pure,<br/>todo_ports_pure (no IO, no framework)"]
-    practice["practice/<br/>/api/practice-config<br/>routes → service → SQL repository"]
+    todo["todo/<br/>/api/examples/todos (the worked example)"]
     profiles["profiles/<br/>/profiles, /unlock, /photos, /profile-photos/remix<br/>passwords (scrypt), photo files, demo seeding"]
     admin["admin/<br/>/admin/login + the admin password check"]
+    play["play/<br/>/games, /items/next, /attempts, /ratings, /verifications<br/>games/ (item generators), Loop A (pure)"]
+    events["events/<br/>the append-only event log"]
+    practice["practice/<br/>/api/practice-config"]
+    pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
-    pathfinder["pathfinder/<br/>/completions, /maps, /published-maps<br/>routes → service → SQL repository"]
   end
 
   openai["OpenAI Images API"]
 
-  main --> r_play & r_eval & r_write & r_prog
+  main --> r_write & r_prog
   main -- "mounts new-style routers" --> comp
-  comp -- "builds + wires" --> t_routes & t_svc & t_repo
-  comp -- "builds + wires<br/>(game lookups)" --> practice
-  practice --> sqlite
-  comp -- "builds + wires" --> pathfinder
-  pathfinder --> sqlite
-  comp -- "builds + wires<br/>(log dir from AppSettings)" --> crash
-  comp -- "builds + wires" --> profiles & admin
-  profiles -- "is_admin_password<br/>(injected)" --> admin
-  profiles -- "erase a profile's data<br/>(injected)" --> practice & pathfinder & main
-  practice & pathfinder -- "profile lookups<br/>(injected)" --> profiles
-  r_play & r_write & r_prog -- "profile exists / age" --> profiles
-  profiles --> sqlite
-  profiles -- "photo remix" --> openai
-  r_play -- "reads a kid's practice config" --> practice
-  t_routes --> t_svc --> t_repo
-  t_routes & t_svc & t_repo --> t_pure
-  t_repo --> sqlite
-  r_play --> s_loop
-  r_play --> reg
+  comp -- "builds + wires" --> todo & profiles & admin & play & events & practice & pathfinder & crash
+  profiles -- "is_admin_password" --> admin
+  profiles -- "erase a profile's data" --> play & events & practice & pathfinder & main
+  play -- "birth year, practice config" --> profiles & practice
+  play -- "append / read events" --> events
+  play -- "after an attempt: award badges" --> s_badge
+  practice -- "game rules" --> play
+  practice & pathfinder -- "profile lookups" --> profiles
+  r_write & r_prog -- "profile exists, game titles" --> profiles & play
   r_write --> s_img
   r_prog --> s_badge
-  r_play --> s_badge
-  s_loop --> loopa
-  s_loop --> lvl
-  s_loop --> events
-  reg --> base
-  base --> g1 & g2 & g3 & g4 & g5
-  g2 & g3 --> arith
   s_img --> openai
-  r_play & r_eval & r_write & r_prog --> models
-  events --> models
+  profiles -- "photo remix" --> openai
+  r_write & r_prog & s_badge --> models
+  s_badge & r_write --> elog
+  elog --> models
   models --> dbpy --> sqlite
+  todo & profiles & play & events & practice & pathfinder --> sqlite

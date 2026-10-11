@@ -1,6 +1,6 @@
 # Backend migration: legacy → feature/color layout
 
-55 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
+25 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
 unchanged, but new code can't import them. Don't big-bang rename. **Migrate a module when
 you're already changing it and you need it from new-style code.**
 
@@ -33,4 +33,5 @@ nothing more.
 - [x] `app/admin_auth.py` → `AppSettings.admin_password: SecretStr`, checked by `app/admin/` (no Depends needed: the header is a route parameter)
 - [x] profiles, passwords, photos, remix preview → `app/profiles/`
 - [ ] `app/db.py` → engine created in assembly (last; every legacy route depends on it)
-- [ ] games, engine, events, services, the remaining routes
+- [x] games, engine, Loop A, attempts, ratings, verifications → `app/play/`; the event log → `app/events/`
+- [ ] badges + stats, writing pieces, then db.py, util.py, models/, main.py, scripts/

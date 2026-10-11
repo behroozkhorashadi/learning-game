@@ -2,10 +2,8 @@
 
 - /api/profiles[...], /api/profile-photos/remix, /api/admin/login: migrated to
   app/profiles/ and app/admin/ (wired in app/composition/).
-- GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
-- POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
-- POST /api/ratings      : persists an explicit kid-provided rating, logs `rating_given`.
-- POST /api/verifications: persists a parent's PIN-gated write-out check, logs `verification_completed`.
+- /api/games, /api/items/next, /api/attempts, /api/ratings, /api/verifications:
+  migrated to app/play/ (and the event log to app/events/).
 - GET  /api/profiles/{id}/badges, /stats: the Accomplishments screen's badge list and
   live-derived stats read-model.
 - POST /api/pieces, GET /api/pieces, GET/PATCH/DELETE /api/pieces/{id}: the writing-layer's
@@ -27,7 +25,6 @@ backend/.env.example) without that person's name/photo living in the repo.
 """
 
 from contextlib import asynccontextmanager
-from random import Random
 from typing import AsyncIterator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -35,21 +32,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
-import app.games  # noqa: F401  (populates the game registry on import)
 from app.composition.app_settings_assembly import load_settings
 from app.composition.app_wiring_assembly import assemble_features
 from app.db import create_db_and_tables, engine, get_session
-from app.engine.level_selector import get_current_level
-from app.engine.loop_a import LoopAConfig
 from app.events.log import append_event
-from app.games.registry import all_games, get_game
-from app.util import utcnow
-from app.models.attempt import Attempt, AttemptCreate, AttemptRead
-from app.models.badge import Badge, BadgeAward, BadgeStatus
 from app.models.enums import EventType
-from app.models.event import Event
-from app.models.game import GameMetadata, Level
-from app.models.item import Item
+from app.util import utcnow
+from app.models.badge import Badge, BadgeAward, BadgeStatus
 from app.models.piece import (
     Illustration,
     IllustrationCreate,
@@ -64,14 +53,9 @@ from app.models.piece import (
     TurnLine,
     TurnLineCreate,
 )
-from app.models.rating import Rating, RatingCreate
-from app.models.session import PlaySession
-from app.models.skill import SkillState
 from app.models.stats import ProfileStats
-from app.models.verification import Verification, VerificationCreate
 from app.services.badges_service import compute_profile_stats, evaluate_and_award_badges, seed_badges
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
-from app.services.loop_a_service import choose_next_item_level, process_attempt
 
 
 @asynccontextmanager
@@ -108,25 +92,23 @@ def _erase_legacy_profile_rows(profile_id: int) -> None:
             piece = session.get(Piece, piece_id)
             if piece is not None:
                 session.delete(piece)
-
-        attempt_ids = [a.id for a in session.exec(select(Attempt).where(Attempt.profile_id == profile_id)).all()]
-        for verification in session.exec(select(Verification).where(Verification.attempt_id.in_(attempt_ids))).all():
-            session.delete(verification)
-
-        for model in (Attempt, Event, Rating, BadgeAward, Level, PlaySession, SkillState):
-            for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
-                session.delete(row)
+        for award in session.exec(select(BadgeAward).where(BadgeAward.profile_id == profile_id)).all():
+            session.delete(award)
         session.commit()
 
 
-def _age(profile_id: int) -> int:
-    """Approximate current age, derived rather than stored so it never goes stale."""
-    birth_year = features.profiles.birth_year(profile_id)
-    return utcnow().year - (birth_year if birth_year is not None else utcnow().year)
+def _award_badges_after_attempt(profile_id: int, session_id: Optional[str]) -> None:
+    with Session(engine) as session:
+        evaluate_and_award_badges(session, profile_id=profile_id, session_id=session_id)
 
 
 # New-style features (backend/AGENTS.md) are wired in app/composition/, not here.
-features = assemble_features(app, load_settings(), erase_legacy_profile_rows=_erase_legacy_profile_rows)
+features = assemble_features(
+    app,
+    load_settings(),
+    erase_legacy_profile_rows=_erase_legacy_profile_rows,
+    after_attempt=_award_badges_after_attempt,
+)
 
 
 @app.get("/api/profiles/{profile_id}/badges", response_model=list[BadgeStatus])
@@ -160,234 +142,7 @@ def get_profile_stats(profile_id: int, session: Session = Depends(get_session)) 
     from the Rating/Attempt/Event log rather than stored (HANDOFF.md §4)."""
     if not features.profiles.exists(profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
-    return compute_profile_stats(session, profile_id)
-
-
-@app.get("/api/games", response_model=list[GameMetadata])
-def list_games() -> list[GameMetadata]:
-    """Backs the Game Picker screen — lists every registered game module."""
-    return [game.metadata for game in all_games()]
-
-
-@app.get("/api/items/next", response_model=Item)
-def get_next_item(
-    profile_id: int,
-    game_id: str,
-    session_id: Optional[str] = None,
-    session: Session = Depends(get_session),
-) -> Item:
-    if not features.profiles.exists(profile_id):
-        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
-    age = _age(profile_id)
-    try:
-        game = get_game(game_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    # No-repeat-within-a-session (client passes a session_id it generates once
-    # per play session): derive already-shown items from the event log rather
-    # than tracking new mutable state, per the event-sourcing pattern elsewhere.
-    exclude: set[str] = set()
-    if session_id:
-        shown = session.exec(
-            select(Event).where(
-                Event.profile_id == profile_id,
-                Event.game_id == game_id,
-                Event.session_id == session_id,
-                Event.event_type == EventType.ITEM_SHOWN,
-            )
-        ).all()
-        # `Event.payload` is `{**item.model_dump(), "pacing": ...}`, so the
-        # item's own payload dict (where repeat_key looks) is nested one level
-        # deeper, under the "payload" key.
-        exclude = {
-            key
-            for event in shown
-            if (key := game.repeat_key(event.payload.get("payload", {}))) is not None
-        }
-
-    # A parent-set practice config (see app/practice/) fully
-    # replaces the adaptive Level for this profile/game — skip
-    # choose_next_item_level entirely rather than computing a directive
-    # that'd go unused.
-    practice_config = features.practice_configs.get(profile_id, game_id) if game.supports_practice_config() else None
-    if practice_config is not None:
-        item = game.generate_item_from_practice_config(
-            difficulty=practice_config.difficulty,
-            operations=practice_config.operations,
-            focus_numbers=practice_config.focus_numbers,
-            rng=Random(),
-            exclude=frozenset(exclude),
-        )
-        pacing = "practice_config"
-    else:
-        directive = choose_next_item_level(
-            session,
-            profile_id=profile_id,
-            game_id=game_id,
-            max_level=game.metadata.max_level,
-            starting_level=game.starting_level_for_age(age),
-            rng=Random(),
-        )
-        item = game.generate_item(directive.level, Random(), exclude=frozenset(exclude))
-        pacing = directive.kind.value
-
-    append_event(
-        session,
-        profile_id=profile_id,
-        game_id=game_id,
-        event_type=EventType.ITEM_SHOWN,
-        payload={**item.model_dump(), "pacing": pacing},
-        session_id=session_id,
-    )
-    return item
-
-
-@app.post("/api/attempts", response_model=AttemptRead, status_code=201)
-def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)) -> AttemptRead:
-    if not features.profiles.exists(payload.profile_id):
-        raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
-    age = _age(payload.profile_id)
-    try:
-        game = get_game(payload.game_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    level = get_current_level(
-        session, payload.profile_id, payload.game_id, starting_level=game.starting_level_for_age(age)
-    )
-    attempt = Attempt(
-        item_id=payload.item_id,
-        profile_id=payload.profile_id,
-        game_id=payload.game_id,
-        variant_id=payload.variant_id,
-        session_id=payload.session_id,
-        level=level,
-        correct=payload.telemetry.correct,
-        score=payload.telemetry.score,
-        hints_used=payload.telemetry.hints_used,
-        time_ms=payload.telemetry.time_ms,
-        details=payload.details,
-    )
-    session.add(attempt)
-    session.commit()
-    session.refresh(attempt)
-
-    event = append_event(
-        session,
-        profile_id=payload.profile_id,
-        game_id=payload.game_id,
-        event_type=EventType.ATTEMPT,
-        payload={
-            "attempt_id": attempt.id,
-            "item_id": attempt.item_id,
-            "level": attempt.level,
-            "correct": attempt.correct,
-            "score": attempt.score,
-            "hints_used": attempt.hints_used,
-            "time_ms": attempt.time_ms,
-        },
-        variant_id=payload.variant_id,
-        session_id=payload.session_id,
-    )
-
-    loop_config = (
-        LoopAConfig(
-            window_size=3,
-            rapid_promotion_window_size=3,
-            rapid_promotion_time_ms=6000,
-            promote_accuracy=0.67,
-            at_level_probability=0.9,
-            below_level_probability=0.1,
-        )
-        if payload.game_id == "fact_fluency"
-        else None
-    )
-    _decision, hint_offered = process_attempt(
-        session,
-        attempt=attempt,
-        max_level=game.metadata.max_level,
-        starting_level=game.starting_level_for_age(age),
-        age_level=game.typical_level_for_age(age),
-        config=loop_config,
-    )
-
-    evaluate_and_award_badges(session, profile_id=payload.profile_id, session_id=payload.session_id)
-    session.refresh(attempt)
-
-    return AttemptRead(
-        id=attempt.id,
-        correct=attempt.correct,
-        score=attempt.score,
-        hints_used=attempt.hints_used,
-        time_ms=attempt.time_ms,
-        event_id=event.event_id,
-        hint_offered=hint_offered,
-    )
-
-
-@app.post("/api/ratings", response_model=Rating, status_code=201)
-def post_rating(payload: RatingCreate, session: Session = Depends(get_session)) -> Rating:
-    if not features.profiles.exists(payload.profile_id):
-        raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
-
-    rating = Rating(
-        profile_id=payload.profile_id,
-        game_id=payload.game_id,
-        variant_id=payload.variant_id,
-        scale=payload.scale,
-        value=payload.value,
-    )
-    session.add(rating)
-    session.commit()
-    session.refresh(rating)
-
-    append_event(
-        session,
-        profile_id=payload.profile_id,
-        game_id=payload.game_id,
-        event_type=EventType.RATING_GIVEN,
-        payload={"rating_id": rating.id, "scale": rating.scale.value, "value": rating.value},
-        variant_id=payload.variant_id,
-    )
-
-    # `append_event`'s own commit expires every object in the session
-    # (SQLAlchemy's default `expire_on_commit`), which clears `rating`'s
-    # instance `__dict__` — and FastAPI's response serialization reads that
-    # dict directly, so without this it would silently respond with `{}`.
-    session.refresh(rating)
-    return rating
-
-
-@app.post("/api/verifications", response_model=Verification, status_code=201)
-def post_verification(payload: VerificationCreate, session: Session = Depends(get_session)) -> Verification:
-    attempt = session.get(Attempt, payload.attempt_id)
-    if attempt is None:
-        raise HTTPException(status_code=404, detail=f"no attempt with id {payload.attempt_id}")
-
-    verification = Verification(
-        attempt_id=payload.attempt_id,
-        correct=payload.correct,
-        verified_by=payload.verified_by,
-    )
-    session.add(verification)
-    session.commit()
-    session.refresh(verification)
-
-    append_event(
-        session,
-        profile_id=attempt.profile_id,
-        game_id=attempt.game_id,
-        event_type=EventType.VERIFICATION_COMPLETED,
-        payload={"verification_id": verification.id, "attempt_id": attempt.id, "correct": verification.correct},
-        variant_id=attempt.variant_id,
-        session_id=attempt.session_id,
-    )
-
-    # See the matching comment in post_rating: append_event's commit expires
-    # every session-tracked object, including `verification`.
-    session.refresh(verification)
-    return verification
+    return compute_profile_stats(session, profile_id, game_title=features.play.game_title)
 
 
 def _get_piece_or_404(session: Session, piece_id: str) -> Piece:

@@ -14,12 +14,11 @@ totals should derive from the existing Event log rather than being stored."
 
 from collections import Counter
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from sqlmodel import Session, select
 
 from app.events.log import append_event
-from app.games.registry import get_game
 from app.models.attempt import Attempt
 from app.models.badge import Badge, BadgeAward
 from app.models.enums import EventType
@@ -197,7 +196,9 @@ def _start_of_week(today: date) -> date:
     return today - timedelta(days=today.weekday())
 
 
-def compute_profile_stats(session: Session, profile_id: int) -> ProfileStats:
+def compute_profile_stats(
+    session: Session, profile_id: int, *, game_title: Callable[[str], Optional[str]]
+) -> ProfileStats:
     ratings = list(session.exec(select(Rating).where(Rating.profile_id == profile_id)).all())
     attempts = list(session.exec(select(Attempt).where(Attempt.profile_id == profile_id)).all())
     pieces = list(session.exec(select(Piece).where(Piece.profile_id == profile_id)).all())
@@ -218,10 +219,7 @@ def compute_profile_stats(session: Session, profile_id: int) -> ProfileStats:
     most_played_game = None
     if game_counts:
         game_id = game_counts.most_common(1)[0][0]
-        try:
-            most_played_game = get_game(game_id).metadata.title
-        except KeyError:
-            most_played_game = game_id
+        most_played_game = game_title(game_id) or game_id
 
     last_session_at = max((e.timestamp for e in events), default=None)
 

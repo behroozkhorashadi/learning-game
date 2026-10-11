@@ -28,6 +28,10 @@ from app.services.badges_service import (
 from app.util import utcnow
 
 
+def _title(game_id):
+    return {"syllable_builder": "Syllable Builder"}.get(game_id)
+
+
 @pytest.fixture
 def session():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
@@ -185,7 +189,7 @@ def test_evaluate_and_award_badges_is_idempotent(session):
 
 
 def test_stats_with_no_activity(session):
-    stats = compute_profile_stats(session, 1)
+    stats = compute_profile_stats(session, 1, game_title=_title)
 
     assert stats.total_stars == 0
     assert stats.avg_rating is None
@@ -201,7 +205,7 @@ def test_stats_total_stars_and_avg_rating(session):
     session.add(Rating(profile_id=1, game_id="syllable_builder", scale=RatingScale.STARS_1_5, value=2))
     session.commit()
 
-    stats = compute_profile_stats(session, 1)
+    stats = compute_profile_stats(session, 1, game_title=_title)
 
     assert stats.total_stars == 6
     assert stats.avg_rating == 3.0
@@ -212,7 +216,7 @@ def test_stats_minutes_this_week_excludes_attempts_from_last_week(session):
     _attempt(session, time_ms=60000, created_at=now)
     _attempt(session, time_ms=120000, created_at=now - timedelta(days=10))
 
-    stats = compute_profile_stats(session, 1)
+    stats = compute_profile_stats(session, 1, game_title=_title)
 
     assert stats.minutes_this_week == 1
 
@@ -224,7 +228,7 @@ def test_stats_most_played_game_counts_attempts_and_pieces(session):
     session.add(Piece(profile_id=1, game_id="prompt_forge", body="ho"))
     session.commit()
 
-    stats = compute_profile_stats(session, 1)
+    stats = compute_profile_stats(session, 1, game_title=_title)
 
     assert stats.most_played_game == "Syllable Builder"
 
@@ -240,7 +244,7 @@ def test_stats_day_streak_counts_consecutive_active_days(session):
     )
     session.commit()
 
-    stats = compute_profile_stats(session, 1)
+    stats = compute_profile_stats(session, 1, game_title=_title)
 
     assert stats.day_streak == 3
 
@@ -283,6 +287,8 @@ def test_get_badges_lists_all_seeded_badges_with_earned_status(client):
 
 
 def test_get_stats_returns_the_expected_shape(client):
+    rated = client.post("/api/ratings", json={"profile_id": 1, "game_id": "syllable_builder", "scale": "stars_1_5", "value": 4})
+    assert rated.status_code == 201
     response = client.get("/api/profiles/1/stats")
 
     assert response.status_code == 200
@@ -296,7 +302,6 @@ def test_get_stats_returns_the_expected_shape(client):
         "last_session_at",
         "progress_delta_pct",
     }
-    # test_api.py has already given profile 1 one 4-star rating.
     assert body["total_stars"] >= 4
     assert body["avg_rating"] is not None
 
