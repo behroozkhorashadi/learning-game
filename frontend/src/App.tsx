@@ -11,8 +11,8 @@ import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
 import { ZombieMathBlaster } from './games/ZombieMathBlaster'
 import { assemblePromptForge } from '@app/prompt_forge/prompt_forge.assembly.main.ts'
-import { StyleRemixLab } from './games/StyleRemixLab'
-import { TagTeamStory } from './games/TagTeamStory'
+import { assembleStyleRemix } from '@app/style_remix/style_remix.assembly.main.ts'
+import { assembleTagTeam } from '@app/tag_team/tag_team.assembly.main.ts'
 import { ClueMaster } from './games/ClueMaster'
 import { assemblePathfinder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
@@ -31,6 +31,8 @@ function App() {
   const [SyllableBuilder] = useState(assembleSyllableBuilder)
   const [EquationBuilder] = useState(assembleEquationBuilder)
   const [PromptForge] = useState(assemblePromptForge)
+  const [StyleRemixLab] = useState(assembleStyleRemix)
+  const [TagTeamStory] = useState(assembleTagTeam)
   const [Pathfinder] = useState(assemblePathfinder)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
@@ -164,8 +166,7 @@ function App() {
   } else if (gameId === 'style_remix_lab') {
     content = (
       <StyleRemixLab
-        profileId={profile.id!}
-        profileName={profile.name}
+        profileId={profile.id}
         onBack={() => setGameId(null)}
         onFinished={() => {
           setGameId(null)
@@ -176,8 +177,7 @@ function App() {
   } else if (gameId === 'tag_team_story') {
     content = (
       <TagTeamStory
-        profileId={profile.id!}
-        profileName={profile.name}
+        profileId={profile.id}
         onBack={() => setGameId(null)}
         onFinished={() => {
           setGameId(null)

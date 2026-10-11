@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
-import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
-import type { CoachQuestion, CoachStatus } from '@app/writing/coach_questions.pure.lib.ts'
+import { useState, type ComponentType, type ReactElement } from 'react'
+import type { PieceRecord } from '@app/api/pieces_schema.pure.lib.ts'
+import { useScheduled } from '@app/timing/use_scheduled.pure.hook.ts'
 import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
-import { assembleIllustrationReveal } from '@app/writing/writing.assembly.main.ts'
+import type { IllustrationRevealProps } from '@app/writing/illustration_reveal.effect.ui.tsx'
+import { useRevisionPass } from '@app/writing/use_revision_pass.pure.hook.ts'
+import { CARD_FLIP_MS, type WritingGameDeps } from '@app/writing/writing_game_state.pure.lib.ts'
+import { sentencesOf, wordCountOf } from '@app/writing/writing_text.pure.lib.ts'
+import { BASE_PASSAGE, GAME_ID, STYLES, MAX_VERSIONS, MIN_REMIX_WORDS, MIN_VERSIONS, PIECE_TITLE, coachQuestions, drawStyle, type Style, type Version } from './remix_styles.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
-import type { Piece, PieceCreate, RemixVersionCreate, RevisionPassCreate } from '../types/generated'
-
-// Migrated (src/writing/); assembled once for this legacy module.
-const IllustrationReveal = assembleIllustrationReveal()
-
-// Migrated (src/ids/); assembled once for this legacy module.
-const randomId = assembleRandomId()
 
 /**
  * Style Remix Lab — ported from the Claude Design handoff bundle
@@ -22,61 +19,19 @@ const randomId = assembleRandomId()
  * repeatedly in different styles, then comparing versions, is the lesson.
  */
 
-const GAME_ID = 'style_remix_lab'
-const MIN_VERSIONS = 2
-const MAX_VERSIONS = 4
-const MIN_REMIX_WORDS = 15
-
-const BASE_PASSAGE = 'The dog got out of the yard. It was raining. Mr. Patel found it near the shop and brought it back. Everyone was glad.'
-
-interface Style {
-  key: string
-  name: string
-  how: string
-  color: string
-  tint: string
-  iconPaths: string[]
-}
-
-const STYLES: Style[] = [
-  { key: 'spooky', name: 'Make It Spooky', how: 'Same facts. Make me nervous.', color: '#5006B2', tint: '#F5EDFF', iconPaths: ['M14.6 4.9A7.25 7.25 0 1 0 19.1 9.4 5.75 5.75 0 0 1 14.6 4.9Z'] },
-  { key: 'news', name: 'News Report', how: "Report it like the six o'clock news.", color: '#00289E', tint: '#EDF2FF', iconPaths: ['M19.25 11.5C19.25 15.0899 16.1421 18 12.25 18C11.4 18 10.5921 17.8763 9.85 17.65L5.75 19.25L6.75 15.75C5.9 14.6 5.25 13.15 5.25 11.5C5.25 7.91015 8.35786 5 12.25 5C16.1421 5 19.25 7.91015 19.25 11.5Z'] },
-  { key: 'villain', name: "Villain's Point of View", how: 'Tell it as whoever wanted it to go wrong.', color: '#741553', tint: '#FFF0F8', iconPaths: ['M19.25 12C19.25 16.0041 16.0041 19.25 12 19.25C7.99594 19.25 4.75 16.0041 4.75 12C4.75 7.99594 7.99594 4.75 12 4.75C16.0041 4.75 19.25 7.99594 19.25 12Z', 'M9.75 15.25C10.6 14.35 13.4 14.35 14.25 15.25', 'M8.75 9L11 10.25M15.25 9L13 10.25'] },
-  { key: 'fairy', name: 'Fairy Tale', how: 'Once upon a time — and make it grand.', color: '#7F5305', tint: '#FFF7E6', iconPaths: ['M17 4.75C17 5.89705 15.8971 7 14.75 7C15.8971 7 17 8.10295 17 9.25C17 8.10295 18.1029 7 19.25 7C18.1029 7 17 5.89705 17 4.75Z', 'M17 14.75C17 15.8971 15.8971 17 14.75 17C15.8971 17 17 18.1029 17 19.25C17 18.1029 18.1029 17 17 15.8971 17 14.75Z', 'M9 7.75C9 9.91666 6.91666 12 4.75 12C6.91666 12 9 14.0833 9 16.25C9 14.0833 11.0833 12 13.25 12C11.0833 12 9 9.91666 9 7.75Z'] },
-  { key: 'third', name: 'Retell in Third Person', how: 'Step outside. Nobody is "I" any more.', color: '#2C6416', tint: '#EFFBE8', iconPaths: ['M12.25 11.25C13.4926 11.25 14.5 10.2426 14.5 9C14.5 7.75736 13.4926 6.75 12.25 6.75C11.0074 6.75 10 7.75736 10 9C10 10.2426 11.0074 11.25 12.25 11.25Z', 'M8 17.25C8 14.9028 9.90279 13.25 12.25 13.25C14.5972 13.25 16.5 14.9028 16.5 17.25', 'M6.75 12.5C5.5 13.25 4.75 14.6 4.75 16.25'] },
-  { key: 'sports', name: 'Sports Commentary', how: 'Call it live, like a match.', color: '#7F5305', tint: '#FFF3E0', iconPaths: ['M15.75 10.75C15.75 10.75 16.25 11.234 16.25 12C16.25 12.766 15.75 13.25 15.75 13.25M17.75 7.75C17.75 7.75 19.25 9 19.25 11.999C19.25 14.997 17.75 16.25 17.75 16.25M13.25 4.75L8.5 8.75H5.75C5.48478 8.75 5.23043 8.85536 5.04289 9.04289C4.85536 9.23043 4.75 9.48478 4.75 9.75V14.25C4.75 14.5152 4.85536 14.7696 5.04289 14.9571C5.23043 15.1446 5.48478 15.25 5.75 15.25H8.5L13.25 19.25V4.75Z'] },
-]
-
-function wordCountOf(text: string): number {
-  const trimmed = text.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
-}
-
-function sentencesOf(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
-interface Version {
-  styleKey: string
-  styleName: string
-  color: string
-  tint: string
-  body: string
-}
-
 type Phase = 'drawing' | 'remixing' | 'shelf' | 'revising' | 'revealing'
 
-interface Props {
-  profileId: number
-  profileName?: string
-  onBack: () => void
-  onFinished: () => void
+export interface StyleRemixProps {
+  readonly profileId: number
+  readonly onBack: () => void
+  readonly onFinished: () => void
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
+export interface StyleRemixDeps extends WritingGameDeps {
+  readonly IllustrationReveal: ComponentType<IllustrationRevealProps>
+}
+
+function BackButton({ onClick }: { readonly onClick: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -90,140 +45,82 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-const PIECE_TITLE = 'Same Scene, Six Ways'
 
-export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
+export function bindStyleRemix(deps: StyleRemixDeps): ComponentType<StyleRemixProps> {
+  const { IllustrationReveal } = deps
+  function StyleRemixLab({ profileId, onBack, onFinished }: StyleRemixProps): ReactElement {
   const [phase, setPhase] = useState<Phase>('drawing')
-  const [sessionId] = useState(() => randomId())
-  const [error, setError] = useState<string | null>(null)
-  const [piece, setPiece] = useState<Piece | null>(null)
+  const [sessionId] = useState(deps.createId)
+  const scheduled = useScheduled(deps.timers)
+  const pass = useRevisionPass(deps)
+  const [piece, setPiece] = useState<PieceRecord | null>(null)
 
   // -- drawing --
-  const [usedStyleKeys, setUsedStyleKeys] = useState<string[]>([])
-  const [drawnStyle, setDrawnStyle] = useState<Style | null>(null)
+  const [usedStyleKeys, setUsedStyleKeys] = useState<readonly string[]>([])
+  const [drawnStyle, setDrawnStyle] = useState<Style | null>(() => drawStyle([], deps.random))
   const [cardState, setCardState] = useState<'down' | 'flipping' | 'up'>('down')
 
   // -- remixing --
   const [remixText, setRemixText] = useState('')
 
   // -- shelf --
-  const [versions, setVersions] = useState<Version[]>([])
+  const [versions, setVersions] = useState<readonly Version[]>([])
   const [favouriteIndex, setFavouriteIndex] = useState<number | null>(null)
 
-  // -- revising / revealing --
-  const [reviseDraft, setReviseDraft] = useState('')
-  const [revisionStart, setRevisionStart] = useState('')
-  const [coachStatus, setCoachStatus] = useState<CoachStatus>('thinking')
-  const [saving, setSaving] = useState(false)
+  const reviseDraft = pass.text
+  const favouriteStyleName = favouriteIndex === null ? null : (versions[favouriteIndex]?.styleName ?? null)
+  const questions = coachQuestions(favouriteStyleName, pass.changed)
 
-  const availableStyles = useMemo(() => STYLES.filter((s) => !usedStyleKeys.includes(s.key)), [usedStyleKeys])
-
-  function drawStyle() {
-    const pool = availableStyles.length > 0 ? availableStyles : STYLES
-    const style = pool[Math.floor(Math.random() * pool.length)]
-    setDrawnStyle(style)
-    setCardState('down')
-  }
-
-  useEffect(() => {
-    if (phase === 'drawing' && !drawnStyle) drawStyle()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase])
-
-  function flipCard() {
+  function flipCard(): void {
     if (cardState !== 'down') return
     setCardState('flipping')
-    setTimeout(() => setCardState('up'), 700)
+    scheduled.after(CARD_FLIP_MS, () => {
+      setCardState('up')
+    })
   }
 
-  function startRemixing() {
-    if (!drawnStyle) return
+  function startRemixing(): void {
+    if (drawnStyle === null) return
     setUsedStyleKeys((keys) => [...keys, drawnStyle.key])
     setRemixText('')
     setPhase('remixing')
   }
 
-  function putOnShelf() {
-    if (!drawnStyle) return
+  function putOnShelf(): void {
+    if (drawnStyle === null) return
     setVersions((v) => [...v, { styleKey: drawnStyle.key, styleName: drawnStyle.name, color: drawnStyle.color, tint: drawnStyle.tint, body: remixText }])
     setDrawnStyle(null)
     setPhase('shelf')
   }
 
-  function drawAnother() {
+  function drawAnother(): void {
+    setDrawnStyle(drawStyle(usedStyleKeys, deps.random))
+    setCardState('down')
     setPhase('drawing')
   }
 
-  function toggleFavourite(index: number) {
+  function toggleFavourite(index: number): void {
     setFavouriteIndex((cur) => (cur === index ? null : index))
   }
 
-  function startRevising() {
-    if (favouriteIndex == null) return
-    const chosen = versions[favouriteIndex].body
-    setRevisionStart(chosen)
-    setReviseDraft(chosen)
+  function startRevising(): void {
+    const chosen = favouriteIndex === null ? undefined : versions[favouriteIndex]
+    if (chosen === undefined) return
+    pass.begin(chosen.body)
     setPhase('revising')
-    setCoachStatus('thinking')
-    setTimeout(() => setCoachStatus('questions'), 1200)
   }
 
-  const favouriteStyleName = favouriteIndex != null ? versions[favouriteIndex].styleName : null
-
-  const coachQuestions: CoachQuestion[] = useMemo(() => {
-    const changed = reviseDraft !== revisionStart
-    return [
-      { id: 'opening', kind: 'opening', text: 'Does your first sentence still sound like your style, or did it drift back to plain?', answered: changed },
-      { id: 'wordChoice', kind: 'wordChoice', text: 'Pick one word only the base passage would use. Swap it for something in your style’s voice.', answered: changed },
-      { id: 'feeling', kind: 'feeling', text: `Where does this feel most like ${favouriteStyleName ?? 'your style'}?`, answered: changed },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviseDraft, revisionStart, favouriteStyleName])
-
-  async function finishRevising() {
-    setSaving(true)
-    setError(null)
-    const changed = reviseDraft !== revisionStart
-    const revisionPayload: RevisionPassCreate = { questions_asked: coachQuestions.map((q) => q.text), changed }
-    const piecePayload: PieceCreate = {
-      profile_id: profileId,
-      game_id: GAME_ID,
-      session_id: sessionId,
-      title: PIECE_TITLE,
-      body: reviseDraft,
-      constraints: [],
-      art_style: 'storybook',
-    }
-    try {
-      const res = await fetch('/api/pieces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(piecePayload),
-      })
-      if (!res.ok) throw new Error(`POST /api/pieces -> ${res.status}`)
-      const created: Piece = await res.json()
-      await Promise.all(
-        versions.map((v, i) =>
-          fetch(`/api/pieces/${created.id}/remixes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ style_key: v.styleKey, body: v.body, is_favourite: i === favouriteIndex } satisfies RemixVersionCreate),
-          }),
-        ),
-      )
-      await fetch(`/api/pieces/${created.id}/revisions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(revisionPayload),
-      })
-      setPiece(created)
-      setCoachStatus('done')
-      setPhase('revealing')
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setSaving(false)
-    }
+  async function finishRevising(): Promise<void> {
+    const saved = await pass.finish(
+      { profile_id: profileId, game_id: GAME_ID, session_id: sessionId, title: PIECE_TITLE, body: reviseDraft, constraints: [], art_style: 'storybook' },
+      questions.map((q) => q.text),
+      async (pieceId) => {
+        await Promise.all(versions.map((v, i) => deps.pieces.addRemix(pieceId, { style_key: v.styleKey, body: v.body, is_favourite: i === favouriteIndex })))
+      },
+    )
+    if (saved === null) return
+    setPiece(saved)
+    setPhase('revealing')
   }
 
   const sentences = sentencesOf(reviseDraft)
@@ -242,7 +139,11 @@ export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>}
+        {pass.error !== null && (
+          <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>
+            Error: {pass.error}
+          </pre>
+        )}
 
         {phase === 'drawing' && drawnStyle && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '30px 32px 34px', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)', boxSizing: 'border-box' }}>
@@ -310,6 +211,7 @@ export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
               <div style={{ padding: '26px 30px 24px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 12 }}>Your version</div>
                 <textarea
+                  aria-label="Your remix"
                   value={remixText}
                   onChange={(e) => setRemixText(e.target.value)}
                   placeholder="Start with the gate. Or the rain. Anywhere."
@@ -346,6 +248,8 @@ export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
                 const fav = favouriteIndex === i
                 return (
                   <button
+                    aria-pressed={fav}
+                    aria-label={`${fav ? 'Picked' : 'Pick'} ${v.styleName}`}
                     key={i}
                     type="button"
                     onClick={() => toggleFavourite(i)}
@@ -406,17 +310,17 @@ export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
           <CoachPanel
             pieceTitle={PIECE_TITLE}
             value={reviseDraft}
-            onChange={setReviseDraft}
-            status={coachStatus}
-            questions={coachStatus === 'thinking' ? [] : coachQuestions}
-            onHappy={finishRevising}
-            happyReady={!saving && reviseDraft !== revisionStart}
+            onChange={pass.setText}
+            status={pass.status}
+            questions={pass.status === 'thinking' ? [] : questions}
+            onHappy={() => void finishRevising()}
+            happyReady={!pass.saving && pass.changed}
           />
         )}
 
-        {phase === 'revealing' && piece && (
+        {phase === 'revealing' && piece !== null && (
           <IllustrationReveal
-            pieceId={piece.id!}
+            pieceId={piece.id}
             pieceTitle={piece.title ?? 'Your remix'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}
@@ -428,4 +332,6 @@ export function StyleRemixLab({ profileId, onBack, onFinished }: Props) {
       </div>
     </div>
   )
+}
+  return StyleRemixLab
 }

@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
-import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
-import type { CoachQuestion, CoachStatus } from '@app/writing/coach_questions.pure.lib.ts'
+import { useState, type ComponentType, type ReactElement } from 'react'
+import type { PieceRecord } from '@app/api/pieces_schema.pure.lib.ts'
+import { useScheduled } from '@app/timing/use_scheduled.pure.hook.ts'
 import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
-import { assembleIllustrationReveal } from '@app/writing/writing.assembly.main.ts'
+import type { IllustrationRevealProps } from '@app/writing/illustration_reveal.effect.ui.tsx'
+import { useRevisionPass } from '@app/writing/use_revision_pass.pure.hook.ts'
+import type { WritingGameDeps } from '@app/writing/writing_game_state.pure.lib.ts'
+import { wordCountOf } from '@app/writing/writing_text.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '@app/den/den_chip.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
-import type { Piece, PieceCreate, RevisionPassCreate, TurnAuthor, TurnLineCreate } from '../types/generated'
-
-// Migrated (src/writing/); assembled once for this legacy module.
-const IllustrationReveal = assembleIllustrationReveal()
-
-// Migrated (src/ids/); assembled once for this legacy module.
-const randomId = assembleRandomId()
+import { GAME_ID, GENRE_LABELS, MIN_TURN_WORDS, aiLine, chooseStory, coachQuestions, nextTurn, wordShare, type Genre, type GenreVariant, type Level, type Mode, type Turn } from './tag_team_story.pure.lib.ts'
 
 /**
  * Tag-Team Story — ported from the Claude Design handoff bundle
@@ -23,141 +20,22 @@ const randomId = assembleRandomId()
  * written most of the story either way.
  */
 
-const GAME_ID = 'tag_team_story'
-const MIN_TURN_WORDS = 4
-
-type Mode = 'team' | 'wild'
-type Level = 4 | 6 | 8
-type Genre = 'ghost' | 'adventure' | 'silly' | 'surprise'
-type RealGenre = 'ghost' | 'adventure' | 'silly'
 type Phase = 'setup' | 'thread' | 'assembly' | 'revising' | 'revealing'
 
-interface GenreVariant {
-  title: string
-  lines: string[]
+/** How long "my" turn takes to arrive. */
+const AI_TURN_MS = 900
+
+export interface TagTeamProps {
+  readonly profileId: number
+  readonly onBack: () => void
+  readonly onFinished: () => void
 }
 
-// Each genre has a few complete story variants (title + all four fixed
-// lines) rather than one fixed opener — the later lines are written to
-// follow directly from that variant's specific opener, so randomizing just
-// the first line would leave the rest of the story not making sense.
-// Picking a whole variant keeps every line coherent while still varying
-// what the kid sees each time they play the same genre.
-const GENRE_VARIANTS: Record<RealGenre, GenreVariant[]> = {
-  ghost: [
-    {
-      title: 'The Eighth Floor',
-      lines: [
-        'The lift in our building only goes to floor seven, but last night the button for eight was lit.',
-        'The doors opened on a corridor that smelled like a swimming pool.',
-        'Something on the other side knocked twice, politely.',
-        'Whatever answered was already using your name before you said it out loud.',
-      ],
-    },
-    {
-      title: 'The Mirror That Waited',
-      lines: [
-        "Grandma's hallway mirror had gone silver-green at the edges with age, and lately my reflection was always one blink behind.",
-        "I waved at it twice just to be sure, and the second wave didn't wave back.",
-        'That night the mirror fogged up on its own, and someone wrote a letter in it before I got there.',
-        "The letter spelled my name, but it wasn't in my handwriting — it was in hers.",
-      ],
-    },
-    {
-      title: 'The Bus That Skips a Stop',
-      lines: [
-        "Bus 13 stops at every corner on my street except one, and the driver always slows down there like he's counting something.",
-        'One rainy Tuesday the doors opened at that stop anyway, and nobody I knew got on.',
-        'The seat next to mine stayed cold the rest of the ride, even with the heater running full blast.',
-        "When we pulled up to school, the driver said 'see you tomorrow' to somebody who wasn't there — and it answered back.",
-      ],
-    },
-  ],
-  adventure: [
-    {
-      title: 'The Long Way Down',
-      lines: [
-        "The map said there was nothing past the treeline, which is exactly why we walked past it.",
-        'The path forked around a rock shaped like a fist, knuckles and all.',
-        "By the time the sun dropped, we could see smoke from somewhere that wasn't a campfire.",
-        'Whoever built the bridge wanted us to cross it — that was the part that worried me.',
-      ],
-    },
-    {
-      title: 'The Locked Room at the Lighthouse',
-      lines: [
-        "The lighthouse had been dark for twenty years, which made it strange that the top room's light flicked on the night we camped at its base.",
-        'The door up top had seven locks and only six keys taped underneath, so somebody wanted it open just enough.',
-        'Halfway up the spiral stairs, the wind stopped completely, like the whole building was holding its breath with us.',
-        "Whoever left the seventh key wanted us to find what was waiting behind that door — that's the part we didn't plan for.",
-      ],
-    },
-    {
-      title: 'The River With No Bottom',
-      lines: [
-        "The map called it Blue Hollow Creek, but the ferryman just called it 'the one you don't wade in,' and wouldn't say why.",
-        'Our raft caught on something under the surface that felt too smooth to be a rock and too warm to be ice.',
-        "By the second bend, the current started pulling us upstream, which a river isn't supposed to do.",
-        "Whatever lived at the bottom had been steering us the whole time — we just hadn't noticed which way was really downstream.",
-      ],
-    },
-  ],
-  silly: [
-    {
-      title: 'The Hamster With Seniority',
-      lines: [
-        'The class hamster escaped during silent reading and nobody noticed for forty whole minutes.',
-        "It had made it as far as the teacher's lunch, and the teacher hadn't noticed either.",
-        'By recess there were rumors it could talk, and one very confident rumor that it could drive.',
-        'The principal announced over the intercom that the hamster now had seniority.',
-      ],
-    },
-    {
-      title: "The Lunch Lady's Secret Recipe",
-      lines: [
-        "Every Friday the cafeteria served 'Mystery Casserole,' and this Friday the lunch lady accidentally left the recipe card taped to the register.",
-        "The first ingredient was written in crayon, the second in cursive, and the third was just the words 'don't tell the principal.'",
-        'By fourth period the whole school knew ingredient three was extra credit homework nobody had turned in.',
-        "The lunch lady just smiled and said next week's mystery casserole would use everyone's report cards instead.",
-      ],
-    },
-    {
-      title: "The Substitute Who Wasn't",
-      lines: [
-        'Our sub for the day introduced herself as Ms. Nguyen, except the real Ms. Nguyen walked in five minutes later looking very confused.',
-        "The first Ms. Nguyen just shrugged and said there'd clearly been 'a scheduling mixup' and kept teaching fractions.",
-        'By lunch there were three Ms. Nguyens, all grading the same quiz, all giving out full marks.',
-        'The principal gave up trying to figure out which one to fire and just gave all three a parking spot.',
-      ],
-    },
-  ],
+export interface TagTeamDeps extends WritingGameDeps {
+  readonly IllustrationReveal: ComponentType<IllustrationRevealProps>
 }
 
-const GENRE_LABELS: Record<Genre, string> = {
-  ghost: 'Ghost story',
-  adventure: 'Adventure',
-  silly: 'Silly',
-  surprise: 'Surprise me',
-}
-
-function wordCountOf(text: string): number {
-  const trimmed = text.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
-}
-
-interface Turn {
-  author: TurnAuthor
-  text: string
-}
-
-interface Props {
-  profileId: number
-  profileName?: string
-  onBack: () => void
-  onFinished: () => void
-}
-
-function BackButton({ onClick }: { onClick: () => void }) {
+function BackButton({ onClick }: { readonly onClick: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -171,154 +49,91 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
+export function bindTagTeam(deps: TagTeamDeps): ComponentType<TagTeamProps> {
+  const { IllustrationReveal } = deps
+  function TagTeamStory({ profileId, onBack, onFinished }: TagTeamProps): ReactElement {
   const [phase, setPhase] = useState<Phase>('setup')
-  const [sessionId] = useState(() => randomId())
-  const [error, setError] = useState<string | null>(null)
-  const [piece, setPiece] = useState<Piece | null>(null)
+  const [sessionId] = useState(deps.createId)
+  const scheduled = useScheduled(deps.timers)
+  const pass = useRevisionPass(deps)
+  const [piece, setPiece] = useState<PieceRecord | null>(null)
 
   // -- setup --
   const [mode, setMode] = useState<Mode>('team')
   const [level, setLevel] = useState<Level>(6)
   const [genre, setGenre] = useState<Genre>('ghost')
-  const [actualGenre, setActualGenre] = useState<RealGenre>('ghost')
-  const [variantIndex, setVariantIndex] = useState(0)
+  const [variant, setVariant] = useState<GenreVariant | null>(null)
 
   // -- thread --
-  const [turns, setTurns] = useState<Turn[]>([])
+  const [turns, setTurns] = useState<readonly Turn[]>([])
   const [aiThinking, setAiThinking] = useState(false)
   const [kidDraft, setKidDraft] = useState('')
 
-  // -- revising / revealing --
-  const [reviseDraft, setReviseDraft] = useState('')
-  const [revisionStart, setRevisionStart] = useState('')
-  const [coachStatus, setCoachStatus] = useState<CoachStatus>('thinking')
-  const [saving, setSaving] = useState(false)
+  const reviseDraft = pass.text
+  const isKidTurn = phase === 'thread' && !aiThinking && nextTurn(turns.length, level) === 'kid'
+  const questions = coachQuestions(pass.changed)
 
-  const currentIndex = turns.length
-  const isAiTurn = currentIndex % 2 === 0
-  const isKidTurn = !isAiTurn && currentIndex < level
-
-  function startStory() {
-    const resolvedGenre: RealGenre =
-      genre === 'surprise' ? (['ghost', 'adventure', 'silly'] as const)[Math.floor(Math.random() * 3)] : genre
-    const variants = GENRE_VARIANTS[resolvedGenre]
-    const resolvedVariantIndex = Math.floor(Math.random() * variants.length)
-    setActualGenre(resolvedGenre)
-    setVariantIndex(resolvedVariantIndex)
-    setError(null)
-    setPhase('thread')
-    setAiThinking(true)
-    setTimeout(() => {
-      const line = variants[resolvedVariantIndex].lines[0]
-      setTurns([{ author: 'ai', text: line }])
-      setAiThinking(false)
-    }, 900)
+  /** Adds a turn; then either the AI answers after a pause, or the story is full and goes to assembly. */
+  function addTurn(story: GenreVariant, before: readonly Turn[], turn: Turn): void {
+    const after = [...before, turn]
+    setTurns(after)
+    const next = nextTurn(after.length, level)
+    if (next === 'done') {
+      setPhase('assembly')
+      return
+    }
+    if (next === 'ai') {
+      setAiThinking(true)
+      scheduled.after(AI_TURN_MS, () => {
+        setAiThinking(false)
+        addTurn(story, after, { author: 'ai', text: aiLine(story, after.length) })
+      })
+    }
   }
 
-  // auto-play the AI's turn whenever it becomes its turn mid-thread
-  useEffect(() => {
-    if (phase !== 'thread') return
-    if (!isAiTurn || currentIndex === 0 || currentIndex >= level) return
+  function startStory(): void {
+    const chosen = chooseStory(genre, deps.random)
+    setVariant(chosen.variant)
+    setTurns([])
+    setPhase('thread')
     setAiThinking(true)
-    const aiLineIndex = Math.floor(currentIndex / 2)
-    const lines = GENRE_VARIANTS[actualGenre][variantIndex].lines
-    const timer = setTimeout(() => {
-      const line = lines[aiLineIndex] ?? lines[lines.length - 1]
-      setTurns((t) => [...t, { author: 'ai', text: line }])
+    scheduled.after(AI_TURN_MS, () => {
       setAiThinking(false)
-    }, 900)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, currentIndex, isAiTurn, level])
+      addTurn(chosen.variant, [], { author: 'ai', text: aiLine(chosen.variant, 0) })
+    })
+  }
 
-  useEffect(() => {
-    if (phase === 'thread' && turns.length === level && level > 0) {
-      setPhase('assembly')
-    }
-  }, [phase, turns.length, level])
-
-  function passItBack() {
-    if (!isKidTurn) return
+  function passItBack(): void {
     const text = kidDraft.trim()
-    if (wordCountOf(text) < MIN_TURN_WORDS) return
-    setTurns((t) => [...t, { author: 'kid', text }])
+    if (!isKidTurn || variant === null || wordCountOf(text) < MIN_TURN_WORDS) return
     setKidDraft('')
+    addTurn(variant, turns, { author: 'kid', text })
   }
 
   const kidWordCount = wordCountOf(kidDraft)
   const canPassBack = kidWordCount >= MIN_TURN_WORDS
+  const assembledBody = turns.map((t) => t.text).join(' ')
+  const share = wordShare(turns)
+  const totalWords = share.kidWords + share.aiWords
+  const kidSharePct = share.kidPct
+  const aiSharePct = share.aiPct
 
-  const assembledBody = useMemo(() => turns.map((t) => t.text).join(' '), [turns])
-
-  const kidWords = turns.filter((t) => t.author === 'kid').reduce((n, t) => n + wordCountOf(t.text), 0)
-  const aiWords = turns.filter((t) => t.author === 'ai').reduce((n, t) => n + wordCountOf(t.text), 0)
-  const totalWords = kidWords + aiWords
-  const kidSharePct = totalWords > 0 ? Math.round((kidWords / totalWords) * 100) : 0
-  const aiSharePct = totalWords > 0 ? 100 - kidSharePct : 0
-
-  function startRevising() {
-    setRevisionStart(assembledBody)
-    setReviseDraft(assembledBody)
+  function startRevising(): void {
+    pass.begin(assembledBody)
     setPhase('revising')
-    setCoachStatus('thinking')
-    setTimeout(() => setCoachStatus('questions'), 1200)
   }
 
-  const coachQuestions: CoachQuestion[] = useMemo(() => {
-    const changed = reviseDraft !== revisionStart
-    return [
-      { id: 'opening', kind: 'opening', text: 'Read your first line out loud — does it still sound like you?', answered: changed },
-      { id: 'wordChoice', kind: 'wordChoice', text: 'Find one of your lines and swap a plain word for a stranger one.', answered: changed },
-      { id: 'feeling', kind: 'feeling', text: 'Which of your lines does the most work in this story? Make it a little longer.', answered: changed },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviseDraft, revisionStart])
-
-  async function finishRevising() {
-    setSaving(true)
-    setError(null)
-    const changed = reviseDraft !== revisionStart
-    const revisionPayload: RevisionPassCreate = { questions_asked: coachQuestions.map((q) => q.text), changed }
-    const piecePayload: PieceCreate = {
-      profile_id: profileId,
-      game_id: GAME_ID,
-      session_id: sessionId,
-      title: GENRE_VARIANTS[actualGenre][variantIndex].title,
-      body: reviseDraft,
-      constraints: [],
-      art_style: 'storybook',
-    }
-    try {
-      const res = await fetch('/api/pieces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(piecePayload),
-      })
-      if (!res.ok) throw new Error(`POST /api/pieces -> ${res.status}`)
-      const created: Piece = await res.json()
-      await Promise.all(
-        turns.map((t, i) =>
-          fetch(`/api/pieces/${created.id}/turns`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ author: t.author, text: t.text, order: i } satisfies TurnLineCreate),
-          }),
-        ),
-      )
-      await fetch(`/api/pieces/${created.id}/revisions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(revisionPayload),
-      })
-      setPiece(created)
-      setCoachStatus('done')
-      setPhase('revealing')
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setSaving(false)
-    }
+  async function finishRevising(): Promise<void> {
+    const saved = await pass.finish(
+      { profile_id: profileId, game_id: GAME_ID, session_id: sessionId, title: variant?.title ?? 'Our story', body: reviseDraft, constraints: [], art_style: 'storybook' },
+      questions.map((q) => q.text),
+      async (pieceId) => {
+        await Promise.all(turns.map((t, i) => deps.pieces.addTurn(pieceId, { author: t.author, text: t.text, order: i })))
+      },
+    )
+    if (saved === null) return
+    setPiece(saved)
+    setPhase('revealing')
   }
 
   const heroExcerpt = turns[0]?.text ?? reviseDraft.slice(0, 80)
@@ -336,7 +151,11 @@ export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>}
+        {pass.error !== null && (
+          <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>
+            Error: {pass.error}
+          </pre>
+        )}
 
         {phase === 'setup' && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, overflow: 'hidden', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)' }}>
@@ -510,11 +329,12 @@ export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
                 </div>
               )}
 
-              {isKidTurn && !aiThinking && (
+              {isKidTurn && (
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '.09em', textTransform: 'uppercase', fontWeight: 700, color: '#3F7A22', background: '#EAF9E2', border: '1px solid #CFEEBE', borderRadius: 7, padding: '5px 8px', flex: 'none' }}>You</div>
                   <div style={{ flex: 1, background: '#FFFFFF', border: '2px solid #5BCC2D', borderRadius: 16, padding: '16px 18px' }}>
                     <textarea
+                      aria-label="Your line"
                       value={kidDraft}
                       onChange={(e) => setKidDraft(e.target.value)}
                       placeholder="One or two sentences is plenty. Leave me something to work with."
@@ -565,7 +385,7 @@ export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
             </div>
 
             <div style={{ padding: '32px 36px 30px' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, lineHeight: 1.15, color: '#2A2E37', marginBottom: 20 }}>{GENRE_VARIANTS[actualGenre][variantIndex].title}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, lineHeight: 1.15, color: '#2A2E37', marginBottom: 20 }}>{variant?.title ?? ''}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {turns.map((t, i) => {
                   const isKid = t.author === 'kid'
@@ -588,19 +408,19 @@ export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
 
         {phase === 'revising' && (
           <CoachPanel
-            pieceTitle={GENRE_VARIANTS[actualGenre][variantIndex].title}
+            pieceTitle={variant?.title ?? 'Our story'}
             value={reviseDraft}
-            onChange={setReviseDraft}
-            status={coachStatus}
-            questions={coachStatus === 'thinking' ? [] : coachQuestions}
-            onHappy={finishRevising}
-            happyReady={!saving && reviseDraft !== revisionStart}
+            onChange={pass.setText}
+            status={pass.status}
+            questions={pass.status === 'thinking' ? [] : questions}
+            onHappy={() => void finishRevising()}
+            happyReady={!pass.saving && pass.changed}
           />
         )}
 
-        {phase === 'revealing' && piece && (
+        {phase === 'revealing' && piece !== null && (
           <IllustrationReveal
-            pieceId={piece.id!}
+            pieceId={piece.id}
             pieceTitle={piece.title ?? 'Your story'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}
@@ -612,4 +432,6 @@ export function TagTeamStory({ profileId, onBack, onFinished }: Props) {
       </div>
     </div>
   )
+}
+  return TagTeamStory
 }
