@@ -19,7 +19,7 @@ const meta = {
   ],
   args: {
     onSceneError: fn(),
-    zombies: createRound({ seed: 9, lives: 3, grenades: 0, shoves: 3, cover: COVER }).zombies,
+    zombies: createRound({ seed: 9, lives: 3, grenades: 0, shoves: 3, ammo: 0, cover: COVER }).zombies,
     answers: ['6', '7', '8', '5'],
     characters: ZOMBIE_CHARACTER_REGISTRY.slice(0, 4),
     projectiles: [],

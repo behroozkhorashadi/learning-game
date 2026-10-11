@@ -23,6 +23,8 @@ export interface HordeHudProps {
   readonly grenades: number
   /** Push-backs left this round. */
   readonly shoves: number
+  /** Special rounds left, or null with standard rounds loaded (they never run out). */
+  readonly ammo: number | null
   /** What the next click does. */
   readonly armed: ArmedMode
   readonly muted: boolean
@@ -55,7 +57,7 @@ const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, paddin
 
 const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C', shove: '#3D8BFF' }
 
-export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleShove, onToggleMute, onZap }: HordeHudProps): ReactElement {
+export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleShove, onToggleMute, onZap }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const shoveArmed = armed === 'shove'
   const ring = ARMED_COLOR[armed]
@@ -69,6 +71,11 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves
           <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
             ⏱ {secondsLeft}s
           </div>
+          {ammo !== null && (
+            <div role="status" aria-label={ammo > 0 ? `${String(ammo)} special rounds left` : 'Special rounds used up: back to standard rounds'} style={{ ...PILL, color: ammo > 0 ? '#7F5305' : '#98A2B3' }}>
+              🔶 {ammo}
+            </div>
+          )}
           <div role="img" aria-label={`${String(lives)} lives left`} style={{ fontSize: 22 }}>
             {'❤️'.repeat(Math.max(lives, 0))}
           </div>

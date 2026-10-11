@@ -15,7 +15,7 @@ const meta = {
     ),
   ],
   args: {
-    armory: loaded(fakeArmory({ balance: 320, owned: ['rapid_blaster'], grenades: 2 }).state()),
+    armory: loaded(fakeArmory({ balance: 320, owned: ['rapid_blaster'], grenades: 2, ammo: { armor_piercing: 14 } }).state()),
     choice: { weaponId: 'rapid_blaster', bulletId: 'standard_rounds' },
     onChoose: fn(),
     onBuy: fn(),
@@ -30,7 +30,7 @@ type Story = StoryObj<typeof meta>
 export const BuyAndEquip: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Buy Armor-Piercing Rounds for 200 points' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Buy Armor-Piercing Rounds for 60 points' }))
     await expect(args.onBuy).toHaveBeenCalledWith('armor_piercing')
     await userEvent.click(canvas.getByRole('button', { name: 'Equip Starter Blaster' }))
     await expect(args.onChoose).toHaveBeenCalledWith({ weaponId: 'starter_blaster', bulletId: 'standard_rounds' })

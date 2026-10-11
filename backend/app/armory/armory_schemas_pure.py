@@ -15,21 +15,23 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
 ArmoryItemKind = Literal["weapon", "bullet", "grenade"]
-ArmoryEntryKind = Literal["earned", "purchased", "grenades_used"]
+ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used"]
 
 # A generous ceiling on one round's points: a round is 60 seconds, so anything past
 # this is a bug or a tampered request, not good play.
 MAX_ROUND_POINTS = 2000
 MAX_ROUND_GRENADES = 50
+MAX_ROUND_SHOTS = 500
 
 ItemId = Annotated[str, StringConstraints(min_length=1, max_length=64)]
 
 
 class ArmoryItem(BaseModel):
     """One thing the armory sells. `price` 0 means every profile starts owning it.
-    A grenade pack can be bought again and again and adds `quantity` grenades; a
-    weapon or bullet is bought once. `requires` names an item that must be owned
-    first (the next weapon tier needs the one before it)."""
+    A `consumable` (a grenade pack, a pack of special rounds) can be bought again
+    and again and adds `quantity` grenades or rounds, which get used up in play; a
+    weapon is bought once. `requires` names an item that must be owned first (the
+    next weapon tier needs the one before it)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -39,6 +41,7 @@ class ArmoryItem(BaseModel):
     description: str
     price: int = Field(ge=0)
     quantity: int = Field(ge=1)
+    consumable: bool
     requires: ItemId | None
 
 
@@ -53,16 +56,20 @@ class ArmoryState(BaseModel):
     spent: int
     owned: list[str]
     grenades: int
+    ammo: dict[str, int]
+    """Special rounds left, by bullet item id. Standard rounds never run out."""
     catalog: list[ArmoryItem]
 
 
 class ArmoryRoundCreate(BaseModel):
-    """A finished Zombie Horde round: the points it scored and the grenades it threw."""
+    """A finished Zombie Horde round: the points it scored, the grenades it threw, and
+    the special rounds it fired (by bullet item id)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     points: int = Field(ge=0, le=MAX_ROUND_POINTS)
     grenades_used: int = Field(ge=0, le=MAX_ROUND_GRENADES)
+    rounds_used: dict[ItemId, Annotated[int, Field(ge=0, le=MAX_ROUND_SHOTS)]] = Field(default_factory=dict[str, int])
 
 
 class ArmoryPurchaseCreate(BaseModel):

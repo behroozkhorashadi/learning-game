@@ -37,3 +37,15 @@ def test_refusals_map_to_status_codes(client: httpx.Client) -> None:
     assert client.post(f"{ARMORY}/purchases", json={"item_id": "starter_blaster"}).status_code == 409
     assert client.get("/api/profiles/9/armory").status_code == 404
     assert client.post(f"{ARMORY}/rounds", json={"points": -5, "grenades_used": 0}).status_code == 422
+
+
+def test_buying_rounds_and_using_them(client: httpx.Client) -> None:
+    client.post(f"{ARMORY}/rounds", json={"points": 100, "grenades_used": 0})
+    bought = client.post(f"{ARMORY}/purchases", json={"item_id": "armor_piercing"}).json()
+    assert bought["ammo"]["armor_piercing"] == 25
+    # 40 points left: not enough for a second pack.
+    assert client.post(f"{ARMORY}/purchases", json={"item_id": "armor_piercing"}).status_code == 409
+    used = client.post(
+        f"{ARMORY}/rounds", json={"points": 0, "grenades_used": 0, "rounds_used": {"armor_piercing": 10}}
+    )
+    assert used.json()["ammo"]["armor_piercing"] == 15

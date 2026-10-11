@@ -40,11 +40,17 @@ describe('ArmoryShop', () => {
     expect(onBuy).not.toHaveBeenCalled()
   })
 
-  it('equips owned gear', () => {
+  it('loads special rounds it has, shows how many are left, and sells more', () => {
     const onChoose = vi.fn()
-    render(<ArmoryShop {...props({ onChoose, armory: loaded(fakeArmory({ owned: ['armor_piercing'] }).state()) })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Equip Armor-Piercing Rounds' }))
+    render(<ArmoryShop {...props({ onChoose, armory: loaded(fakeArmory({ balance: 100, ammo: { armor_piercing: 12 } }).state()) })} />)
+    const rounds = within(screen.getByRole('list', { name: 'Rounds' }))
+    expect(rounds.getByText('12 left')).toBeTruthy()
+    expect(rounds.getByText('none left')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Load Armor-Piercing Rounds' }))
     expect(onChoose).toHaveBeenCalledWith({ weaponId: 'starter_blaster', bulletId: 'armor_piercing' })
+    expect(screen.getByRole('button', { name: 'Buy Armor-Piercing Rounds for 60 points' })).toBeTruthy()
+    // None left: nothing to load, only to buy.
+    expect(screen.queryByRole('button', { name: 'Load Explosive Rounds' })).toBeNull()
   })
 
   it('shows loading, a failed load, and a refused purchase', () => {

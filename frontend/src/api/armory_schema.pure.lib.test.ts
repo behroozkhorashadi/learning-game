@@ -8,7 +8,8 @@ const STATE = {
   spent: 0,
   owned: ['starter_blaster'],
   grenades: 1,
-  catalog: [{ id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades.', price: 80, quantity: 3, requires: null }],
+  ammo: { armor_piercing: 0 },
+  catalog: [{ id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades.', price: 80, quantity: 3, consumable: true, requires: null }],
 }
 
 describe('armoryStateSchema', () => {

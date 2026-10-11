@@ -24,6 +24,7 @@ const CONFIG: HordeConfig = {
   durationMs: ROUND_MS,
   travelMs: 30_000,
   power: shotPower(STARTER_LOADOUT),
+  basePower: shotPower(STARTER_LOADOUT),
   cooldownMs: 700,
   grenade: GRENADE,
   cover: COVER,
@@ -43,7 +44,7 @@ const QUESTION: HordeQuestion = {
 }
 
 function round(seed = 1, config: HordeConfig = CONFIG): HordeState {
-  return setQuestion(createRound({ seed, lives: 3, grenades: 2, shoves: 3, cover: config.cover }), QUESTION)
+  return setQuestion(createRound({ seed, lives: 3, grenades: 2, shoves: 3, ammo: 0, cover: config.cover }), QUESTION)
 }
 
 function run(state: HordeState, ms: number, config: HordeConfig = CONFIG, stepMs = 16): HordeState {
@@ -68,7 +69,7 @@ function eventTypes(state: HordeState): readonly string[] {
 
 describe('createRound', () => {
   it('starts four full-health zombies spread over the back of the field, inside it and outside cover', () => {
-    const state = createRound({ seed: 42, lives: 3, grenades: 1, shoves: 3, cover: COVER })
+    const state = createRound({ seed: 42, lives: 3, grenades: 1, shoves: 3, ammo: 0, cover: COVER })
     expect(state.zombies).toHaveLength(ZOMBIE_COUNT)
     expect(new Set(state.zombies.map((z) => z.depth)).size).toBe(ZOMBIE_COUNT)
     for (const zombie of state.zombies) {
@@ -95,7 +96,7 @@ describe('setQuestion', () => {
 
   it('never gives the right answer to a zombie waiting to respawn', () => {
     for (let seed = 0; seed < 40; seed++) {
-      let state = createRound({ seed, lives: 3, grenades: 0, shoves: 3, cover: [] })
+      let state = createRound({ seed, lives: 3, grenades: 0, shoves: 3, ammo: 0, cover: [] })
       state = withZombie(withZombie(state, 0, { posture: 'dead', postureUntilMs: 9999 }), 1, { posture: 'gone', postureUntilMs: 9999 })
       state = setQuestion(state, QUESTION)
       const right = state.answers.findIndex((a) => a.correct)
@@ -106,7 +107,7 @@ describe('setQuestion', () => {
   it('keeps the right answer on the field when there are more options than zombies', () => {
     const many: HordeQuestion = { ...QUESTION, options: [...QUESTION.options.slice(1), { label: '9', correct: false }, { label: '7', correct: true }] }
     for (let seed = 0; seed < 20; seed++) {
-      const state = setQuestion(createRound({ seed, lives: 3, grenades: 0, shoves: 3, cover: [] }), many)
+      const state = setQuestion(createRound({ seed, lives: 3, grenades: 0, shoves: 3, ammo: 0, cover: [] }), many)
       expect(state.answers).toHaveLength(ZOMBIE_COUNT)
       expect(state.answers.some((a) => a.correct)).toBe(true)
     }
@@ -332,7 +333,7 @@ describe('the weapon', () => {
   })
 
   it('a shot between questions hurts nobody', () => {
-    const state = createRound({ seed: 4, lives: 3, grenades: 0, shoves: 3, cover: [] })
+    const state = createRound({ seed: 4, lives: 3, grenades: 0, shoves: 3, ammo: 0, cover: [] })
     const zombie = state.zombies[0]
     const after = shoot(state, { zombieId: zombie?.id ?? '', zone: 'head' }, OPEN_FIELD)
     expect(after.zombies).toBe(state.zombies)
@@ -404,7 +405,7 @@ describe('grenades', () => {
   it('does nothing without grenades or between questions', () => {
     const none = { ...round(4), grenades: 0 }
     expect(throwGrenade(none, { x: 0, depth: 8 }, CONFIG)).toBe(none)
-    const between = createRound({ seed: 4, lives: 3, grenades: 2, shoves: 3, cover: [] })
+    const between = createRound({ seed: 4, lives: 3, grenades: 2, shoves: 3, ammo: 0, cover: [] })
     expect(throwGrenade(between, { x: 0, depth: 8 }, CONFIG)).toBe(between)
   })
 })
@@ -432,7 +433,7 @@ describe('spreading out', () => {
   })
 
   it('gives each slot its own side of the field', () => {
-    const state = createRound({ seed: 3, lives: 3, grenades: 0, shoves: 3, cover: [] })
+    const state = createRound({ seed: 3, lives: 3, grenades: 0, shoves: 3, ammo: 0, cover: [] })
     const xs = state.zombies.map((z) => z.x)
     expect(xs[0]).toBeLessThan(0)
     expect(xs[3]).toBeGreaterThan(0)
@@ -486,5 +487,20 @@ describe('never stuck, never hidden with the answer', () => {
     state = withZombie(state, right.slot, { posture: 'hiding', postureUntilMs: 1e9 })
     state = tick(state, 16, config)
     expect(state.zombies.find((z) => z.slot === right.slot)?.posture).toBe('advancing')
+  })
+})
+
+describe('special rounds', () => {
+  it('hit with the special power while they last, then fall back to standard', () => {
+    const strong = { head: 50, body: 50, leg: 50 }
+    const config: HordeConfig = { ...OPEN_FIELD, power: strong }
+    let state: HordeState = { ...round(4, config), ammo: 1 }
+    const slot = holding(state, true).slot
+    state = shootSlot(state, slot, 'body', config)
+    expect(state.zombies.find((z) => z.slot === slot)?.health).toBe(50)
+    expect(state.ammo).toBe(0)
+    state = shootSlot(state, slot, 'body', config)
+    expect(state.zombies.find((z) => z.slot === slot)?.health).toBe(25)
+    expect(state.stats.roundsUsed).toBe(1)
   })
 })

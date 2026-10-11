@@ -9,7 +9,8 @@ const STATE = {
   spent: 80,
   owned: ['starter_blaster', 'standard_rounds'],
   grenades: 4,
-  catalog: [{ id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades.', price: 80, quantity: 3, requires: null }],
+  ammo: { armor_piercing: 0 },
+  catalog: [{ id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades.', price: 80, quantity: 3, consumable: true, requires: null }],
 }
 
 function fakeHttp(respond: (url: string, method: string, body: unknown) => HttpResponse) {

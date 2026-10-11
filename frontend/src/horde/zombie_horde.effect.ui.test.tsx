@@ -155,7 +155,7 @@ describe('ZombieHorde: the end of a round', () => {
     await harness.scheduler.advance(60_000)
     expect(screen.getByRole('heading', { name: 'You held off the horde!' })).toBeTruthy()
     // 1 right answer (10) + 1 headshot (5) + survived (50) + 3 lives (30)
-    expect(harness.armory.rounds).toEqual([{ points: 95, grenades_used: 0 }])
+    expect(harness.armory.rounds).toEqual([{ points: 95, grenades_used: 0, rounds_used: {} }])
     expect(screen.getByRole('status').textContent).toContain('You now have 95 points')
     expect(within(screen.getByRole('list', { name: 'Facts you solved' })).getByText('3 + 4 = 7')).toBeTruthy()
     expect(harness.audio.count('stopMusic')).toBeGreaterThan(0)
@@ -169,7 +169,7 @@ describe('ZombieHorde: the end of a round', () => {
       await harness.scheduler.advance(2500)
     }
     expect(screen.getByRole('heading', { name: 'The horde got through!' })).toBeTruthy()
-    expect(harness.armory.rounds).toEqual([{ points: 0, grenades_used: 0 }])
+    expect(harness.armory.rounds).toEqual([{ points: 0, grenades_used: 0, rounds_used: {} }])
     // The question they tried and didn't get counts as a miss.
     expect(harness.attempts.at(-1)).toMatchObject({ telemetry: { correct: false, hints_used: 3 } })
   })
@@ -182,6 +182,33 @@ describe('ZombieHorde: the end of a round', () => {
     press('Play again')
     await settle()
     expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('95')
+  })
+})
+
+describe('ZombieHorde: special rounds', () => {
+  it('loads the best rounds it has, counts them down, and reports what it used', WHOLE_ROUND, async () => {
+    const harness = await open({ armory: fakeArmory({ ammo: { armor_piercing: 2 } }) })
+    expect(within(screen.getByRole('list', { name: 'Rounds' })).getByText('Loaded')).toBeTruthy()
+    await startRound(harness)
+    expect(screen.getByRole('status', { name: '2 special rounds left' })).toBeTruthy()
+    press('miss')
+    await harness.scheduler.advance(800)
+    press('miss')
+    await harness.scheduler.advance(800)
+    press('miss')
+    expect(screen.getByRole('status', { name: 'Special rounds used up: back to standard rounds' })).toBeTruthy()
+    await harness.scheduler.advance(60_000)
+    expect(harness.armory.rounds[0]?.rounds_used).toEqual({ armor_piercing: 2 })
+  })
+
+  it('buys a pack of rounds again and again', async () => {
+    const harness = await open({ armory: fakeArmory({ balance: 200 }) })
+    press('Buy Armor-Piercing Rounds for 60 points')
+    await settle()
+    press('Buy Armor-Piercing Rounds for 60 points')
+    await settle()
+    expect(harness.armory.state().ammo['armor_piercing']).toBe(50)
+    expect(within(screen.getByRole('list', { name: 'Rounds' })).getByText('50 left')).toBeTruthy()
   })
 })
 

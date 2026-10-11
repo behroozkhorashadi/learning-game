@@ -40,30 +40,41 @@ function effectLine(item: ArmoryItemRecord, choice: LoadoutChoice, owned: readon
   return reload === undefined ? hits : `Reload ${(reload / 1000).toFixed(2)}s · ${hits}`
 }
 
+/** Weapons and standard rounds once owned, plus any special rounds with some left: what a loadout may use. */
+export function usableGear(armory: ArmoryStateRecord): readonly string[] {
+  return [...armory.owned, ...Object.entries(armory.ammo).flatMap(([id, left]) => (left > 0 ? [id] : []))]
+}
+
 function ItemCard({ item, armory, choice, onChoose, onBuy, buying }: { readonly item: ArmoryItemRecord; readonly armory: ArmoryStateRecord; readonly choice: LoadoutChoice; readonly onChoose: (choice: LoadoutChoice) => void; readonly onBuy: (itemId: string) => void; readonly buying: string | null }): ReactElement {
-  const owned = item.kind !== 'grenade' && armory.owned.includes(item.id)
+  const rounds = item.kind === 'bullet' && item.consumable ? (armory.ammo[item.id] ?? 0) : null
+  const usable = rounds === null ? !item.consumable && armory.owned.includes(item.id) : rounds > 0
   const equipped = (item.kind === 'weapon' && choice.weaponId === item.id) || (item.kind === 'bullet' && choice.bulletId === item.id)
   const locked = item.requires !== null && !armory.owned.includes(item.requires)
   const affordable = item.price <= armory.balance
   const known = item.kind === 'grenade' || weaponById(item.id) !== null || bulletById(item.id) !== null
   const needs = item.requires === null ? null : (armory.catalog.find((other) => other.id === item.requires)?.name ?? item.requires)
+  const verb = item.kind === 'bullet' ? 'Load' : 'Equip'
 
-  function action(): ReactElement {
-    if (owned) {
-      if (equipped) return <span style={{ fontWeight: 800, color: '#3F7A22', fontSize: 14 }}>Equipped</span>
-      return (
-        <DenButton
-          label="Equip"
-          ariaLabel={`Equip ${item.name}`}
-          variant="softGreen"
-          shape="pill"
-          size="sm"
-          onClick={() => {
-            onChoose(item.kind === 'weapon' ? { ...choice, weaponId: item.id } : { ...choice, bulletId: item.id })
-          }}
-        />
-      )
-    }
+  function loadButton(): ReactElement | null {
+    if (!usable) return null
+    if (equipped) return <span style={{ fontWeight: 800, color: '#3F7A22', fontSize: 14 }}>{item.kind === 'bullet' ? 'Loaded' : 'Equipped'}</span>
+    return (
+      <DenButton
+        label={verb}
+        ariaLabel={`${verb} ${item.name}`}
+        variant="softGreen"
+        shape="pill"
+        size="sm"
+        onClick={() => {
+          onChoose(item.kind === 'weapon' ? { ...choice, weaponId: item.id } : { ...choice, bulletId: item.id })
+        }}
+      />
+    )
+  }
+
+  function buyButton(): ReactElement | null {
+    // Weapons and standard rounds are bought once; packs again and again.
+    if (!item.consumable && usable) return null
     if (locked) return <span style={{ fontSize: 13, color: '#8896AA' }}>Needs {needs}</span>
     return (
       <DenButton
@@ -83,11 +94,17 @@ function ItemCard({ item, armory, choice, onChoose, onBuy, buying }: { readonly 
   return (
     <li style={{ listStyle: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 18, background: equipped ? '#EEF8E8' : '#FFFFFF', border: `1px solid ${equipped ? '#B9E3A3' : '#EEE4D2'}` }}>
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' }}>{item.name}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' }}>
+          {item.name}
+          {rounds !== null && <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 700, color: rounds > 0 ? '#7F5305' : '#98A2B3' }}>{rounds > 0 ? `${String(rounds)} left` : 'none left'}</span>}
+        </div>
         <div style={{ fontSize: 13, color: '#5B6576', marginTop: 2 }}>{item.description}</div>
-        <div style={{ fontSize: 12, color: '#8896AA', marginTop: 4 }}>{effectLine(item, choice, armory.owned)}</div>
+        <div style={{ fontSize: 12, color: '#8896AA', marginTop: 4 }}>{effectLine(item, choice, usableGear(armory))}</div>
       </div>
-      <div style={{ flex: 'none' }}>{action()}</div>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {loadButton()}
+        {buyButton()}
+      </div>
     </li>
   )
 }

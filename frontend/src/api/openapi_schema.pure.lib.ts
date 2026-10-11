@@ -701,11 +701,14 @@ export interface components {
         /**
          * ArmoryItem
          * @description One thing the armory sells. `price` 0 means every profile starts owning it.
-         *     A grenade pack can be bought again and again and adds `quantity` grenades; a
-         *     weapon or bullet is bought once. `requires` names an item that must be owned
-         *     first (the next weapon tier needs the one before it).
+         *     A `consumable` (a grenade pack, a pack of special rounds) can be bought again
+         *     and again and adds `quantity` grenades or rounds, which get used up in play; a
+         *     weapon is bought once. `requires` names an item that must be owned first (the
+         *     next weapon tier needs the one before it).
          */
         readonly ArmoryItem: {
+            /** Consumable */
+            readonly consumable: boolean;
             /** Description */
             readonly description: string;
             /** Id */
@@ -731,19 +734,28 @@ export interface components {
         };
         /**
          * ArmoryRoundCreate
-         * @description A finished Zombie Horde round: the points it scored and the grenades it threw.
+         * @description A finished Zombie Horde round: the points it scored, the grenades it threw, and
+         *     the special rounds it fired (by bullet item id).
          */
         readonly ArmoryRoundCreate: {
             /** Grenades Used */
             readonly grenades_used: number;
             /** Points */
             readonly points: number;
+            /** Rounds Used */
+            readonly rounds_used?: {
+                readonly [key: string]: number;
+            };
         };
         /**
          * ArmoryState
          * @description Everything the armory screen and a round's loadout need, in one response.
          */
         readonly ArmoryState: {
+            /** Ammo */
+            readonly ammo: {
+                readonly [key: string]: number;
+            };
             /** Balance */
             readonly balance: number;
             /** Catalog */

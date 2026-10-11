@@ -152,6 +152,8 @@ export interface HordeStats {
   readonly legShots: number
   readonly grenadesUsed: number
   readonly shoves: number
+  /** Special rounds fired (see `HordeState.ammo`). */
+  readonly roundsUsed: number
   readonly solved: number
   readonly livesLost: number
 }
@@ -177,6 +179,8 @@ export interface HordeState {
   readonly grenades: number
   /** Push-backs left this round. */
   readonly shoves: number
+  /** Special rounds loaded: each shot uses one and hits with `config.power`; at 0, shots hit with `config.basePower`. */
+  readonly ammo: number
   /** The random stream's position. */
   readonly seed: number
   /** For ids: zombies, projectiles, blasts. */
@@ -201,7 +205,10 @@ export interface HordeConfig {
   readonly durationMs: number
   /** How long a zombie takes to walk from the back to the player at the round's starting speed. */
   readonly travelMs: number
+  /** Damage per zone while special rounds last. */
   readonly power: ShotPower
+  /** Damage per zone with standard rounds, once the special ones run out (the same as `power` without any). */
+  readonly basePower: ShotPower
   readonly cooldownMs: number
   readonly grenade: GrenadeStats
   readonly cover: readonly Cover[]
@@ -212,7 +219,7 @@ export interface ShotTarget {
   readonly zone: ShotZone
 }
 
-const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, solved: 0, livesLost: 0 }
+const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, roundsUsed: 0, solved: 0, livesLost: 0 }
 
 /** A deterministic stream over a 32-bit seed (mulberry32). Local to one step, so the step stays pure. */
 interface Rng {
@@ -285,7 +292,7 @@ function spawnZombie(slot: number, id: number, nowMs: number, depth: number, rng
 }
 
 /** A fresh round: four zombies spread across the back of the field, the clock at zero, no question yet. */
-export function createRound({ seed, lives, grenades, shoves, cover }: { readonly seed: number; readonly lives: number; readonly grenades: number; readonly shoves: number; readonly cover: readonly Cover[] }): HordeState {
+export function createRound({ seed, lives, grenades, shoves, ammo, cover }: { readonly seed: number; readonly lives: number; readonly grenades: number; readonly shoves: number; readonly ammo: number; readonly cover: readonly Cover[] }): HordeState {
   const rng = rngFrom(seed)
   // Staggered depths, so they don't arrive as one line.
   const zombies = Array.from({ length: ZOMBIE_COUNT }, (_, slot) => spawnZombie(slot, slot, 0, SPAWN_DEPTH - slot * 1.6 - between(rng, 0, 1), rng, cover))
@@ -295,6 +302,7 @@ export function createRound({ seed, lives, grenades, shoves, cover }: { readonly
     lives,
     grenades,
     shoves,
+    ammo,
     seed: rng.seed(),
     nextId: ZOMBIE_COUNT,
     zombies,
@@ -594,7 +602,16 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
   if (!canShoot(state)) return state
   const now = state.elapsedMs
   const events: HordeEvent[] = [{ type: 'shot' }]
-  const fired: HordeState = { ...state, readyAtMs: now + config.cooldownMs, stats: { ...state.stats, shots: state.stats.shots + 1 }, events }
+  // Every shot, hit or miss, uses a special round while they last.
+  const special = state.ammo > 0
+  const power = special ? config.power : config.basePower
+  const fired: HordeState = {
+    ...state,
+    ammo: special ? state.ammo - 1 : 0,
+    readyAtMs: now + config.cooldownMs,
+    stats: { ...state.stats, shots: state.stats.shots + 1, roundsUsed: state.stats.roundsUsed + (special ? 1 : 0) },
+    events,
+  }
   const zombie = target === null ? undefined : state.zombies.find((z) => z.id === target.zombieId)
   const answer = zombie === undefined ? null : answerFor(state, zombie)
   if (target === null || zombie === undefined || answer === null) return fired
@@ -627,7 +644,7 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
     return { ...fired, stats, questionWrongShots: state.questionWrongShots + 1, zombies: state.zombies.map((z) => (z.id === zombie.id ? dodging : z)) }
   }
 
-  const damage = damaged(zombie, config.power[target.zone], target.zone, now)
+  const damage = damaged(zombie, power[target.zone], target.zone, now)
   const killed = damage.posture === 'dead'
   const hit = killed ? damage : pushedBack(damage, HIT_KNOCKBACK, config.cover)
   events.push({ type: 'hit', zombieId: zombie.id, zone: target.zone, killed })

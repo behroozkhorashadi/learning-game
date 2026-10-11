@@ -17,7 +17,8 @@ const ARMORY = {
   spent: 0,
   owned: ['starter_blaster', 'standard_rounds'],
   grenades: 1,
-  catalog: [{ id: 'starter_blaster', kind: 'weapon', name: 'Starter Blaster', description: 'Your trusty blaster.', price: 0, quantity: 1, requires: null }],
+  ammo: { armor_piercing: 0 },
+  catalog: [{ id: 'starter_blaster', kind: 'weapon', name: 'Starter Blaster', description: 'Your trusty blaster.', price: 0, quantity: 1, consumable: false, requires: null }],
 }
 
 describe('assembleZombieHorde', () => {

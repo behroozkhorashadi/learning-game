@@ -20,6 +20,7 @@ const meta = {
     lives: 2,
     grenades: 3,
     shoves: 3,
+    ammo: null,
     armed: 'shot',
     muted: false,
     answers: [

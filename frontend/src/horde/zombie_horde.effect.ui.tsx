@@ -5,8 +5,8 @@ import { STARTER_BLASTER } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts'
-import { ArmoryShop, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
-import { bestOwned, loadoutFor } from './horde_armory.pure.lib.ts'
+import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
+import { STARTER_LOADOUT, bestOwned, loadoutFor } from './horde_armory.pure.lib.ts'
 import { answerFor } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HordeHud } from './horde_hud.pure.ui.tsx'
@@ -60,10 +60,12 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const [buyError, setBuyError] = useState<string | null>(null)
     const [aimNdc, setAimNdc] = useState<{ readonly x: number; readonly y: number } | null>(null)
 
-    const owned = armoryQuery.state.kind === 'loaded' ? armoryQuery.state.data.owned : []
-    const grenades = armoryQuery.state.kind === 'loaded' ? armoryQuery.state.data.grenades : 0
-    // Until a kid picks, the best gear they own is equipped.
-    const choice = chosen ?? bestOwned(owned)
+    const armoryData = armoryQuery.state.kind === 'loaded' ? armoryQuery.state.data : null
+    const usable = armoryData === null ? [] : usableGear(armoryData)
+    const grenades = armoryData?.grenades ?? 0
+    // Until a kid picks, the best gear they have is equipped; special rounds that ran out drop back to standard.
+    const best = bestOwned(usable)
+    const choice = chosen === null ? best : { weaponId: chosen.weaponId, bulletId: usable.includes(chosen.bulletId) ? chosen.bulletId : best.bulletId }
 
     async function buy(itemId: string): Promise<void> {
       setBuying(itemId)
@@ -91,7 +93,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
               speakText(HORDE_INSTRUCTIONS)
             }}
             onStart={() => {
-              round.start(loadoutFor(choice.weaponId, choice.bulletId, owned), grenades)
+              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0)
             }}
             onBack={onBack}
             shop={
@@ -186,6 +188,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             lives={state.lives}
             grenades={state.grenades}
             shoves={state.shoves}
+            ammo={round.loadout !== null && round.loadout.bullet.id !== STARTER_LOADOUT.bullet.id ? state.ammo : null}
             armed={round.armed}
             muted={round.audioMuted}
             answers={phase === 'playing' ? answers : []}

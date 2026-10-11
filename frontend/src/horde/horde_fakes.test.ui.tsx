@@ -45,37 +45,45 @@ export function wrongAnswer(i: number): number {
 
 /** The backend's catalog (app/armory/armory_reducers_pure.py), for the fake server. */
 export const CATALOG: readonly ArmoryItemRecord[] = [
-  { id: 'starter_blaster', kind: 'weapon', name: 'Starter Blaster', description: 'Your trusty blaster.', price: 0, quantity: 1, requires: null },
-  { id: 'rapid_blaster', kind: 'weapon', name: 'Rapid Blaster', description: 'Reloads twice as fast and hits a little harder.', price: 250, quantity: 1, requires: 'starter_blaster' },
-  { id: 'mega_blaster', kind: 'weapon', name: 'Mega Blaster', description: 'Huge hits and a lightning-fast reload.', price: 600, quantity: 1, requires: 'rapid_blaster' },
-  { id: 'standard_rounds', kind: 'bullet', name: 'Standard Rounds', description: 'Headshots hit hardest. Leg shots knock zombies down.', price: 0, quantity: 1, requires: null },
-  { id: 'armor_piercing', kind: 'bullet', name: 'Armor-Piercing Rounds', description: 'Body and leg shots hit much harder.', price: 200, quantity: 1, requires: 'standard_rounds' },
-  { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: 'Every shot hits harder, wherever it lands.', price: 500, quantity: 1, requires: 'armor_piercing' },
-  { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. A grenade only goes off near the zombie with the right answer.', price: 80, quantity: 3, requires: null },
+  { id: 'starter_blaster', kind: 'weapon', name: 'Starter Blaster', description: 'Your trusty blaster.', price: 0, quantity: 1, consumable: false, requires: null },
+  { id: 'rapid_blaster', kind: 'weapon', name: 'Rapid Blaster', description: 'Reloads twice as fast and hits a little harder.', price: 250, quantity: 1, consumable: false, requires: 'starter_blaster' },
+  { id: 'mega_blaster', kind: 'weapon', name: 'Mega Blaster', description: 'Huge hits and a lightning-fast reload.', price: 600, quantity: 1, consumable: false, requires: 'rapid_blaster' },
+  { id: 'standard_rounds', kind: 'bullet', name: 'Standard Rounds', description: 'Never run out. Headshots hit hardest; leg shots knock zombies down.', price: 0, quantity: 1, consumable: false, requires: null },
+  { id: 'armor_piercing', kind: 'bullet', name: 'Armor-Piercing Rounds', description: '25 rounds. Body and leg shots hit much harder.', price: 60, quantity: 25, consumable: true, requires: null },
+  { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: '25 rounds. Every shot hits harder, wherever it lands.', price: 120, quantity: 25, consumable: true, requires: null },
+  { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. A grenade only goes off near the zombie with the right answer.', price: 80, quantity: 3, consumable: true, requires: null },
 ]
+
+export interface RoundReport {
+  readonly points: number
+  readonly grenades_used: number
+  readonly rounds_used?: Readonly<Record<string, number>>
+}
 
 export interface FakeArmory {
   readonly load: (profileId: number) => Promise<ArmoryStateRecord>
   readonly purchase: (profileId: number, itemId: string) => Promise<ArmoryStateRecord>
-  readonly recordRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number }) => Promise<ArmoryStateRecord>
+  readonly recordRound: (profileId: number, round: RoundReport) => Promise<ArmoryStateRecord>
   readonly state: () => ArmoryStateRecord
-  readonly rounds: readonly { readonly points: number; readonly grenades_used: number }[]
+  readonly rounds: readonly RoundReport[]
 }
 
 /** The armory server in memory: the same refusals as the backend (unknown, owned, locked, too expensive). */
-export function fakeArmory({ balance = 0, owned = [], grenades = 1 }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number } = {}): FakeArmory {
+export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {} }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>> } = {}): FakeArmory {
   let points = balance
   let spent = 0
   let left = grenades
   const bought = new Set(owned)
-  const rounds: { readonly points: number; readonly grenades_used: number }[] = []
+  const rounds: RoundReport[] = []
+  const shots = new Map<string, number>([['armor_piercing', ammo['armor_piercing'] ?? 0], ['explosive_rounds', ammo['explosive_rounds'] ?? 0]])
   const state = (): ArmoryStateRecord => ({
     profile_id: 1,
     balance: points - spent,
     earned: points,
     spent,
-    owned: CATALOG.filter((item) => item.kind !== 'grenade' && (item.price === 0 || bought.has(item.id))).map((item) => item.id),
+    owned: CATALOG.filter((item) => !item.consumable && (item.price === 0 || bought.has(item.id))).map((item) => item.id),
     grenades: left,
+    ammo: Object.fromEntries(shots),
     catalog: CATALOG,
   })
   return {
@@ -86,11 +94,12 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1 }: { readonly
       const item = CATALOG.find((candidate) => candidate.id === itemId)
       const now = state()
       if (item === undefined) return Promise.reject(new Error(`the armory has no item '${itemId}'`))
-      if (item.kind !== 'grenade' && now.owned.includes(item.id)) return Promise.reject(new Error(`'${itemId}' is already owned`))
+      if (!item.consumable && now.owned.includes(item.id)) return Promise.reject(new Error(`'${itemId}' is already owned`))
       if (item.requires !== null && !now.owned.includes(item.requires)) return Promise.reject(new Error(`'${itemId}' needs '${item.requires}' first`))
       if (item.price > now.balance) return Promise.reject(new Error(`'${itemId}' costs ${String(item.price)} points; the balance is ${String(now.balance)}`))
       spent += item.price
       if (item.kind === 'grenade') left += item.quantity
+      else if (item.consumable) shots.set(item.id, (shots.get(item.id) ?? 0) + item.quantity)
       else bought.add(item.id)
       return Promise.resolve(state())
     },
@@ -98,6 +107,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1 }: { readonly
       rounds.push(round)
       points += round.points
       left = Math.max(0, left - round.grenades_used)
+      for (const [id, used] of Object.entries(round.rounds_used ?? {})) shots.set(id, Math.max(0, (shots.get(id) ?? 0) - used))
       return Promise.resolve(state())
     },
   }

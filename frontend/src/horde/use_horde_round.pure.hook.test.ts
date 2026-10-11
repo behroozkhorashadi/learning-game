@@ -49,7 +49,7 @@ describe('useHordeRound', () => {
     const { deps, items, scheduler } = controlled()
     const { result } = renderHook(() => useHordeRound(deps, 1))
     act(() => {
-      result.current.start(STARTER_LOADOUT, 1)
+      result.current.start(STARTER_LOADOUT, 1, 0)
     })
     expect(result.current.phase).toBe('loading')
     await act(async () => {
@@ -66,7 +66,7 @@ describe('useHordeRound', () => {
     const { deps, items, scheduler } = controlled()
     const { result } = renderHook(() => useHordeRound(deps, 1))
     act(() => {
-      result.current.start(STARTER_LOADOUT, 1)
+      result.current.start(STARTER_LOADOUT, 1, 0)
     })
     await act(async () => {
       items[0]?.resolve(hordeItem(0, 60_000))
@@ -91,7 +91,7 @@ describe('useHordeRound', () => {
     const { deps, items } = controlled()
     const { result } = renderHook(() => useHordeRound(deps, 1))
     act(() => {
-      result.current.start(STARTER_LOADOUT, 1)
+      result.current.start(STARTER_LOADOUT, 1, 0)
       result.current.reset()
     })
     await act(async () => {
@@ -105,7 +105,7 @@ describe('useHordeRound', () => {
     const { deps, items } = controlled()
     const { result, unmount } = renderHook(() => useHordeRound(deps, 1))
     act(() => {
-      result.current.start(STARTER_LOADOUT, 1)
+      result.current.start(STARTER_LOADOUT, 1, 0)
     })
     unmount()
     await act(async () => {
@@ -119,7 +119,7 @@ describe('useHordeRound', () => {
     const { deps, items, banks, scheduler } = controlled()
     const { result } = renderHook(() => useHordeRound(deps, 1))
     act(() => {
-      result.current.start(STARTER_LOADOUT, 1)
+      result.current.start(STARTER_LOADOUT, 1, 0)
     })
     await act(async () => {
       items[0]?.resolve(hordeItem(0, 600_000))
@@ -137,7 +137,7 @@ describe('useHordeRound', () => {
     const { deps, items, scheduler } = controlled()
     const { result } = renderHook(() => useHordeRound(deps, 1))
     act(() => {
-      result.current.start(STARTER_LOADOUT, 0)
+      result.current.start(STARTER_LOADOUT, 0, 0)
     })
     await act(async () => {
       items[0]?.resolve(hordeItem(0, 60_000))

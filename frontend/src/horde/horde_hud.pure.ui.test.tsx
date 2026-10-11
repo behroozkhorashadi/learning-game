@@ -12,6 +12,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     lives: 2,
     grenades: 1,
     shoves: 3,
+    ammo: null,
     armed: 'shot',
     muted: false,
     answers: [

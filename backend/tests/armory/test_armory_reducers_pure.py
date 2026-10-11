@@ -10,6 +10,7 @@ from app.armory.armory_reducers_pure import (
     CATALOG,
     STARTING_GRENADES,
     catalog_item,
+    clamped_round,
     purchase_entry,
     round_entries,
     summarize,
@@ -76,3 +77,29 @@ def test_purchase_refusals() -> None:
 def test_grenades_never_go_negative() -> None:
     entries = round_entries(1, ArmoryRoundCreate(points=0, grenades_used=5), now=NOW)
     assert summarize(1, entries).grenades == 0
+
+
+def test_special_rounds_come_in_packs_that_stack_and_get_used_up() -> None:
+    entries = [earned(200)]
+    for _ in range(2):
+        entries.append(purchase_entry(summarize(1, entries), "armor_piercing", now=NOW))
+    state = summarize(1, entries)
+    assert state.ammo == {"armor_piercing": 50, "explosive_rounds": 0}
+    assert "armor_piercing" not in state.owned
+    entries.extend(
+        round_entries(1, ArmoryRoundCreate(points=0, grenades_used=0, rounds_used={"armor_piercing": 18}), now=NOW)
+    )
+    assert summarize(1, entries).ammo["armor_piercing"] == 32
+
+
+def test_a_round_can_only_use_rounds_and_grenades_it_had() -> None:
+    state = summarize(1, (earned(100), purchase_entry(summarize(1, (earned(100),)), "armor_piercing", now=NOW)))
+    clamped = clamped_round(
+        state, ArmoryRoundCreate(points=5, grenades_used=9, rounds_used={"armor_piercing": 99, "laser": 3})
+    )
+    assert clamped == ArmoryRoundCreate(points=5, grenades_used=STARTING_GRENADES, rounds_used={"armor_piercing": 25})
+
+
+def test_standard_rounds_never_run_out() -> None:
+    assert "standard_rounds" in summarize(1, ()).owned
+    assert "standard_rounds" not in summarize(1, ()).ammo

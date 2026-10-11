@@ -3,7 +3,7 @@ import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.
 import type { ArenaAudio, ArenaScheduler, Cancel } from '@app/outbreak/zombie_arena_state.pure.lib.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import type { CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
-import { GRENADE, shotPower, type Loadout } from './horde_armory.pure.lib.ts'
+import { GRENADE, STARTER_LOADOUT, shotPower, type Loadout } from './horde_armory.pure.lib.ts'
 import {
   ROUND_MS,
   STARTING_LIVES,
@@ -58,7 +58,7 @@ export interface HordeRoundDeps {
   /** POST /api/attempts. A failure is reported, never interrupts play. */
   readonly recordAttempt: (attempt: AttemptBody) => Promise<unknown>
   /** Banks a finished round into the armory; resolves to the new balance. */
-  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number }) => Promise<{ readonly balance: number }>
+  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>> }) => Promise<{ readonly balance: number }>
   readonly scheduler: ArenaScheduler
   readonly audio: ArenaAudio
   /** This round's four characters, one per slot. */
@@ -84,7 +84,8 @@ export interface HordeRound {
   readonly points: number
   readonly bank: BankState
   readonly durationMs: number
-  readonly start: (loadout: Loadout, grenades: number) => void
+  /** Starts a round with this loadout, the grenades owned, and the loadout's special rounds owned (0 for standard rounds). */
+  readonly start: (loadout: Loadout, grenades: number, ammo: number) => void
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
   /** A shot at a zombie (or at nothing: null). With a push-back armed, a zombie is pushed back instead. */
@@ -110,6 +111,8 @@ interface Live {
   feedbackId: number
   cancelFeedback: Cancel | null
   characters: readonly CharacterDefinition[]
+  /** The loaded bullet, for reporting the special rounds a round used. */
+  bulletId: string
 }
 
 /**
@@ -152,6 +155,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     feedbackId: 0,
     cancelFeedback: null,
     characters: [],
+    bulletId: '',
   })
   const timers = useRef(new Set<Cancel>())
 
@@ -229,7 +233,8 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     setLiveMessage(final.outcome === 'survived' ? `You held off the horde! ${String(points)} points.` : `The horde got through. ${String(points)} points.`)
     const sessionId = live.current.sessionId
     setBank({ kind: 'saving' })
-    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed }).then(
+    const bullet = live.current.bulletId
+    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {} }).then(
       ({ balance }) => {
         if (live.current.mounted && live.current.sessionId === sessionId) setBank({ kind: 'saved', balance })
       },
@@ -336,7 +341,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     else audio.stopMusic()
   }, [audio, phase])
 
-  function start(chosen: Loadout, grenades: number): void {
+  function start(chosen: Loadout, grenades: number, ammo: number): void {
     // A real user gesture: create/resume the audio context here, well before the first shot.
     audio.preloadWeapon()
     audio.preloadMusic()
@@ -345,7 +350,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     audio.preloadZombies(roster.map((character) => character.groanSoundUrl))
     for (const cancel of timers.current) cancel()
     timers.current.clear()
-    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster })
+    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id })
     setCharacters(roster)
     setLoadout(chosen)
     setStateValue(null)
@@ -357,10 +362,10 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     fetchQuestion(sessionId).then(
       ({ item, question }) => {
         if (!live.current.mounted || live.current.sessionId !== sessionId) return
-        live.current.config = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER }
+        live.current.config = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER }
         live.current.upcoming = fetchQuestion(sessionId)
         live.current.upcoming.catch(() => undefined)
-        commit(setQuestion(createRound({ seed: newSeed(), lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, cover: COVER }), question))
+        commit(setQuestion(createRound({ seed: newSeed(), lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, ammo: chosen.bullet.id === STARTER_LOADOUT.bullet.id ? 0 : ammo, cover: COVER }), question))
         setPhase('intro')
         for (const character of roster) audio.playGroan(character.groanSoundUrl)
         later(INTRO_MS, () => {

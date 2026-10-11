@@ -11,6 +11,7 @@ export const armoryItemSchema = z
     description: z.string(),
     price: z.number().int(),
     quantity: z.number().int(),
+    consumable: z.boolean(),
     requires: z.string().nullable(),
   })
   .readonly() satisfies z.ZodType<components['schemas']['ArmoryItem']>
@@ -23,6 +24,7 @@ export const armoryStateSchema = z
     spent: z.number().int(),
     owned: z.array(z.string()).readonly(),
     grenades: z.number().int(),
+    ammo: z.record(z.string(), z.number().int()).readonly(),
     catalog: z.array(armoryItemSchema).readonly(),
   })
   .readonly() satisfies z.ZodType<components['schemas']['ArmoryState']>
