@@ -13,6 +13,7 @@ const meta = {
     starting: false,
     onHearInstructions: fn(),
     onStart: fn(),
+    onOpenStudio: fn(),
     onBack: fn(),
   },
 } satisfies Meta<typeof HordeStart>

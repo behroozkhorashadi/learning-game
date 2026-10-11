@@ -6,10 +6,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from app.armory.armory_schemas_pure import ArmoryEntry, ArmoryRoundCreate, ArmoryState
+from app.armory.armory_schemas_pure import (
+    ArmoryEntry,
+    ArmoryRoundCreate,
+    ArmoryState,
+    ArtCreate,
+    ArtPicture,
+    ArtPiece,
+    ArtResult,
+)
 
 Clock = Callable[[], datetime]
 ProfileExists = Callable[[int], bool]
+IdFactory = Callable[[], str]
 
 
 class ArmoryRepository(Protocol):
@@ -22,6 +31,28 @@ class ArmoryRepository(Protocol):
     def append(self, entries: Sequence[ArmoryEntry]) -> None: ...
 
     def delete_for_profile(self, profile_id: int) -> None: ...
+
+
+class ArtStudioRepository(ArmoryRepository, Protocol):
+    """The ledger plus the profile's art gallery."""
+
+    def list_art(self, profile_id: int) -> tuple[ArtPiece, ...]:
+        """Newest first."""
+        ...
+
+    def add_art(self, piece: ArtPiece) -> None: ...
+
+
+class ArtMaker(Protocol):
+    """The AI image service. None when none is configured, or the call failed."""
+
+    def __call__(self, picture: ArtPicture, prompt: str) -> ArtPicture | None: ...
+
+
+class ArtStore(Protocol):
+    """Where finished pictures are kept; `save` returns the URL they're served at."""
+
+    def save(self, picture: ArtPicture) -> str: ...
 
 
 class ProfileNotFoundError(LookupError):
@@ -47,6 +78,26 @@ class MissingPrerequisiteError(ValueError):
 class NotEnoughPointsError(ValueError):
     def __init__(self, item_id: str, price: int, balance: int) -> None:
         super().__init__(f"{item_id!r} costs {price} points; the balance is {balance}")
+
+
+class NotSoldHereError(ValueError):
+    def __init__(self, item_id: str) -> None:
+        super().__init__(f"{item_id!r} is bought in the art studio, by making art")
+
+
+class InvalidArtError(ValueError):
+    pass
+
+
+class ArtUnavailableError(RuntimeError):
+    def __init__(self) -> None:
+        super().__init__("the art studio can't make art right now; no points were spent")
+
+
+@dataclass(frozen=True)
+class ArtStudioService:
+    gallery: Callable[[int], tuple[ArtPiece, ...]]
+    create_art: Callable[[int, ArtCreate], ArtResult]
 
 
 @dataclass(frozen=True)

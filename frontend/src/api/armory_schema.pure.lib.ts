@@ -6,7 +6,7 @@ import type { components } from './openapi_schema.pure.lib.ts'
 export const armoryItemSchema = z
   .object({
     id: z.string(),
-    kind: z.enum(['weapon', 'bullet', 'grenade']),
+    kind: z.enum(['weapon', 'bullet', 'grenade', 'art']),
     name: z.string(),
     description: z.string(),
     price: z.number().int(),
@@ -31,3 +31,22 @@ export const armoryStateSchema = z
 
 export type ArmoryItemRecord = z.infer<typeof armoryItemSchema>
 export type ArmoryStateRecord = z.infer<typeof armoryStateSchema>
+
+export const ART_STYLES = ['zombie_slayer', 'comic_hero', 'pixel_hero', 'space_ranger'] as const
+
+export const artPieceSchema = z
+  .object({
+    id: z.string(),
+    profile_id: z.number().int(),
+    image_url: z.string(),
+    style: z.enum(ART_STYLES),
+    idea: z.string(),
+    created_at: z.string(),
+  })
+  .readonly() satisfies z.ZodType<components['schemas']['ArtPiece']>
+
+export const artResultSchema = z.object({ piece: artPieceSchema, armory: armoryStateSchema }).readonly() satisfies z.ZodType<components['schemas']['ArtResult']>
+
+export type ArtStyle = (typeof ART_STYLES)[number]
+export type ArtPieceRecord = z.infer<typeof artPieceSchema>
+export type ArtResultRecord = z.infer<typeof artResultSchema>

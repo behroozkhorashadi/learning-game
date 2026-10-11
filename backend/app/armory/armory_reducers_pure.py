@@ -11,9 +11,13 @@ from app.armory.armory_ports_pure import (
     AlreadyOwnedError,
     MissingPrerequisiteError,
     NotEnoughPointsError,
+    NotSoldHereError,
     UnknownItemError,
 )
 from app.armory.armory_schemas_pure import ArmoryEntry, ArmoryItem, ArmoryRoundCreate, ArmoryState
+
+# Bought by making a piece of art in the art studio (art_studio_service_effect.py).
+ART_ITEM_ID = "art_studio"
 
 # Every profile starts with one grenade, so the first round shows what one does.
 STARTING_GRENADES = 1
@@ -86,6 +90,16 @@ CATALOG: tuple[ArmoryItem, ...] = (
         description="Three grenades. A grenade only goes off near the zombie with the right answer.",
         price=80,
         quantity=3,
+        consumable=True,
+        requires=None,
+    ),
+    ArmoryItem(
+        id=ART_ITEM_ID,
+        kind="art",
+        name="Art Studio",
+        description="Snap a selfie and turn it into a one-of-a-kind piece of art for your gallery.",
+        price=300,
+        quantity=1,
         consumable=True,
         requires=None,
     ),
@@ -176,9 +190,21 @@ def clamped_round(state: ArmoryState, round_result: ArmoryRoundCreate) -> Armory
     )
 
 
+def art_entry(state: ArmoryState, *, now: datetime) -> ArmoryEntry:
+    """The ledger row paying for one piece of art, or why it can't be paid for."""
+    item = catalog_item(ART_ITEM_ID)
+    if item.price > state.balance:
+        raise NotEnoughPointsError(item.id, item.price, state.balance)
+    return ArmoryEntry(
+        profile_id=state.profile_id, kind="purchased", item_id=item.id, points=item.price, quantity=1, created_at=now
+    )
+
+
 def purchase_entry(state: ArmoryState, item_id: str, *, now: datetime) -> ArmoryEntry:
     """The ledger row for buying `item_id`, or the reason it can't be bought."""
     item = catalog_item(item_id)
+    if item.kind == "art":
+        raise NotSoldHereError(item.id)
     if not item.consumable and item.id in state.owned:
         raise AlreadyOwnedError(item.id)
     if item.requires is not None and item.requires not in state.owned:

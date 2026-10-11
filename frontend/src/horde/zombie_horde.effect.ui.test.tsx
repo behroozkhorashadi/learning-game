@@ -212,6 +212,24 @@ describe('ZombieHorde: special rounds', () => {
   })
 })
 
+describe('ZombieHorde: the art studio', () => {
+  it('opens from the start screen, spends points on art, and comes back with the new balance', async () => {
+    const harness = await open({ armory: fakeArmory({ balance: 350 }) })
+    press('Open studio')
+    await settle()
+    expect(screen.getByRole('heading', { name: 'Art Studio' })).toBeTruthy()
+    press('Open camera')
+    await settle()
+    press('Take selfie')
+    press('Create art · 300 points')
+    await settle()
+    expect(harness.armory.state().balance).toBe(50)
+    expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('50 points')
+    press('Back')
+    expect(screen.getByRole('heading', { name: 'Zombie Horde' })).toBeTruthy()
+  })
+})
+
 describe('ZombieHorde: failures and leaving', () => {
   it("shows an error when the first question can't load", async () => {
     await open({ nextItemFails: 'GET /api/items/next failed with HTTP 500' })

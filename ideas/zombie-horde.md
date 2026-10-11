@@ -31,6 +31,14 @@ Defaults chosen for the open questions below (all tunable constants):
 - Prices: Rapid Blaster 250, Mega 600, Armor-Piercing 200, Explosive 500.
 - Name: Zombie Horde.
 
+Added after the first playtest (2026-10-11):
+- Push back: 3 per round (✋ or F), knocks any zombie back with no penalty.
+- The right-answer zombie never hides; zombies no longer wedge against cover.
+- Damage: 2 headshots / 4 body / 5 leg with starter gear; a hit knocks back a little.
+- Special rounds are consumable packs of 25 (armor-piercing 60, explosive 120); standard rounds never run out.
+- Art Studio (300 points): selfie → AI art in one of four styles (+ an idea), kept in a per-profile gallery.
+  Points are charged only once the art is made; it needs the OpenAI key the profile photo remix uses.
+
 Still to do:
 - Real fall, crawl, get-up, crouch, and sidestep clips (Meshy or Mixamo); the
   roles exist and today borrow `Dead` (played backwards to get up) and `Running`.

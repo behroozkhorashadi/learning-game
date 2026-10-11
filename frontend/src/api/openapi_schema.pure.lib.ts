@@ -437,6 +437,31 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/profiles/{profile_id}/armory/art": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List Art
+         * @description The profile's gallery, newest first.
+         */
+        readonly get: operations["list_art_api_profiles__profile_id__armory_art_get"];
+        readonly put?: never;
+        /**
+         * Create Art
+         * @description Turns a selfie into art and keeps it. Points are charged only when the art
+         *     is made: 409 when they can't be afforded, 503 when the AI isn't available.
+         */
+        readonly post: operations["create_art_api_profiles__profile_id__armory_art_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/profiles/{profile_id}/armory/purchases": {
         readonly parameters: {
             readonly query?: never;
@@ -448,8 +473,8 @@ export interface paths {
         readonly put?: never;
         /**
          * Purchase Armory Item
-         * @description Buys one item. 409 when it's already owned, needs another item first, or
-         *     costs more than the balance.
+         * @description Buys one item. 409 when it's already owned, needs another item first, costs
+         *     more than the balance, or is art (made in the art studio instead).
          */
         readonly post: operations["purchase_armory_item_api_profiles__profile_id__armory_purchases_post"];
         readonly delete?: never;
@@ -717,7 +742,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            readonly kind: "weapon" | "bullet" | "grenade";
+            readonly kind: "weapon" | "bullet" | "grenade" | "art";
             /** Name */
             readonly name: string;
             /** Price */
@@ -770,6 +795,56 @@ export interface components {
             readonly profile_id: number;
             /** Spent */
             readonly spent: number;
+        };
+        /**
+         * ArtCreate
+         * @description A selfie (a PNG or JPEG data URL) and how to turn it into art.
+         */
+        readonly ArtCreate: {
+            /**
+             * Idea
+             * @default
+             */
+            readonly idea: string;
+            /** Image Data Url */
+            readonly image_data_url: string;
+            /**
+             * Style
+             * @enum {string}
+             */
+            readonly style: "zombie_slayer" | "comic_hero" | "pixel_hero" | "space_ranger";
+        };
+        /**
+         * ArtPiece
+         * @description One piece made in the art studio, kept in the profile's gallery.
+         */
+        readonly ArtPiece: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /** Id */
+            readonly id: string;
+            /** Idea */
+            readonly idea: string;
+            /** Image Url */
+            readonly image_url: string;
+            /** Profile Id */
+            readonly profile_id: number;
+            /**
+             * Style
+             * @enum {string}
+             */
+            readonly style: "zombie_slayer" | "comic_hero" | "pixel_hero" | "space_ranger";
+        };
+        /**
+         * ArtResult
+         * @description The new piece, and the armory after paying for it.
+         */
+        readonly ArtResult: {
+            readonly armory: components["schemas"]["ArmoryState"];
+            readonly piece: components["schemas"]["ArtPiece"];
         };
         /**
          * AttemptCreate
@@ -2505,6 +2580,72 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ArmoryState"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly list_art_api_profiles__profile_id__armory_art_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["ArtPiece"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly create_art_api_profiles__profile_id__armory_art_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ArtCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArtResult"];
                 };
             };
             /** @description Validation Error */

@@ -9,6 +9,7 @@ from app.armory.armory_ports_pure import (
     ArmoryService,
     MissingPrerequisiteError,
     NotEnoughPointsError,
+    NotSoldHereError,
     ProfileNotFoundError,
     UnknownItemError,
 )
@@ -38,13 +39,13 @@ def bind_armory_routes(*, service: ArmoryService) -> APIRouter:
 
     @router.post(f"{ARMORY}/purchases")
     def purchase_armory_item(profile_id: int, payload: ArmoryPurchaseCreate) -> ArmoryState:
-        """Buys one item. 409 when it's already owned, needs another item first, or
-        costs more than the balance."""
+        """Buys one item. 409 when it's already owned, needs another item first, costs
+        more than the balance, or is art (made in the art studio instead)."""
         try:
             return service.purchase(profile_id, payload.item_id)
         except (ProfileNotFoundError, UnknownItemError) as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
-        except (AlreadyOwnedError, MissingPrerequisiteError, NotEnoughPointsError) as error:
+        except (AlreadyOwnedError, MissingPrerequisiteError, NotEnoughPointsError, NotSoldHereError) as error:
             raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
 
     return router

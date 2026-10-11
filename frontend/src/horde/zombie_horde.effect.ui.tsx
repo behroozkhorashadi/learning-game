@@ -6,6 +6,7 @@ import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts'
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
+import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
 import { STARTER_LOADOUT, bestOwned, loadoutFor } from './horde_armory.pure.lib.ts'
 import { answerFor } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
@@ -42,13 +43,15 @@ export interface ZombieHordeDeps extends HordeRoundDeps {
   readonly armory: ZombieHordeArmory
   /** The 3D view. In the app, horde_viewport.pure.ui.tsx. */
   readonly Viewport: ComponentType<HordeViewportProps>
+  /** The art studio, opened from the start screen. In the app, art_studio.effect.ui.tsx bound to the camera and API. */
+  readonly ArtStudio: ComponentType<ArtStudioProps>
   readonly motion: MotionPreference
   /** Reads the instructions aloud. */
   readonly speakText: (text: string) => void
 }
 
 export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHordeProps> {
-  const { armory, Viewport, motion, speakText } = deps
+  const { armory, Viewport, ArtStudio, motion, speakText } = deps
 
   function ZombieHorde({ profileId, onBack }: ZombieHordeProps): ReactElement {
     const round = useHordeRound(deps, profileId)
@@ -59,6 +62,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const [buying, setBuying] = useState<string | null>(null)
     const [buyError, setBuyError] = useState<string | null>(null)
     const [aimNdc, setAimNdc] = useState<{ readonly x: number; readonly y: number } | null>(null)
+    const [inStudio, setInStudio] = useState(false)
 
     const armoryData = armoryQuery.state.kind === 'loaded' ? armoryQuery.state.data : null
     const usable = armoryData === null ? [] : usableGear(armoryData)
@@ -83,6 +87,24 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const { phase, state } = round
     const inRound = (phase === 'intro' || phase === 'playing') && state !== null
 
+    const artPrice = armoryData?.catalog.find((item) => item.kind === 'art')?.price ?? null
+
+    if (inStudio && armoryData !== null && artPrice !== null) {
+      return (
+        <Page>
+          <ArtStudio
+            profileId={profileId}
+            balance={armoryData.balance}
+            price={artPrice}
+            onSpent={armoryQuery.reload}
+            onBack={() => {
+              setInStudio(false)
+            }}
+          />
+        </Page>
+      )
+    }
+
     if (phase === 'ready' || phase === 'loading') {
       return (
         <Page>
@@ -95,6 +117,13 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             onStart={() => {
               round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0)
             }}
+            onOpenStudio={
+              armoryData === null || artPrice === null
+                ? null
+                : () => {
+                    setInStudio(true)
+                  }
+            }
             onBack={onBack}
             shop={
               <ArmoryShop

@@ -14,7 +14,7 @@ flowchart TB
     pieces["pieces/<br/>/pieces, /illustrations, /revisions, /remixes, /turns<br/>illustration files"]
     practice["practice/<br/>/api/practice-config"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
-    armory["armory/<br/>/profiles/{id}/armory, /rounds, /purchases<br/>Zombie Horde points ledger + catalog"]
+    armory["armory/<br/>/profiles/{id}/armory, /rounds, /purchases, /art<br/>Zombie Horde points ledger + catalog, art studio"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
   end
 
@@ -35,4 +35,5 @@ flowchart TB
   todo & profiles & play & events & badges & pieces & practice & pathfinder & armory --> sqlite
   profiles & pieces --> files
   profiles -- "photo remix" --> openai
+  armory -- "art studio (via the photo remixer)" --> openai
   pieces -- "illustrations" --> openai

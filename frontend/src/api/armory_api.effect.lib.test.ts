@@ -55,4 +55,19 @@ describe('bindArmoryApi', () => {
     const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
     await expect(api.load(3)).rejects.toThrow('GET /api/profiles/3/armory returned an unexpected body')
   })
+
+  it('lists the gallery and makes art', async () => {
+    const piece = { id: 'a1', profile_id: 3, image_url: '/static/armory-art/a1.jpg', style: 'pixel_hero', idea: '', created_at: '2026-10-11T12:00:00Z' }
+    const http = fakeHttp((_url, method) => (method === 'GET' ? ok([piece]) : ok({ piece, armory: STATE })))
+    const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
+    await expect(api.gallery(3)).resolves.toEqual([piece])
+    await expect(api.createArt(3, { image_data_url: 'data:image/png;base64,aGk=', style: 'pixel_hero', idea: '' })).resolves.toEqual({ piece, armory: STATE })
+    expect(http.requests.map((r) => `${r.method} ${r.url}`)).toEqual(['GET /api/profiles/3/armory/art', 'POST /api/profiles/3/armory/art'])
+  })
+
+  it("rejects with the server's reason when art can't be made", async () => {
+    const http = fakeHttp(() => ({ ok: false, status: 503, json: () => Promise.resolve({ detail: "the art studio can't make art right now; no points were spent" }) }))
+    const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
+    await expect(api.createArt(3, { image_data_url: 'x', style: 'pixel_hero', idea: '' })).rejects.toThrow('no points were spent')
+  })
 })

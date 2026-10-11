@@ -6,11 +6,13 @@ import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import { assembleMotionPreference } from '@app/motion/motion_preference.assembly.main.ts'
 import { bindGameAudio } from '@app/outbreak/game_audio.effect.lib.ts'
 import { assembleArenaScheduler } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
+import { bindProfileCamera } from '@app/profiles/profile_camera.effect.lib.ts'
 import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import { preloadZombieModels } from '@app/zombies/zombie_character_3d.pure.ui.tsx'
 import { pickSessionRoster } from '@app/zombies/zombie_roster.pure.lib.ts'
 import { ZOMBIE_COUNT } from './horde_engine.pure.lib.ts'
+import { bindArtStudio } from './art_studio.effect.ui.tsx'
 import { HordeViewport } from './horde_viewport.pure.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
 
@@ -45,6 +47,15 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
       console.error(message, error)
     },
     Viewport: HordeViewport,
+    ArtStudio: bindArtStudio({
+      camera: bindProfileCamera({
+        // Typed as always present, but missing in old browsers and on insecure (non-localhost http) origins.
+        mediaDevices: 'mediaDevices' in navigator ? navigator.mediaDevices : undefined,
+        createCanvas: () => document.createElement('canvas'),
+      }),
+      gallery: armory.gallery,
+      createArt: armory.createArt,
+    }),
     motion: assembleMotionPreference(),
     speakText: assembleSpeech().speakText,
   })

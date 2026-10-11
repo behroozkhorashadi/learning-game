@@ -22,10 +22,12 @@ export interface HordeStartProps {
   readonly starting: boolean
   readonly onHearInstructions: () => void
   readonly onStart: () => void
+  /** Opens the art studio, or null while it can't be opened (the armory hasn't loaded). */
+  readonly onOpenStudio: (() => void) | null
   readonly onBack: () => void
 }
 
-export function HordeStart({ shop, starting, onHearInstructions, onStart, onBack }: HordeStartProps): ReactElement {
+export function HordeStart({ shop, starting, onHearInstructions, onStart, onOpenStudio, onBack }: HordeStartProps): ReactElement {
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: 760, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
       <div style={{ position: 'absolute', top: 22, left: 22 }}>
@@ -42,6 +44,13 @@ export function HordeStart({ shop, starting, onHearInstructions, onStart, onBack
         <DenButton label={starting ? 'Loading…' : 'Start'} variant="blue" shape="pill" size="xl" lipColor="#0037DB" iconPaths={PLAY_ICON} disabled={starting} onClick={onStart} />
       </div>
       {shop}
+      <div style={{ marginTop: 18, padding: '16px 18px', borderRadius: 20, background: '#F3ECFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left' }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#2A2E37' }}>🎨 Art Studio</div>
+          <div style={{ fontSize: 13, color: '#5B6576' }}>Spend points to turn a selfie into zombie-slayer art.</div>
+        </div>
+        <DenButton label="Open studio" variant="softBlue" shape="pill" disabled={onOpenStudio === null} {...(onOpenStudio === null ? {} : { onClick: onOpenStudio })} />
+      </div>
     </div>
   )
 }

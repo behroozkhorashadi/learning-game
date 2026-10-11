@@ -22,9 +22,14 @@ from sqlalchemy import Engine, create_engine
 
 from app.admin.admin_routes_effect import bind_admin_routes
 from app.admin.admin_service_effect import make_admin_service
+from app.armory.armory_ports_pure import ArtMaker
 from app.armory.armory_repository_effect import make_sql_armory_repository
 from app.armory.armory_routes_effect import bind_armory_routes
+from app.armory.armory_schemas_pure import ArtPicture
 from app.armory.armory_service_effect import make_armory_service
+from app.armory.art_files_repository_effect import make_file_art_store
+from app.armory.art_studio_routes_effect import bind_art_studio_routes
+from app.armory.art_studio_service_effect import make_art_studio_service
 from app.badges.badges_ports_pure import BadgeNeighbors
 from app.badges.badges_repository_effect import make_sql_badge_repository
 from app.badges.badges_routes_effect import bind_badges_routes
@@ -62,7 +67,7 @@ from app.profiles.profile_photos_repository_effect import make_file_photo_store
 from app.profiles.profiles_ports_pure import PhotoRemixer
 from app.profiles.profiles_repository_effect import make_sql_profile_repository
 from app.profiles.profiles_routes_effect import bind_profiles_routes
-from app.profiles.profiles_schemas_pure import LocalSeedProfile
+from app.profiles.profiles_schemas_pure import AvatarImage, LocalSeedProfile
 from app.profiles.profiles_service_effect import make_profiles_service
 from app.todo.todo_repository_effect import make_sql_todo_repository
 from app.todo.todo_routes_effect import bind_todo_routes
@@ -218,6 +223,15 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
 
     armory = make_armory_service(repository=armory_repository, profile_exists=profiles.exists, clock=utc_now)
     app.include_router(bind_armory_routes(service=armory))
+    art_studio = make_art_studio_service(
+        repository=armory_repository,
+        profile_exists=profiles.exists,
+        art_maker=assemble_art_maker(settings),
+        art_store=make_file_art_store(directory=settings.static_dir / "armory-art", new_name=lambda: uuid4().hex),
+        clock=utc_now,
+        new_id=lambda: uuid4().hex,
+    )
+    app.include_router(bind_art_studio_routes(service=art_studio))
 
     crash_reports = make_crash_reports_service(log=make_file_client_error_log(log_dir=settings.log_dir))
     app.include_router(bind_crash_reports_routes(service=crash_reports))
@@ -249,6 +263,18 @@ def assemble_photo_remixer(settings: AppSettings) -> PhotoRemixer:
         model=settings.openai_image_model,
         size=settings.openai_image_size,
     )
+
+
+def assemble_art_maker(settings: AppSettings) -> ArtMaker:
+    """The art studio's AI: the same OpenAI image edits as the profile photo remix,
+    translated between the two features' picture types."""
+    remixer = assemble_photo_remixer(settings)
+
+    def generate_art(picture: ArtPicture, prompt: str) -> ArtPicture | None:
+        made = remixer(AvatarImage(content=picture.content, content_type=picture.content_type), prompt)
+        return None if made is None else ArtPicture(content=made.content, content_type=made.content_type)
+
+    return generate_art
 
 
 def assemble_image_generator(settings: AppSettings) -> ImageGenerator:

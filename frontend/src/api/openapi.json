@@ -36,7 +36,8 @@
             "enum": [
               "weapon",
               "bullet",
-              "grenade"
+              "grenade",
+              "art"
             ],
             "title": "Kind",
             "type": "string"
@@ -192,6 +193,107 @@
           "catalog"
         ],
         "title": "ArmoryState",
+        "type": "object"
+      },
+      "ArtCreate": {
+        "additionalProperties": false,
+        "description": "A selfie (a PNG or JPEG data URL) and how to turn it into art.",
+        "properties": {
+          "idea": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Idea",
+            "type": "string"
+          },
+          "image_data_url": {
+            "maxLength": 7000100,
+            "minLength": 1,
+            "title": "Image Data Url",
+            "type": "string"
+          },
+          "style": {
+            "enum": [
+              "zombie_slayer",
+              "comic_hero",
+              "pixel_hero",
+              "space_ranger"
+            ],
+            "title": "Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image_data_url",
+          "style"
+        ],
+        "title": "ArtCreate",
+        "type": "object"
+      },
+      "ArtPiece": {
+        "additionalProperties": false,
+        "description": "One piece made in the art studio, kept in the profile's gallery.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "idea": {
+            "title": "Idea",
+            "type": "string"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "style": {
+            "enum": [
+              "zombie_slayer",
+              "comic_hero",
+              "pixel_hero",
+              "space_ranger"
+            ],
+            "title": "Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "image_url",
+          "style",
+          "idea",
+          "created_at"
+        ],
+        "title": "ArtPiece",
+        "type": "object"
+      },
+      "ArtResult": {
+        "additionalProperties": false,
+        "description": "The new piece, and the armory after paying for it.",
+        "properties": {
+          "armory": {
+            "$ref": "#/components/schemas/ArmoryState"
+          },
+          "piece": {
+            "$ref": "#/components/schemas/ArtPiece"
+          }
+        },
+        "required": [
+          "piece",
+          "armory"
+        ],
+        "title": "ArtResult",
         "type": "object"
       },
       "AttemptCreate": {
@@ -3296,9 +3398,107 @@
         ]
       }
     },
+    "/api/profiles/{profile_id}/armory/art": {
+      "get": {
+        "description": "The profile's gallery, newest first.",
+        "operationId": "list_art_api_profiles__profile_id__armory_art_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtPiece"
+                  },
+                  "title": "Response List Art Api Profiles  Profile Id  Armory Art Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Art",
+        "tags": [
+          "armory"
+        ]
+      },
+      "post": {
+        "description": "Turns a selfie into art and keeps it. Points are charged only when the art\nis made: 409 when they can't be afforded, 503 when the AI isn't available.",
+        "operationId": "create_art_api_profiles__profile_id__armory_art_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Art",
+        "tags": [
+          "armory"
+        ]
+      }
+    },
     "/api/profiles/{profile_id}/armory/purchases": {
       "post": {
-        "description": "Buys one item. 409 when it's already owned, needs another item first, or\ncosts more than the balance.",
+        "description": "Buys one item. 409 when it's already owned, needs another item first, costs\nmore than the balance, or is art (made in the art studio instead).",
         "operationId": "purchase_armory_item_api_profiles__profile_id__armory_purchases_post",
         "parameters": [
           {

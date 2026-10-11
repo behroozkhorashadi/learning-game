@@ -10,11 +10,12 @@ against prices the client can't change. What an item *does* in play (damage, fir
 rate, blast radius) is the client's (frontend/src/horde/horde_armory.pure.lib.ts).
 """
 
+from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
-ArmoryItemKind = Literal["weapon", "bullet", "grenade"]
+ArmoryItemKind = Literal["weapon", "bullet", "grenade", "art"]
 ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used"]
 
 # A generous ceiling on one round's points: a round is 60 seconds, so anything past
@@ -90,3 +91,49 @@ class ArmoryEntry(BaseModel):
     points: int = Field(ge=0)
     quantity: int = Field(ge=0)
     created_at: AwareDatetime
+
+
+ArtStyle = Literal["zombie_slayer", "comic_hero", "pixel_hero", "space_ranger"]
+MAX_ART_IDEA_LENGTH = 120
+# A 5 MB picture as a base64 data URL, plus its header.
+MAX_ART_DATA_URL_LENGTH = 7_000_100
+
+
+@dataclass(frozen=True)
+class ArtPicture:
+    """Decoded picture bytes: a PNG or JPEG."""
+
+    content: bytes
+    content_type: str
+
+
+class ArtCreate(BaseModel):
+    """A selfie (a PNG or JPEG data URL) and how to turn it into art."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    image_data_url: Annotated[str, StringConstraints(min_length=1, max_length=MAX_ART_DATA_URL_LENGTH)]
+    style: ArtStyle
+    idea: Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_ART_IDEA_LENGTH)] = ""
+
+
+class ArtPiece(BaseModel):
+    """One piece made in the art studio, kept in the profile's gallery."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: Annotated[str, StringConstraints(min_length=1, max_length=64)]
+    profile_id: int
+    image_url: str
+    style: ArtStyle
+    idea: str
+    created_at: AwareDatetime
+
+
+class ArtResult(BaseModel):
+    """The new piece, and the armory after paying for it."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    piece: ArtPiece
+    armory: ArmoryState

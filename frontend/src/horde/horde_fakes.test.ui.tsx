@@ -1,10 +1,13 @@
 import type { ComponentType, ReactElement } from 'react'
-import type { ArmoryItemRecord, ArmoryStateRecord } from '@app/api/armory_schema.pure.lib.ts'
+import type { ArmoryItemRecord, ArmoryStateRecord, ArtPieceRecord, ArtResultRecord } from '@app/api/armory_schema.pure.lib.ts'
+import type { components } from '@app/api/openapi_schema.pure.lib.ts'
+import { fakeCamera, picture } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
 import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
 import type { MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { NO_MOTION_PREFERENCE, recordingAudio, virtualScheduler, type VirtualScheduler } from '@app/outbreak/arena_fakes.test.ui.tsx'
 import type { ArenaScheduler } from '@app/outbreak/zombie_arena_state.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
+import { bindArtStudio } from './art_studio.effect.ui.tsx'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
 
@@ -51,6 +54,7 @@ export const CATALOG: readonly ArmoryItemRecord[] = [
   { id: 'standard_rounds', kind: 'bullet', name: 'Standard Rounds', description: 'Never run out. Headshots hit hardest; leg shots knock zombies down.', price: 0, quantity: 1, consumable: false, requires: null },
   { id: 'armor_piercing', kind: 'bullet', name: 'Armor-Piercing Rounds', description: '25 rounds. Body and leg shots hit much harder.', price: 60, quantity: 25, consumable: true, requires: null },
   { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: '25 rounds. Every shot hits harder, wherever it lands.', price: 120, quantity: 25, consumable: true, requires: null },
+  { id: 'art_studio', kind: 'art', name: 'Art Studio', description: 'Snap a selfie and turn it into a one-of-a-kind piece of art for your gallery.', price: 300, quantity: 1, consumable: true, requires: null },
   { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. A grenade only goes off near the zombie with the right answer.', price: 80, quantity: 3, consumable: true, requires: null },
 ]
 
@@ -66,10 +70,16 @@ export interface FakeArmory {
   readonly recordRound: (profileId: number, round: RoundReport) => Promise<ArmoryStateRecord>
   readonly state: () => ArmoryStateRecord
   readonly rounds: readonly RoundReport[]
+  readonly gallery: (profileId: number) => Promise<readonly ArtPieceRecord[]>
+  readonly createArt: (profileId: number, request: components['schemas']['ArtCreate']) => Promise<ArtResultRecord>
+  /** The prompts' inputs the fake AI was sent. */
+  readonly artRequests: readonly components['schemas']['ArtCreate'][]
 }
 
 /** The armory server in memory: the same refusals as the backend (unknown, owned, locked, too expensive). */
-export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {} }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>> } = {}): FakeArmory {
+export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, artAvailable = true }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly artAvailable?: boolean } = {}): FakeArmory {
+  const art: ArtPieceRecord[] = []
+  const artRequests: components['schemas']['ArtCreate'][] = []
   let points = balance
   let spent = 0
   let left = grenades
@@ -102,6 +112,18 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {} }:
       else if (item.consumable) shots.set(item.id, (shots.get(item.id) ?? 0) + item.quantity)
       else bought.add(item.id)
       return Promise.resolve(state())
+    },
+    artRequests,
+    gallery: () => Promise.resolve([...art].reverse()),
+    createArt: (_profileId, request) => {
+      const price = CATALOG.find((item) => item.kind === 'art')?.price ?? 0
+      if (state().balance < price) return Promise.reject(new Error(`'art_studio' costs ${String(price)} points; the balance is ${String(state().balance)}`))
+      artRequests.push(request)
+      if (!artAvailable) return Promise.reject(new Error("the art studio can't make art right now; no points were spent"))
+      spent += price
+      const piece: ArtPieceRecord = { id: `art-${String(art.length + 1)}`, profile_id: 1, image_url: picture(['#9D57FA', '#5BCC2D', '#F59E0B'][art.length % 3] ?? '#9D57FA'), style: request.style, idea: request.idea, created_at: '2026-10-11T12:00:00Z' }
+      art.push(piece)
+      return Promise.resolve({ piece, armory: state() })
     },
     recordRound: (_profileId, round) => {
       rounds.push(round)
@@ -194,6 +216,7 @@ export function hordeHarness({ approachMs = 60_000, armory = fakeArmory(), motio
     newSeed: () => 1234,
     reportError: () => undefined,
     Viewport,
+    ArtStudio: bindArtStudio({ camera: fakeCamera(), gallery: armory.gallery, createArt: armory.createArt }),
     motion,
     speakText: () => undefined,
   })

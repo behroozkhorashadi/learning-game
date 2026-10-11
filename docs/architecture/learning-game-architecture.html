@@ -127,7 +127,7 @@ code { font-family:var(--mono); font-size:.9em; }
     pieces[&quot;pieces/&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&lt;br/&gt;illustration files&quot;]
     practice[&quot;practice/&lt;br/&gt;/api/practice-config&quot;]
     pathfinder[&quot;pathfinder/&lt;br/&gt;/completions, /maps, /published-maps&quot;]
-    armory[&quot;armory/&lt;br/&gt;/profiles/{id}/armory, /rounds, /purchases&lt;br/&gt;Zombie Horde points ledger + catalog&quot;]
+    armory[&quot;armory/&lt;br/&gt;/profiles/{id}/armory, /rounds, /purchases, /art&lt;br/&gt;Zombie Horde points ledger + catalog, art studio&quot;]
     crash[&quot;crash_reports/&lt;br/&gt;POST /api/client-errors&lt;br/&gt;→ logs/client_errors.log&quot;]
   end
 
@@ -148,6 +148,7 @@ code { font-family:var(--mono); font-size:.9em; }
   todo &amp; profiles &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory --&gt; sqlite
   profiles &amp; pieces --&gt; files
   profiles -- &quot;photo remix&quot; --&gt; openai
+  armory -- &quot;art studio (via the photo remixer)&quot; --&gt; openai
   pieces -- &quot;illustrations&quot; --&gt; openai
 </pre></details>
 </section>
@@ -192,7 +193,7 @@ code { font-family:var(--mono); font-size:.9em; }
     science_fair[&quot;science_fair/&lt;br/&gt;the gym: booths, portal, lanes,&lt;br/&gt;colliders that block shots&quot;]
     blaster[&quot;blaster/&lt;br/&gt;EquationBlaster, MuzzleFlash (pixel textures),&lt;br/&gt;ChargeHud, pose maths, dev tuning panel&quot;]
     motion[&quot;motion/&lt;br/&gt;usePrefersReducedMotion over an injected preference&quot;]
-    horde[&quot;horde/&lt;br/&gt;Zombie Horde: bindZombieHorde + useHordeRound,&lt;br/&gt;pure engine (roaming, health, cover, grenades), armory shop,&lt;br/&gt;HordeViewport + HordeScene (R3F)&quot;]
+    horde[&quot;horde/&lt;br/&gt;Zombie Horde: bindZombieHorde + useHordeRound,&lt;br/&gt;pure engine (roaming, health, cover, grenades, push-backs),&lt;br/&gt;armory shop, art studio, HordeViewport + HordeScene (R3F)&quot;]
     zombie_lab[&quot;zombie_lab/&lt;br/&gt;dev: hit lab (labels shots for the e2e eval),&lt;br/&gt;zombie and weapon POC scenes&quot;]
     example[&quot;examples/todo/&lt;br/&gt;the worked example to copy&quot;]
   end
@@ -236,7 +237,7 @@ code { font-family:var(--mono); font-size:.9em; }
   zombie_lab --&gt; arena &amp; zombies &amp; blaster
   app -- &quot;assembleZombieHorde() once&quot; --&gt; horde
   dev -- &quot;live screen&quot; --&gt; horde
-  horde --&gt; zombies &amp; arena &amp; blaster &amp; science_fair &amp; outbreak &amp; motion &amp; den &amp; query &amp; apiad &amp; speech &amp; ids &amp; boundary
+  horde --&gt; zombies &amp; arena &amp; blaster &amp; science_fair &amp; outbreak &amp; profiles &amp; motion &amp; den &amp; query &amp; apiad &amp; speech &amp; ids &amp; boundary
   horde -- &quot;injected timers, rAF,&lt;br/&gt;Web Audio, matchMedia&quot; --&gt; webapis
   zombies &amp; blaster &amp; science_fair -- &quot;GLB models, audio&quot; --&gt; assets
   outbreak -- &quot;injected timers, rAF,&lt;br/&gt;Web Audio, matchMedia&quot; --&gt; webapis[[&quot;Browser APIs&quot;]]
