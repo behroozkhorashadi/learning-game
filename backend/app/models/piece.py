@@ -46,7 +46,7 @@ class PieceUpdate(BaseModel):
 
 class Piece(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
-    profile_id: int = Field(foreign_key="profile.id")
+    profile_id: int  # the profile table now belongs to app/profiles/ (no cross-feature FK)
     game_id: str
     session_id: Optional[str] = None
     title: Optional[str] = None

@@ -28,7 +28,7 @@ class RatingCreate(BaseModel):
 
 class Rating(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    profile_id: int = Field(foreign_key="profile.id")
+    profile_id: int  # the profile table now belongs to app/profiles/ (no cross-feature FK)
     game_id: str
     variant_id: Optional[str] = None
     scale: RatingScale

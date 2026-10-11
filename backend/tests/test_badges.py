@@ -18,7 +18,6 @@ from app.models.badge import Badge, BadgeAward
 from app.models.enums import EventType, RatingScale
 from app.models.event import Event
 from app.models.piece import Piece
-from app.models.profile import Profile
 from app.models.rating import Rating
 from app.services.badges_service import (
     SEED_BADGES,
@@ -34,7 +33,6 @@ def session():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine)
     with Session(engine) as s:
-        s.add(Profile(id=1, name="Test Kid", avatar="fox", birth_year=2020))
         s.commit()
         yield s
 

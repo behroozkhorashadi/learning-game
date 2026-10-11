@@ -78,7 +78,7 @@ pure      no injection, no I/O: same input -> same output
 | legacy | ❌ (only `app.main`) | ✅ | ✅ | ✅ |
 
 Pure modules may import only `pydantic`, `typing`, `dataclasses`, `enum`, `datetime` (the
-types, not `now()`), `collections`, `functools`, `itertools`, `math`, `re`, `decimal`, and
+types, not `now()`), `collections`, `functools`, `itertools`, `math`, `re`, `decimal`, `base64`, and
 the other entries in `PURE_EXTERNALS` (`scripts/lint_py/color_contract.py`). They can't import
 `sqlalchemy`, `httpx`, `fastapi`, `os`, or `pydantic_settings`.
 
@@ -182,7 +182,7 @@ code, or to change the rule in `pyproject.toml` / `scripts/lint_py/` openly in a
 ## Legacy
 
 Everything that existed before these rules is listed in
-`scripts/lint_py/legacy_allowlist.txt` (62 files) and excluded from ruff, pyright strict,
+`scripts/lint_py/legacy_allowlist.txt` (55 files) and excluded from ruff, pyright strict,
 and the AST rules. New-style code may not import legacy modules, so migrate what you need or
 adapt it in assembly. The list can only shrink (`test_legacy_allowlist.py`). See
 `MIGRATION.md`. `app/main.py` is the legacy entry point (`uvicorn app.main:app`). It calls

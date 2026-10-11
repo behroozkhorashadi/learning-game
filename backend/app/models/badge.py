@@ -32,7 +32,7 @@ class BadgeAward(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("profile_id", "badge_id"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    profile_id: int = Field(foreign_key="profile.id")
+    profile_id: int  # the profile table now belongs to app/profiles/ (no cross-feature FK)
     badge_id: int = Field(foreign_key="badge.id")
     session_id: Optional[str] = None
     awarded_at: datetime = Field(default_factory=utcnow)

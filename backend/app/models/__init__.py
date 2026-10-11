@@ -1,6 +1,5 @@
 from app.models.enums import EventType, RatingScale, TurnAuthor
-from app.models.profile import Profile, SkillState
-from app.models.skill import Skill
+from app.models.skill import Skill, SkillState
 from app.models.game import GameMetadata, Level, Variant
 from app.models.item import Item
 from app.models.attempt import Attempt, AttemptCreate, AttemptRead, TelemetryCore
@@ -28,7 +27,6 @@ __all__ = [
     "EventType",
     "RatingScale",
     "TurnAuthor",
-    "Profile",
     "SkillState",
     "Skill",
     "GameMetadata",

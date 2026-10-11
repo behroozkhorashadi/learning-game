@@ -35,7 +35,7 @@ class Level(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("profile_id", "game_id"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    profile_id: int = Field(foreign_key="profile.id")
+    profile_id: int  # the profile table now belongs to app/profiles/ (no cross-feature FK)
     game_id: str
     value: int = Field(default=1)
     updated_at: datetime = Field(default_factory=utcnow)

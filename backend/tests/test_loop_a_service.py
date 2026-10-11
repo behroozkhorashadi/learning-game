@@ -10,15 +10,29 @@ the service plugs it into the DB and event log correctly.
 
 from datetime import date
 
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from app.db import engine
 from app.models.enums import EventType
 from app.models.event import Event
 from app.models.game import Level
-from app.models.profile import Profile
 
 GAME_ID = "syllable_builder"
+
+
+def Profile(*, id, name, avatar, birth_year):  # noqa: N802 -- stand-in for the legacy model; profiles live in app/profiles/ now
+    return {"id": id, "name": name, "avatar": avatar, "birth_year": birth_year}
+
+
+def _add(session, profile) -> None:
+    session.execute(
+        text(
+            "INSERT INTO profile (id, name, avatar, birth_year, reading_support, created_at)"
+            " VALUES (:id, :name, :avatar, :birth_year, 0, CURRENT_TIMESTAMP)"
+        ),
+        profile,
+    )
 _next_profile_id = 1000
 
 
@@ -27,7 +41,7 @@ def _new_profile() -> int:
     _next_profile_id += 1
     pid = _next_profile_id
     with Session(engine) as session:
-        session.add(Profile(id=pid, name=f"Test Kid {pid}", avatar="owl", birth_year=2018))
+        _add(session, Profile(id=pid, name=f"Test Kid {pid}", avatar="owl", birth_year=2018))
         session.commit()
     return pid
 
@@ -169,7 +183,7 @@ def test_a_young_kid_who_keeps_mastering_is_promoted_past_their_age_level(client
     played."""
     with Session(engine) as session:
         profile_id = 2000
-        session.add(Profile(id=profile_id, name="Young Kid", avatar="owl", birth_year=date.today().year - 6))
+        _add(session, Profile(id=profile_id, name="Young Kid", avatar="owl", birth_year=date.today().year - 6))
         session.commit()
 
     game_id = "equation_builder"
@@ -199,7 +213,7 @@ def test_promotion_past_age_level_needs_a_longer_streak(client):
     profile_id = 2002
     game_id = "fact_fluency"
     with Session(engine) as session:
-        session.add(Profile(id=profile_id, name="Nine", avatar="owl", birth_year=date.today().year - 9))
+        _add(session, Profile(id=profile_id, name="Nine", avatar="owl", birth_year=date.today().year - 9))
         session.add(Level(profile_id=profile_id, game_id=game_id, value=6))
         session.commit()
 
@@ -235,7 +249,7 @@ def test_a_brand_new_older_profiles_first_item_starts_above_level_one(client):
     reflect their age rather than starting everyone at level 1."""
     profile_id = 2001
     with Session(engine) as session:
-        session.add(Profile(id=profile_id, name="Older Kid", avatar="owl", birth_year=2015))  # age 11
+        _add(session, Profile(id=profile_id, name="Older Kid", avatar="owl", birth_year=2015))  # age 11
         session.commit()
 
     response = client.get(

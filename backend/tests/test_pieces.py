@@ -284,3 +284,55 @@ def test_items_next_falls_back_to_adaptive_level_with_no_config(client):
     profile_id = _create_practice_profile(client)
     response = client.get(f"/api/items/next?profile_id={profile_id}&game_id={PRACTICE_GAME_ID}")
     assert response.status_code == 200
+
+
+# --- the profile-delete cascade into legacy tables (moves with pieces/play) ---
+
+from app.composition.app_settings_assembly import load_settings as _load_settings
+
+CASCADE_ADMIN = {"X-Admin-Password": _load_settings().admin_password.get_secret_value()}
+
+
+def _cascade_profile(client) -> int:
+    from datetime import date
+
+    response = client.post("/api/profiles", json={"name": "Cascade Kid", "avatar": "owl", "birth_year": date.today().year - 7})
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def test_delete_profile_also_removes_its_dependent_rows(client):
+    pid = _cascade_profile(client)
+
+    piece = client.post("/api/pieces", json={"profile_id": pid, "game_id": "prompt_forge", "body": "hi"}).json()
+    client.post(
+        "/api/pieces/{}/illustrations".format(piece["id"]),
+        json={"prompt_excerpt": "hi", "image_url": "http://example.com/x.png"},
+    )
+    client.post("/api/ratings", json={"profile_id": pid, "game_id": "prompt_forge", "scale": "stars_1_5", "value": 5})
+
+    assert client.delete(f"/api/profiles/{pid}", headers=CASCADE_ADMIN).status_code == 204
+    assert client.get(f"/api/pieces/{piece['id']}").status_code == 404
+
+
+def _pathfinder_map(map_id):
+    return {
+        "id": map_id,
+        "name": "Kid_map1",
+        "difficulty": "easy",
+        "rows": 2,
+        "columns": 2,
+        "dots": [{"row": 0, "col": 0}, {"row": 0, "col": 1}, {"row": 1, "col": 1}],
+    }
+
+
+def test_deleting_a_profile_removes_its_pathfinder_state(client):
+    profile_id = _cascade_profile(client)
+    client.post(f"/api/profiles/{profile_id}/pathfinder/completions", json={"level_ids": ["easy-a"]})
+    client.post(f"/api/profiles/{profile_id}/pathfinder/maps", json=_pathfinder_map("custom-gone"))
+
+    assert client.delete(f"/api/profiles/{profile_id}", headers=CASCADE_ADMIN).status_code == 204
+
+    # The map id is free again, so its row really was removed.
+    new_id = _cascade_profile(client)
+    assert client.post(f"/api/profiles/{new_id}/pathfinder/maps", json=_pathfinder_map("custom-gone")).status_code == 201

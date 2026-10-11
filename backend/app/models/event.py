@@ -18,7 +18,7 @@ from app.models.enums import EventType
 class Event(SQLModel, table=True):
     event_id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     timestamp: datetime = Field(default_factory=utcnow)
-    profile_id: int = Field(foreign_key="profile.id")
+    profile_id: int  # the profile table now belongs to app/profiles/ (no cross-feature FK)
     game_id: str
     variant_id: Optional[str] = None
     session_id: Optional[str] = None

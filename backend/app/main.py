@@ -1,19 +1,7 @@
 """FastAPI app — PRD §9, §16 step 3.
 
-- GET  /api/profiles     : read-only listing for the profile-picker screen.
-- POST /api/profiles     : backs the create-profile screen.
-- POST /api/profiles/{id}/unlock: checks an (optional) profile password, or
-  the admin password as an override — see app/services/profile_passwords.py.
-- PATCH /api/profiles/{id}: backs the edit-profile screen. Needs the profile's
-  password (or the admin password) if it has one.
-- DELETE /api/profiles/{id}: backs the admin screen's remove action. Gated by
-  `require_admin` (app/admin_auth.py) — a hardcoded shared password, not real
-  auth (PRD §2 non-goals).
-- POST /api/profile-photos/remix: AI-restyles a captured photo for preview only.
-- GET/DELETE /api/profiles/{id}/photos[/{photo_id}]: a profile's saved pictures
-  (every photo and remix kept), to switch between or clean up.
-- POST /api/admin/login  : lets the admin screen check the password before
-  showing itself. Holds no session state — see `app/admin_auth.py`.
+- /api/profiles[...], /api/profile-photos/remix, /api/admin/login: migrated to
+  app/profiles/ and app/admin/ (wired in app/composition/).
 - GET  /api/items/next   : server selects the level, generates an Item, logs `item_shown`.
 - POST /api/attempts     : validates the telemetry core, persists the Attempt, logs `attempt`.
 - POST /api/ratings      : persists an explicit kid-provided rating, logs `rating_given`.
@@ -38,21 +26,18 @@ profile can be seeded locally via LOCAL_SEED_PROFILE_* env vars (see
 backend/.env.example) without that person's name/photo living in the repo.
 """
 
-import os
 from contextlib import asynccontextmanager
 from random import Random
 from typing import AsyncIterator, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import delete as sa_delete
 from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
 from app.composition.app_settings_assembly import load_settings
 from app.composition.app_wiring_assembly import assemble_features
-from app.admin_auth import AdminLoginRequest, require_admin, verify_admin_password
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
 from app.engine.loop_a import LoopAConfig
@@ -79,39 +64,22 @@ from app.models.piece import (
     TurnLine,
     TurnLineCreate,
 )
-from app.models.profile import (
-    AVATAR_OPTIONS,
-    MAX_AGE,
-    MIN_AGE,
-    Profile,
-    ProfileCreate,
-    ProfilePassword,
-    ProfilePhotoRead,
-    ProfilePhotoRemixRequest,
-    ProfilePhotoRemixResponse,
-    ProfileRead,
-    ProfileUnlockRequest,
-    ProfileUpdate,
-    SkillState,
-)
 from app.models.rating import Rating, RatingCreate
 from app.models.session import PlaySession
+from app.models.skill import SkillState
 from app.models.stats import ProfileStats
 from app.models.verification import Verification, VerificationCreate
 from app.services.badges_service import compute_profile_stats, evaluate_and_award_badges, seed_badges
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
-from app.services import profile_passwords, profile_photos
-from app.services.profile_avatars import encode_avatar_data_url, remix_profile_photo
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     create_db_and_tables()
+    features.seed_profiles()
     with Session(engine) as session:
-        _seed_test_profiles(session)
         seed_badges(session)
-        profile_photos.backfill_existing_avatars(session)
     yield
 
 
@@ -127,274 +95,45 @@ app.add_middleware(
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+def _erase_legacy_profile_rows(profile_id: int) -> None:
+    """Deletes the rows the legacy routes below keep for a profile (no DB-level cascade
+    is configured). The profiles feature calls this, through assembly, before it deletes
+    the profile itself."""
+    with Session(engine) as session:
+        piece_ids = [p.id for p in session.exec(select(Piece).where(Piece.profile_id == profile_id)).all()]
+        for model in (Illustration, RevisionPass, RemixVersion, TurnLine):
+            for row in session.exec(select(model).where(model.piece_id.in_(piece_ids))).all():
+                session.delete(row)
+        for piece_id in piece_ids:
+            piece = session.get(Piece, piece_id)
+            if piece is not None:
+                session.delete(piece)
+
+        attempt_ids = [a.id for a in session.exec(select(Attempt).where(Attempt.profile_id == profile_id)).all()]
+        for verification in session.exec(select(Verification).where(Verification.attempt_id.in_(attempt_ids))).all():
+            session.delete(verification)
+
+        for model in (Attempt, Event, Rating, BadgeAward, Level, PlaySession, SkillState):
+            for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
+                session.delete(row)
+        session.commit()
+
+
+def _age(profile_id: int) -> int:
+    """Approximate current age, derived rather than stored so it never goes stale."""
+    birth_year = features.profiles.birth_year(profile_id)
+    return utcnow().year - (birth_year if birth_year is not None else utcnow().year)
+
+
 # New-style features (backend/AGENTS.md) are wired in app/composition/, not here.
-features = assemble_features(app, load_settings())
-
-
-def _seed_test_profiles(session: Session) -> None:
-    if session.exec(select(Profile)).first() is None:
-        session.add(Profile(id=1, name="Demo Kid", avatar="fox", birth_year=2020))
-    _seed_local_profile(session)
-    _remove_demo_profile_if_needed(session)
-    session.commit()
-
-
-def _seed_local_profile(session: Session) -> None:
-    """Optional second seed profile for a real named tester, kept out of the
-    repo (see backend/.env.example) — id=2 is stable so their attempts/badges/
-    session history persist across restarts instead of being re-seeded from
-    scratch. Only set on machines that opt in via LOCAL_SEED_PROFILE_* env vars."""
-    name = os.environ.get("LOCAL_SEED_PROFILE_NAME")
-    if not name or session.get(Profile, 2) is not None:
-        return
-    avatar = os.environ.get("LOCAL_SEED_PROFILE_AVATAR", "fox")
-    birth_year = int(os.environ.get("LOCAL_SEED_PROFILE_BIRTH_YEAR", "2019"))
-    session.add(Profile(id=2, name=name, avatar=avatar, birth_year=birth_year))
-
-
-def _demo_profile(session: Session) -> Optional[Profile]:
-    profile = session.get(Profile, 1)
-    return profile if profile is not None and profile.name == "Demo Kid" else None
-
-
-def _remove_demo_profile_if_needed(session: Session) -> None:
-    demo = _demo_profile(session)
-    if demo is not None and session.exec(select(Profile).where(Profile.id != demo.id)).first() is not None:
-        _delete_profile_rows(session, demo)
-
-
-@app.get("/api/profiles", response_model=list[ProfileRead])
-def list_profiles(session: Session = Depends(get_session)) -> list[ProfileRead]:
-    """Read-only listing for the profile-picker screen. No auth (PRD §2 non-goals)
-    — `has_password` tells the picker which profiles to ask a password for."""
-    protected = set(session.exec(select(ProfilePassword.profile_id)).all())
-    return [ProfileRead.of(p, p.id in protected) for p in session.exec(select(Profile)).all()]
-
-
-def _validated_profile_name(name: str) -> str:
-    name = name.strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="name must not be blank")
-    return name
-
-
-def _validate_profile_avatar(avatar: str) -> None:
-    if avatar not in AVATAR_OPTIONS:
-        raise HTTPException(status_code=422, detail=f"avatar must be one of {AVATAR_OPTIONS}")
-
-
-def _validate_profile_birth_year(birth_year: int) -> None:
-    age = utcnow().year - birth_year
-    if age < MIN_AGE or age > MAX_AGE:
-        raise HTTPException(status_code=422, detail=f"birth_year implies an age outside {MIN_AGE}-{MAX_AGE}")
-
-
-@app.post("/api/profiles", response_model=ProfileRead, status_code=201)
-def post_profile(payload: ProfileCreate, session: Session = Depends(get_session)) -> ProfileRead:
-    """Backs the create-profile screen. No auth (PRD §2 non-goals) — anyone on
-    the LAN can add a player, same trust model as everything else here."""
-    name = _validated_profile_name(payload.name)
-    _validate_profile_birth_year(payload.birth_year)
-    if payload.password is not None:
-        profile_passwords.validated_new_password(payload.password)
-    profile_photos.validate_new_photos(payload.new_photos)
-    if not any(photo.use_as_avatar for photo in payload.new_photos):
-        _validate_profile_avatar(payload.avatar)
-
-    profile = Profile(name=name, avatar=payload.avatar, birth_year=payload.birth_year, reading_support=payload.reading_support)
-    session.add(profile)
-    session.flush()
-    photo_avatar = profile_photos.add_photos(session, profile.id, payload.new_photos)
-    if photo_avatar is not None:
-        profile.avatar = photo_avatar
-    if payload.password is not None:
-        profile_passwords.set_password(session, profile.id, payload.password)
-    _remove_demo_profile_if_needed(session)
-    session.commit()
-    session.refresh(profile)
-    return ProfileRead.of(profile, payload.password is not None)
-
-
-@app.post("/api/profiles/{profile_id}/unlock", status_code=204)
-def unlock_profile(profile_id: int, payload: ProfileUnlockRequest, session: Session = Depends(get_session)) -> None:
-    """Backs the password prompt shown when a kid picks a protected profile
-    (or opens its edit screen). Accepts the profile's own password, or the
-    admin password as an override. A profile with no password always
-    unlocks. Like `admin_login`, this holds no session state — the frontend
-    keeps the password and sends it on later edits as `X-Profile-Password`."""
-    if session.get(Profile, profile_id) is None:
-        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
-    profile_passwords.require_profile_access(session, profile_id, payload.password, None)
-
-
-@app.post("/api/profile-photos/remix", response_model=ProfilePhotoRemixResponse)
-def remix_profile_photo_preview(payload: ProfilePhotoRemixRequest) -> ProfilePhotoRemixResponse:
-    """Backs the photo "remix" panel on the create/edit-profile screens: sends
-    the captured photo plus a preset style and/or the kid's own idea to the
-    image provider and hands the result straight back for preview. Nothing is
-    saved here — the versions the kid keeps come back as `new_photos` on the
-    profile create/update. No auth, same trust model as POST /api/profiles."""
-    try:
-        image = remix_profile_photo(payload.image_data_url, payload.style, payload.idea)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if image is None:
-        raise HTTPException(status_code=503, detail="AI photo remix isn't available right now")
-    return ProfilePhotoRemixResponse(image_data_url=encode_avatar_data_url(image))
-
-
-@app.post("/api/admin/login", status_code=204)
-def admin_login(payload: AdminLoginRequest) -> None:
-    """Lets the admin screen check a password before showing itself — a UX
-    nicety, not the actual gate. `require_admin` (checked per-request on the
-    admin-only endpoints below) is what actually protects anything; this
-    endpoint holds no session state of its own."""
-    verify_admin_password(payload.password)
-
-
-@app.patch("/api/profiles/{profile_id}", response_model=ProfileRead)
-def patch_profile(
-    profile_id: int,
-    payload: ProfileUpdate,
-    session: Session = Depends(get_session),
-    x_profile_password: Optional[str] = Header(default=None),
-    x_admin_password: Optional[str] = Header(default=None),
-) -> ProfileRead:
-    """Backs the edit-profile screen. A password-protected profile needs its
-    own password (`X-Profile-Password`) or the admin password (either header)
-    — see `app/services/profile_passwords.py`. A profile with no password is
-    editable by anyone, same as creating one."""
-    profile = session.get(Profile, profile_id)
-    if profile is None:
-        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
-    profile_passwords.require_profile_access(session, profile_id, x_profile_password, x_admin_password)
-    if payload.password is not None and payload.remove_password:
-        raise HTTPException(status_code=422, detail="send either password or remove_password, not both")
-    if payload.password is not None:
-        profile_passwords.validated_new_password(payload.password)
-    profile_photos.validate_new_photos(payload.new_photos)
-
-    if payload.name is not None:
-        profile.name = _validated_profile_name(payload.name)
-    if payload.birth_year is not None:
-        _validate_profile_birth_year(payload.birth_year)
-        profile.birth_year = payload.birth_year
-    if payload.reading_support is not None:
-        profile.reading_support = payload.reading_support
-    # Avatar last, so a validation failure above never leaves a new photo
-    # file orphaned on disk. Re-sending the current avatar is a no-op; any
-    # other avatar is an animal key or one of this profile's saved photos.
-    # Switching away from a photo keeps it in the saved list.
-    if payload.avatar is not None and payload.avatar != profile.avatar:
-        if not profile_photos.owns_photo(session, profile_id, payload.avatar):
-            _validate_profile_avatar(payload.avatar)
-        profile.avatar = payload.avatar
-    photo_avatar = profile_photos.add_photos(session, profile_id, payload.new_photos)
-    if photo_avatar is not None:
-        profile.avatar = photo_avatar
-
-    if payload.password is not None:
-        profile_passwords.set_password(session, profile_id, payload.password)
-    elif payload.remove_password:
-        profile_passwords.remove_password(session, profile_id)
-
-    session.add(profile)
-    session.commit()
-    session.refresh(profile)
-    return ProfileRead.of(profile, profile_passwords.has_password(session, profile_id))
-
-
-def _profile_for_access(session: Session, profile_id: int, profile_password: Optional[str], admin_password: Optional[str]) -> Profile:
-    profile = session.get(Profile, profile_id)
-    if profile is None:
-        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
-    profile_passwords.require_profile_access(session, profile_id, profile_password, admin_password)
-    return profile
-
-
-@app.get("/api/profiles/{profile_id}/photos", response_model=list[ProfilePhotoRead])
-def list_profile_photos(
-    profile_id: int,
-    session: Session = Depends(get_session),
-    x_profile_password: Optional[str] = Header(default=None),
-    x_admin_password: Optional[str] = Header(default=None),
-) -> list[ProfilePhotoRead]:
-    """Backs the edit screen's "Your pictures" strip — every saved photo and
-    AI remix, oldest first. Same access rule as PATCH."""
-    _profile_for_access(session, profile_id, x_profile_password, x_admin_password)
-    return [ProfilePhotoRead(**photo.model_dump()) for photo in profile_photos.list_photos(session, profile_id)]
-
-
-@app.delete("/api/profiles/{profile_id}/photos/{photo_id}", status_code=204)
-def delete_profile_photo(
-    profile_id: int,
-    photo_id: int,
-    session: Session = Depends(get_session),
-    x_profile_password: Optional[str] = Header(default=None),
-    x_admin_password: Optional[str] = Header(default=None),
-) -> None:
-    """Removes one saved picture (row and file). 409 for the current profile
-    picture — switch to another first. Same access rule as PATCH."""
-    profile = _profile_for_access(session, profile_id, x_profile_password, x_admin_password)
-    profile_photos.delete_photo(session, profile, photo_id)
-
-
-@app.delete("/api/profiles/{profile_id}", status_code=204, dependencies=[Depends(require_admin)])
-def delete_profile(profile_id: int, session: Session = Depends(get_session)) -> None:
-    """Admin-only (see `app/admin_auth.py`) — backs the admin screen's remove
-    action. Removes every row that hangs off this profile first since
-    there's no DB-level cascade configured (same reasoning as `delete_piece`)."""
-    profile = session.get(Profile, profile_id)
-    if profile is None:
-        raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
-
-    _delete_profile_rows(session, profile)
-    session.commit()
-
-
-def _delete_profile_rows(session: Session, profile: Profile) -> None:
-    """Delete a profile and all dependent rows; the caller owns the commit."""
-    profile_id = profile.id
-    piece_ids = [p.id for p in session.exec(select(Piece).where(Piece.profile_id == profile_id)).all()]
-    for model in (Illustration, RevisionPass, RemixVersion, TurnLine):
-        for row in session.exec(select(model).where(model.piece_id.in_(piece_ids))).all():
-            session.delete(row)
-    for piece_id in piece_ids:
-        piece = session.get(Piece, piece_id)
-        if piece is not None:
-            session.delete(piece)
-
-    attempt_ids = [a.id for a in session.exec(select(Attempt).where(Attempt.profile_id == profile_id)).all()]
-    for verification in session.exec(select(Verification).where(Verification.attempt_id.in_(attempt_ids))).all():
-        session.delete(verification)
-
-    for model in (
-        Attempt,
-        Event,
-        Rating,
-        BadgeAward,
-        Level,
-        PlaySession,
-        SkillState,
-        ProfilePassword,
-    ):
-        for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
-            session.delete(row)
-
-    # In this session's transaction: a second connection would wait on SQLite's write lock.
-    practice_table = features.practice_configs.table
-    session.execute(sa_delete(practice_table).where(practice_table.c.profile_id == profile_id))
-    for pathfinder_table in (features.pathfinder.completions, features.pathfinder.maps):
-        session.execute(sa_delete(pathfinder_table).where(pathfinder_table.c.profile_id == profile_id))
-    profile_photos.delete_all_photos(session, profile)
-    session.delete(profile)
+features = assemble_features(app, load_settings(), erase_legacy_profile_rows=_erase_legacy_profile_rows)
 
 
 @app.get("/api/profiles/{profile_id}/badges", response_model=list[BadgeStatus])
 def get_profile_badges(profile_id: int, session: Session = Depends(get_session)) -> list[BadgeStatus]:
     """Backs the Accomplishments screen's badge shelf — every seeded badge,
     annotated with whether (and when) this profile earned it."""
-    if session.get(Profile, profile_id) is None:
+    if not features.profiles.exists(profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
 
     badges = list(session.exec(select(Badge).order_by(Badge.id)).all())
@@ -419,7 +158,7 @@ def get_profile_badges(profile_id: int, session: Session = Depends(get_session))
 def get_profile_stats(profile_id: int, session: Session = Depends(get_session)) -> ProfileStats:
     """Backs the Accomplishments screen's parent-facing stats — derived live
     from the Rating/Attempt/Event log rather than stored (HANDOFF.md §4)."""
-    if session.get(Profile, profile_id) is None:
+    if not features.profiles.exists(profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
     return compute_profile_stats(session, profile_id)
 
@@ -437,9 +176,9 @@ def get_next_item(
     session_id: Optional[str] = None,
     session: Session = Depends(get_session),
 ) -> Item:
-    profile = session.get(Profile, profile_id)
-    if profile is None:
+    if not features.profiles.exists(profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
+    age = _age(profile_id)
     try:
         game = get_game(game_id)
     except KeyError as exc:
@@ -487,7 +226,7 @@ def get_next_item(
             profile_id=profile_id,
             game_id=game_id,
             max_level=game.metadata.max_level,
-            starting_level=game.starting_level_for_age(profile.age),
+            starting_level=game.starting_level_for_age(age),
             rng=Random(),
         )
         item = game.generate_item(directive.level, Random(), exclude=frozenset(exclude))
@@ -506,16 +245,16 @@ def get_next_item(
 
 @app.post("/api/attempts", response_model=AttemptRead, status_code=201)
 def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)) -> AttemptRead:
-    profile = session.get(Profile, payload.profile_id)
-    if profile is None:
+    if not features.profiles.exists(payload.profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
+    age = _age(payload.profile_id)
     try:
         game = get_game(payload.game_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     level = get_current_level(
-        session, payload.profile_id, payload.game_id, starting_level=game.starting_level_for_age(profile.age)
+        session, payload.profile_id, payload.game_id, starting_level=game.starting_level_for_age(age)
     )
     attempt = Attempt(
         item_id=payload.item_id,
@@ -568,8 +307,8 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
         session,
         attempt=attempt,
         max_level=game.metadata.max_level,
-        starting_level=game.starting_level_for_age(profile.age),
-        age_level=game.typical_level_for_age(profile.age),
+        starting_level=game.starting_level_for_age(age),
+        age_level=game.typical_level_for_age(age),
         config=loop_config,
     )
 
@@ -589,7 +328,7 @@ def post_attempt(payload: AttemptCreate, session: Session = Depends(get_session)
 
 @app.post("/api/ratings", response_model=Rating, status_code=201)
 def post_rating(payload: RatingCreate, session: Session = Depends(get_session)) -> Rating:
-    if session.get(Profile, payload.profile_id) is None:
+    if not features.profiles.exists(payload.profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
 
     rating = Rating(
@@ -660,7 +399,7 @@ def _get_piece_or_404(session: Session, piece_id: str) -> Piece:
 
 @app.post("/api/pieces", response_model=Piece, status_code=201)
 def post_piece(payload: PieceCreate, session: Session = Depends(get_session)) -> Piece:
-    if session.get(Profile, payload.profile_id) is None:
+    if not features.profiles.exists(payload.profile_id):
         raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
 
     piece = Piece(

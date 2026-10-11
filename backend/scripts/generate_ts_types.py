@@ -42,7 +42,7 @@ from app.pathfinder.pathfinder_schemas_pure import (  # noqa: E402
     PublishedPathfinderMap,
 )
 from app.practice.practice_schemas_pure import PracticeConfig, PracticeConfigUpsert  # noqa: E402
-from app.models.profile import (  # noqa: E402
+from app.profiles.profiles_schemas_pure import (  # noqa: E402
     NewProfilePhoto,
     ProfileCreate,
     ProfilePhotoRead,
@@ -51,11 +51,10 @@ from app.models.profile import (  # noqa: E402
     ProfileRead,
     ProfileUnlockRequest,
     ProfileUpdate,
-    SkillState,
 )
 from app.models.rating import Rating, RatingCreate  # noqa: E402
 from app.models.session import PlaySession  # noqa: E402
-from app.models.skill import Skill  # noqa: E402
+from app.models.skill import Skill, SkillState  # noqa: E402
 from app.models.stats import ProfileStats  # noqa: E402
 from app.models.verification import Verification, VerificationCreate  # noqa: E402
 

@@ -2,21 +2,17 @@ flowchart TB
   client["React SPA"] -- "/api/*" --> main
 
   subgraph API["HTTP layer — app/main.py (FastAPI, legacy entry: uvicorn app.main:app)"]
-    main["App + lifespan<br/>CORS, /static mount, seed demo profile + badges"]
-    r_prof["Profiles and auth<br/>/profiles, /unlock, /photos, /admin/login"]
+    main["App + lifespan<br/>CORS, /static mount, seeds (via profiles/) + badges"]
     r_play["Gameplay<br/>/games, /items/next, /attempts"]
     r_eval["Feedback<br/>/ratings, /verifications"]
     r_write["Writing pieces<br/>/pieces, /illustrations, /revisions, /remixes, /turns"]
     r_prog["Progress<br/>/badges, /stats"]
-    auth["admin_auth<br/>require_admin dependency"]
   end
 
   subgraph SVC["Services — app/services (IO + orchestration)"]
     s_loop["loop_a_service<br/>choose_next_item_level, process_attempt"]
     s_badge["badges_service<br/>stats, award badges"]
     s_img["image_generation<br/>ImageGenerator: OpenAI or Noop"]
-    s_avatar["profile_avatars / photos<br/>photo remix + storage"]
-    s_pw["profile_passwords<br/>hashing"]
   end
 
   subgraph ENG["Engine — app/engine (pure, no IO)"]
@@ -49,26 +45,33 @@ flowchart TB
     t_repo["todo_repository_effect<br/>over an injected engine"]
     t_pure["todo_reducers_pure, todo_schemas_pure,<br/>todo_ports_pure (no IO, no framework)"]
     practice["practice/<br/>/api/practice-config<br/>routes → service → SQL repository"]
+    profiles["profiles/<br/>/profiles, /unlock, /photos, /profile-photos/remix<br/>passwords (scrypt), photo files, demo seeding"]
+    admin["admin/<br/>/admin/login + the admin password check"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps<br/>routes → service → SQL repository"]
   end
 
   openai["OpenAI Images API"]
 
-  main --> r_prof & r_play & r_eval & r_write & r_prog
+  main --> r_play & r_eval & r_write & r_prog
   main -- "mounts new-style routers" --> comp
   comp -- "builds + wires" --> t_routes & t_svc & t_repo
-  comp -- "builds + wires<br/>(profile + game lookups)" --> practice
+  comp -- "builds + wires<br/>(game lookups)" --> practice
   practice --> sqlite
-  comp -- "builds + wires<br/>(profile lookups)" --> pathfinder
+  comp -- "builds + wires" --> pathfinder
   pathfinder --> sqlite
   comp -- "builds + wires<br/>(log dir from AppSettings)" --> crash
+  comp -- "builds + wires" --> profiles & admin
+  profiles -- "is_admin_password<br/>(injected)" --> admin
+  profiles -- "erase a profile's data<br/>(injected)" --> practice & pathfinder & main
+  practice & pathfinder -- "profile lookups<br/>(injected)" --> profiles
+  r_play & r_write & r_prog -- "profile exists / age" --> profiles
+  profiles --> sqlite
+  profiles -- "photo remix" --> openai
   r_play -- "reads a kid's practice config" --> practice
   t_routes --> t_svc --> t_repo
   t_routes & t_svc & t_repo --> t_pure
   t_repo --> sqlite
-  r_prof --> auth
-  r_prof --> s_pw & s_avatar
   r_play --> s_loop
   r_play --> reg
   r_write --> s_img
@@ -81,7 +84,6 @@ flowchart TB
   base --> g1 & g2 & g3 & g4 & g5
   g2 & g3 --> arith
   s_img --> openai
-  s_avatar --> openai
-  r_play & r_eval & r_write & r_prog & r_prof --> models
+  r_play & r_eval & r_write & r_prog --> models
   events --> models
   models --> dbpy --> sqlite
