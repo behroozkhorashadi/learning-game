@@ -247,3 +247,40 @@ def test_delete_unknown_piece_is_404(client):
     response = client.delete("/api/pieces/does-not-exist")
 
     assert response.status_code == 404
+
+
+# --- items/next under a practice config (moves to tests/play/ when play migrates; kept after the
+# pieces tests so profile 1's shared history is untouched until test_badges has run) ---
+
+PRACTICE_GAME_ID = "fact_fluency"
+
+
+def _create_practice_profile(client) -> int:
+    from datetime import date
+
+    payload = {"name": "Practice Kid", "avatar": "owl", "birth_year": date.today().year - 9}
+    response = client.post("/api/profiles", json=payload)
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def _upsert(client, profile_id, **overrides):
+    payload = {"profile_id": profile_id, "game_id": PRACTICE_GAME_ID, "operations": ["+", "-"], "focus_numbers": {}, "difficulty": 5}
+    payload.update(overrides)
+    return client.put("/api/practice-config", json=payload)
+
+
+def test_items_next_respects_an_active_practice_config(client):
+    profile_id = _create_practice_profile(client)
+    _upsert(client, profile_id, operations=["+"], focus_numbers={}, difficulty=2)
+
+    for _ in range(30):
+        response = client.get(f"/api/items/next?profile_id={profile_id}&game_id={PRACTICE_GAME_ID}")
+        assert response.status_code == 200
+        assert response.json()["payload"]["operator"] == "+"
+
+
+def test_items_next_falls_back_to_adaptive_level_with_no_config(client):
+    profile_id = _create_practice_profile(client)
+    response = client.get(f"/api/items/next?profile_id={profile_id}&game_id={PRACTICE_GAME_ID}")
+    assert response.status_code == 200

@@ -8,7 +8,7 @@ flowchart TB
     r_eval["Feedback<br/>/ratings, /verifications"]
     r_write["Writing pieces<br/>/pieces, /illustrations, /revisions, /remixes, /turns"]
     r_path["Pathfinder<br/>/completions, /maps, /published-maps"]
-    r_prog["Progress<br/>/badges, /stats, /practice-config, /client-errors"]
+    r_prog["Progress<br/>/badges, /stats, /client-errors"]
     auth["admin_auth<br/>require_admin dependency"]
   end
 
@@ -50,6 +50,7 @@ flowchart TB
     t_svc["todo_service_effect<br/>make_todo_service(repository, clock, new_id)"]
     t_repo["todo_repository_effect<br/>over an injected engine"]
     t_pure["todo_reducers_pure, todo_schemas_pure,<br/>todo_ports_pure (no IO, no framework)"]
+    practice["practice/<br/>/api/practice-config<br/>routes → service → SQL repository"]
   end
 
   openai["OpenAI Images API"]
@@ -57,6 +58,9 @@ flowchart TB
   main --> r_prof & r_play & r_eval & r_write & r_path & r_prog
   main -- "mounts new-style routers" --> comp
   comp -- "builds + wires" --> t_routes & t_svc & t_repo
+  comp -- "builds + wires<br/>(profile + game lookups)" --> practice
+  practice --> sqlite
+  r_play -- "reads a kid's practice config" --> practice
   t_routes --> t_svc --> t_repo
   t_routes & t_svc & t_repo --> t_pure
   t_repo --> sqlite

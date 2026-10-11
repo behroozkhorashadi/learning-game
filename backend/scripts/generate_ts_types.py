@@ -41,7 +41,7 @@ from app.models.pathfinder import (  # noqa: E402
     PathfinderCustomMapUpdate,
     PublishedPathfinderMap,
 )
-from app.models.practice_config import PracticeConfig, PracticeConfigUpsert  # noqa: E402
+from app.practice.practice_schemas_pure import PracticeConfig, PracticeConfigUpsert  # noqa: E402
 from app.models.profile import (  # noqa: E402
     NewProfilePhoto,
     ProfileCreate,

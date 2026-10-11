@@ -37,7 +37,6 @@ extend-exclude = [
     "app/models/item.py",
     "app/models/pathfinder.py",
     "app/models/piece.py",
-    "app/models/practice_config.py",
     "app/models/profile.py",
     "app/models/rating.py",
     "app/models/session.py",
@@ -71,7 +70,6 @@ extend-exclude = [
     "tests/test_pathfinder_api.py",
     "tests/test_pathfinder.py",
     "tests/test_pieces.py",
-    "tests/test_practice_config.py",
     "tests/test_profiles.py",
     "tests/test_syllable_builder.py",
 ]
@@ -83,6 +81,8 @@ select = [
 ]
 # RUF100 reports any `# noqa` that suppresses nothing; scripts/lint_py bans the rest.
 extend-select = ["RUF100"]
+# The math games' multiplication sign is a real operator symbol, not a typo for "x".
+allowed-confusables = ["×"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Absolute imports everywhere (`from app.todo.todo_schemas_pure import Todo`).
@@ -154,7 +154,6 @@ exclude = [
     "app/models/item.py",
     "app/models/pathfinder.py",
     "app/models/piece.py",
-    "app/models/practice_config.py",
     "app/models/profile.py",
     "app/models/rating.py",
     "app/models/session.py",
@@ -188,7 +187,6 @@ exclude = [
     "tests/test_pathfinder_api.py",
     "tests/test_pathfinder.py",
     "tests/test_pieces.py",
-    "tests/test_practice_config.py",
     "tests/test_profiles.py",
     "tests/test_syllable_builder.py",
 ]
@@ -220,7 +218,7 @@ type = "color_layers"
 [[tool.importlinter.contracts]]
 name = "Composition sits above every new-style feature; only app.main imports it"
 type = "layers"
-layers = ["app.main", "app.composition", "app.todo"]
+layers = ["app.main", "app.composition", "app.todo | app.practice"]
 
 [[tool.importlinter.contracts]]
 name = "Legacy packages never import the composition root"

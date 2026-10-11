@@ -123,7 +123,7 @@ code { font-family:var(--mono); font-size:.9em; }
     r_eval[&quot;Feedback&lt;br/&gt;/ratings, /verifications&quot;]
     r_write[&quot;Writing pieces&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&quot;]
     r_path[&quot;Pathfinder&lt;br/&gt;/completions, /maps, /published-maps&quot;]
-    r_prog[&quot;Progress&lt;br/&gt;/badges, /stats, /practice-config, /client-errors&quot;]
+    r_prog[&quot;Progress&lt;br/&gt;/badges, /stats, /client-errors&quot;]
     auth[&quot;admin_auth&lt;br/&gt;require_admin dependency&quot;]
   end
 
@@ -165,6 +165,7 @@ code { font-family:var(--mono); font-size:.9em; }
     t_svc[&quot;todo_service_effect&lt;br/&gt;make_todo_service(repository, clock, new_id)&quot;]
     t_repo[&quot;todo_repository_effect&lt;br/&gt;over an injected engine&quot;]
     t_pure[&quot;todo_reducers_pure, todo_schemas_pure,&lt;br/&gt;todo_ports_pure (no IO, no framework)&quot;]
+    practice[&quot;practice/&lt;br/&gt;/api/practice-config&lt;br/&gt;routes → service → SQL repository&quot;]
   end
 
   openai[&quot;OpenAI Images API&quot;]
@@ -172,6 +173,9 @@ code { font-family:var(--mono); font-size:.9em; }
   main --&gt; r_prof &amp; r_play &amp; r_eval &amp; r_write &amp; r_path &amp; r_prog
   main -- &quot;mounts new-style routers&quot; --&gt; comp
   comp -- &quot;builds + wires&quot; --&gt; t_routes &amp; t_svc &amp; t_repo
+  comp -- &quot;builds + wires&lt;br/&gt;(profile + game lookups)&quot; --&gt; practice
+  practice --&gt; sqlite
+  r_play -- &quot;reads a kid&#x27;s practice config&quot; --&gt; practice
   t_routes --&gt; t_svc --&gt; t_repo
   t_routes &amp; t_svc &amp; t_repo --&gt; t_pure
   t_repo --&gt; sqlite

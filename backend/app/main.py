@@ -25,10 +25,8 @@
 - POST /api/pieces/{id}/illustrations, /revisions, /remixes, /turns: a piece's
   child records — generated art, coach revision passes, Style Remix Lab
   versions, and Tag-Team Story turns, respectively.
-- GET/PUT/DELETE /api/practice-config: a parent's per-(profile, game)
-  operations/focus-numbers/difficulty override for games that support it
-  (see `app/models/practice_config.py`, `GameModule.supports_practice_config`).
-  No auth — a practice preference, not a destructive action.
+- GET/PUT/DELETE /api/practice-config: migrated to app/practice/ (wired in
+  app/composition/).
 - GET/POST /api/profiles/{id}/pathfinder/completions: which curated
   Pathfinder levels this kid has finished (unlocks derive from these).
 - GET/POST /api/profiles/{id}/pathfinder/maps, PATCH/DELETE
@@ -55,6 +53,7 @@ from typing import AsyncIterator, Optional
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import delete as sa_delete
 from sqlmodel import Session, select
 
 import app.games  # noqa: F401  (populates the game registry on import)
@@ -64,7 +63,6 @@ from app.admin_auth import AdminLoginRequest, require_admin, verify_admin_passwo
 from app.db import create_db_and_tables, engine, get_session
 from app.engine.level_selector import get_current_level
 from app.engine.loop_a import LoopAConfig
-from app.games._arithmetic import ALL_OPERATORS
 from app.events.log import append_event
 from app.games.registry import all_games, get_game
 from app.util import utcnow
@@ -97,7 +95,6 @@ from app.models.pathfinder import (
     PathfinderLevelCompletion,
     PublishedPathfinderMap,
 )
-from app.models.practice_config import PracticeConfig, PracticeConfigUpsert
 from app.models.profile import (
     AVATAR_OPTIONS,
     MAX_AGE,
@@ -148,7 +145,7 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # New-style features (backend/AGENTS.md) are wired in app/composition/, not here.
-assemble_features(app, load_settings())
+features = assemble_features(app, load_settings())
 
 
 def _seed_test_profiles(session: Session) -> None:
@@ -396,7 +393,6 @@ def _delete_profile_rows(session: Session, profile: Profile) -> None:
         Level,
         PlaySession,
         SkillState,
-        PracticeConfig,
         PathfinderLevelCompletion,
         PathfinderCustomMap,
         ProfilePassword,
@@ -404,69 +400,11 @@ def _delete_profile_rows(session: Session, profile: Profile) -> None:
         for row in session.exec(select(model).where(model.profile_id == profile_id)).all():
             session.delete(row)
 
+    # In this session's transaction: a second connection would wait on SQLite's write lock.
+    practice_table = features.practice_configs.table
+    session.execute(sa_delete(practice_table).where(practice_table.c.profile_id == profile_id))
     profile_photos.delete_all_photos(session, profile)
     session.delete(profile)
-
-
-def _get_practice_config(session: Session, profile_id: int, game_id: str) -> Optional[PracticeConfig]:
-    return session.exec(
-        select(PracticeConfig).where(PracticeConfig.profile_id == profile_id, PracticeConfig.game_id == game_id)
-    ).first()
-
-
-@app.get("/api/practice-config", response_model=PracticeConfig)
-def get_practice_config(profile_id: int, game_id: str, session: Session = Depends(get_session)) -> PracticeConfig:
-    """Backs the practice-settings screen (e.g. Equation Outbreak's focus
-    picker). 404 means "no config yet — this game is on automatic
-    difficulty," not an error."""
-    config = _get_practice_config(session, profile_id, game_id)
-    if config is None:
-        raise HTTPException(status_code=404, detail="no practice config set for this profile/game")
-    return config
-
-
-@app.put("/api/practice-config", response_model=PracticeConfig)
-def put_practice_config(payload: PracticeConfigUpsert, session: Session = Depends(get_session)) -> PracticeConfig:
-    """Creates or replaces the (profile_id, game_id) config — no auth (PRD §2
-    non-goals): this is a practice preference, not a destructive action, so
-    it doesn't need the admin screen's password gate."""
-    if session.get(Profile, payload.profile_id) is None:
-        raise HTTPException(status_code=404, detail=f"no profile with id {payload.profile_id}")
-    try:
-        game = get_game(payload.game_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if not game.supports_practice_config():
-        raise HTTPException(status_code=422, detail=f"{payload.game_id} does not support a practice config")
-
-    if not payload.operations:
-        raise HTTPException(status_code=422, detail="operations must not be empty")
-    if not set(payload.operations) <= set(ALL_OPERATORS):
-        raise HTTPException(status_code=422, detail=f"operations must be a subset of {ALL_OPERATORS}")
-    if not (1 <= payload.difficulty <= game.metadata.max_level):
-        raise HTTPException(status_code=422, detail=f"difficulty must be between 1 and {game.metadata.max_level}")
-
-    config = _get_practice_config(session, payload.profile_id, payload.game_id)
-    if config is None:
-        config = PracticeConfig(profile_id=payload.profile_id, game_id=payload.game_id, operations=[], difficulty=1)
-    config.operations = payload.operations
-    config.focus_numbers = payload.focus_numbers
-    config.difficulty = payload.difficulty
-    config.updated_at = utcnow()
-    session.add(config)
-    session.commit()
-    session.refresh(config)
-    return config
-
-
-@app.delete("/api/practice-config", status_code=204)
-def delete_practice_config(profile_id: int, game_id: str, session: Session = Depends(get_session)) -> None:
-    """Reverts this profile/game to the server-adaptive Level."""
-    config = _get_practice_config(session, profile_id, game_id)
-    if config is None:
-        raise HTTPException(status_code=404, detail="no practice config set for this profile/game")
-    session.delete(config)
-    session.commit()
 
 
 def _require_profile(session: Session, profile_id: int) -> None:
@@ -688,11 +626,11 @@ def get_next_item(
             if (key := game.repeat_key(event.payload.get("payload", {}))) is not None
         }
 
-    # A parent-set practice config (see app/models/practice_config.py) fully
+    # A parent-set practice config (see app/practice/) fully
     # replaces the adaptive Level for this profile/game — skip
     # choose_next_item_level entirely rather than computing a directive
     # that'd go unused.
-    practice_config = _get_practice_config(session, profile_id, game_id) if game.supports_practice_config() else None
+    practice_config = features.practice_configs.get(profile_id, game_id) if game.supports_practice_config() else None
     if practice_config is not None:
         item = game.generate_item_from_practice_config(
             difficulty=practice_config.difficulty,

@@ -1,6 +1,6 @@
 # Backend migration: legacy → feature/color layout
 
-67 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
+65 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
 unchanged, but new code can't import them. Don't big-bang rename. **Migrate a module when
 you're already changing it and you need it from new-style code.**
 
@@ -28,7 +28,7 @@ nothing more.
 ## Order (smallest blast radius first)
 
 - [ ] `app/util.py` → inline `utcnow` into assembly as the clock (pilot: simple)
-- [ ] practice-config routes + `app/models/practice_config.py` (pilot: coupled to DB)
+- [x] practice-config routes + `app/models/practice_config.py` → `app/practice/` (pilot: coupled to DB)
 - [ ] pathfinder completions/maps routes + `app/models/pathfinder.py`
 - [ ] `app/admin_auth.py` → `AppSettings.admin_password: SecretStr` + a Depends provider registered in assembly
 - [ ] `app/db.py` → engine created in assembly (last; every legacy route depends on it)

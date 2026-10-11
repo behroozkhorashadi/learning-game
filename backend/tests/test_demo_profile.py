@@ -1,12 +1,13 @@
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.main import _remove_demo_profile_if_needed, _seed_test_profiles
+from app.main import _remove_demo_profile_if_needed, _seed_test_profiles, features
 from app.models.profile import Profile
 
 
 def _session() -> Session:
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
+    features.practice_configs.metadata.create_all(engine)  # migrated tables hang off profiles too
     return Session(engine)
 
 
