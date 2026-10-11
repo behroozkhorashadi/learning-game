@@ -15,7 +15,7 @@ import { StyleRemixLab } from './games/StyleRemixLab'
 import { TagTeamStory } from './games/TagTeamStory'
 import { ClueMaster } from './games/ClueMaster'
 import { Pathfinder } from './games/Pathfinder'
-import { BadgesAccomplishments } from './components/BadgesAccomplishments'
+import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { Storybook } from './components/Storybook'
 import { DevScreenPicker, DevScreenLink } from './dev/DevScreenPicker'
 
@@ -27,6 +27,7 @@ function App() {
   const [ProfileUnlock] = useState(assembleProfileUnlock)
   const [EditProfile] = useState(assembleEditProfile)
   const [AdminPanel] = useState(assembleAdminPanel)
+  const [Badges] = useState(assembleBadges)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
   // kept in memory only so "Edit profile" doesn't ask again. Null for an
@@ -118,7 +119,7 @@ function App() {
       />
     )
   } else if (showBadges) {
-    content = <BadgesAccomplishments profileId={profile.id!} kidName={profile.name} onBack={() => setShowBadges(false)} />
+    content = <Badges key={profile.id} profileId={profile.id} kidName={profile.name} onBack={() => setShowBadges(false)} />
   } else if (showStorybook) {
     content = (
       <Storybook

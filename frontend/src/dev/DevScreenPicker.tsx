@@ -7,7 +7,7 @@ import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import { GamePicker } from '../games/GamePicker'
 import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
 import { SyllableBuilder } from '../games/SyllableBuilder'
-import { BadgesAccomplishments } from '../components/BadgesAccomplishments'
+import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 import { ProgressBar } from '@app/session/progress_bar.pure.ui.tsx'
 import { TileAssembly, type TileAssemblyItem } from '../components/TileAssembly'
@@ -148,6 +148,11 @@ interface ScreenEntry {
 }
 
 /** The real, API-backed picker, assembled once per mount. */
+function DevBadges() {
+  const [Badges] = useState(assembleBadges)
+  return <Badges profileId={1} kidName="Mia" onBack={() => console.log('onBack')} />
+}
+
 function DevAdminPanel() {
   const [AdminPanel] = useState(assembleAdminPanel)
   return <AdminPanel onClose={() => console.log('onClose')} />
@@ -247,7 +252,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'badges',
     label: 'Badges & Accomplishments',
-    render: () => <BadgesAccomplishments profileId={1} kidName="Mia" onBack={() => console.log('onBack')} />,
+    render: () => <DevBadges />,
   },
   {
     id: 'session-start',

@@ -10,7 +10,7 @@ flowchart TB
     gWord["Word games<br/>SyllableBuilder, PromptForge,<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
     gMath["Math games<br/>EquationBuilder, ZombieMathBlaster"]
     gPath["Pathfinder"]
-    meta["BadgesAccomplishments, Storybook"]
+    meta["Storybook"]
   end
 
   subgraph COMP["Legacy components — src/components"]
@@ -34,6 +34,7 @@ flowchart TB
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
     apiad["api/<br/>profiles_api, admin_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
+    badges["badges/<br/>BadgesView (pure) + bindBadges"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
     boundary["boundary/<br/>AsyncBoundary"]
@@ -47,6 +48,8 @@ flowchart TB
   app --> picker & gWord & gMath & gPath & meta
   app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
   app -- "assembleAdminPanel() once" --> admin
+  app -- "assembleBadges() once" --> badges
+  badges --> query & apiad & den
   admin --> profiles & query & apiad & den
   dev --> root --> example
   gWord --> write

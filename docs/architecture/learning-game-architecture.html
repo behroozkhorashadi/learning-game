@@ -213,7 +213,7 @@ code { font-family:var(--mono); font-size:.9em; }
     gWord[&quot;Word games&lt;br/&gt;SyllableBuilder, PromptForge,&lt;br/&gt;StyleRemixLab, TagTeamStory, ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;EquationBuilder, ZombieMathBlaster&quot;]
     gPath[&quot;Pathfinder&quot;]
-    meta[&quot;BadgesAccomplishments, Storybook&quot;]
+    meta[&quot;Storybook&quot;]
   end
 
   subgraph COMP[&quot;Legacy components — src/components&quot;]
@@ -237,6 +237,7 @@ code { font-family:var(--mono); font-size:.9em; }
     query[&quot;query/&lt;br/&gt;useQuery, useReloadableQuery + QueryState (server state)&quot;]
     apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
     flags[&quot;flags/&lt;br/&gt;feature flags, read in assembly only&quot;]
+    badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
     speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
     ids[&quot;ids/&lt;br/&gt;v4 UUIDs from getRandomValues (works on http LAN)&quot;]
     boundary[&quot;boundary/&lt;br/&gt;AsyncBoundary&quot;]
@@ -250,6 +251,8 @@ code { font-family:var(--mono); font-size:.9em; }
   app --&gt; picker &amp; gWord &amp; gMath &amp; gPath &amp; meta
   app -- &quot;assemble* once:&lt;br/&gt;picker, create, unlock, edit&quot; --&gt; profiles
   app -- &quot;assembleAdminPanel() once&quot; --&gt; admin
+  app -- &quot;assembleBadges() once&quot; --&gt; badges
+  badges --&gt; query &amp; apiad &amp; den
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
   dev --&gt; root --&gt; example
   gWord --&gt; write

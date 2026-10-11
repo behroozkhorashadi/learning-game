@@ -1,62 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useState, type CSSProperties, type ReactElement } from 'react'
+import type { BadgeRecord, ProfileStatsRecord } from '@app/api/badges_schema.pure.lib.ts'
 import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon } from '@app/den/icons.pure.ui.tsx'
-import type { BadgeStatus, ProfileStats } from '../types/generated'
+import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { badgeColors, formatAverageRating, formatEarnedDate, formatLastSession, formatProgress } from './badges_format.pure.lib.ts'
 
 /**
- * Badges & accomplishments — ported from the Claude Design handoff bundle
- * (`Badges & Accomplishments.dc.html`). Badges and stats are now real,
- * fetched from `GET /api/profiles/{id}/badges` and `/stats` (HANDOFF.md §4);
- * the color-per-badge styling below is presentation-only and keyed off each
- * badge's `key`, since the backend model has no notion of a display color.
+ * Badges & accomplishments, ported from the Claude Design handoff bundle
+ * (`Badges & Accomplishments.dc.html`). Props only: the badges and stats
+ * arrive as a QueryState from the bound screen (badges.effect.ui.tsx). A kid
+ * view and a parent view, toggled in place.
  */
 
-const BADGE_COLORS: Record<string, { bg: string; border: string }> = {
-  'word-wizard': { bg: '#F6F0FF', border: '#EBDCFE' },
-  'sound-master': { bg: '#F0FFEA', border: '#D8F5C8' },
-  'quick-builder': { bg: '#FFF3E0', border: '#FFE0B2' },
-}
-const DEFAULT_EARNED_COLORS = { bg: '#FFF3E0', border: '#FFE0B2' }
-const LOCKED_COLORS = { bg: '#F5F5F5', border: '#E0E0E0' }
-
-function badgeColors(badge: BadgeStatus) {
-  if (!badge.earned) return LOCKED_COLORS
-  return BADGE_COLORS[badge.key] ?? DEFAULT_EARNED_COLORS
-}
-
-function formatEarnedDate(iso: string | null | undefined): string {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-function formatLastSession(iso: string | null | undefined): string {
-  if (!iso) return 'No sessions yet'
-  const date = new Date(iso)
-  const isToday = date.toDateString() === new Date().toDateString()
-  const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  return isToday ? `Today at ${time}` : `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at ${time}`
-}
-
-function formatProgress(pct: number | null | undefined): string {
-  if (pct == null) return 'Not enough history yet'
-  if (pct >= 0) return `↑ ${pct}% improvement this month`
-  return `↓ ${Math.abs(pct)}% this month`
-}
-
-function BadgeArt({ badge, width, height }: { badge: BadgeStatus; width: number | string; height: number }) {
+function BadgeArt({ badge, width, height }: { readonly badge: BadgeRecord; readonly width: number | string; readonly height: number }): ReactElement {
   const [broken, setBroken] = useState(false)
   const colors = badgeColors(badge)
-  const boxStyle = {
+  const boxStyle: CSSProperties = {
     width,
     height,
     borderRadius: height / 4.5,
     background: colors.bg,
     border: `2px solid ${colors.border}`,
-    display: 'flex' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    overflow: 'hidden' as const,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
     opacity: badge.earned ? 1 : 0.5,
-    boxSizing: 'border-box' as const,
+    boxSizing: 'border-box',
   }
 
   if (broken) {
@@ -72,14 +41,16 @@ function BadgeArt({ badge, width, height }: { badge: BadgeStatus; width: number 
       <img
         src={badge.art_url}
         alt={badge.name}
-        onError={() => setBroken(true)}
+        onError={() => {
+          setBroken(true)
+        }}
         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       />
     </div>
   )
 }
 
-function BackButton({ onBack }: { onBack: () => void }) {
+function BackButton({ onBack }: { readonly onBack: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -93,7 +64,7 @@ function BackButton({ onBack }: { onBack: () => void }) {
   )
 }
 
-function Avatar({ kidName }: { kidName: string }) {
+function Avatar({ kidName }: { readonly kidName: string }): ReactElement {
   return (
     <div style={{ width: 64, height: 64, borderRadius: 9999, overflow: 'hidden', background: '#DBF5D1', border: '3px solid #A1E486', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, color: '#2C6416' }}>
       {kidName.charAt(0).toUpperCase()}
@@ -101,7 +72,7 @@ function Avatar({ kidName }: { kidName: string }) {
   )
 }
 
-function ToggleButton({ isKidView, onToggle }: { isKidView: boolean; onToggle: () => void }) {
+function ToggleButton({ isKidView, onToggle }: { readonly isKidView: boolean; readonly onToggle: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -115,54 +86,43 @@ function ToggleButton({ isKidView, onToggle }: { isKidView: boolean; onToggle: (
   )
 }
 
-interface Props {
-  profileId: number
-  kidName: string
-  onBack: () => void
+export interface BadgesData {
+  readonly badges: readonly BadgeRecord[]
+  readonly stats: ProfileStatsRecord
 }
 
-export function BadgesAccomplishments({ profileId, kidName, onBack }: Props) {
+export interface BadgesViewProps {
+  readonly state: QueryState<BadgesData>
+  readonly kidName: string
+  /** For "Today at …" on the last session. */
+  readonly now: Date
+  readonly onBack: () => void
+}
+
+export function BadgesView({ state, kidName, now, onBack }: BadgesViewProps): ReactElement {
   const [isKidView, setIsKidView] = useState(true)
-  const [badges, setBadges] = useState<BadgeStatus[] | null>(null)
-  const [stats, setStats] = useState<ProfileStats | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const toggleView = () => setIsKidView((v) => !v)
+  const toggleView = (): void => {
+    setIsKidView((v) => !v)
+  }
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/profiles/${profileId}/badges`).then((r) => {
-        if (!r.ok) throw new Error(`GET /api/profiles/${profileId}/badges -> ${r.status}`)
-        return r.json() as Promise<BadgeStatus[]>
-      }),
-      fetch(`/api/profiles/${profileId}/stats`).then((r) => {
-        if (!r.ok) throw new Error(`GET /api/profiles/${profileId}/stats -> ${r.status}`)
-        return r.json() as Promise<ProfileStats>
-      }),
-    ])
-      .then(([badgeList, profileStats]) => {
-        setBadges(badgeList)
-        setStats(profileStats)
-      })
-      .catch((err) => setError(String(err)))
-  }, [profileId])
-
-  const totalBadges = badges ? badges.filter((b) => b.earned).length : 0
-
-  if (error) {
+  if (state.kind === 'failed') {
     return (
       <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
-        <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left', height: 'fit-content' }}>Error: {error}</pre>
+        <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left', height: 'fit-content' }}>Error: {state.message}</pre>
       </div>
     )
   }
 
-  if (!badges || !stats) {
+  if (state.kind === 'loading') {
     return (
       <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
-        <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '48px 32px', textAlign: 'center', color: '#9A907C', fontWeight: 600, height: 'fit-content' }}>Loading your badges…</div>
+        <div role="status" style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '48px 32px', textAlign: 'center', color: '#9A907C', fontWeight: 600, height: 'fit-content' }}>Loading your badges…</div>
       </div>
     )
   }
+
+  const { badges, stats } = state.data
+  const totalBadges = badges.filter((b) => b.earned).length
 
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
@@ -285,7 +245,7 @@ export function BadgesAccomplishments({ profileId, kidName, onBack }: Props) {
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>Avg. rating</div>
-                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{stats.avg_rating != null ? `${stats.avg_rating.toFixed(1)}/5 stars` : 'No ratings yet'}</div>
+                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{formatAverageRating(stats.avg_rating)}</div>
                       </div>
                     </div>
                     <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>
@@ -297,7 +257,7 @@ export function BadgesAccomplishments({ profileId, kidName, onBack }: Props) {
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>Last session</div>
-                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{formatLastSession(stats.last_session_at)}</div>
+                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{formatLastSession(stats.last_session_at, now)}</div>
                       </div>
                     </div>
                     <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>

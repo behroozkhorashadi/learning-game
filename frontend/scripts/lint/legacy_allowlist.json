@@ -3,8 +3,6 @@
   "src/App.tsx",
   "src/components/AnswerLabel3D.tsx",
   "src/components/ApproachLane.tsx",
-  "src/components/BadgesAccomplishments.test.tsx",
-  "src/components/BadgesAccomplishments.tsx",
   "src/components/ChargeHud.test.tsx",
   "src/components/ChargeHud.tsx",
   "src/components/CoachPanel.tsx",
