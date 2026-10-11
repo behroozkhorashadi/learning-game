@@ -35,7 +35,6 @@ extend-exclude = [
     "app/models/event.py",
     "app/models/game.py",
     "app/models/item.py",
-    "app/models/pathfinder.py",
     "app/models/piece.py",
     "app/models/profile.py",
     "app/models/rating.py",
@@ -67,7 +66,6 @@ extend-exclude = [
     "tests/test_fact_fluency.py",
     "tests/test_loop_a_engine.py",
     "tests/test_loop_a_service.py",
-    "tests/test_pathfinder_api.py",
     "tests/test_pathfinder.py",
     "tests/test_pieces.py",
     "tests/test_profiles.py",
@@ -152,7 +150,6 @@ exclude = [
     "app/models/event.py",
     "app/models/game.py",
     "app/models/item.py",
-    "app/models/pathfinder.py",
     "app/models/piece.py",
     "app/models/profile.py",
     "app/models/rating.py",
@@ -184,7 +181,6 @@ exclude = [
     "tests/test_fact_fluency.py",
     "tests/test_loop_a_engine.py",
     "tests/test_loop_a_service.py",
-    "tests/test_pathfinder_api.py",
     "tests/test_pathfinder.py",
     "tests/test_pieces.py",
     "tests/test_profiles.py",
@@ -218,7 +214,7 @@ type = "color_layers"
 [[tool.importlinter.contracts]]
 name = "Composition sits above every new-style feature; only app.main imports it"
 type = "layers"
-layers = ["app.main", "app.composition", "app.todo | app.practice"]
+layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder"]
 
 [[tool.importlinter.contracts]]
 name = "Legacy packages never import the composition root"

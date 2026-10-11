@@ -7,7 +7,9 @@ from app.models.profile import Profile
 def _session() -> Session:
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
-    features.practice_configs.metadata.create_all(engine)  # migrated tables hang off profiles too
+    # Migrated features' tables hang off profiles too.
+    features.practice_configs.metadata.create_all(engine)
+    features.pathfinder.metadata.create_all(engine)
     return Session(engine)
 
 

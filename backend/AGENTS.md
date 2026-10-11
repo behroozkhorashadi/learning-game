@@ -182,7 +182,7 @@ code, or to change the rule in `pyproject.toml` / `scripts/lint_py/` openly in a
 ## Legacy
 
 Everything that existed before these rules is listed in
-`scripts/lint_py/legacy_allowlist.txt` (65 files) and excluded from ruff, pyright strict,
+`scripts/lint_py/legacy_allowlist.txt` (63 files) and excluded from ruff, pyright strict,
 and the AST rules. New-style code may not import legacy modules, so migrate what you need or
 adapt it in assembly. The list can only shrink (`test_legacy_allowlist.py`). See
 `MIGRATION.md`. `app/main.py` is the legacy entry point (`uvicorn app.main:app`). It calls

@@ -480,3 +480,29 @@ def test_remix_without_provider_is_503(client, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     response = client.post("/api/profile-photos/remix", json={"image_data_url": PHOTO_DATA_URL, "style": "cartoon"})
     assert response.status_code == 503
+
+
+# --- moved from test_pathfinder_api.py: the profile-delete cascade lives in app/main.py until profiles migrate ---
+
+
+def _pathfinder_map(map_id):
+    return {
+        "id": map_id,
+        "name": "Kid_map1",
+        "difficulty": "easy",
+        "rows": 2,
+        "columns": 2,
+        "dots": [{"row": 0, "col": 0}, {"row": 0, "col": 1}, {"row": 1, "col": 1}],
+    }
+
+
+def test_deleting_a_profile_removes_its_pathfinder_state(client):
+    profile_id = _create_profile(client)["id"]
+    client.post(f"/api/profiles/{profile_id}/pathfinder/completions", json={"level_ids": ["easy-a"]})
+    client.post(f"/api/profiles/{profile_id}/pathfinder/maps", json=_pathfinder_map("custom-gone"))
+
+    assert client.delete(f"/api/profiles/{profile_id}", headers=ADMIN_HEADERS).status_code == 204
+
+    # The map id is free again, so its row really was removed.
+    new_id = _create_profile(client)["id"]
+    assert client.post(f"/api/profiles/{new_id}/pathfinder/maps", json=_pathfinder_map("custom-gone")).status_code == 201

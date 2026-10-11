@@ -9,7 +9,7 @@ from scripts.lint_py.naming import load_legacy_allowlist
 
 BACKEND_ROOT: Final = Path(__file__).resolve().parents[2]
 # Lower this when you migrate a module. Never raise it: new code follows the new rules.
-MAX_LEGACY_FILES: Final = 65
+MAX_LEGACY_FILES: Final = 63
 
 
 def test_allowlist_never_grows() -> None:

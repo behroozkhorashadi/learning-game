@@ -7,6 +7,7 @@ the migration; `assemble_app` builds a standalone app of just the new-style feat
 and is what the integration test boots.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final
@@ -14,12 +15,15 @@ from uuid import uuid4
 
 from fastapi import FastAPI
 from sqlalchemy import Engine, create_engine
-from sqlmodel import Session
+from sqlmodel import Session, col, select
 
 from app.composition.app_settings_assembly import AppSettings
 from app.games._arithmetic import ALL_OPERATORS
 from app.games.registry import get_game
 from app.models.profile import Profile
+from app.pathfinder.pathfinder_repository_effect import SqlPathfinderRepository, make_sql_pathfinder_repository
+from app.pathfinder.pathfinder_routes_effect import bind_pathfinder_routes
+from app.pathfinder.pathfinder_service_effect import make_pathfinder_service
 from app.practice.practice_ports_pure import PracticeGame
 from app.practice.practice_repository_effect import SqlPracticeConfigRepository, make_sql_practice_config_repository
 from app.practice.practice_routes_effect import bind_practice_routes
@@ -37,6 +41,7 @@ class LegacyHandles:
     """New-style storage the legacy routes in app/main.py still read until they migrate."""
 
     practice_configs: SqlPracticeConfigRepository
+    pathfinder: SqlPathfinderRepository
 
 
 def utc_now() -> datetime:
@@ -72,7 +77,17 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> LegacyHandles:
     )
     app.include_router(bind_practice_routes(service=practice_service))
 
-    return LegacyHandles(practice_configs=practice_configs)
+    pathfinder = make_sql_pathfinder_repository(engine=engine)
+    pathfinder.create_schema()
+    pathfinder_service = make_pathfinder_service(
+        repository=pathfinder,
+        profile_exists=lambda profile_id: _legacy_profile_exists(engine, profile_id),
+        profile_names=lambda profile_ids: _legacy_profile_names(engine, profile_ids),
+        clock=utc_now,
+    )
+    app.include_router(bind_pathfinder_routes(service=pathfinder_service))
+
+    return LegacyHandles(practice_configs=practice_configs, pathfinder=pathfinder)
 
 
 def assemble_app(settings: AppSettings) -> FastAPI:
@@ -87,6 +102,12 @@ def assemble_app(settings: AppSettings) -> FastAPI:
 def _legacy_profile_exists(engine: Engine, profile_id: int) -> bool:
     with Session(engine) as session:
         return session.get(Profile, profile_id) is not None
+
+
+def _legacy_profile_names(engine: Engine, profile_ids: Sequence[int]) -> dict[int, str]:
+    with Session(engine) as session:
+        rows = session.exec(select(Profile).where(col(Profile.id).in_(profile_ids))).all()
+        return {row.id: row.name for row in rows if row.id is not None}
 
 
 def _legacy_practice_game(game_id: str) -> PracticeGame | None:

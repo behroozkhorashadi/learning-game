@@ -34,7 +34,7 @@ from app.models.piece import (  # noqa: E402
     TurnLine,
     TurnLineCreate,
 )
-from app.models.pathfinder import (  # noqa: E402
+from app.pathfinder.pathfinder_schemas_pure import (  # noqa: E402
     PathfinderCompletionsCreate,
     PathfinderCustomMap,
     PathfinderCustomMapCreate,

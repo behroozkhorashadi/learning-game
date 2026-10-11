@@ -32,7 +32,6 @@ app/models/enums.py
 app/models/event.py
 app/models/game.py
 app/models/item.py
-app/models/pathfinder.py
 app/models/piece.py
 app/models/profile.py
 app/models/rating.py
@@ -65,7 +64,6 @@ tests/test_fact_fluency.py
 tests/test_loop_a_engine.py
 tests/test_loop_a_service.py
 tests/test_pathfinder.py
-tests/test_pathfinder_api.py
 tests/test_pieces.py
 tests/test_profiles.py
 tests/test_syllable_builder.py
