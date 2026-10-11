@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { CardShell, LoginForm } from '../components/AdminLoginForm'
-import { ageOf } from '../components/ProfileFormFields'
+import { ageOf } from '@app/profiles/profile_form.pure.lib.ts'
 import { ProfileAvatar } from '@app/profiles/profile_avatar.pure.ui.tsx'
 import { EditProfile } from './EditProfile'
 import type { Profile } from '../types/generated'
@@ -79,7 +79,7 @@ function ProfileRow({
           <div>
             <div style={{ fontWeight: 700, color: 'var(--fg-primary)' }}>{profile.name}</div>
             <div style={{ fontSize: 13, color: 'var(--fg-tertiary)' }}>
-              Age {ageOf(profile.birth_year)}
+              Age {ageOf(profile.birth_year, new Date().getFullYear())}
               {profile.has_password && ' · 🔒 Has a password'}
             </div>
           </div>

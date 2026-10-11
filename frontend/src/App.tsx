@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
-import { CreateProfile } from './games/CreateProfile'
+import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.main.ts'
 import { EditProfile } from './games/EditProfile'
 import { ProfileUnlock } from './games/ProfileUnlock'
 import { AdminPanel } from './games/AdminPanel'
@@ -23,6 +23,7 @@ function App() {
   // Assembled once for the app's lifetime (src/profiles/, migrated); the rest of
   // this shell is legacy until it moves to src/main/ (MIGRATION.md).
   const [ProfilePicker] = useState(assembleProfilePicker)
+  const [CreateProfile] = useState(assembleCreateProfile)
   const [profile, setProfile] = useState<Profile | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
   // kept in memory only so "Edit profile" doesn't ask again. Null for an

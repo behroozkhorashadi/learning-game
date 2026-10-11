@@ -23,3 +23,7 @@ export const profileSchema = z
 export const profileListSchema = z.array(profileSchema).readonly()
 
 export type ProfileRecord = z.infer<typeof profileSchema>
+
+export const photoRemixResponseSchema = z
+  .object({ image_data_url: z.string() })
+  .readonly() satisfies z.ZodType<components['schemas']['ProfilePhotoRemixResponse']>

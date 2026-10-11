@@ -6,7 +6,7 @@ flowchart TB
   app -. "DEV only" .-> dev
 
   subgraph SCREENS["Legacy screens — src/games"]
-    prof["Profile flow<br/>CreateProfile, ProfileUnlock,<br/>EditProfile, AdminPanel"]
+    prof["Profile flow<br/>ProfileUnlock, EditProfile, AdminPanel"]
     picker["GamePicker<br/>+ EquationOutbreakSettings"]
     gWord["Word games<br/>SyllableBuilder, PromptForge,<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
     gMath["Math games<br/>EquationBuilder, ZombieMathBlaster"]
@@ -30,7 +30,7 @@ flowchart TB
 
   subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
     root["main/<br/>dev_screens.assembly.main"]
-    profiles["profiles/<br/>ProfilePickerView (pure) + bindProfilePicker,<br/>assembleProfilePicker, ProfileAvatar, AVATAR_OPTIONS"]
+    profiles["profiles/<br/>picker + create screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>ProfileAvatar, AVATAR_OPTIONS"]
     session["session/<br/>ProgressBar"]
     den["den/<br/>DenButton, icons, icon_paths"]
     query["query/<br/>useQuery + QueryState (server state)"]
@@ -45,7 +45,7 @@ flowchart TB
   assets[("public/ GLB models, images, audio")]
 
   app --> prof & picker & gWord & gMath & gPath & meta
-  app -- "assembleProfilePicker() once" --> profiles
+  app -- "assembleProfilePicker(),<br/>assembleCreateProfile() once" --> profiles
   dev --> root --> example
   gWord --> shared & write
   gMath --> shared & arena
@@ -56,6 +56,7 @@ flowchart TB
   shared & write & pathc --> den
   session --> den
   profiles --> query & apiad & den
+  profiles -- "injected camera<br/>(navigator.mediaDevices)" --> browser[["Browser camera"]]
   example --> apiad & flags
   apiad -- "injected fetch" --> api
   arena --> zlib

@@ -1,30 +1,15 @@
-// Shared by CreateProfile.tsx (new player) and AdminPanel.tsx (edit player) —
-// same fields, same validation bounds, so the two forms can't drift apart.
-// Mirrors backend/app/models/profile.py's AVATAR_OPTIONS/MIN_AGE/MAX_AGE by
-// hand, since these are sanity bounds rather than values expected to change
-// independently on either side.
-// AVATAR_OPTIONS lives in src/profiles/avatar_options.pure.lib.ts (migrated).
-import { AVATAR_OPTIONS } from '@app/profiles/avatar_options.pure.lib.ts'
+import type { CSSProperties, ReactElement } from 'react'
+import { AVATAR_OPTIONS } from './avatar_options.pure.lib.ts'
+import { ageFromBirthday, birthdayBounds, isAgeInRange, yearOf } from './profile_form.pure.lib.ts'
 
-export const MIN_AGE = 1
-export const MAX_AGE = 99
-export const READING_SUPPORT_DEFAULT_MAX_AGE = 6
+/**
+ * Name, birthday, avatar, and reading support: the fields the create and edit
+ * screens share, with the same validation bounds. Props only.
+ */
 
-const TODAY = new Date()
-export const MAX_BIRTHDAY = TODAY.toISOString().slice(0, 10)
-export const MIN_BIRTHDAY = `${TODAY.getFullYear() - MAX_AGE}-01-01`
-
-export function birthYearOf(birthday: string): number {
-  return Number(birthday.split('-')[0])
-}
-
-export function ageOf(birthYear: number): number {
-  return TODAY.getFullYear() - birthYear
-}
-
-const inputStyle = {
+const inputStyle: CSSProperties = {
   width: '100%',
-  boxSizing: 'border-box' as const,
+  boxSizing: 'border-box',
   padding: '14px 16px',
   fontSize: 16,
   borderRadius: 14,
@@ -34,18 +19,21 @@ const inputStyle = {
   outline: 'none',
 }
 
-interface Props {
-  name: string
-  onNameChange: (value: string) => void
-  birthday: string
-  onBirthdayChange: (value: string) => void
-  avatar: string | null
-  onAvatarChange: (value: string) => void
-  readingSupport: boolean
-  onReadingSupportChange: (value: boolean) => void
+export interface ProfileFormFieldsProps {
+  /** Today as `YYYY-MM-DD`, from the caller's clock. Bounds the birthday and computes the age. */
+  readonly today: string
+  readonly name: string
+  readonly onNameChange: (value: string) => void
+  readonly birthday: string
+  readonly onBirthdayChange: (value: string) => void
+  readonly avatar: string | null
+  readonly onAvatarChange: (value: string) => void
+  readonly readingSupport: boolean
+  readonly onReadingSupportChange: (value: boolean) => void
 }
 
 export function ProfileFormFields({
+  today,
   name,
   onNameChange,
   birthday,
@@ -54,16 +42,23 @@ export function ProfileFormFields({
   onAvatarChange,
   readingSupport,
   onReadingSupportChange,
-}: Props) {
-  const birthYear = birthday ? birthYearOf(birthday) : null
-  const age = birthYear != null ? ageOf(birthYear) : null
-  const ageInRange = age != null && age >= MIN_AGE && age <= MAX_AGE
+}: ProfileFormFieldsProps): ReactElement {
+  const age = ageFromBirthday(birthday, yearOf(today))
+  const bounds = birthdayBounds(today)
 
   return (
     <>
       <label style={{ display: 'block', marginTop: 32 }}>
         <span style={{ display: 'block', marginBottom: 8, fontWeight: 700, color: 'var(--fg-secondary)' }}>Name</span>
-        <input type="text" value={name} onChange={(e) => onNameChange(e.target.value)} placeholder="What should we call them?" style={inputStyle} />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => {
+            onNameChange(e.target.value)
+          }}
+          placeholder="What should we call them?"
+          style={inputStyle}
+        />
       </label>
 
       <label style={{ display: 'block', marginTop: 24 }}>
@@ -71,17 +66,15 @@ export function ProfileFormFields({
         <input
           type="date"
           value={birthday}
-          min={MIN_BIRTHDAY}
-          max={MAX_BIRTHDAY}
-          onChange={(e) => onBirthdayChange(e.target.value)}
+          min={bounds.min}
+          max={bounds.max}
+          onChange={(e) => {
+            onBirthdayChange(e.target.value)
+          }}
           style={inputStyle}
         />
-        {birthday && !ageInRange && (
-          <span style={{ display: 'block', marginTop: 8, fontSize: 14, color: '#CD2A20' }}>
-            Please enter a valid birthday.
-          </span>
-        )}
-        {age != null && ageInRange && (
+        {age !== null && !isAgeInRange(age) && <span style={{ display: 'block', marginTop: 8, fontSize: 14, color: '#CD2A20' }}>Please enter a valid birthday.</span>}
+        {age !== null && isAgeInRange(age) && (
           <span style={{ display: 'block', marginTop: 8, fontSize: 14, color: 'var(--fg-tertiary)' }}>That makes them {age} years old.</span>
         )}
       </label>
@@ -95,7 +88,9 @@ export function ProfileFormFields({
               type="button"
               aria-label={`Choose the ${opt.key} avatar`}
               aria-pressed={avatar === opt.key}
-              onClick={() => onAvatarChange(opt.key)}
+              onClick={() => {
+                onAvatarChange(opt.key)
+              }}
               style={{
                 width: 56,
                 height: 56,
@@ -119,7 +114,9 @@ export function ProfileFormFields({
         <input
           type="checkbox"
           checked={readingSupport}
-          onChange={(e) => onReadingSupportChange(e.target.checked)}
+          onChange={(e) => {
+            onReadingSupportChange(e.target.checked)
+          }}
           style={{ width: 20, height: 20 }}
         />
         <span style={{ color: 'var(--fg-secondary)' }}>Extra reading help (words read aloud, for early readers)</span>

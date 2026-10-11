@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { CardShell } from '../components/AdminLoginForm'
-import { ProfileFormFields, MIN_AGE, MAX_AGE, birthYearOf, ageOf } from '../components/ProfileFormFields'
-import { ProfilePhotoCapture, type NewPhoto } from '../components/ProfilePhotoCapture'
-import { newPhotosPayload } from '../components/newPhotosPayload'
-import { ProfilePasswordFields, EMPTY_PASSWORD_DRAFT, passwordDraftError } from '../components/ProfilePasswordFields'
+import { ProfileFormFields } from '@app/profiles/profile_form_fields.pure.ui.tsx'
+import { MIN_AGE, MAX_AGE, birthYearOf, ageOf } from '@app/profiles/profile_form.pure.lib.ts'
+import { assembleProfilePhotoCapture } from '@app/profiles/profile_photo_capture.assembly.main.ts'
+import { newPhotosPayload, type NewPhoto } from '@app/profiles/profile_photo_state.pure.lib.ts'
+import { ProfilePasswordFields } from '@app/profiles/profile_password_fields.pure.ui.tsx'
+import { EMPTY_PASSWORD_DRAFT, passwordDraftError, type PasswordDraft } from '@app/profiles/profile_password.pure.lib.ts'
 import type { Profile, ProfilePhotoRead, ProfileUpdate } from '../types/generated'
 
 /**
@@ -31,20 +33,24 @@ interface Props {
   onCancel: () => void
 }
 
+const TODAY = new Date().toISOString().slice(0, 10)
+
 export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) {
+  // The migrated photo panel (src/profiles/), assembled once per mount until this screen migrates too.
+  const [ProfilePhotoCapture] = useState(assembleProfilePhotoCapture)
   const [name, setName] = useState(profile.name)
   const [birthday, setBirthday] = useState(`${profile.birth_year}-01-01`)
   const [avatar, setAvatar] = useState<string | null>(isPhotoAvatar(profile.avatar) ? null : profile.avatar)
   const [photo, setPhoto] = useState<string | null>(isPhotoAvatar(profile.avatar) ? profile.avatar : null)
-  const [newPhotos, setNewPhotos] = useState<NewPhoto[]>([])
+  const [newPhotos, setNewPhotos] = useState<readonly NewPhoto[]>([])
   const [savedPhotos, setSavedPhotos] = useState<ProfilePhotoRead[]>([])
   const [readingSupport, setReadingSupport] = useState(profile.reading_support ?? false)
-  const [passwordDraft, setPasswordDraft] = useState(EMPTY_PASSWORD_DRAFT)
+  const [passwordDraft, setPasswordDraft] = useState<PasswordDraft>(EMPTY_PASSWORD_DRAFT)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const birthYear = birthday ? birthYearOf(birthday) : null
-  const age = birthYear != null ? ageOf(birthYear) : null
+  const age = birthYear != null ? ageOf(birthYear, new Date().getFullYear()) : null
   const ageInRange = age != null && age >= MIN_AGE && age <= MAX_AGE
   const canSubmit =
     name.trim().length > 0 && ageInRange && (avatar != null || photo != null) && passwordDraftError(passwordDraft) == null && !submitting
@@ -76,7 +82,7 @@ export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) 
     setSubmitting(true)
     setError(null)
     const payload: ProfileUpdate = { name: name.trim(), birth_year: birthYear, reading_support: readingSupport }
-    payload.new_photos = newPhotosPayload(newPhotos, photo)
+    payload.new_photos = [...newPhotosPayload(newPhotos, photo)]
     if (!photo?.startsWith('data:')) payload.avatar = photo ?? avatar
     if (passwordDraft.remove) payload.remove_password = true
     else if (passwordDraft.password) payload.password = passwordDraft.password
@@ -106,6 +112,7 @@ export function EditProfile({ profile, authHeaders, onSaved, onCancel }: Props) 
       </div>
 
       <ProfileFormFields
+        today={TODAY}
         name={name}
         onNameChange={setName}
         birthday={birthday}

@@ -1,29 +1,11 @@
-// Optional per-profile password, shared by CreateProfile.tsx and
-// EditProfile.tsx. MIN_PASSWORD_LENGTH mirrors
-// backend/app/services/profile_passwords.py by hand, like ProfileFormFields'
-// age bounds.
-export const MIN_PASSWORD_LENGTH = 4
+import type { CSSProperties, ReactElement } from 'react'
+import { passwordDraftError, type PasswordDraft } from './profile_password.pure.lib.ts'
 
-export interface PasswordDraft {
-  password: string
-  confirm: string
-  remove: boolean
-}
+/** The optional password section of the create and edit screens. Props only. */
 
-export const EMPTY_PASSWORD_DRAFT: PasswordDraft = { password: '', confirm: '', remove: false }
-
-/** Why the draft can't be saved yet, or null. A blank draft is fine — it
- * means "no password" on create and "keep the current one" on edit. */
-export function passwordDraftError(draft: PasswordDraft): string | null {
-  if (draft.remove || (!draft.password && !draft.confirm)) return null
-  if (draft.password.length < MIN_PASSWORD_LENGTH) return `Use at least ${MIN_PASSWORD_LENGTH} characters.`
-  if (draft.password !== draft.confirm) return "The two passwords don't match yet."
-  return null
-}
-
-const inputStyle = {
+const inputStyle: CSSProperties = {
   width: '100%',
-  boxSizing: 'border-box' as const,
+  boxSizing: 'border-box',
   padding: '14px 16px',
   fontSize: 16,
   borderRadius: 14,
@@ -33,18 +15,18 @@ const inputStyle = {
   outline: 'none',
 }
 
-interface Props {
-  draft: PasswordDraft
-  onChange: (draft: PasswordDraft) => void
+export interface ProfilePasswordFieldsProps {
+  readonly draft: PasswordDraft
+  readonly onChange: (draft: PasswordDraft) => void
   /** Edit screen only: whether the profile already has a password. */
-  hasPassword?: boolean
+  readonly hasPassword?: boolean
 }
 
-export function ProfilePasswordFields({ draft, onChange, hasPassword = false }: Props) {
-  const error = draft.password || draft.confirm ? passwordDraftError(draft) : null
+export function ProfilePasswordFields({ draft, onChange, hasPassword = false }: ProfilePasswordFieldsProps): ReactElement {
+  const error = draft.password !== '' || draft.confirm !== '' ? passwordDraftError(draft) : null
   const help = hasPassword
     ? 'This player has a password. Type a new one to change it, or leave these blank to keep it.'
-    : "Ask for a password when someone picks this player. Leave blank for no password."
+    : 'Ask for a password when someone picks this player. Leave blank for no password.'
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -62,7 +44,9 @@ export function ProfilePasswordFields({ draft, onChange, hasPassword = false }: 
           autoComplete="new-password"
           value={draft.password}
           disabled={draft.remove}
-          onChange={(e) => onChange({ ...draft, password: e.target.value })}
+          onChange={(e) => {
+            onChange({ ...draft, password: e.target.value })
+          }}
           style={inputStyle}
         />
         <input
@@ -72,18 +56,22 @@ export function ProfilePasswordFields({ draft, onChange, hasPassword = false }: 
           autoComplete="new-password"
           value={draft.confirm}
           disabled={draft.remove}
-          onChange={(e) => onChange({ ...draft, confirm: e.target.value })}
+          onChange={(e) => {
+            onChange({ ...draft, confirm: e.target.value })
+          }}
           style={inputStyle}
         />
       </div>
-      {error && <span style={{ display: 'block', marginTop: 8, fontSize: 14, color: '#CD2A20' }}>{error}</span>}
+      {error !== null && <span style={{ display: 'block', marginTop: 8, fontSize: 14, color: '#CD2A20' }}>{error}</span>}
 
       {hasPassword && (
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={draft.remove}
-            onChange={(e) => onChange({ password: '', confirm: '', remove: e.target.checked })}
+            onChange={(e) => {
+              onChange({ password: '', confirm: '', remove: e.target.checked })
+            }}
             style={{ width: 20, height: 20 }}
           />
           <span style={{ color: 'var(--fg-secondary)' }}>Remove the password (anyone can pick this player)</span>

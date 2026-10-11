@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 151 legacy frontend files (150 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 144 legacy frontend files (143 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -79,6 +79,17 @@ Lessons from ProfilePicker:
 - **Run the e2e suite against a baseline,** not just after. Stash the migration and run it on the previous commit, or you can't tell your failures from existing ones.
 - **Legacy callers assemble once** with `useState(assembleX)` (`App.tsx`, `DevScreenPicker.tsx`), until the shell itself migrates to `src/main/`.
 
+## Migration log (after the pilot)
+
+| component | effort | notes |
+|---|---|---|
+| `games/CreateProfile.tsx` + `ProfileFormFields`, `ProfilePasswordFields`, `ProfilePhotoCapture`, `newPhotosPayload` → `profiles/` | ~15 min (agent) | Reused `HttpFetch` and the profiles adapter as predicted (it gained `create` and `remixPhoto`; `failureMessage` in `api/http.pure.lib.ts` keeps the server's user-facing `detail`). New seams: a `ProfileCamera` capability (`profile_camera.effect.lib.ts` over `navigator.mediaDevices` + a canvas factory) driven by `use_camera.pure.hook.ts`, and an injected `today()` clock replacing module-level `new Date()`. The photo panel is injected into the create screen as a bound component (`PhotoCapture` bind arg); legacy `EditProfile` assembles it with `useState(assembleProfilePhotoCapture)`. Fixed in passing: a camera stream that opened after unmount was never stopped. 7 legacy files out; 21 tests in the ported suites (no `global.fetch`/`navigator` stubs) plus 60 new; 12 stories. |
+
+Lessons:
+- **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
+- **Module-level `new Date()` is a hidden global.** `Date.now` is linted; `new Date()` isn't yet. Pass `today` in.
+- **Labels that grow hints break `getByLabelText`.** Hold on to the input element across edits.
+
 ## Known debt surfaced by the new rules (fix during migration)
 
 - **e2e and the local Chrome (resolved):** the installed Google Chrome 155 on this machine exits about 5.7s after launch, even on `about:blank`, so long runs failed with "Target page, context or browser has been closed". e2e and the Storybook tests now use Playwright's bundled Chromium, as CI does.
@@ -101,7 +112,7 @@ Lessons from ProfilePicker:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 151 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 144 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

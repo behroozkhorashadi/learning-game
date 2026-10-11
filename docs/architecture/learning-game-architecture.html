@@ -209,7 +209,7 @@ code { font-family:var(--mono); font-size:.9em; }
   app -. &quot;DEV only&quot; .-&gt; dev
 
   subgraph SCREENS[&quot;Legacy screens — src/games&quot;]
-    prof[&quot;Profile flow&lt;br/&gt;CreateProfile, ProfileUnlock,&lt;br/&gt;EditProfile, AdminPanel&quot;]
+    prof[&quot;Profile flow&lt;br/&gt;ProfileUnlock, EditProfile, AdminPanel&quot;]
     picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
     gWord[&quot;Word games&lt;br/&gt;SyllableBuilder, PromptForge,&lt;br/&gt;StyleRemixLab, TagTeamStory, ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;EquationBuilder, ZombieMathBlaster&quot;]
@@ -233,7 +233,7 @@ code { font-family:var(--mono); font-size:.9em; }
 
   subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
     root[&quot;main/&lt;br/&gt;dev_screens.assembly.main&quot;]
-    profiles[&quot;profiles/&lt;br/&gt;ProfilePickerView (pure) + bindProfilePicker,&lt;br/&gt;assembleProfilePicker, ProfileAvatar, AVATAR_OPTIONS&quot;]
+    profiles[&quot;profiles/&lt;br/&gt;picker + create screens (bind* + assemble*),&lt;br/&gt;photo panel (camera + remix), form &amp;amp; password fields,&lt;br/&gt;ProfileAvatar, AVATAR_OPTIONS&quot;]
     session[&quot;session/&lt;br/&gt;ProgressBar&quot;]
     den[&quot;den/&lt;br/&gt;DenButton, icons, icon_paths&quot;]
     query[&quot;query/&lt;br/&gt;useQuery + QueryState (server state)&quot;]
@@ -248,7 +248,7 @@ code { font-family:var(--mono); font-size:.9em; }
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
   app --&gt; prof &amp; picker &amp; gWord &amp; gMath &amp; gPath &amp; meta
-  app -- &quot;assembleProfilePicker() once&quot; --&gt; profiles
+  app -- &quot;assembleProfilePicker(),&lt;br/&gt;assembleCreateProfile() once&quot; --&gt; profiles
   dev --&gt; root --&gt; example
   gWord --&gt; shared &amp; write
   gMath --&gt; shared &amp; arena
@@ -259,6 +259,7 @@ code { font-family:var(--mono); font-size:.9em; }
   shared &amp; write &amp; pathc --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
+  profiles -- &quot;injected camera&lt;br/&gt;(navigator.mediaDevices)&quot; --&gt; browser[[&quot;Browser camera&quot;]]
   example --&gt; apiad &amp; flags
   apiad -- &quot;injected fetch&quot; --&gt; api
   arena --&gt; zlib

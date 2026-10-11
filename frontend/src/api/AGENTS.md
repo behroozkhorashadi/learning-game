@@ -10,8 +10,9 @@
   `satisfies z.ZodType<components['schemas']['X']>`, so a backend change is a compile error
   here. Parse every response (`safeParse`, then throw a descriptive error on mismatch). The
   generated types are the server's claim; zod is the check.
-- Non-2xx responses throw `Error` with the method, path, and status. Callers (operations)
-  turn that into a `failed(message)` state.
+- Non-2xx responses throw `Error` with the method, path, and status, or with the server's
+  string `detail` when it sent one (`failureMessage` in `http.pure.lib.ts`; FastAPI writes
+  those for users). Callers turn that into a `failed(message)` state or an inline error.
 - Return the adapter's own record types (`TodoRecord`). Features stay structurally
   compatible with them; `src/api` never imports a feature.
 - Adapters expose plain arrow-function properties, so a feature can take exactly one
