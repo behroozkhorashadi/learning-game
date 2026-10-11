@@ -23,8 +23,7 @@ import type { ModifierCard } from '@app/writing/modifier_cards.pure.lib.ts'
 import { ModifierRuleBar } from '@app/writing/modifier_rule_bar.pure.ui.tsx'
 import { IllustrationArrival } from '@app/writing/illustration_arrival.pure.ui.tsx'
 import { assembleIllustrationReveal, assembleModifierDeck } from '@app/writing/writing.assembly.main.ts'
-import { Storybook } from '../components/Storybook'
-import { StorybookEntryCard } from '../components/StorybookEntryCard'
+import { assembleStoryLibrary, assembleStorybookEntryCard } from '@app/story_library/story_library.assembly.main.ts'
 import { ZombiePOCScene } from './ZombiePOCScene'
 import { ZombieHitLab } from './ZombieHitLab'
 import { WeaponPOCScene } from './WeaponPOCScene'
@@ -158,6 +157,16 @@ interface ScreenEntry {
 function DevSyllableBuilder() {
   const [SyllableBuilder] = useState(assembleSyllableBuilder)
   return <SyllableBuilder profileId={1} profileName="Mia" onBack={() => console.log('onBack')} />
+}
+
+function DevStoryLibrary() {
+  const [StoryLibrary] = useState(assembleStoryLibrary)
+  return <StoryLibrary profileId={1} profileName="Mia" onBack={() => console.log('onBack')} onWriteNew={() => console.log('onWriteNew')} />
+}
+
+function DevStorybookEntryCard() {
+  const [StorybookEntryCard] = useState(assembleStorybookEntryCard)
+  return <StorybookEntryCard profileId={1} onOpen={() => console.log('onOpen')} />
 }
 
 function DevBadges() {
@@ -413,7 +422,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'storybook',
     label: 'Storybook (live — hits the backend)',
-    render: () => <Storybook profileId={1} profileName="Mia" onBack={() => console.log('onBack')} onWriteNew={() => console.log('onWriteNew')} />,
+    render: () => <DevStoryLibrary />,
   },
   {
     id: 'pathfinder-map-builder',
@@ -438,7 +447,7 @@ const SCREENS: ScreenEntry[] = [
     label: 'Storybook entry card (live — hits the backend)',
     render: () => (
       <CardWrapper>
-        <StorybookEntryCard profileId={1} onOpen={() => console.log('onOpen')} />
+        <DevStorybookEntryCard />
       </CardWrapper>
     ),
   },

@@ -1,55 +1,33 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import type { CSSProperties, ReactElement } from 'react'
 import { ArrowRightIcon } from '@app/den/icons.pure.ui.tsx'
-import { Cover } from './Storybook'
-import type { Illustration, Piece } from '../types/generated'
+import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { Cover } from './cover.pure.ui.tsx'
+import { PEEK_COUNT, type ShelfPeek } from './library_loader.pure.lib.ts'
 
 /**
- * The kid-home entry point for the storybook — "4b" in `Storybook.dc.html`.
- * Sits beside the game tiles on `GamePicker.tsx`, not in a nav.
+ * The kid-home entry point for the story library, "4b" in `Storybook.dc.html`.
+ * Sits beside the game tiles on the game picker, not in a nav. Props only:
+ * the peek arrives as a QueryState; nothing renders until it has loaded.
  */
 
 const PLUS_ICON = ['M12 5.75V18.25M5.75 12H18.25']
 
-const PEEK_STYLES: CSSProperties[] = [
+const PEEK_STYLES: readonly CSSProperties[] = [
   { transform: 'rotate(-9deg) translate(-30px, 6px)', zIndex: 1 },
   { transform: 'rotate(4deg) translate(14px, 2px)', zIndex: 2 },
   { transform: 'rotate(-2deg) translate(-8px, -10px)', zIndex: 3 },
 ]
 
-interface Props {
-  profileId: number
-  onOpen: () => void
+export interface EntryCardViewProps {
+  readonly state: QueryState<ShelfPeek>
+  readonly onOpen: () => void
 }
 
-export function StorybookEntryCard({ profileId, onOpen }: Props) {
-  const [pieces, setPieces] = useState<Piece[] | null>(null)
-  const [illustrationsByPiece, setIllustrationsByPiece] = useState<Record<string, Illustration[]>>({})
-
-  useEffect(() => {
-    fetch(`/api/pieces?profile_id=${profileId}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`GET /api/pieces -> ${r.status}`)
-        return r.json() as Promise<Piece[]>
-      })
-      .then((pieceList) => {
-        const sorted = [...pieceList].sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
-        setPieces(sorted)
-        return Promise.all(
-          sorted.slice(0, 3).map((p) =>
-            fetch(`/api/pieces/${p.id}/illustrations`)
-              .then((r) => (r.ok ? (r.json() as Promise<Illustration[]>) : []))
-              .then((ills) => [p.id!, ills] as const),
-          ),
-        )
-      })
-      .then((entries) => setIllustrationsByPiece(Object.fromEntries(entries)))
-      .catch(() => setPieces([]))
-  }, [profileId])
-
-  if (pieces === null) return null
-
+export function EntryCardView({ state, onOpen }: EntryCardViewProps): ReactElement | null {
+  if (state.kind !== 'loaded') return null
+  const { pieces, illustrations } = state.data
   const hasPieces = pieces.length > 0
-  const peek = pieces.slice(0, 3).reverse()
+  const peek = pieces.slice(0, PEEK_COUNT).reverse()
   const newest = pieces[0]
 
   return (
@@ -81,7 +59,7 @@ export function StorybookEntryCard({ profileId, onOpen }: Props) {
                   ...PEEK_STYLES[i],
                 }}
               >
-                <Cover piece={p} illustrations={illustrationsByPiece[p.id!] ?? []} label="" showLabel={false} />
+                <Cover piece={p} illustrations={illustrations[p.id] ?? []} label="" showLabel={false} />
               </div>
             ))
           ) : (
@@ -110,9 +88,9 @@ export function StorybookEntryCard({ profileId, onOpen }: Props) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#2A2E37' }}>My storybook</div>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: '#9A907C', marginTop: 3 }}>
-            {hasPieces ? `${pieces.length} ${pieces.length === 1 ? 'story' : 'stories'}` : "Empty for now — write something and it'll land here."}
+            {hasPieces ? `${String(pieces.length)} ${pieces.length === 1 ? 'story' : 'stories'}` : "Empty for now — write something and it'll land here."}
           </div>
-          {hasPieces && newest?.title && (
+          {hasPieces && newest?.title != null && newest.title !== '' && (
             <div
               style={{
                 display: 'inline-block',

@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 72 legacy frontend files (71 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 69 legacy frontend files (68 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -92,6 +92,7 @@ Lessons from ProfilePicker:
 | `components/{CoachPanel,WritingSurface,IllustrationReveal,ModifierDeck}.tsx` → `writing/`, plus `timing/` and `api/pieces_api` | ~35 min (agent) | The shared writing pipeline, migrated ahead of the four writing games. `timing/` adds a `Timers` capability (`after`, `every`) with component-scoped `useScheduled`, plus a `manualTimers()` test clock, replacing four components' worth of hand-rolled `setTimeout` refs. IllustrationReveal became `bindIllustrationReveal({ generateIllustration, timers })` with its phase machine in `use_illustration_reveal`. ModifierDeck split into card data with a pure `drawCard(pool, random)`, a bound deck, and a props-only rule bar. Both textareas gained accessible names. Legacy games assemble the reveal once at module scope until they migrate. 4 legacy files out. |
 | `games/PromptForge.tsx` → `prompt_forge/` | ~25 min (agent) | First writing game on the shared pipeline: `writing/use_revision_pass` (coach thinking → questions → save piece + the game's own records + revision), `WritingGameDeps` (`pieces`, `timers`, `random`, `createId`), and the bound reveal injected as a component. The forge rules became `forge_recipe.pure.lib.ts`; the twist draw takes the injected random. The flip card's bare `<div onClick>` was dropped because the labelled "Flip the twist" button does the same job accessibly. Game tests use `StubReveal` and a manual clock, with no `fetch` stub. 2 legacy files out. |
 | Pathfinder (`lib/pathfinder*`, `lib/usePathfinderPlay`, `lib/fakePathfinderApi`, `components/Pathfinder*`, `games/Pathfinder`) → `pathfinder/` | ~60 min (agent, separate worktree) | The engine (rules, solver, difficulty, generator, levels, export) moved as pure libs with only strict-mode fixes; the generator already took a seeded `rng`. Every fetch is now `api/pathfinder_api.effect.lib.ts` (zod; `difficulty` parsed as the four tiers, stricter than the schema's `string`). New capabilities in `pathfinder_state.pure.lib.ts`: `LevelProgressStore`, `MapLibrary`, `ListPublishedMaps`, `ScheduleTimeout` (the invalid-move flash), `Dialogs` (`window.confirm`/`prompt`), `SubscribeToFocus` (published-list refresh). Effects moved to hooks (`use_level_progress`, `use_published_maps`, `useQuery`/`useReloadableQuery` for the map lists). React-compiler debt fixed: `usePathfinderPlay` no longer resets via set-state-in-effect; its attempt is tagged with the puzzle id. The game and play-test now share `pathfinder_play_panel.pure.ui.tsx`. Child screens are injected (`bindPathfinderMapBuilder({ Editor, MyMaps, PlayTest })`, `bindPathfinder({ LevelSelect, PublishedMaps, MapBuilder, ... })`). `fakePathfinderApi` (a `global.fetch` stub) became an in-memory capability fake plus an HTTP-level fake inside the adapter test. Wall-clock perf assertions became node-count / no-assertion checks (the `no-unstable-scenario-test` rule). My Maps buttons gained per-map accessible names (`Delete Spiral`). 35 legacy files out; 240 unit tests, 25 stories. |
+| `components/Storybook.tsx`, `components/StorybookEntryCard.tsx` → `story_library/` | ~25 min (agent) | Reuses `api/pieces_api`, `writing/illustration_style`, and `query/`. The per-piece illustration fan-out became one pure loader over the adapter (`loadLibrary`, `loadShelfPeek`, the latter never rejecting, as before). Split into props-only `StoryLibraryView`, `EntryCardView`, and `Cover` over `QueryState`, plus `bindStoryLibrary({ loadLibrary, removePiece, confirm })` and `bindStorybookEntryCard({ loadPeek })`. `window.confirm` is an injected capability read only in assembly. A delete now re-reads the library (`useReloadableQuery`) instead of filtering a local copy. Callers key both by profile id. 3 legacy files out. |
 Lessons:
 - **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
 - **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
@@ -125,7 +126,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 72 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 69 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

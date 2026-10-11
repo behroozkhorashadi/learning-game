@@ -16,7 +16,7 @@ import { TagTeamStory } from './games/TagTeamStory'
 import { ClueMaster } from './games/ClueMaster'
 import { assemblePathfinder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
-import { Storybook } from './components/Storybook'
+import { assembleStoryLibrary } from '@app/story_library/story_library.assembly.main.ts'
 import { DevScreenPicker, DevScreenLink } from './dev/DevScreenPicker'
 
 function App() {
@@ -28,6 +28,7 @@ function App() {
   const [EditProfile] = useState(assembleEditProfile)
   const [AdminPanel] = useState(assembleAdminPanel)
   const [Badges] = useState(assembleBadges)
+  const [StoryLibrary] = useState(assembleStoryLibrary)
   const [SyllableBuilder] = useState(assembleSyllableBuilder)
   const [EquationBuilder] = useState(assembleEquationBuilder)
   const [PromptForge] = useState(assemblePromptForge)
@@ -126,8 +127,9 @@ function App() {
     content = <Badges key={profile.id} profileId={profile.id} kidName={profile.name} onBack={() => setShowBadges(false)} />
   } else if (showStorybook) {
     content = (
-      <Storybook
-        profileId={profile.id!}
+      <StoryLibrary
+        key={profile.id}
+        profileId={profile.id}
         profileName={profile.name}
         onBack={() => setShowStorybook(false)}
         onWriteNew={() => setShowStorybook(false)}

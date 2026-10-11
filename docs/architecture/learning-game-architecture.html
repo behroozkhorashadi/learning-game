@@ -212,7 +212,6 @@ code { font-family:var(--mono); font-size:.9em; }
     picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
     gWord[&quot;Writing games&lt;br/&gt;StyleRemixLab, TagTeamStory, ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;ZombieMathBlaster&quot;]
-    meta[&quot;Storybook&quot;]
   end
 
   subgraph COMP[&quot;Legacy components — src/components&quot;]
@@ -240,6 +239,7 @@ code { font-family:var(--mono); font-size:.9em; }
     writing[&quot;writing/&lt;br/&gt;WritingSurface, CoachPanel, ModifierDeck,&lt;br/&gt;bindIllustrationReveal (pieces_api + timers)&quot;]
     wgames[&quot;prompt_forge/&lt;br/&gt;bind* writing games over writing/&quot;]
     timing[&quot;timing/&lt;br/&gt;Timers capability + useScheduled&quot;]
+    library[&quot;story_library/&lt;br/&gt;shelf + reader + home entry card&lt;br/&gt;(bindStoryLibrary, injected confirm)&quot;]
     badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
     speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
     ids[&quot;ids/&lt;br/&gt;v4 UUIDs from getRandomValues (works on http LAN)&quot;]
@@ -251,11 +251,13 @@ code { font-family:var(--mono); font-size:.9em; }
   api[[&quot;FastAPI /api/*&quot;]]
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
-  app --&gt; picker &amp; gWord &amp; gMath &amp; meta
+  app --&gt; picker &amp; gWord &amp; gMath
   app -- &quot;assemblePathfinder() once&quot; --&gt; pathfinder
   dev -- &quot;map builder, level gallery&quot; --&gt; pathfinder
   pathfinder --&gt; query &amp; apiad &amp; den &amp; ids
   pathfinder -- &quot;injected timers, dialogs,&lt;br/&gt;window focus&quot; --&gt; browserWin[[&quot;Browser window&quot;]]
+  app -- &quot;assembleStoryLibrary() once&quot; --&gt; library
+  library --&gt; writing &amp; query &amp; apiad &amp; den
   app -- &quot;assemble* once:&lt;br/&gt;picker, create, unlock, edit&quot; --&gt; profiles
   app -- &quot;assembleAdminPanel() once&quot; --&gt; admin
   app -- &quot;assembleBadges() once&quot; --&gt; badges
@@ -266,13 +268,13 @@ code { font-family:var(--mono); font-size:.9em; }
   badges --&gt; query &amp; apiad &amp; den
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
   dev --&gt; root --&gt; example
-  gWord &amp; meta --&gt; writing
+  gWord --&gt; writing
   writing --&gt; timing &amp; apiad &amp; den
   app -- &quot;assemblePromptForge() once&quot; --&gt; wgames
   wgames --&gt; writing &amp; den
   gMath --&gt; arena
   gWord &amp; gMath --&gt; session
-  picker &amp; meta --&gt; den
+  picker --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
   profiles -- &quot;injected camera&lt;br/&gt;(navigator.mediaDevices)&quot; --&gt; browser[[&quot;Browser camera&quot;]]
@@ -282,7 +284,7 @@ code { font-family:var(--mono); font-size:.9em; }
   arena --&gt; assets
   gWord &amp; gMath --&gt; plat
   gWord &amp; gMath -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
-  picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
+  picker &amp; gWord &amp; gMath -- &quot;fetch (legacy)&quot; --&gt; api
   plat -- &quot;fetch&quot; --&gt; api
   SCREENS -.-&gt; types
   LIB -.-&gt; types

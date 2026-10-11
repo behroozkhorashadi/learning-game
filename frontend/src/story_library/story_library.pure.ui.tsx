@@ -1,16 +1,20 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactElement } from 'react'
+import type { IllustrationRecord, PieceRecord } from '@app/api/pieces_schema.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip, type DenChipTone } from '@app/den/den_chip.pure.ui.tsx'
 import { ArrowLeftIcon, TrashIcon } from '@app/den/icons.pure.ui.tsx'
-import { styleLabel, swatchOf, type IllustrationStyle } from '@app/writing/illustration_style.pure.lib.ts'
-import type { GameMetadata, Illustration, Piece } from '../types/generated'
+import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { styleLabel, swatchOf } from '@app/writing/illustration_style.pure.lib.ts'
+import { Cover } from './cover.pure.ui.tsx'
+import { buildBlocks, byOrder, chunk, formatDate, styleOf, type LibraryData } from './library_state.pure.lib.ts'
 
 /**
- * The storybook — ported from the Claude Design handoff bundle
- * (`Storybook.dc.html`, section "4a — shelf, reader, and the waiting book").
- * Real pieces come from `GET /api/pieces`; "empty" isn't a separate state to
- * switch to, it's just what the shelf looks like when there are zero pieces.
- * `StorybookEntryCard.tsx` is the "4b" home entry point that opens this.
+ * The story library ("storybook" in the design), ported from the Claude
+ * Design handoff bundle (`Storybook.dc.html`, "4a — shelf, reader, and the
+ * waiting book"). Props only: the library arrives as a QueryState from the
+ * bound screen (story_library.effect.ui.tsx). "Empty" isn't a separate state,
+ * it's what the shelf looks like with zero pieces. entry_card is the "4b"
+ * home entry point that opens this.
  */
 
 const SPARKLE_ICON = [
@@ -18,12 +22,13 @@ const SPARKLE_ICON = [
   'M17 14.75C17 15.8971 15.8971 17 14.75 17C15.8971 17 17 18.1029 17 19.25C17 18.1029 18.1029 17 19.25 17C18.1029 17 17 15.8971 17 14.75Z',
   'M9 7.75C9 9.91666 6.91666 12 4.75 12C6.91666 12 9 14.0833 9 16.25C9 14.0833 11.0833 12 13.25 12C11.0833 12 9 9.91666 9 7.75Z',
 ]
-const MINI_SPARKLE = [SPARKLE_ICON[0], SPARKLE_ICON[2]]
+const MINI_SPARKLE = [SPARKLE_ICON[0] ?? '', SPARKLE_ICON[2] ?? '']
 const CHEVRON_LEFT = ['M14.25 6.75L8.75 12L14.25 17.25']
 const CHEVRON_RIGHT = ['M9.75 6.75L15.25 12L9.75 17.25']
 const PLUS_ICON = ['M12 5.75V18.25M5.75 12H18.25']
 
-const CHIP_TONES: DenChipTone[] = ['green', 'blue', 'purple', 'amber']
+const CHIP_TONES: readonly DenChipTone[] = ['green', 'blue', 'purple', 'amber']
+const chipTone = (i: number): DenChipTone => CHIP_TONES[i % CHIP_TONES.length] ?? 'green'
 
 const navButtonStyle: CSSProperties = {
   width: 38,
@@ -38,73 +43,7 @@ const navButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-export function styleOf(piece: Piece): IllustrationStyle {
-  const s = piece.art_style
-  return s === 'storybook' || s === 'inkwash' || s === 'brightpaper' || s === 'chalk' ? s : 'storybook'
-}
-
-function formatDate(iso?: string | null) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-function heroOf(illustrations: Illustration[]): Illustration | undefined {
-  return illustrations.find((i) => i.is_hero) ?? illustrations[0]
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
-  return out
-}
-
-interface ReaderBlock {
-  kind: 'text' | 'image'
-  text?: string
-  illustration?: Illustration
-}
-
-function buildBlocks(body: string, illustrations: Illustration[]): ReaderBlock[] {
-  const paragraphs = body
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-  const used = new Set<number>()
-  const blocks: ReaderBlock[] = []
-
-  paragraphs.forEach((p) => {
-    blocks.push({ kind: 'text', text: p })
-    illustrations.forEach((ill, i) => {
-      if (!used.has(i) && ill.prompt_excerpt && p.includes(ill.prompt_excerpt)) {
-        blocks.push({ kind: 'image', illustration: ill })
-        used.add(i)
-      }
-    })
-  })
-  illustrations.forEach((ill, i) => {
-    if (!used.has(i)) blocks.push({ kind: 'image', illustration: ill })
-  })
-  return blocks
-}
-
-export function Cover({ piece, illustrations, label, showLabel = true }: { piece: Piece; illustrations: Illustration[]; label: string; showLabel?: boolean }) {
-  const [broken, setBroken] = useState(false)
-  const hero = heroOf(illustrations)
-
-  if (!hero || !hero.image_url || broken) {
-    return (
-      <div style={{ width: '100%', height: '100%', background: swatchOf(styleOf(piece)), display: 'flex', alignItems: 'flex-end' }}>
-        {showLabel && (
-          <div style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.9)', textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>{label}</div>
-        )}
-      </div>
-    )
-  }
-
-  return <img src={hero.image_url} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-}
-
-function BackButton({ onClick }: { onClick: () => void }) {
+function BackButton({ onClick }: { readonly onClick: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -118,7 +57,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
     <div>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '.09em', textTransform: 'uppercase', fontWeight: 700, color: '#B7AC96' }}>{label}</div>
@@ -135,26 +74,26 @@ function ShelfCard({
   onDelete,
   delay,
 }: {
-  piece: Piece
-  illustrations: Illustration[]
-  gameTitle: string
-  onClick: () => void
-  onDelete: () => void
-  delay: number
-}) {
+  readonly piece: PieceRecord
+  readonly illustrations: readonly IllustrationRecord[]
+  readonly gameTitle: string
+  readonly onClick: () => void
+  readonly onDelete: () => void
+  readonly delay: number
+}): ReactElement {
   const pictureCount = illustrations.length
 
   return (
-    <div style={{ width: '100%', animation: `riseIn 460ms cubic-bezier(.22,1,.36,1) ${delay}s both` }}>
+    <div style={{ width: '100%', animation: `riseIn 460ms cubic-bezier(.22,1,.36,1) ${String(delay)}s both` }}>
       <div style={{ position: 'relative' }}>
         <button
           type="button"
           onClick={onClick}
-          aria-label={piece.title || 'Untitled'}
+          aria-label={piece.title ?? 'Untitled'}
           style={{ display: 'block', width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
         >
           <div style={{ position: 'relative', width: '100%', aspectRatio: '4/5', borderRadius: 16, overflow: 'hidden', border: '1.5px solid #EDE5D5', background: '#F6F1E6', boxShadow: '0 12px 22px -14px rgba(0,13,51,.30)' }}>
-            <Cover piece={piece} illustrations={illustrations} label={piece.title || 'Cover'} />
+            <Cover piece={piece} illustrations={illustrations} label={piece.title ?? 'Cover'} />
             {pictureCount > 1 && (
               <div style={{ position: 'absolute', bottom: 9, right: 9, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(20,24,34,.72)', color: '#FFFFFF', borderRadius: 8, padding: '4px 7px' }}>
                 <svg width={13} height={13} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -170,7 +109,7 @@ function ShelfCard({
         <button
           type="button"
           onClick={onDelete}
-          aria-label={`Delete ${piece.title || 'story'}`}
+          aria-label={`Delete ${piece.title ?? 'story'}`}
           title="Delete this story"
           style={{ position: 'absolute', top: 9, right: 9, width: 30, height: 30, borderRadius: 9999, border: 'none', background: 'rgba(20,24,34,.72)', color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
@@ -178,11 +117,11 @@ function ShelfCard({
         </button>
       </div>
       <div style={{ padding: '14px 4px 0' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16.5, lineHeight: 1.2, color: '#2A2E37' }}>{piece.title || 'Untitled'}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16.5, lineHeight: 1.2, color: '#2A2E37' }}>{piece.title ?? 'Untitled'}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
           <DenChip label={gameTitle} tone="neutral" mono />
-          {(piece.constraints ?? []).map((c, i) => (
-            <DenChip key={c} label={c} tone={CHIP_TONES[i % CHIP_TONES.length]} />
+          {piece.constraints.map((c, i) => (
+            <DenChip key={c} label={c} tone={chipTone(i)} />
           ))}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.07em', textTransform: 'uppercase', fontWeight: 700, color: '#B7AC96', marginTop: 10 }}>{formatDate(piece.created_at)}</div>
@@ -200,16 +139,17 @@ function Shelf({
   onDelete,
   onWriteNew,
 }: {
-  profileName: string
-  pieces: Piece[]
-  illustrationsByPiece: Record<string, Illustration[]>
-  gameTitles: Record<string, string>
-  onOpen: (id: string) => void
-  onDelete: (id: string) => void
-  onWriteNew: () => void
-}) {
+  readonly profileName: string
+  readonly pieces: readonly PieceRecord[]
+  readonly illustrationsByPiece: Readonly<Record<string, readonly IllustrationRecord[]>>
+  readonly gameTitles: Readonly<Record<string, string>>
+  readonly onOpen: (id: string) => void
+  readonly onDelete: (id: string) => void
+  readonly onWriteNew: () => void
+}): ReactElement {
   const rows = chunk(pieces, 3)
-  const kidStyle = styleOf(pieces[0])
+  const first = pieces[0]
+  const kidStyle = first === undefined ? 'storybook' : styleOf(first)
 
   return (
     <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, overflow: 'hidden', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)' }}>
@@ -239,10 +179,14 @@ function Shelf({
                 <ShelfCard
                   key={p.id}
                   piece={p}
-                  illustrations={illustrationsByPiece[p.id!] ?? []}
+                  illustrations={illustrationsByPiece[p.id] ?? []}
                   gameTitle={gameTitles[p.game_id] ?? p.game_id}
-                  onClick={() => onOpen(p.id!)}
-                  onDelete={() => onDelete(p.id!)}
+                  onClick={() => {
+                    onOpen(p.id)
+                  }}
+                  onDelete={() => {
+                    onDelete(p.id)
+                  }}
                   delay={(ri * 3 + ci) * 0.06}
                 />
               ))}
@@ -273,7 +217,7 @@ function Shelf({
   )
 }
 
-function EmptyShelf({ onWriteNew }: { onWriteNew: () => void }) {
+function EmptyShelf({ onWriteNew }: { readonly onWriteNew: () => void }): ReactElement {
   return (
     <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '56px 32px 60px', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 26 }}>
       <div style={{ position: 'relative', width: 232, height: 172 }}>
@@ -313,22 +257,19 @@ function Reader({
   onNext,
   onDelete,
 }: {
-  piece: Piece
-  illustrations: Illustration[]
-  gameTitle: string
-  position: string
-  profileName: string
-  hasMultiple: boolean
-  onBack: () => void
-  onPrev: () => void
-  onNext: () => void
-  onDelete: () => void
-}) {
-  const sortedIllustrations = useMemo(
-    () => [...illustrations].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [illustrations],
-  )
-  const blocks = useMemo(() => buildBlocks(piece.body ?? '', sortedIllustrations), [piece.body, sortedIllustrations])
+  readonly piece: PieceRecord
+  readonly illustrations: readonly IllustrationRecord[]
+  readonly gameTitle: string
+  readonly position: string
+  readonly profileName: string
+  readonly hasMultiple: boolean
+  readonly onBack: () => void
+  readonly onPrev: () => void
+  readonly onNext: () => void
+  readonly onDelete: () => void
+}): ReactElement {
+  const sortedIllustrations = byOrder(illustrations)
+  const blocks = buildBlocks(piece.body, sortedIllustrations)
   const pictureCount = sortedIllustrations.length
 
   return (
@@ -346,7 +287,7 @@ function Reader({
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B' }}>
             {formatDate(piece.created_at)} · by {profileName}
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#2A2E37', marginTop: 2 }}>{piece.title || 'Untitled'}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#2A2E37', marginTop: 2 }}>{piece.title ?? 'Untitled'}</div>
         </div>
         {hasMultiple && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -374,11 +315,11 @@ function Reader({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 264px' }}>
         <div style={{ padding: '36px 40px 44px', borderRight: '1px solid #F0E9DA' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, lineHeight: 1.12, color: '#2A2E37', letterSpacing: '-.01em' }}>{piece.title || 'Untitled'}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, lineHeight: 1.12, color: '#2A2E37', letterSpacing: '-.01em' }}>{piece.title ?? 'Untitled'}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
             <DenChip label={gameTitle} tone="neutral" mono />
-            {(piece.constraints ?? []).map((c, i) => (
-              <DenChip key={c} label={c} tone={CHIP_TONES[i % CHIP_TONES.length]} />
+            {piece.constraints.map((c, i) => (
+              <DenChip key={c} label={c} tone={chipTone(i)} />
             ))}
           </div>
 
@@ -392,9 +333,9 @@ function Reader({
               ) : (
                 <div key={i}>
                   <div style={{ width: '100%', aspectRatio: '16/10', borderRadius: 20, overflow: 'hidden', border: '1.5px solid #EDE5D5', background: '#F6F1E6' }}>
-                    <Cover piece={piece} illustrations={[b.illustration!]} label={b.illustration!.is_hero ? 'Hero' : 'Moment'} />
+                    <Cover piece={piece} illustrations={[b.illustration]} label={b.illustration.is_hero ? 'Hero' : 'Moment'} />
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#B7AC96', marginTop: 8, fontStyle: 'italic' }}>{b.illustration!.prompt_excerpt}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#B7AC96', marginTop: 8, fontStyle: 'italic' }}>{b.illustration.prompt_excerpt}</div>
                 </div>
               ),
             )}
@@ -407,7 +348,7 @@ function Reader({
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 11 }}>Pictures</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {sortedIllustrations.map((ill) => (
-                  <div key={ill.id} style={{ width: '100%', aspectRatio: '4/3', borderRadius: 13, overflow: 'hidden', border: '1.5px solid #EDE5D5', background: '#F6F1E6' }}>
+                  <div key={`${String(ill.order)}-${ill.image_url}`} style={{ width: '100%', aspectRatio: '4/3', borderRadius: 13, overflow: 'hidden', border: '1.5px solid #EDE5D5', background: '#F6F1E6' }}>
                     <Cover piece={piece} illustrations={[ill]} label={ill.is_hero ? 'Hero picture' : 'Picture'} />
                   </div>
                 ))}
@@ -415,8 +356,8 @@ function Reader({
             </div>
           )}
           <div style={{ borderTop: '1px dashed #EAE0CB', paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 13 }}>
-            <Fact label="Words" value={`${piece.word_count ?? 0} words`} />
-            <Fact label="Pictures" value={pictureCount === 1 ? '1 picture' : `${pictureCount} pictures`} />
+            <Fact label="Words" value={`${String(piece.word_count)} words`} />
+            <Fact label="Pictures" value={pictureCount === 1 ? '1 picture' : `${String(pictureCount)} pictures`} />
           </div>
           <div style={{ marginTop: 'auto', background: '#FFFFFF', border: '1px solid #EDE5D5', borderRadius: 15, padding: 14 }}>
             <div style={{ fontSize: 13, lineHeight: 1.5, fontWeight: 600, color: '#8A8272' }}>Read it out loud to someone. That&rsquo;s what it&rsquo;s for.</div>
@@ -427,69 +368,28 @@ function Reader({
   )
 }
 
-interface Props {
-  profileId: number
-  profileName: string
-  onBack: () => void
-  onWriteNew: () => void
+export interface StoryLibraryViewProps {
+  readonly state: QueryState<LibraryData>
+  readonly profileName: string
+  /** Why the last delete failed, if it did. */
+  readonly error: string | null
+  readonly onBack: () => void
+  readonly onWriteNew: () => void
+  /** Asks to delete a piece; the bound screen confirms, removes, and reloads. */
+  readonly onDelete: (pieceId: string) => void
 }
 
-export function Storybook({ profileId, profileName, onBack, onWriteNew }: Props) {
-  const [pieces, setPieces] = useState<Piece[] | null>(null)
-  const [illustrationsByPiece, setIllustrationsByPiece] = useState<Record<string, Illustration[]>>({})
-  const [gameTitles, setGameTitles] = useState<Record<string, string>>({})
-  const [error, setError] = useState<string | null>(null)
+export function StoryLibraryView({ state, profileName, error, onBack, onWriteNew, onDelete }: StoryLibraryViewProps): ReactElement {
   const [openPieceId, setOpenPieceId] = useState<string | null>(null)
+  const data = state.kind === 'loaded' ? state.data : null
+  const pieces = data?.pieces ?? []
+  const openIndex = pieces.findIndex((p) => p.id === openPieceId)
+  const openPiece = pieces[openIndex] ?? null
+  const shownError = state.kind === 'failed' ? state.message : error
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/pieces?profile_id=${profileId}`).then((r) => {
-        if (!r.ok) throw new Error(`GET /api/pieces -> ${r.status}`)
-        return r.json() as Promise<Piece[]>
-      }),
-      fetch('/api/games').then((r) => {
-        if (!r.ok) throw new Error(`GET /api/games -> ${r.status}`)
-        return r.json() as Promise<GameMetadata[]>
-      }),
-    ])
-      .then(([pieceList, games]) => {
-        setPieces(pieceList)
-        setGameTitles(Object.fromEntries(games.map((g) => [g.id, g.title])))
-        return Promise.all(
-          pieceList.map((p) =>
-            fetch(`/api/pieces/${p.id}/illustrations`)
-              .then((r) => (r.ok ? (r.json() as Promise<Illustration[]>) : []))
-              .then((ills) => [p.id!, ills] as const),
-          ),
-        )
-      })
-      .then((entries) => setIllustrationsByPiece(Object.fromEntries(entries)))
-      .catch((err) => setError(String(err)))
-  }, [profileId])
-
-  const sortedPieces = useMemo(
-    () => (pieces ? [...pieces].sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()) : []),
-    [pieces],
-  )
-  const openIndex = sortedPieces.findIndex((p) => p.id === openPieceId)
-  const openPiece = openIndex >= 0 ? sortedPieces[openIndex] : null
-
-  function stepPiece(dir: 1 | -1) {
-    if (sortedPieces.length === 0) return
-    const next = (openIndex + dir + sortedPieces.length) % sortedPieces.length
-    setOpenPieceId(sortedPieces[next].id!)
-  }
-
-  async function handleDelete(pieceId: string) {
-    if (!window.confirm('Delete this story for good? This can’t be undone.')) return
-    try {
-      const res = await fetch(`/api/pieces/${pieceId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`DELETE /api/pieces/${pieceId} -> ${res.status}`)
-      setPieces((ps) => (ps ? ps.filter((p) => p.id !== pieceId) : ps))
-      if (openPieceId === pieceId) setOpenPieceId(null)
-    } catch (err) {
-      setError(String(err))
-    }
+  function stepPiece(dir: 1 | -1): void {
+    const next = pieces[(openIndex + dir + pieces.length) % pieces.length]
+    if (next !== undefined) setOpenPieceId(next.id)
   }
 
   return (
@@ -499,38 +399,44 @@ export function Storybook({ profileId, profileName, onBack, onWriteNew }: Props)
           <BackButton onClick={onBack} />
         </div>
 
-        {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>Error: {error}</pre>}
-
-        {pieces === null && !error && (
-          <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '48px 32px', textAlign: 'center', color: '#9A907C', fontWeight: 600 }}>Loading your storybook…</div>
+        {shownError !== null && (
+          <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12, textAlign: 'left' }}>
+            Error: {shownError}
+          </pre>
         )}
 
-        {pieces !== null && !openPiece && sortedPieces.length === 0 && <EmptyShelf onWriteNew={onWriteNew} />}
-
-        {pieces !== null && !openPiece && sortedPieces.length > 0 && (
-          <Shelf
-            profileName={profileName}
-            pieces={sortedPieces}
-            illustrationsByPiece={illustrationsByPiece}
-            gameTitles={gameTitles}
-            onOpen={setOpenPieceId}
-            onWriteNew={onWriteNew}
-            onDelete={handleDelete}
-          />
+        {state.kind === 'loading' && (
+          <div role="status" style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '48px 32px', textAlign: 'center', color: '#9A907C', fontWeight: 600 }}>
+            Loading your storybook…
+          </div>
         )}
 
-        {openPiece && (
+        {data !== null && openPiece === null && pieces.length === 0 && <EmptyShelf onWriteNew={onWriteNew} />}
+
+        {data !== null && openPiece === null && pieces.length > 0 && (
+          <Shelf profileName={profileName} pieces={pieces} illustrationsByPiece={data.illustrations} gameTitles={data.gameTitles} onOpen={setOpenPieceId} onWriteNew={onWriteNew} onDelete={onDelete} />
+        )}
+
+        {data !== null && openPiece !== null && (
           <Reader
             piece={openPiece}
-            illustrations={illustrationsByPiece[openPiece.id!] ?? []}
-            gameTitle={gameTitles[openPiece.game_id] ?? openPiece.game_id}
-            position={`${openIndex + 1} / ${sortedPieces.length}`}
+            illustrations={data.illustrations[openPiece.id] ?? []}
+            gameTitle={data.gameTitles[openPiece.game_id] ?? openPiece.game_id}
+            position={`${String(openIndex + 1)} / ${String(pieces.length)}`}
             profileName={profileName}
-            hasMultiple={sortedPieces.length > 1}
-            onBack={() => setOpenPieceId(null)}
-            onPrev={() => stepPiece(-1)}
-            onNext={() => stepPiece(1)}
-            onDelete={() => handleDelete(openPiece.id!)}
+            hasMultiple={pieces.length > 1}
+            onBack={() => {
+              setOpenPieceId(null)
+            }}
+            onPrev={() => {
+              stepPiece(-1)
+            }}
+            onNext={() => {
+              stepPiece(1)
+            }}
+            onDelete={() => {
+              onDelete(openPiece.id)
+            }}
           />
         )}
       </div>
