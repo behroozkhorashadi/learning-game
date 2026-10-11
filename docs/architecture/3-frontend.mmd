@@ -9,7 +9,6 @@ flowchart TB
     picker["GamePicker<br/>+ EquationOutbreakSettings"]
     gWord["Writing games<br/>ClueMaster"]
     gMath["Math games<br/>ZombieMathBlaster"]
-    meta["Storybook"]
   end
 
   subgraph COMP["Legacy components — src/components"]
@@ -37,6 +36,7 @@ flowchart TB
     writing["writing/<br/>WritingSurface, CoachPanel, ModifierDeck,<br/>bindIllustrationReveal (pieces_api + timers)"]
     wgames["prompt_forge/, style_remix/, tag_team/<br/>bind* writing games over writing/"]
     timing["timing/<br/>Timers capability + useScheduled"]
+    library["story_library/<br/>shelf + reader + home entry card<br/>(bindStoryLibrary, injected confirm)"]
     badges["badges/<br/>BadgesView (pure) + bindBadges"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
@@ -48,11 +48,13 @@ flowchart TB
   api[["FastAPI /api/*"]]
   assets[("public/ GLB models, images, audio")]
 
-  app --> picker & gWord & gMath & meta
+  app --> picker & gWord & gMath
   app -- "assemblePathfinder() once" --> pathfinder
   dev -- "map builder, level gallery" --> pathfinder
   pathfinder --> query & apiad & den & ids
   pathfinder -- "injected timers, dialogs,<br/>window focus" --> browserWin[["Browser window"]]
+  app -- "assembleStoryLibrary() once" --> library
+  library --> writing & query & apiad & den
   app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
   app -- "assembleAdminPanel() once" --> admin
   app -- "assembleBadges() once" --> badges
@@ -63,13 +65,13 @@ flowchart TB
   badges --> query & apiad & den
   admin --> profiles & query & apiad & den
   dev --> root --> example
-  gWord & meta --> writing
+  gWord --> writing
   writing --> timing & apiad & den
   app -- "assemblePromptForge(), assembleStyleRemix(),<br/>assembleTagTeam() once" --> wgames
   wgames --> writing & den
   gMath --> arena
   gWord & gMath --> session
-  picker & meta --> den
+  picker --> den
   session --> den
   profiles --> query & apiad & den
   profiles -- "injected camera<br/>(navigator.mediaDevices)" --> browser[["Browser camera"]]
@@ -79,7 +81,7 @@ flowchart TB
   arena --> assets
   gWord & gMath --> plat
   gWord & gMath -- "assembleSpeech(), assembleRandomId()" --> speech & ids
-  picker & gWord & gMath & meta -- "fetch (legacy)" --> api
+  picker & gWord & gMath -- "fetch (legacy)" --> api
   plat -- "fetch" --> api
   SCREENS -.-> types
   LIB -.-> types
