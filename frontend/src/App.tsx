@@ -7,8 +7,8 @@ import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
 import { GamePicker } from './games/GamePicker'
-import { SyllableBuilder } from './games/SyllableBuilder'
-import { EquationBuilder } from './games/EquationBuilder'
+import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
+import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
 import { ZombieMathBlaster } from './games/ZombieMathBlaster'
 import { PromptForge } from './games/PromptForge'
 import { StyleRemixLab } from './games/StyleRemixLab'
@@ -28,6 +28,8 @@ function App() {
   const [EditProfile] = useState(assembleEditProfile)
   const [AdminPanel] = useState(assembleAdminPanel)
   const [Badges] = useState(assembleBadges)
+  const [SyllableBuilder] = useState(assembleSyllableBuilder)
+  const [EquationBuilder] = useState(assembleEquationBuilder)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
   // kept in memory only so "Edit profile" doesn't ask again. Null for an
@@ -183,7 +185,7 @@ function App() {
       />
     )
   } else if (gameId === 'equation_builder') {
-    content = <EquationBuilder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
+    content = <EquationBuilder profileId={profile.id} onBack={() => setGameId(null)} />
   } else if (gameId === 'fact_fluency') {
     content = <ZombieMathBlaster profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
   } else if (gameId === 'clue_master') {
@@ -201,7 +203,7 @@ function App() {
   } else if (gameId === 'pathfinder_no_way_back') {
     content = <Pathfinder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
   } else {
-    content = <SyllableBuilder profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
+    content = <SyllableBuilder profileId={profile.id} profileName={profile.name} onBack={() => setGameId(null)} />
   }
 
   return (

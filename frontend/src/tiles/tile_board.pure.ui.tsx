@@ -1,50 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
 import { CircleCheckIcon, HelpCircleIcon, SparklesIcon, SpeakerIcon, UndoIcon } from '@app/den/icons.pure.ui.tsx'
-import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
-
-// Migrated (src/speech/); assembled once for this legacy module.
-const { speakWord } = assembleSpeech()
+import {
+  check,
+  initialTiles,
+  isComplete,
+  placeTile,
+  removeFromSlot,
+  showHint,
+  slotIsRight,
+  tapTile,
+  tryAgain,
+  undo,
+  type BoardItem,
+  type TileResult,
+  type TilesState,
+} from './tile_placement.pure.lib.ts'
 
 /**
- * Tile-assembly primitive — ported from the Claude Design handoff bundle
- * (`TileAssembly.dc.html`). Faithful to the design's drag-or-tap placement,
- * undo/check/try-again/play-again flow, hint nudge, and tile theme/animation
- * set. `hintsUsed` on the result is the one addition beyond the design's
- * original `{kind, correct, placement, value}` payload — the frontend must
- * report hints used as part of the mandatory telemetry core (PRD §6).
+ * The tile board (the design's "TileAssembly"), ported from the Claude Design handoff bundle
+ * (`TileAssembly.dc.html`): drag-or-tap placement, undo/check/try-again/play
+ * again, a hint nudge, and the tile theme/animation set. `hintsUsed` on the
+ * result is part of the mandatory telemetry core (PRD §6).
+ *
+ * Props only; the rules are tile_placement.pure.lib.ts. Key it by item
+ * (`key={item.id}`): each mount is one item. Dragging uses pointer capture,
+ * so the tile receives its own move/up events, and drops hit-test the slots'
+ * own rects; nothing reaches for window or document.
  */
 
-export interface TileAssemblyTile {
-  id: string
-  label: string
-}
-
-export interface TileAssemblyItem {
-  kind: string
-  instruction: string
-  spoken: string
-  slots: number
-  answer: string[]
-  tiles: TileAssemblyTile[]
-}
-
-export interface TileResult {
-  kind: string
-  correct: boolean
-  placement: (string | null)[]
-  value: string
-  hintsUsed: number
-}
-
-interface Props {
-  item: TileAssemblyItem
-  onResult: (result: TileResult) => void
-  embedded?: boolean
-  showAudio?: boolean
-  /** Called instead of the internal same-item reset when "Play again" is
-   * clicked after a correct answer — lets the caller fetch a new item. If
-   * omitted, "Play again" just replays the current item. */
-  onPlayAgain?: () => void
+export interface TileBoardProps {
+  readonly item: BoardItem
+  readonly onResult: (result: TileResult) => void
+  /** Says text aloud (hint, "Hear it"). The caller's speech capability, e.g. speakWord. */
+  readonly onSpeak: (text: string) => void
+  readonly embedded?: boolean
+  readonly showAudio?: boolean
+  /** Called instead of the internal same-item reset when "Play again" is clicked after a correct answer, so the caller can load a new item. */
+  readonly onPlayAgain?: () => void
 }
 
 const THEMES = [
@@ -53,229 +45,132 @@ const THEMES = [
   { fill: '#DBF5D1', text: '#2C6416', lip: '#A1E486' },
   { fill: '#FDECCE', text: '#7F5305', lip: '#F7B23B' },
   { fill: '#F9DDEF', text: '#741553', lip: '#EFA9D7' },
-]
+] as const
 
-type Feedback = 'none' | 'correct' | 'tryagain'
+const DRAG_THRESHOLD_PX = 6
 
-function tileTheme(index: number): (typeof THEMES)[number] {
-  return THEMES[((index % THEMES.length) + THEMES.length) % THEMES.length]
+interface Drag {
+  readonly tileId: string
+  readonly from: number | null
+  readonly startX: number
+  readonly startY: number
+  moved: boolean
 }
 
-export function TileAssembly({ item, onResult, embedded = false, showAudio = true, onPlayAgain }: Props) {
-  const [placements, setPlacements] = useState<(string | null)[]>(() => Array(item.slots).fill(null))
-  const [history, setHistory] = useState<number[]>([])
-  const [hintOn, setHintOn] = useState(false)
-  const [feedback, setFeedback] = useState<Feedback>('none')
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [dragTileId, setDragTileId] = useState<string | null>(null)
+export function TileBoard({ item, onResult, onSpeak, embedded = false, showAudio = true, onPlayAgain }: TileBoardProps): ReactElement {
+  const [state, setState] = useState<TilesState>(() => initialTiles(item))
+  const [dropSlot, setDropSlot] = useState<number | null>(null)
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([])
+  const drag = useRef<Drag | null>(null)
 
-  const itemRef = useRef(item)
-  itemRef.current = item
-
-  useEffect(() => {
-    setPlacements(Array(item.slots).fill(null))
-    setHistory([])
-    setHintOn(false)
-    setFeedback('none')
-    setHintsUsed(0)
-  }, [item])
-
-  const byId = Object.fromEntries(item.tiles.map((t) => [t.id, t]))
-  const tileIndex = Object.fromEntries(item.tiles.map((t, i) => [t.id, i]))
-
-  function placeTile(tileId: string, idx: number, from: number | null) {
-    setPlacements((prev) => {
-      const p = prev.slice()
-      const existing = p[idx]
-      for (let i = 0; i < p.length; i++) if (p[i] === tileId) p[i] = null
-      if (from != null) p[from] = existing && existing !== tileId ? existing : null
-      p[idx] = tileId
-      return p
-    })
-    setHistory((prev) => prev.filter((i) => i !== idx).concat(idx))
-    setHintOn(false)
-    setFeedback('none')
+  const labelFor = (id: string): string => item.tiles.find((t) => t.id === id)?.label ?? ''
+  const themeFor = (id: string): (typeof THEMES)[number] => THEMES[Math.max(0, item.tiles.findIndex((t) => t.id === id)) % THEMES.length] ?? THEMES[0]
+  const speak = (): void => {
+    onSpeak(item.spoken === '' ? item.instruction : item.spoken)
   }
 
-  function removeFromSlot(idx: number) {
-    setPlacements((prev) => {
-      const p = prev.slice()
-      p[idx] = null
-      return p
+  function slotAt(x: number, y: number): number | null {
+    const index = slotRefs.current.findIndex((el) => {
+      if (el === null) return false
+      const r = el.getBoundingClientRect()
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     })
-    setHistory((prev) => prev.filter((i) => i !== idx))
-    setFeedback('none')
+    return index < 0 ? null : index
   }
 
-  function handleTap(tileId: string, from: number | null) {
-    if (from != null) {
-      removeFromSlot(from)
+  function resetDragStyle(el: HTMLElement): void {
+    el.style.transform = ''
+    el.style.boxShadow = ''
+    el.style.zIndex = ''
+    el.style.position = ''
+    el.style.transition = ''
+  }
+
+  function onTilePointerDown(e: ReactPointerEvent<HTMLButtonElement>, tileId: string, from: number | null): void {
+    e.preventDefault()
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Pointer capture is best-effort (unsupported in some test environments).
+    }
+    e.currentTarget.style.transition = 'none'
+    drag.current = { tileId, from, startX: e.clientX, startY: e.clientY, moved: false }
+  }
+
+  function onTilePointerMove(e: ReactPointerEvent<HTMLButtonElement>): void {
+    const d = drag.current
+    if (d === null) return
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    if (!d.moved && Math.hypot(dx, dy) <= DRAG_THRESHOLD_PX) return
+    d.moved = true
+    const el = e.currentTarget
+    el.style.position = 'relative'
+    el.style.zIndex = '1000'
+    el.style.transform = `translate(${String(dx)}px, ${String(dy)}px) scale(1.08) rotate(-3deg)`
+    el.style.boxShadow = '0 18px 26px rgba(0,13,51,0.20), 0 6px 0 var(--lip)'
+    const over = slotAt(e.clientX, e.clientY)
+    if (over !== dropSlot) setDropSlot(over)
+  }
+
+  function onTilePointerUp(e: ReactPointerEvent<HTMLButtonElement>): void {
+    const d = drag.current
+    drag.current = null
+    if (d === null) return
+    resetDragStyle(e.currentTarget)
+    setDropSlot(null)
+    if (!d.moved) {
+      setState((s) => tapTile(s, d.tileId, d.from))
       return
     }
-    const idx = placements.findIndex((p) => p == null)
-    if (idx >= 0) placeTile(tileId, idx, null)
+    const target = slotAt(e.clientX, e.clientY)
+    if (target !== null) setState((s) => placeTile(s, d.tileId, target, d.from))
+    else if (d.from !== null) setState((s) => removeFromSlot(s, d.from ?? 0))
   }
 
-  function onTilePointerDown(e: React.PointerEvent<HTMLButtonElement>, tileId: string, from: number | null) {
-    e.preventDefault()
-    const el = e.currentTarget
-    const rect = el.getBoundingClientRect()
-    const startX = e.clientX
-    const startY = e.clientY
-    let moved = false
-    try {
-      el.setPointerCapture(e.pointerId)
-    } catch {
-      // pointer capture is best-effort
-    }
-    el.style.transition = 'none'
-    setDragTileId(tileId)
-
-    function onMove(ev: PointerEvent) {
-      const dx = ev.clientX - startX
-      const dy = ev.clientY - startY
-      if (!moved && Math.hypot(dx, dy) > 6) {
-        moved = true
-        el.style.position = 'fixed'
-        el.style.left = `${rect.left}px`
-        el.style.top = `${rect.top}px`
-        el.style.width = `${rect.width}px`
-        el.style.height = `${rect.height}px`
-        el.style.margin = '0'
-        el.style.zIndex = '1000'
-        el.style.pointerEvents = 'none'
-      }
-      if (moved) {
-        el.style.transform = `translate(${dx}px, ${dy}px) scale(1.08) rotate(-3deg)`
-        el.style.boxShadow = '0 18px 26px rgba(0,13,51,0.20), 0 6px 0 var(--lip)'
-        highlightAt(ev.clientX, ev.clientY)
-      }
-    }
-
-    function resetEl() {
-      ;['position', 'left', 'top', 'width', 'height', 'margin', 'zIndex', 'transform', 'boxShadow', 'pointerEvents', 'transition'].forEach(
-        (p) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ;(el.style as any)[p] = ''
-        },
-      )
-    }
-
-    function onUp(ev: PointerEvent) {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-      clearHighlights()
-      setDragTileId(null)
-      if (!moved) {
-        resetEl()
-        handleTap(tileId, from)
-        return
-      }
-      const target = document.elementFromPoint(ev.clientX, ev.clientY)
-      const slotEl = target && (target as HTMLElement).closest('[data-slot-index]')
-      resetEl()
-      if (slotEl) placeTile(tileId, Number(slotEl.getAttribute('data-slot-index')), from)
-      else if (from != null) removeFromSlot(from)
-    }
-
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
+  function onTilePointerCancel(e: ReactPointerEvent<HTMLButtonElement>): void {
+    drag.current = null
+    resetDragStyle(e.currentTarget)
+    setDropSlot(null)
   }
 
-  function highlightAt(x: number, y: number) {
-    const t = document.elementFromPoint(x, y)
-    const slot = t && (t as HTMLElement).closest('[data-slot-index]')
-    clearHighlights()
-    if (slot) {
-      const el = slot as HTMLElement
-      el.style.borderColor = '#144FFF'
-      el.style.background = '#EAF0FF'
-      el.style.transform = 'scale(1.05)'
-    }
+  const tileHandlers = (tileId: string, from: number | null): Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel'> => ({
+    onPointerDown: (e) => {
+      onTilePointerDown(e, tileId, from)
+    },
+    onPointerMove: onTilePointerMove,
+    onPointerUp: onTilePointerUp,
+    onPointerCancel: onTilePointerCancel,
+  })
+
+  function handleCheck(): void {
+    const checked = check(state, item)
+    setState(checked.state)
+    onResult(checked.result)
   }
 
-  function clearHighlights() {
-    document.querySelectorAll<HTMLElement>('[data-slot-index]').forEach((s) => {
-      s.style.borderColor = ''
-      s.style.background = ''
-      s.style.transform = ''
-    })
-  }
-
-  function undo() {
-    setHistory((prev) => {
-      if (!prev.length) return prev
-      const h = prev.slice()
-      const last = h.pop() as number
-      setPlacements((p) => {
-        const next = p.slice()
-        next[last] = null
-        return next
-      })
-      setFeedback('none')
-      return h
-    })
-  }
-
-  function hint() {
-    setHintOn(true)
-    setFeedback('none')
-    setHintsUsed((n) => n + 1)
-    speakWord(item.spoken || item.instruction)
-  }
-
-  function isCorrect(p: (string | null)[]) {
-    // Compare by label, not raw tile id: two tiles can share a label (e.g.
-    // "tomato" has two "to" tiles) while still having distinct ids.
-    return p.length === item.answer.length && p.every((id, i) => (id ? byId[id]?.label : undefined) === item.answer[i])
-  }
-
-  function check() {
-    const correct = isCorrect(placements)
-    setFeedback(correct ? 'correct' : 'tryagain')
-    setHintOn(false)
-    const labels = placements.map((id) => (id ? byId[id].label : null))
-    onResult({
-      kind: item.kind,
-      correct,
-      placement: placements.slice(),
-      value: item.kind === 'word' ? labels.join('') : labels.join(' '),
-      hintsUsed,
-    })
-  }
-
-  function tryAgain() {
-    setPlacements((prev) => {
-      const p = prev.map((id, i) => (id && byId[id]?.label === item.answer[i] ? id : null))
-      setHistory((h) => h.filter((i) => p[i]))
-      return p
-    })
-    setFeedback('none')
-    setHintOn(false)
-  }
-
-  function playAgain() {
-    if (onPlayAgain) {
+  function playAgain(): void {
+    if (onPlayAgain !== undefined) {
       onPlayAgain()
       return
     }
-    setPlacements(Array(item.slots).fill(null))
-    setHistory([])
-    setFeedback('none')
-    setHintOn(false)
-    setHintsUsed(0)
+    setState(initialTiles(item))
   }
 
-  const firstEmpty = placements.findIndex((p) => !p)
-  const placed = new Set(placements.filter(Boolean) as string[])
-  const allFilled = placements.length > 0 && placements.every(Boolean)
-  const undoDisabled = history.length === 0
+  function hint(): void {
+    setState(showHint)
+    speak()
+  }
 
-  function tileStyle(id: string, opts?: { pop?: boolean; delay?: number; ghost?: boolean }): React.CSSProperties {
-    const th = tileTheme(tileIndex[id] ?? 0)
-    const style: React.CSSProperties = {
+  const { placements, hintOn, feedback } = state
+  const firstEmpty = placements.indexOf(null)
+  const placed = new Set(placements.filter((id): id is string => id !== null))
+  const allFilled = isComplete(state)
+  const undoDisabled = state.history.length === 0
+
+  function tileStyle(id: string, opts?: { readonly pop?: boolean; readonly delay?: number }): CSSProperties {
+    const th = themeFor(id)
+    const style: CSSProperties & { '--lip': string } = {
       minWidth: 92,
       height: 88,
       boxSizing: 'border-box',
@@ -295,22 +190,15 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
       lineHeight: 1,
       background: th.fill,
       color: th.text,
-      // @ts-expect-error custom property
       '--lip': th.lip,
       boxShadow: '0 6px 0 var(--lip)',
       transition: 'transform 120ms cubic-bezier(0.2,0,0,1), box-shadow 120ms cubic-bezier(0.2,0,0,1)',
     }
-    if (opts?.pop) style.animation = `tilePop 0.5s cubic-bezier(0.2,0,0,1) ${opts.delay ?? 0}ms both`
-    if (opts?.ghost) {
-      style.cursor = 'grabbing'
-      style.transform = 'translateY(-48px) rotate(-6deg) scale(1.08)'
-      style.boxShadow = '0 18px 26px rgba(0,13,51,0.20), 0 6px 0 var(--lip)'
-      style.animation = 'ghostFloat 1s ease-in-out infinite'
-    }
+    if (opts?.pop === true) style.animation = `tilePop 0.5s cubic-bezier(0.2,0,0,1) ${String(opts.delay ?? 0)}ms both`
     return style
   }
 
-  const pageStyle: React.CSSProperties = embedded
+  const pageStyle: CSSProperties = embedded
     ? { width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-sans)' }
     : {
         minHeight: '100%',
@@ -322,7 +210,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
         padding: '56px 32px',
         fontFamily: 'var(--font-sans)',
       }
-  const cardStyle: React.CSSProperties = embedded
+  const cardStyle: CSSProperties = embedded
     ? { width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none', borderRadius: 0, padding: 0, boxShadow: 'none' }
     : {
         width: '100%',
@@ -335,7 +223,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
         boxShadow: 'var(--elevation-600)',
       }
 
-  const checkStyle: React.CSSProperties = allFilled
+  const checkStyle: CSSProperties = allFilled
     ? {
         display: 'inline-flex',
         alignItems: 'center',
@@ -370,7 +258,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
         cursor: 'default',
       }
 
-  const undoStyle: React.CSSProperties = {
+  const undoStyle: CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
@@ -416,16 +304,17 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
         <div style={{ position: 'relative' }}>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', margin: '8px 0 34px' }}>
             {placements.map((tid, i) => {
-              const isEmpty = !tid
-              const boxStyle: React.CSSProperties = isEmpty
+              const isEmpty = tid === null
+              const boxStyle: CSSProperties = isEmpty
                 ? {
                     position: 'relative',
                     width: 92,
                     height: 88,
                     boxSizing: 'border-box',
                     borderRadius: 18,
-                    border: hintOn && i === firstEmpty ? '3px dashed #144FFF' : '3px dashed #CBD2DC',
-                    background: 'var(--surface-tray)',
+                    border: dropSlot === i || (hintOn && i === firstEmpty) ? '3px dashed #144FFF' : '3px dashed #CBD2DC',
+                    background: dropSlot === i ? '#EAF0FF' : 'var(--surface-tray)',
+                    transform: dropSlot === i ? 'scale(1.05)' : undefined,
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -446,14 +335,22 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                       feedback === 'correct'
                         ? '0 0 0 4px #5BCC2D, 0 10px 20px rgba(91,204,45,0.32)'
                         : feedback === 'tryagain'
-                          ? byId[tid]?.label === item.answer[i]
+                          ? slotIsRight(state, item, i)
                             ? '0 0 0 4px #A1E486'
                             : '0 0 0 4px #F7B23B'
                           : undefined,
-                    animation: feedback === 'tryagain' && byId[tid]?.label !== item.answer[i] ? 'softNudge 0.4s ease' : undefined,
+                    animation: feedback === 'tryagain' && !slotIsRight(state, item, i) ? 'softNudge 0.4s ease' : undefined,
                   }
               return (
-                <div key={i} data-slot-index={i} style={boxStyle}>
+                <div
+                  key={i}
+                  ref={(el) => {
+                    slotRefs.current[i] = el
+                  }}
+                  role="group"
+                  aria-label={`Slot ${String(i + 1)}${tid === null ? ', empty' : `: ${labelFor(tid)}`}`}
+                  style={boxStyle}
+                >
                   {hintOn && i === firstEmpty && (
                     <div style={{ position: 'absolute', left: '50%', top: -52, animation: 'arrowBob 0.9s ease-in-out infinite', color: '#144FFF' }}>
                       <div
@@ -473,13 +370,9 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                       </div>
                     </div>
                   )}
-                  {tid && (
-                    <button
-                      type="button"
-                      onPointerDown={(e) => onTilePointerDown(e, tid, i)}
-                      style={tileStyle(tid, feedback === 'correct' ? { pop: true, delay: i * 90 } : undefined)}
-                    >
-                      {byId[tid].label}
+                  {tid !== null && (
+                    <button type="button" {...tileHandlers(tid, i)} style={tileStyle(tid, feedback === 'correct' ? { pop: true, delay: i * 90 } : undefined)}>
+                      {labelFor(tid)}
                     </button>
                   )}
                 </div>
@@ -492,7 +385,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           <div style={{ display: 'flex', justifyContent: 'center', margin: '-18px 0 26px' }}>
             <button
               type="button"
-              onClick={() => speakWord(item.spoken || item.instruction)}
+              onClick={speak}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -517,7 +410,8 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           {item.kind === 'word' ? 'Sound tiles' : 'Number tiles'}
         </div>
         <div
-          data-testid="tile-tray"
+          role="group"
+          aria-label={item.kind === 'word' ? 'Sound tiles' : 'Number tiles'}
           style={{
             display: 'flex',
             gap: 16,
@@ -532,9 +426,9 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
           }}
         >
           {item.tiles
-            .filter((t) => !placed.has(t.id) && t.id !== dragTileId)
+            .filter((t) => !placed.has(t.id))
             .map((t) => (
-              <button key={t.id} type="button" onPointerDown={(e) => onTilePointerDown(e, t.id, null)} style={tileStyle(t.id)}>
+              <button key={t.id} type="button" {...tileHandlers(t.id, null)} style={tileStyle(t.id)}>
                 {t.label}
               </button>
             ))}
@@ -564,7 +458,9 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
               <span style={{ flex: 1, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, color: 'var(--fg-warning)' }}>Almost! Take another look.</span>
               <button
                 type="button"
-                onClick={tryAgain}
+                onClick={() => {
+                  setState((s) => tryAgain(s, item))
+                }}
                 style={{ display: 'inline-flex', alignItems: 'center', height: 48, padding: '0 24px', borderRadius: 9999, background: '#144FFF', border: 'none', color: '#FFFFFF', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 5px 0 #0037DB' }}
               >
                 Try again
@@ -585,14 +481,17 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                     <HelpCircleIcon size={26} />
                   </button>
                 )}
-                <button type="button" onClick={undo} disabled={undoDisabled} style={undoStyle}>
+                <button type="button" onClick={() => {
+                    setState(undo)
+                  }}
+                  disabled={undoDisabled} style={undoStyle}>
                   <UndoIcon size={20} /> Undo
                 </button>
               </div>
               {showAudio && (
                 <button
                   type="button"
-                  onClick={() => speakWord(item.spoken || item.instruction)}
+                  onClick={speak}
                   aria-label="Hear it"
                   title="Hear it"
                   style={{ width: 52, height: 52, borderRadius: 9999, border: '2px solid #C2D1FF', background: '#F0F4FF', color: '#144FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
@@ -600,7 +499,7 @@ export function TileAssembly({ item, onResult, embedded = false, showAudio = tru
                   <SpeakerIcon size={24} />
                 </button>
               )}
-              <button type="button" onClick={check} disabled={!allFilled} style={checkStyle}>
+              <button type="button" onClick={handleCheck} disabled={!allFilled} style={checkStyle}>
                 <SparklesIcon size={20} /> Check it
               </button>
             </div>

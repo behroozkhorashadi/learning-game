@@ -7,8 +7,8 @@ flowchart TB
 
   subgraph SCREENS["Legacy screens — src/games"]
     picker["GamePicker<br/>+ EquationOutbreakSettings"]
-    gWord["Word games<br/>SyllableBuilder, PromptForge,<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
-    gMath["Math games<br/>EquationBuilder, ZombieMathBlaster"]
+    gWord["Writing games<br/>PromptForge, StyleRemixLab,<br/>TagTeamStory, ClueMaster"]
+    gMath["Math games<br/>ZombieMathBlaster"]
     gPath["Pathfinder"]
     meta["Storybook"]
   end
@@ -16,7 +16,7 @@ flowchart TB
   subgraph COMP["Legacy components — src/components"]
     arena["framework/ZombieArena + R3F scene<br/>EquationOutbreakScene, ZombieCharacter3D,<br/>EquationBlaster, ApproachLane, MuzzleFlash"]
     pathc["Pathfinder UI<br/>Board, Editor, MapBuilder, PlayTest,<br/>LevelGallery, MyMaps, PublishedMaps"]
-    write["Writing UI<br/>WritingSurface, TileAssembly,<br/>IllustrationReveal, CoachPanel"]
+    write["Writing UI<br/>WritingSurface,<br/>IllustrationReveal, CoachPanel"]
   end
 
   subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
@@ -34,6 +34,9 @@ flowchart TB
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
     apiad["api/<br/>profiles_api, admin_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
+    practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
+    pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
+    tiles["tiles/<br/>TileBoard + pure placement rules"]
     badges["badges/<br/>BadgesView (pure) + bindBadges"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
@@ -49,6 +52,10 @@ flowchart TB
   app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
   app -- "assembleAdminPanel() once" --> admin
   app -- "assembleBadges() once" --> badges
+  app -- "assembleSyllableBuilder(),<br/>assembleEquationBuilder() once" --> pgames
+  pgames --> practice & tiles & session & speech
+  practice --> apiad & ids
+  tiles --> den
   badges --> query & apiad & den
   admin --> profiles & query & apiad & den
   dev --> root --> example

@@ -6,11 +6,12 @@ import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.mai
 import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import { GamePicker } from '../games/GamePicker'
 import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
-import { SyllableBuilder } from '../games/SyllableBuilder'
+import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 import { ProgressBar } from '@app/session/progress_bar.pure.ui.tsx'
-import { TileAssembly, type TileAssemblyItem } from '../components/TileAssembly'
+import { TileBoard } from '@app/tiles/tile_board.pure.ui.tsx'
+import type { BoardItem } from '@app/tiles/tile_placement.pure.lib.ts'
 import { HandoffPencil } from '@app/session/handoff_pencil.pure.ui.tsx'
 import { ParentVerify } from '@app/session/parent_verify.pure.ui.tsx'
 import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
@@ -41,7 +42,7 @@ const { speakText, speakWord } = assembleSpeech()
 
 const MOCK_PROFILE: Profile = { id: 1, name: 'Mia', avatar: 'fox', birth_year: 2019 }
 
-const TILE_ITEM: TileAssemblyItem = {
+const TILE_ITEM: BoardItem = {
   kind: 'word',
   instruction: 'Put the sounds in order to build the word',
   spoken: 'tomato',
@@ -148,6 +149,11 @@ interface ScreenEntry {
 }
 
 /** The real, API-backed picker, assembled once per mount. */
+function DevSyllableBuilder() {
+  const [SyllableBuilder] = useState(assembleSyllableBuilder)
+  return <SyllableBuilder profileId={1} profileName="Mia" onBack={() => console.log('onBack')} />
+}
+
 function DevBadges() {
   const [Badges] = useState(assembleBadges)
   return <Badges profileId={1} kidName="Mia" onBack={() => console.log('onBack')} />
@@ -227,7 +233,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'syllable-builder',
     label: 'Syllable Builder (live — hits the backend)',
-    render: () => <SyllableBuilder profileId={1} profileName="Mia" onBack={() => console.log('onBack')} />,
+    render: () => <DevSyllableBuilder />,
   },
   {
     id: 'zombie-3d-poc',
@@ -286,7 +292,7 @@ const SCREENS: ScreenEntry[] = [
     label: 'Tile Assembly',
     render: () => (
       <CardWrapper>
-        <TileAssembly item={TILE_ITEM} onResult={(r) => console.log('onResult', r)} embedded showAudio />
+        <TileBoard item={TILE_ITEM} onResult={(r) => console.log('onResult', r)} onSpeak={speakWord} embedded showAudio />
       </CardWrapper>
     ),
   },

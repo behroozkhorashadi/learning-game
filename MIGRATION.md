@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 119 legacy frontend files (118 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 113 legacy frontend files (112 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -88,7 +88,9 @@ Lessons from ProfilePicker:
 | `components/den/*` → `den/`, session shell (`SessionStart`, `SessionComplete`, `RatingPrompt`, `ParentVerify`, `HandoffPencil`) → `session/` | ~20 min (agent) | Props-only moves. Speaking became a callback prop (`onHearInstructions`, `onHearWord`); legacy callers still pass `lib/speech`, which migrates with its last caller. ParentVerify's 500 ms `setTimeout` became the shake animation's `onAnimationEnd`, so no timer is left to inject. `DenJar` gained `role="progressbar"`, and the PIN dots a live accessible label. `DenTabs` had no importers and was deleted. 14 legacy files out. |
 | `lib/speech.ts` → `speech/`, `lib/id.ts` → `ids/` | ~8 min (agent) | Migrated ahead of their callers because both the zombie arena and the word games use them. `Speech` is a capability (`bindSpeech({ synthesis, makeUtterance, playClip })`); the UUID maths is pure (`uuidV4FromBytes`), and `crypto` is read only in `assembleRandomId()`. Legacy callers assemble once at module scope (`const randomId = assembleRandomId()`) until they migrate and take these injected. 2 legacy files out. |
 | `components/BadgesAccomplishments.tsx` → `badges/` | ~10 min (agent) | `api/badges_api` (badges + stats, zod). Split into a props-only `BadgesView` over a `QueryState` and `bindBadges({ loadBadges, loadStats, now })`; the date formatting became pure with an injected `now`. 2 legacy files out. |
+| `games/SyllableBuilder.tsx`, `games/EquationBuilder.tsx`, `components/TileAssembly.tsx` → `syllable_builder/`, `equation_builder/`, `practice/`, `tiles/` | ~40 min (agent) | The two games shared a copy-pasted session loop; it's now one seam: `practice/use_practice_session` over `PracticeDeps` (`loadItem`, `recordAttempt`, `rate`, `verify`, `createId`, `now`, `wait`), driving a pure `practice_session` reducer. Each game keeps only its zod payload parser, its board mapping, and its view (no more `payload as unknown as`). `TileAssembly` became `tiles/TileBoard` ("assembly" is a reserved filename token) over a pure placement reducer. It drags with pointer capture and slot refs instead of window listeners and `elementFromPoint`, and no longer hides a tray tile mid-drag (it used to vanish under the pointer). The item-change reset effect is gone because callers key it by item. `setTimeout(900)` is an injected `wait`. 6 legacy files out. |
 Lessons:
+- **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
 - **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
 - **Module-level `new Date()` is a hidden global.** `Date.now` is linted; `new Date()` isn't yet. Pass `today` in.
 - **Labels that grow hints break `getByLabelText`.** Hold on to the input element across edits.
@@ -117,7 +119,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 119 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 113 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.
