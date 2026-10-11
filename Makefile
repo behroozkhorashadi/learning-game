@@ -1,4 +1,4 @@
-.PHONY: help serve test e2e gen-api check-api check-docs gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend install-hooks dev preflight preflight-backend preflight-frontend
+.PHONY: help serve test e2e gen-api check-api check-docs architecture gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend install-hooks dev preflight preflight-backend preflight-frontend
 
 # Use frontend/.nvmrc's Node when nvm is available (CI sets Node up itself).
 NODE_ENV = if [ -s "$$NVM_DIR/nvm.sh" ]; then . "$$NVM_DIR/nvm.sh" && nvm use >/dev/null; fi
@@ -45,6 +45,10 @@ check-docs: ## Fail if a feature folder isn't drawn in docs/architecture/ or the
 	python3 docs/architecture/check_coverage.py
 	python3 docs/architecture/build.py --check
 	cd docs/architecture && ../../backend/.venv/bin/pytest -q -p no:cacheprovider test_check_coverage.py
+
+architecture: ## Rebuild the architecture diagram page from docs/architecture/*.mmd and open it
+	python3 docs/architecture/build.py
+	open docs/architecture/learning-game-architecture.html
 
 check-api: ## Fail if frontend/src/api/ doesn't match the backend's OpenAPI schema
 	cd frontend && $(NODE_ENV) && scripts/gen_api.sh --check
