@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 /**
  * Equation Outbreak hit-detection eval. Replays hand-labeled shots
@@ -15,18 +15,26 @@ import { test, expect } from '@playwright/test'
 
 type Outcome = 'head' | 'body' | 'miss'
 interface Shot {
-  id: string
-  characterId: string
-  lane: number
-  distance: number
-  poseTime: number
-  expected: Outcome
-  recorded: Outcome
-  rescored?: Outcome
-  ndc: { x: number; y: number }
+  readonly id: string
+  readonly characterId: string
+  readonly lane: number
+  readonly distance: number
+  readonly poseTime: number
+  readonly expected: Outcome
+  readonly recorded: Outcome
+  readonly rescored?: Outcome
+  readonly live?: Outcome
+  readonly ndc: { readonly x: number; readonly y: number }
 }
 
-const fixture = JSON.parse(readFileSync(new URL('./fixtures/zombie-hit-lab-shots.json', import.meta.url), 'utf8')) as { shots: Shot[] }
+// The fixture is ours (written by the lab's "Save to test set"), checked into the repo. Cast confined to this test.
+const fixture = JSON.parse(readFileSync(new URL('./fixtures/zombie-hit-lab-shots.json', import.meta.url), 'utf8')) as { readonly shots: readonly Shot[] }
+
+/** The lab's saved shots, read back from the page. */
+async function savedShots(page: Page): Promise<readonly Shot[]> {
+  // The lab wrote these itself (zod-checked on its side). Cast confined to this test.
+  return page.evaluate(() => JSON.parse(window.localStorage.getItem('zombieHitLab.shots.v1') ?? '[]') as Shot[])
+}
 
 // Hit vs. miss is what a kid notices ("I hit it and nothing happened");
 // head vs. body only changes the death animation, so it gets a looser bar.
@@ -43,17 +51,18 @@ test('zombie hit detection agrees with hand-labeled shots', async ({ page }) => 
   await page.getByRole('button', { name: 'Re-score all' }).click()
   await expect(page.getByRole('button', { name: 'Re-score all' })).toBeEnabled({ timeout: 90_000 })
 
-  const shots = await page.evaluate(() => JSON.parse(window.localStorage.getItem('zombieHitLab.shots.v1') ?? '[]') as Shot[])
-  expect(shots.every((s) => s.rescored)).toBe(true)
+  const shots = await savedShots(page)
+  expect(shots.every((s) => s.rescored !== undefined)).toBe(true)
 
-  const isHit = (o: Outcome) => o !== 'miss'
-  const hitMiss = shots.filter((s) => isHit(s.expected) === isHit(s.rescored!)).length / shots.length
-  const zone = shots.filter((s) => s.expected === s.rescored).length / shots.length
+  const isHit = (o: Outcome): boolean => o !== 'miss'
+  const rescored = (s: Shot): Outcome => s.rescored ?? s.recorded
+  const hitMiss = shots.filter((s) => isHit(s.expected) === isHit(rescored(s))).length / shots.length
+  const zone = shots.filter((s) => s.expected === rescored(s)).length / shots.length
   const before = shots.filter((s) => isHit(s.expected) === isHit(s.recorded)).length / shots.length
 
   console.log(`hit/miss agreement ${(hitMiss * 100).toFixed(0)}% (was ${(before * 100).toFixed(0)}% when labeled), exact zone ${(zone * 100).toFixed(0)}%`)
-  for (const s of shots.filter((s) => s.expected !== s.rescored)) {
-    console.log(`  mismatch: ndc (${s.ndc.x.toFixed(3)}, ${s.ndc.y.toFixed(3)}) expected ${s.expected}, got ${s.rescored}`)
+  for (const s of shots.filter((s) => s.expected !== rescored(s))) {
+    console.log(`  mismatch: ndc (${s.ndc.x.toFixed(3)}, ${s.ndc.y.toFixed(3)}) expected ${s.expected}, got ${rescored(s)}`)
   }
   await page.screenshot({ path: 'e2e-results/zombie-hit-lab.png' })
 
@@ -69,26 +78,27 @@ test('real clicks go through the game\'s own event path and agree with the lab r
 
   const setups = new Map<string, Shot[]>()
   for (const shot of fixture.shots) {
-    const key = `character=${shot.characterId}&lane=${shot.lane}&distance=${shot.distance}&pose=${shot.poseTime}`
+    const key = `character=${shot.characterId}&lane=${String(shot.lane)}&distance=${String(shot.distance)}&pose=${String(shot.poseTime)}`
     setups.set(key, [...(setups.get(key) ?? []), shot])
   }
 
   let landed = 0
   for (const [query, expectedShots] of setups) {
     await page.goto(`/?screen=zombie-hit-lab&${query}`)
-    const canvas = page.getByTestId('hit-lab-canvas')
-    await expect(canvas.locator('canvas')).toBeVisible()
-    // Give the zombie GLB time to load and pose.
-    await page.waitForTimeout(3000)
-    const box = (await canvas.boundingBox())!
+    const range = page.getByRole('region', { name: 'Shooting range' })
+    // The lab marks itself ready once this setup's zombie has loaded, posed, and been a hit target for several frames in a row.
+    await expect(range).toHaveAttribute('data-zombie-ready', 'true', { timeout: 30_000 })
+    const box = await range.boundingBox()
+    if (box === null) throw new Error('the shooting range has no box')
 
     for (const shot of expectedShots) {
       await page.mouse.click(box.x + ((shot.ndc.x + 1) / 2) * box.width, box.y + ((1 - shot.ndc.y) / 2) * box.height)
       await page.keyboard.press('m') // label it so the next click starts a new shot
     }
-    await page.waitForTimeout(200)
+    // Every shot is saved once the game's own event path has reported on it too.
+    await expect.poll(async () => (await savedShots(page)).filter((s) => s.live !== undefined).length, { message: query }).toBe(expectedShots.length)
 
-    const shots = await page.evaluate(() => JSON.parse(window.localStorage.getItem('zombieHitLab.shots.v1') ?? '[]') as Shot[])
+    const shots = await savedShots(page)
     expect(shots, query).toHaveLength(expectedShots.length)
     for (const s of shots) expect(s.live, `${query}: click at (${s.ndc.x.toFixed(3)}, ${s.ndc.y.toFixed(3)})`).toBe(s.recorded)
     landed += shots.filter((s) => s.live !== 'miss').length

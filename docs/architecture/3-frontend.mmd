@@ -3,22 +3,8 @@ flowchart TB
   main -- "assembleErrorHandling()" --> errors
 
   app["App.tsx<br/>state-driven screen router<br/>profile, gameId, editing, admin..."]
-  dev["dev/ screens via ?screen=<br/>ZombieHitLab, WeaponPOC, ZombiePOC"]
+  dev["dev/ DevScreenPicker via ?screen="]
   app -. "DEV only" .-> dev
-
-  subgraph SCREENS["Legacy screens — src/games"]
-    picker["EquationOutbreakSettings"]
-    gMath["Math games<br/>ZombieMathBlaster"]
-  end
-
-  subgraph COMP["Legacy components — src/components"]
-    arena["framework/ZombieArena + R3F scene<br/>EquationOutbreakScene, ZombieCharacter3D,<br/>EquationBlaster, ApproachLane, MuzzleFlash"]
-  end
-
-  subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
-    zlib["Zombie engine<br/>zombieWaveEngine, raycastOutcome,<br/>laneNavigation, rootMotion, zombieRoster"]
-    plat["Platform adapters<br/>gameAudio"]
-  end
 
   subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
     root["main/<br/>dev_screens.assembly.main"]
@@ -28,7 +14,7 @@ flowchart TB
     session["session/<br/>session shell: SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, HandoffPencil, ProgressBar"]
     den["den/<br/>DenButton, DenCard, DenChip, DenFlipCard,<br/>DenJar, DenTile, icons, icon_paths"]
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
-    apiad["api/<br/>profiles_api, admin_api, pathfinder_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
+    apiad["api/<br/>profiles, admin, pathfinder, practice, pieces, badges,<br/>practice_config, todos (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
     practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
@@ -42,7 +28,14 @@ flowchart TB
     badges["badges/<br/>BadgesView (pure) + bindBadges"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
-    boundary["boundary/<br/>AsyncBoundary"]
+    boundary["boundary/<br/>AsyncBoundary (works inside a Canvas too)"]
+    outbreak["outbreak/<br/>Equation Outbreak: bindZombieArena + useArenaSession,<br/>fact_fluency brain, game audio, practice settings"]
+    arena["arena/<br/>OutbreakViewport + OutbreakScene (R3F),<br/>lane navigation, raycast tags + outcome"]
+    zombies["zombies/<br/>wave engine (pure), roster, characters,<br/>ZombieCharacter3D + useZombieRig"]
+    science_fair["science_fair/<br/>the gym: booths, portal, lanes,<br/>colliders that block shots"]
+    blaster["blaster/<br/>EquationBlaster, MuzzleFlash (pixel textures),<br/>ChargeHud, pose maths, dev tuning panel"]
+    motion["motion/<br/>usePrefersReducedMotion over an injected preference"]
+    zombie_lab["zombie_lab/<br/>dev: hit lab (labels shots for the e2e eval),<br/>zombie and weapon POC scenes"]
     example["examples/todo/<br/>the worked example to copy"]
   end
 
@@ -50,7 +43,6 @@ flowchart TB
   api[["FastAPI /api/*"]]
   assets[("public/ GLB models, images, audio")]
 
-  app --> picker & gMath
   app -- "assembleGamePicker() once" --> home
   home --> query & apiad & den
   errors --> apiad & den
@@ -73,19 +65,18 @@ flowchart TB
   writing --> timing & apiad & den
   app -- "assemblePromptForge(), assembleStyleRemix(),<br/>assembleTagTeam(), assembleClueMaster() once" --> wgames
   wgames --> writing & den
-  gMath --> arena
-  gMath --> session
-  picker --> den
   session --> den
   profiles --> query & apiad & den
   profiles -- "injected camera<br/>(navigator.mediaDevices)" --> browser[["Browser camera"]]
   example --> apiad & flags
   apiad -- "injected fetch" --> api
-  arena --> zlib
-  arena --> assets
-  gMath --> plat
-  gMath -- "assembleSpeech(), assembleRandomId()" --> speech & ids
-  picker & gMath -- "fetch (legacy)" --> api
-  plat -- "fetch" --> api
-  SCREENS -.-> types
-  LIB -.-> types
+  app -- "assembleZombieMathBlaster(),<br/>assembleOutbreakSettings() once" --> outbreak
+  dev -- "assemble* once" --> zombie_lab & outbreak
+  outbreak -- "injected Viewport" --> arena
+  outbreak --> zombies & blaster & motion & session & den & apiad & speech & ids
+  arena --> zombies & science_fair & blaster & boundary
+  science_fair --> arena
+  zombie_lab --> arena & zombies & blaster
+  zombies & blaster & science_fair -- "GLB models, audio" --> assets
+  outbreak -- "injected timers, rAF,<br/>Web Audio, matchMedia" --> webapis[["Browser APIs"]]
+  app -.-> types

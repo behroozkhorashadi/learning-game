@@ -54,4 +54,19 @@ describe('AsyncBoundary', () => {
     expect(screen.getByRole('alert').textContent).toContain('boom')
     spy.mockRestore()
   })
+
+  it('tells onError once per failure', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const onError = vi.fn()
+    render(
+      <AsyncBoundary loading={null} failed={failed} onError={onError}>
+        <Throws />
+      </AsyncBoundary>,
+    )
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onError).toHaveBeenCalledTimes(2)
+    spy.mockRestore()
+  })
 })

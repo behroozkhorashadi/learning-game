@@ -163,22 +163,8 @@ code { font-family:var(--mono); font-size:.9em; }
   main -- &quot;assembleErrorHandling()&quot; --&gt; errors
 
   app[&quot;App.tsx&lt;br/&gt;state-driven screen router&lt;br/&gt;profile, gameId, editing, admin...&quot;]
-  dev[&quot;dev/ screens via ?screen=&lt;br/&gt;ZombieHitLab, WeaponPOC, ZombiePOC&quot;]
+  dev[&quot;dev/ DevScreenPicker via ?screen=&quot;]
   app -. &quot;DEV only&quot; .-&gt; dev
-
-  subgraph SCREENS[&quot;Legacy screens — src/games&quot;]
-    picker[&quot;EquationOutbreakSettings&quot;]
-    gMath[&quot;Math games&lt;br/&gt;ZombieMathBlaster&quot;]
-  end
-
-  subgraph COMP[&quot;Legacy components — src/components&quot;]
-    arena[&quot;framework/ZombieArena + R3F scene&lt;br/&gt;EquationOutbreakScene, ZombieCharacter3D,&lt;br/&gt;EquationBlaster, ApproachLane, MuzzleFlash&quot;]
-  end
-
-  subgraph LIB[&quot;Legacy logic — src/lib (pure, unit-tested)&quot;]
-    zlib[&quot;Zombie engine&lt;br/&gt;zombieWaveEngine, raycastOutcome,&lt;br/&gt;laneNavigation, rootMotion, zombieRoster&quot;]
-    plat[&quot;Platform adapters&lt;br/&gt;gameAudio&quot;]
-  end
 
   subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
     root[&quot;main/&lt;br/&gt;dev_screens.assembly.main&quot;]
@@ -188,7 +174,7 @@ code { font-family:var(--mono); font-size:.9em; }
     session[&quot;session/&lt;br/&gt;session shell: SessionStart, SessionComplete,&lt;br/&gt;RatingPrompt, ParentVerify, HandoffPencil, ProgressBar&quot;]
     den[&quot;den/&lt;br/&gt;DenButton, DenCard, DenChip, DenFlipCard,&lt;br/&gt;DenJar, DenTile, icons, icon_paths&quot;]
     query[&quot;query/&lt;br/&gt;useQuery, useReloadableQuery + QueryState (server state)&quot;]
-    apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, pathfinder_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
+    apiad[&quot;api/&lt;br/&gt;profiles, admin, pathfinder, practice, pieces, badges,&lt;br/&gt;practice_config, todos (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
     flags[&quot;flags/&lt;br/&gt;feature flags, read in assembly only&quot;]
     practice[&quot;practice/&lt;br/&gt;usePracticeSession: next item → attempt →&lt;br/&gt;handoff/verify → rating (api/practice_api)&quot;]
     pgames[&quot;syllable_builder/, equation_builder/&lt;br/&gt;bind* games over practice/&quot;]
@@ -202,7 +188,14 @@ code { font-family:var(--mono); font-size:.9em; }
     badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
     speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
     ids[&quot;ids/&lt;br/&gt;v4 UUIDs from getRandomValues (works on http LAN)&quot;]
-    boundary[&quot;boundary/&lt;br/&gt;AsyncBoundary&quot;]
+    boundary[&quot;boundary/&lt;br/&gt;AsyncBoundary (works inside a Canvas too)&quot;]
+    outbreak[&quot;outbreak/&lt;br/&gt;Equation Outbreak: bindZombieArena + useArenaSession,&lt;br/&gt;fact_fluency brain, game audio, practice settings&quot;]
+    arena[&quot;arena/&lt;br/&gt;OutbreakViewport + OutbreakScene (R3F),&lt;br/&gt;lane navigation, raycast tags + outcome&quot;]
+    zombies[&quot;zombies/&lt;br/&gt;wave engine (pure), roster, characters,&lt;br/&gt;ZombieCharacter3D + useZombieRig&quot;]
+    science_fair[&quot;science_fair/&lt;br/&gt;the gym: booths, portal, lanes,&lt;br/&gt;colliders that block shots&quot;]
+    blaster[&quot;blaster/&lt;br/&gt;EquationBlaster, MuzzleFlash (pixel textures),&lt;br/&gt;ChargeHud, pose maths, dev tuning panel&quot;]
+    motion[&quot;motion/&lt;br/&gt;usePrefersReducedMotion over an injected preference&quot;]
+    zombie_lab[&quot;zombie_lab/&lt;br/&gt;dev: hit lab (labels shots for the e2e eval),&lt;br/&gt;zombie and weapon POC scenes&quot;]
     example[&quot;examples/todo/&lt;br/&gt;the worked example to copy&quot;]
   end
 
@@ -210,7 +203,6 @@ code { font-family:var(--mono); font-size:.9em; }
   api[[&quot;FastAPI /api/*&quot;]]
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
-  app --&gt; picker &amp; gMath
   app -- &quot;assembleGamePicker() once&quot; --&gt; home
   home --&gt; query &amp; apiad &amp; den
   errors --&gt; apiad &amp; den
@@ -233,22 +225,21 @@ code { font-family:var(--mono); font-size:.9em; }
   writing --&gt; timing &amp; apiad &amp; den
   app -- &quot;assemblePromptForge(), assembleStyleRemix(),&lt;br/&gt;assembleTagTeam(), assembleClueMaster() once&quot; --&gt; wgames
   wgames --&gt; writing &amp; den
-  gMath --&gt; arena
-  gMath --&gt; session
-  picker --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
   profiles -- &quot;injected camera&lt;br/&gt;(navigator.mediaDevices)&quot; --&gt; browser[[&quot;Browser camera&quot;]]
   example --&gt; apiad &amp; flags
   apiad -- &quot;injected fetch&quot; --&gt; api
-  arena --&gt; zlib
-  arena --&gt; assets
-  gMath --&gt; plat
-  gMath -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
-  picker &amp; gMath -- &quot;fetch (legacy)&quot; --&gt; api
-  plat -- &quot;fetch&quot; --&gt; api
-  SCREENS -.-&gt; types
-  LIB -.-&gt; types
+  app -- &quot;assembleZombieMathBlaster(),&lt;br/&gt;assembleOutbreakSettings() once&quot; --&gt; outbreak
+  dev -- &quot;assemble* once&quot; --&gt; zombie_lab &amp; outbreak
+  outbreak -- &quot;injected Viewport&quot; --&gt; arena
+  outbreak --&gt; zombies &amp; blaster &amp; motion &amp; session &amp; den &amp; apiad &amp; speech &amp; ids
+  arena --&gt; zombies &amp; science_fair &amp; blaster &amp; boundary
+  science_fair --&gt; arena
+  zombie_lab --&gt; arena &amp; zombies &amp; blaster
+  zombies &amp; blaster &amp; science_fair -- &quot;GLB models, audio&quot; --&gt; assets
+  outbreak -- &quot;injected timers, rAF,&lt;br/&gt;Web Audio, matchMedia&quot; --&gt; webapis[[&quot;Browser APIs&quot;]]
+  app -.-&gt; types
 </pre></details>
 </section>
 </main>

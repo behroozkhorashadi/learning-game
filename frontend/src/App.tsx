@@ -5,11 +5,11 @@ import { assembleEditProfile } from '@app/profiles/edit_profile.assembly.main.ts
 import { assembleProfileUnlock } from '@app/profiles/profile_unlock.assembly.main.ts'
 import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
-import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
+import { assembleOutbreakSettings } from '@app/outbreak/outbreak_settings.assembly.main.ts'
 import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
 import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
-import { ZombieMathBlaster } from './games/ZombieMathBlaster'
+import { assembleZombieMathBlaster } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
 import { assemblePromptForge } from '@app/prompt_forge/prompt_forge.assembly.main.ts'
 import { assembleStyleRemix } from '@app/style_remix/style_remix.assembly.main.ts'
 import { assembleTagTeam } from '@app/tag_team/tag_team.assembly.main.ts'
@@ -27,6 +27,8 @@ function App() {
   const [ProfileUnlock] = useState(assembleProfileUnlock)
   const [EditProfile] = useState(assembleEditProfile)
   const [AdminPanel] = useState(assembleAdminPanel)
+  const [EquationOutbreakSettings] = useState(assembleOutbreakSettings)
+  const [ZombieMathBlaster] = useState(assembleZombieMathBlaster)
   const [Badges] = useState(assembleBadges)
   const [StoryLibrary] = useState(assembleStoryLibrary)
   const [SyllableBuilder] = useState(assembleSyllableBuilder)
@@ -191,7 +193,7 @@ function App() {
   } else if (gameId === 'equation_builder') {
     content = <EquationBuilder profileId={profile.id} onBack={() => setGameId(null)} />
   } else if (gameId === 'fact_fluency') {
-    content = <ZombieMathBlaster profileId={profile.id!} profileName={profile.name} onBack={() => setGameId(null)} />
+    content = <ZombieMathBlaster profileId={profile.id!} onBack={() => setGameId(null)} />
   } else if (gameId === 'clue_master') {
     content = (
       <ClueMaster

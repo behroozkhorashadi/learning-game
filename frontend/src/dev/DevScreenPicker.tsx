@@ -5,7 +5,7 @@ import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.mai
 import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.main.ts'
 import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
-import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
+import { assembleOutbreakSettings } from '@app/outbreak/outbreak_settings.assembly.main.ts'
 import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
@@ -24,10 +24,10 @@ import { ModifierRuleBar } from '@app/writing/modifier_rule_bar.pure.ui.tsx'
 import { IllustrationArrival } from '@app/writing/illustration_arrival.pure.ui.tsx'
 import { assembleIllustrationReveal, assembleModifierDeck } from '@app/writing/writing.assembly.main.ts'
 import { assembleStoryLibrary, assembleStorybookEntryCard } from '@app/story_library/story_library.assembly.main.ts'
-import { ZombiePOCScene } from './ZombiePOCScene'
-import { ZombieHitLab } from './ZombieHitLab'
-import { WeaponPOCScene } from './WeaponPOCScene'
-import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
+import { ZombiePOCScene } from '@app/zombie_lab/zombie_poc_scene.pure.ui.tsx'
+import { assembleZombieHitLab } from '@app/zombie_lab/zombie_hit_lab.assembly.main.ts'
+import { WeaponPOCScene } from '@app/zombie_lab/weapon_poc_scene.pure.ui.tsx'
+import { assembleZombieMathBlaster } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
 import { assemblePathfinderLevelGallery, assemblePathfinderMapBuilder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import type { Profile } from '../types/generated'
 
@@ -198,6 +198,22 @@ function DevPathfinderLevelGallery() {
   return <PathfinderLevelGallery />
 }
 
+/** Migrated screens (src/outbreak, src/zombie_lab), each assembled once when its dev screen opens. */
+function DevOutbreakSettings() {
+  const [EquationOutbreakSettings] = useState(assembleOutbreakSettings)
+  return <EquationOutbreakSettings profileId={1} onBack={() => console.log('onBack')} />
+}
+
+function DevZombieHitLab() {
+  const [ZombieHitLab] = useState(assembleZombieHitLab)
+  return <ZombieHitLab />
+}
+
+function DevZombieMathBlaster() {
+  const [ZombieMathBlaster] = useState(assembleZombieMathBlaster)
+  return <ZombieMathBlaster profileId={1} onBack={() => console.log('onBack')} />
+}
+
 function DevAdminPanel() {
   const [AdminPanel] = useState(assembleAdminPanel)
   return <AdminPanel onClose={() => console.log('onClose')} />
@@ -257,7 +273,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'equation-outbreak-settings',
     label: 'Equation Outbreak settings (live — hits the backend)',
-    render: () => <EquationOutbreakSettings profileId={1} onBack={() => console.log('onBack')} />,
+    render: () => <DevOutbreakSettings />,
   },
   {
     id: 'syllable-builder',
@@ -272,7 +288,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'zombie-hit-lab',
     label: 'Equation Outbreak hit lab (label shots, score hitboxes)',
-    render: () => <ZombieHitLab />,
+    render: () => <DevZombieHitLab />,
   },
   {
     id: 'weapon-3d-poc',
@@ -282,7 +298,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'equation-outbreak-live',
     label: 'Equation Outbreak (live — hits the backend)',
-    render: () => <ZombieMathBlaster profileId={1} profileName="Mia" onBack={() => console.log('onBack')} />,
+    render: () => <DevZombieMathBlaster />,
   },
   {
     id: 'badges',

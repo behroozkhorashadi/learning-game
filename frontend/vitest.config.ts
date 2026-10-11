@@ -37,6 +37,9 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: fileURLToPath(new URL('./.storybook', import.meta.url)) })],
         test: {
           name: 'storybook',
+          // One story file at a time: the 3D stories render real WebGL scenes, and running
+          // them in parallel in one headless browser saturates the CPU until tests time out.
+          fileParallelism: false,
           browser: { enabled: true, headless: true, provider: browserProvider, instances: [{ browser: 'chromium' }] },
         },
       },

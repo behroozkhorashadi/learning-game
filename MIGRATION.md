@@ -7,7 +7,7 @@ The backend is fully migrated; its record is [backend/MIGRATION.md](backend/MIGR
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 58 legacy frontend files (57 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 4 legacy frontend files, all in `src/` (the app shell and `types/generated.ts`), are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -96,6 +96,8 @@ Lessons from ProfilePicker:
 | `components/Storybook.tsx`, `components/StorybookEntryCard.tsx` → `story_library/` | ~25 min (agent) | Reuses `api/pieces_api`, `writing/illustration_style`, and `query/`. The per-piece illustration fan-out became one pure loader over the adapter (`loadLibrary`, `loadShelfPeek`, the latter never rejecting, as before). Split into props-only `StoryLibraryView`, `EntryCardView`, and `Cover` over `QueryState`, plus `bindStoryLibrary({ loadLibrary, removePiece, confirm })` and `bindStorybookEntryCard({ loadPeek })`. `window.confirm` is an injected capability read only in assembly. A delete now re-reads the library (`useReloadableQuery`) instead of filtering a local copy. Callers key both by profile id. 3 legacy files out. |
 | `games/ClueMaster.tsx` → `clue_master/` | ~20 min (agent) | Last writing game. Case files and the deal became `case_files.pure.lib.ts` (`dealCase` never repeats the case just dealt). Both effects were event handlers: the deal moved to a `useState` initializer, and the 1.4 s "reading it back" now starts when saving succeeds. "Play it again" remounts a keyed round component instead of resetting ten state variables by hand, which also resets the coach. 2 legacy files out. |
 | `components/ErrorBoundary.tsx`, `lib/errorReporting.ts`, `games/GamePicker.tsx` → `errors/`, `home/` | ~20 min (agent) | Error reporting became a `ReportError` capability (`bindErrorReporting({ fetch, page })`) and `installGlobalErrorReporting` over a narrow `ErrorEventTarget`. `window` listeners and `location.reload` are named only in `errors.assembly.main.ts`; the class boundary is bound over `{ report, reload }`. `main.tsx` calls `assembleErrorHandling()` once. GamePicker became a props-only `GamePickerView` over a `QueryState` plus `bindGamePicker({ listGames })`; the roster trim is `home_games.pure.lib.ts`, and the unused `onOpenStorybook` prop is gone. 5 legacy files out. |
+| Equation Outbreak, the whole zombie/3D cluster (54 legacy files: `lib/zombie*`, lanes, colliders, characters, weapon, audio, the R3F scene components, `games/framework/*`, `ZombieMathBlaster`, `EquationOutbreakSettings`, the dev zombie labs, `e2e/zombie-hit-lab.spec.ts`) → `zombies/`, `arena/`, `science_fair/`, `blaster/`, `outbreak/`, `motion/`, `zombie_lab/` | one long agent session | The arena (`bindZombieArena`) takes its 3D view as a bind arg (`Viewport`), so its suites run over a plain-DOM viewport and a virtual clock: the four ported ZombieMathBlaster suites went from ~2 min of real waiting with `vi.mock` of the scene to well under a second, with none. Its effect chain (feedback on `wave.lastHit`, outcome on `wave.outcome`, lives on `phase`) became transitions where the cause happens (`use_arena_session.pure.hook.ts`), so each fires once by construction. New seams: `ArenaScheduler` (timers + frame loop), `ArenaAudio` (`bindGameAudio` over an injected context, loader, and storage: no module singletons), `ArenaRoster`, `MotionPreference`, items/attempts/ratings/practice-config adapters, and `AsyncBoundary`'s `onError` (it works inside `<Canvas>`, so every R3F `<Suspense>` now has one, and a failed scene shows a message instead of an empty canvas). Zombie hit targets are a typed WeakMap (`arena/raycast_tags`) instead of `any` userData. `@react-three/test-renderer` 9.1.1 (dev only) tests the 3D pieces without WebGL over a synthetic GLTF; stories run them in Chromium with the real models. 53 src files + 1 e2e spec out. |
+
 Lessons:
 - **Most effects in legacy screens are event handlers in disguise.** "When phase becomes X, do Y" belongs in whatever sets phase to X. Moving it there removes the effect, the `exhaustive-deps` disable, and the stale-closure bugs together.
 - **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
@@ -105,21 +107,22 @@ Lessons:
 - **Tag per-item state with its key instead of resetting it in an effect** (`usePathfinderPlay`'s attempt carries `puzzleId`; a different puzzle reads as a fresh attempt). That's what clears `react/set-state-in-effect` without forcing callers to remount.
 - **A fake that seeds asynchronously races the first load in a story.** Give in-memory fakes a synchronous `seed` for setup.
 - **Don't assert on locale dates in tests:** a UTC timestamp renders as the previous day in a US timezone.
+- **Inject the expensive view, not just the data.** A `Viewport` bind arg made the zombie arena's lifecycle testable in jsdom with a dozen buttons standing in for the 3D scene.
+- **Effects that watch state to react to an event are a smell.** The arena's "when `lastHit` changes, flash; when `outcome` changes, score" effects became calls at the event itself; the double-fire guards (`handledOutcomeRef` and friends) mostly disappeared with them.
+- **Time-based R3F motion should sum frame deltas,** not read `state.clock`: identical in the browser, and the test renderer (which doesn't advance the clock) can then drive it.
+- **A null guard can expose a vacuous test.** The legacy "reached carrier can't be hit" engine test passed `null!` as the carrier id, because nothing ever reached the player in its 1 s tick.
 
 ## Known debt surfaced by the new rules (fix during migration)
 
 - **e2e and the local Chrome (resolved):** the installed Google Chrome 155 on this machine exits about 5.7s after launch, even on `about:blank`, so long runs failed with "Target page, context or browser has been closed". e2e and the Storybook tests now use Playwright's bundled Chromium, as CI does.
 
-- **`e2e/zombie-hit-lab.spec.ts` is timing-flaky:** it waits a fixed 3 s for the zombie GLB to load before clicking (`waitForTimeout`), and failed once in ~6 runs. Replace with waiting on a ready signal when the zombie cluster migrates.
-
-- **`<Suspense>` without an error boundary** in 7 react-three-fiber spots:
-  `components/EquationBlaster.tsx` (×3), `games/framework/ZombieArena.tsx`,
-  `dev/ZombiePOCScene.tsx`, `dev/WeaponPOCScene.tsx`, `dev/ZombieHitLab.tsx`. The boundary
-  has to live inside `<Canvas>` (it's a different reconciler), so this is a real change,
-  not a find-and-replace. The rule is on for new-style code only until these migrate.
 - **React-compiler correctness** (`react/refs`, `react/purity`, `react/set-state-in-effect`)
-  in `EquationOutbreakScene`, `EquationBlaster`, `MuzzleFlash`, and `ModifierDeck`
-  (Pathfinder's and TileAssembly's were fixed when they migrated). Off for legacy, on for new code.
+  in `ModifierDeck` (Pathfinder's, TileAssembly's, and the zombie scene's, blaster's, and
+  muzzle flash's were fixed when they migrated). Off for legacy, on for new code.
+- **The zombie arena re-renders every frame:** the wave engine's state lives in React state
+  and the frame loop sets it each tick (as it did before migrating). The 3D side is now
+  allocation-free per frame (aim quaternion, lane positions, muzzle flash), but moving the
+  wave into a ref read by `useFrame` would cut the React work too. Measure before changing.
 - **Legacy unit tests mock `global.fetch` directly.** Migrated tests inject a fake `fetch`
   through the adapter's bind args instead.
 - **`src/types/generated.ts`** (from `make gen-types`, the legacy model-walker) overlaps
@@ -130,7 +133,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 58 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 4 (`legacy_allowlist.json`) |
 | backend | 0 (done; `backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.
