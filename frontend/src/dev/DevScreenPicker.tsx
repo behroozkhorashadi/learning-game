@@ -16,10 +16,13 @@ import { HandoffPencil } from '@app/session/handoff_pencil.pure.ui.tsx'
 import { ParentVerify } from '@app/session/parent_verify.pure.ui.tsx'
 import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
-import { WritingSurface } from '../components/WritingSurface'
-import { CoachPanel, type CoachQuestion } from '../components/CoachPanel'
-import { ModifierDeck, ModifierRuleBar, type ModifierCard } from '../components/ModifierDeck'
-import { IllustrationReveal, IllustrationArrival } from '../components/IllustrationReveal'
+import { WritingSurface } from '@app/writing/writing_surface.pure.ui.tsx'
+import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
+import type { CoachQuestion } from '@app/writing/coach_questions.pure.lib.ts'
+import type { ModifierCard } from '@app/writing/modifier_cards.pure.lib.ts'
+import { ModifierRuleBar } from '@app/writing/modifier_rule_bar.pure.ui.tsx'
+import { IllustrationArrival } from '@app/writing/illustration_arrival.pure.ui.tsx'
+import { assembleIllustrationReveal, assembleModifierDeck } from '@app/writing/writing.assembly.main.ts'
 import { Storybook } from '../components/Storybook'
 import { StorybookEntryCard } from '../components/StorybookEntryCard'
 import { ZombiePOCScene } from './ZombiePOCScene'
@@ -32,6 +35,10 @@ import type { Profile } from '../types/generated'
 
 // Migrated (src/speech/); assembled once for this legacy module.
 const { speakText, speakWord } = assembleSpeech()
+
+// Migrated (src/writing/); assembled once for this legacy module.
+const IllustrationReveal = assembleIllustrationReveal()
+const ModifierDeck = assembleModifierDeck()
 
 /**
  * Dev-only screen picker (`?screen=<id>`, `import.meta.env.DEV`-gated) so any

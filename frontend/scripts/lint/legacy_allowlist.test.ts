@@ -9,7 +9,7 @@ import { FRONTEND_ROOT, LEGACY_FILES, SRC_ROOT } from './paths.ts'
  * test then requires lowering LEGACY_CEILING in the same PR, so the ratchet
  * never slips back. Raising the ceiling is an architecture change, made in review.
  */
-const LEGACY_CEILING = 113
+const LEGACY_CEILING = 109
 
 function listTs(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

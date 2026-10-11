@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react'
 import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
-import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
-import { CoachPanel } from '../components/CoachPanel'
-import { WritingSurface } from '../components/WritingSurface'
-import { IllustrationReveal } from '../components/IllustrationReveal'
-import { CARDS, type ModifierCard } from '../components/ModifierDeck'
+import type { CoachQuestion, CoachStatus } from '@app/writing/coach_questions.pure.lib.ts'
+import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
+import { WritingSurface } from '@app/writing/writing_surface.pure.ui.tsx'
+import { assembleIllustrationReveal } from '@app/writing/writing.assembly.main.ts'
+import { CARDS, type ModifierCard } from '@app/writing/modifier_cards.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '@app/den/den_chip.pure.ui.tsx'
 import { DenTile, type DenTileTheme } from '@app/den/den_tile.pure.ui.tsx'
 import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RevisionPassCreate } from '../types/generated'
+
+// Migrated (src/writing/); assembled once for this legacy module.
+const IllustrationReveal = assembleIllustrationReveal()
 
 // Migrated (src/ids/); assembled once for this legacy module.
 const randomId = assembleRandomId()

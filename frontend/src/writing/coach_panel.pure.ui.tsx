@@ -1,4 +1,7 @@
+import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { wordCountOf } from './writing_text.pure.lib.ts'
+import type { CoachQuestion, CoachQuestionKind, CoachStatus } from './coach_questions.pure.lib.ts'
 
 /**
  * Revise & coach view — ported from the Claude Design handoff bundle
@@ -26,15 +29,7 @@ const CHECK_ICON = [
   'M8.75 12L11 14.25L15.25 9.75M19.25 12C19.25 16.0041 16.0041 19.25 12 19.25C7.99594 19.25 4.75 16.0041 4.75 12C4.75 7.99594 7.99594 4.75 12 4.75C16.0041 4.75 19.25 7.99594 19.25 12Z',
 ]
 
-export type CoachQuestionKind = 'opening' | 'wordChoice' | 'feeling'
-export type CoachStatus = 'thinking' | 'questions' | 'done'
 
-export interface CoachQuestion {
-  id: string
-  kind: CoachQuestionKind
-  text: string
-  answered?: boolean
-}
 
 const KIND_META: Record<CoachQuestionKind, { label: string; color: string; bg: string; border: string; icon: string[] }> = {
   opening: { label: 'Opening', color: '#1F5FC4', bg: '#F3F8FF', border: '#DCE9FA', icon: QUESTION_ICON },
@@ -45,22 +40,18 @@ const KIND_META: Record<CoachQuestionKind, { label: string; color: string; bg: s
 const THINKING_DOTS = [0, 1, 2]
 const SKELETON_WIDTHS = [92, 74, 84]
 
-interface Props {
-  pieceTitle: string
-  value: string
-  onChange: (text: string) => void
-  status: CoachStatus
-  questions: CoachQuestion[]
-  onHappy: () => void
-  happyReady?: boolean
+export interface CoachPanelProps {
+  readonly pieceTitle: string
+  readonly value: string
+  readonly onChange: (text: string) => void
+  readonly status: CoachStatus
+  readonly questions: readonly CoachQuestion[]
+  readonly onHappy: () => void
+  readonly happyReady?: boolean
 }
 
-function wordCountOf(text: string): number {
-  const trimmed = text.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
-}
 
-export function CoachPanel({ pieceTitle, value, onChange, status, questions, onHappy, happyReady }: Props) {
+export function CoachPanel({ pieceTitle, value, onChange, status, questions, onHappy, happyReady }: CoachPanelProps): ReactElement {
   const wordCount = wordCountOf(value)
   const ready = happyReady ?? (status === 'done' || questions.some((q) => q.answered))
 
@@ -97,6 +88,7 @@ export function CoachPanel({ pieceTitle, value, onChange, status, questions, onH
         </div>
         <div style={{ padding: '32px 32px 30px', minHeight: 352 }}>
           <textarea
+            aria-label="Your story"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             style={{

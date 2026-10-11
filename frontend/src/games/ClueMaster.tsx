@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
-import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
-import { CoachPanel } from '../components/CoachPanel'
-import { IllustrationReveal } from '../components/IllustrationReveal'
+import type { CoachQuestion, CoachStatus } from '@app/writing/coach_questions.pure.lib.ts'
+import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
+import { assembleIllustrationReveal } from '@app/writing/writing.assembly.main.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '@app/den/den_chip.pure.ui.tsx'
 import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { DenJar } from '@app/den/den_jar.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RevisionPassCreate } from '../types/generated'
+
+// Migrated (src/writing/); assembled once for this legacy module.
+const IllustrationReveal = assembleIllustrationReveal()
 
 // Migrated (src/ids/); assembled once for this legacy module.
 const randomId = assembleRandomId()

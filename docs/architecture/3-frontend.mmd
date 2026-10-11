@@ -16,7 +16,6 @@ flowchart TB
   subgraph COMP["Legacy components — src/components"]
     arena["framework/ZombieArena + R3F scene<br/>EquationOutbreakScene, ZombieCharacter3D,<br/>EquationBlaster, ApproachLane, MuzzleFlash"]
     pathc["Pathfinder UI<br/>Board, Editor, MapBuilder, PlayTest,<br/>LevelGallery, MyMaps, PublishedMaps"]
-    write["Writing UI<br/>WritingSurface,<br/>IllustrationReveal, CoachPanel"]
   end
 
   subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
@@ -37,6 +36,8 @@ flowchart TB
     practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
     tiles["tiles/<br/>TileBoard + pure placement rules"]
+    writing["writing/<br/>WritingSurface, CoachPanel, ModifierDeck,<br/>bindIllustrationReveal (pieces_api + timers)"]
+    timing["timing/<br/>Timers capability + useScheduled"]
     badges["badges/<br/>BadgesView (pure) + bindBadges"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
@@ -59,12 +60,13 @@ flowchart TB
   badges --> query & apiad & den
   admin --> profiles & query & apiad & den
   dev --> root --> example
-  gWord --> write
+  gWord & meta --> writing
+  writing --> timing & apiad & den
   gMath --> arena
   gWord & gMath --> session
   gPath --> pathc
   picker & meta --> den
-  write & pathc --> den
+  pathc --> den
   session --> den
   profiles --> query & apiad & den
   profiles -- "injected camera<br/>(navigator.mediaDevices)" --> browser[["Browser camera"]]
@@ -75,7 +77,7 @@ flowchart TB
   pathc --> plib
   gPath --> plat
   gWord & gMath --> plat
-  gWord & gMath & write -- "assembleSpeech(), assembleRandomId()" --> speech & ids
+  gWord & gMath -- "assembleSpeech(), assembleRandomId()" --> speech & ids
   picker & gWord & gMath & meta -- "fetch (legacy)" --> api
   plat -- "fetch" --> api
   SCREENS -.-> types

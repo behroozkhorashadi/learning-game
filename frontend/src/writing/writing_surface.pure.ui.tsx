@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenJar } from '@app/den/den_jar.pure.ui.tsx'
+import { wordCountOf } from './writing_text.pure.lib.ts'
 
 /**
  * Drafting view — ported from the Claude Design handoff bundle
@@ -16,23 +17,19 @@ const SPARKLE_ICON = [
 ]
 const BACK_ARROW_ICON = ['M9.25 4.75L4.75 9L9.25 13.25', 'M5.5 9H15.25C17.4591 9 19.25 10.7909 19.25 13V19.25']
 
-function wordCountOf(text: string): number {
-  const trimmed = text.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
+
+export interface WritingSurfaceProps {
+  readonly briefTitle: string
+  readonly briefBody: string
+  readonly briefChips: readonly string[]
+  readonly value: string
+  readonly onChange: (text: string) => void
+  readonly wordGoal?: number
+  readonly onPolish: () => void
+  readonly onKeepWriting?: () => void
 }
 
-interface Props {
-  briefTitle: string
-  briefBody: string
-  briefChips: string[]
-  value: string
-  onChange: (text: string) => void
-  wordGoal?: number
-  onPolish: () => void
-  onKeepWriting?: () => void
-}
-
-export function WritingSurface({ briefTitle, briefBody, briefChips, value, onChange, wordGoal = 120, onPolish, onKeepWriting }: Props) {
+export function WritingSurface({ briefTitle, briefBody, briefChips, value, onChange, wordGoal = 120, onPolish, onKeepWriting }: WritingSurfaceProps): ReactElement {
   const [briefOpen, setBriefOpen] = useState(true)
   const [confirming, setConfirming] = useState(false)
 
@@ -50,7 +47,10 @@ export function WritingSurface({ briefTitle, briefBody, briefChips, value, onCha
         <div style={{ borderBottom: '1px solid #F0E9DA', background: '#FBF6EC' }}>
           <button
             type="button"
-            onClick={() => setBriefOpen((v) => !v)}
+            aria-expanded={briefOpen}
+            onClick={() => {
+              setBriefOpen((v) => !v)
+            }}
             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 26px', background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
           >
             <div style={{ width: 26, height: 26, borderRadius: 8, background: '#EBDCFE', color: '#7A3FD4', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
@@ -83,6 +83,7 @@ export function WritingSurface({ briefTitle, briefBody, briefChips, value, onCha
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 128px', gap: 0, alignItems: 'stretch' }}>
           <div style={{ padding: '34px 32px 28px', minHeight: 340 }}>
             <textarea
+            aria-label="Your draft"
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder="Start anywhere. The middle is fine too."

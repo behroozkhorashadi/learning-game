@@ -1,17 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState, type ComponentType, type ReactElement } from 'react'
 import { DenButton, type DenButtonVariant } from '@app/den/den_button.pure.ui.tsx'
-import type { Illustration } from '../types/generated'
+import { IllustrationArt } from './illustration_art.pure.ui.tsx'
+import { STYLES, type IllustrationStyle } from './illustration_style.pure.lib.ts'
+import { useIllustrationReveal, type RevealDeps, type RevealPhase } from './use_illustration_reveal.pure.hook.ts'
 
 /**
  * The reveal — ported from the Claude Design handoff bundle (`Illustration
  * Reveal.dc.html`, sections "3a — the moment" and "3b — multi-image arrival").
- * The "painting"/"generating" phases keep their minimum-dwell timers (so the
- * animation reads as intentional rather than flickery) but now race them
- * against a real `POST .../illustrations/generate` call — see
- * `requestIllustration` — instead of only ever showing a placeholder.
- * `IllustrationReveal` is the single-piece flow; `IllustrationArrival` is the
- * follow-on strip for longer pieces where extra pictures "just arrive" after
- * the hero.
+ * The phases and their minimum-dwell timers are use_illustration_reveal;
+ * this renders them. Bound over the pieces adapter's generateIllustration and
+ * the injected timers. The follow-on strip is illustration_arrival.pure.ui.tsx.
  */
 
 const SPARKLE_ICON = [
@@ -24,144 +22,44 @@ const CHECK_ICON = [
   'M19.25 12C19.25 16.0041 16.0041 19.25 12 19.25C7.99594 19.25 4.75 16.0041 4.75 12C4.75 7.99594 7.99594 4.75 12 4.75C16.0041 4.75 19.25 7.99594 19.25 12Z',
 ]
 
-export type IllustrationStyle = 'storybook' | 'inkwash' | 'brightpaper' | 'chalk'
-
-const STYLES: { key: IllustrationStyle; name: string; swatch: string }[] = [
-  { key: 'storybook', name: 'Storybook', swatch: 'linear-gradient(150deg,#F7D9A8,#E9A96B 55%,#B87A4A)' },
-  { key: 'inkwash', name: 'Ink & wash', swatch: 'linear-gradient(150deg,#E8EEF6,#9FB4CC 55%,#4C5F79)' },
-  { key: 'brightpaper', name: 'Bright paper', swatch: 'linear-gradient(150deg,#FFE9A8,#8FDA7A 55%,#4FB3E8)' },
-  { key: 'chalk', name: 'Chalk', swatch: 'linear-gradient(150deg,#3B4152,#5B6478 55%,#A9B2C4)' },
-]
-
-const PAINTING_LINES = ['reading what you wrote…', 'finding the pictures in it…', 'mixing the colours…', 'painting the picture…']
-
-export function swatchOf(style: IllustrationStyle) {
-  return STYLES.find((s) => s.key === style)?.swatch ?? STYLES[0].swatch
+export interface IllustrationRevealProps {
+  readonly pieceId: string
+  readonly pieceTitle: string
+  readonly wordCount: number
+  readonly heroExcerpt: string
+  readonly moments?: readonly string[]
+  readonly offerMoreMoments?: boolean
+  readonly defaultStyle?: IllustrationStyle
+  readonly onReadItBack?: () => void
+  readonly onWriteSomethingElse?: () => void
 }
 
-export function styleLabel(style: IllustrationStyle) {
-  return STYLES.find((s) => s.key === style)?.name ?? STYLES[0].name
-}
-
-function ArtPlaceholder({ style, label }: { style: IllustrationStyle; label: string }) {
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: swatchOf(style), display: 'flex', alignItems: 'flex-end' }}>
-      <div style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.9)', textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>{label}</div>
-    </div>
-  )
-}
-
-function IllustrationArt({ imageUrl, style, label }: { imageUrl: string; style: IllustrationStyle; label: string }) {
-  const [broken, setBroken] = useState(false)
-  if (!imageUrl || broken) return <ArtPlaceholder style={style} label={label} />
-  return <img src={imageUrl} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-}
-
-async function requestIllustration(
-  pieceId: string,
-  body: { prompt_excerpt: string; order: number; is_hero: boolean },
-): Promise<Illustration | null> {
-  try {
-    const res = await fetch(`/api/pieces/${pieceId}/illustrations/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) return null
-    return await res.json()
-  } catch {
-    return null
-  }
-}
-
-function minDelay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-interface IllustratedMoment {
-  excerpt: string
-  imageUrl: string
-}
-
-interface IllustrationRevealProps {
-  pieceId: string
-  pieceTitle: string
-  wordCount: number
-  heroExcerpt: string
-  moments?: string[]
-  offerMoreMoments?: boolean
-  defaultStyle?: IllustrationStyle
-  onReadItBack?: () => void
-  onWriteSomethingElse?: () => void
-}
-
-type Phase = 'painting' | 'hero' | 'more' | 'generating' | 'style' | 'done'
-
-export function IllustrationReveal({
-  pieceId,
-  pieceTitle,
-  wordCount,
-  heroExcerpt,
-  moments = [],
-  offerMoreMoments = true,
-  defaultStyle = 'storybook',
-  onReadItBack,
-  onWriteSomethingElse,
-}: IllustrationRevealProps) {
-  const [phase, setPhase] = useState<Phase>('painting')
-  const [lineIndex, setLineIndex] = useState(0)
+export function bindIllustrationReveal(deps: RevealDeps): ComponentType<IllustrationRevealProps> {
+  function IllustrationReveal({
+    pieceId,
+    pieceTitle,
+    wordCount,
+    heroExcerpt,
+    moments = [],
+    offerMoreMoments = true,
+    defaultStyle = 'storybook',
+    onReadItBack,
+    onWriteSomethingElse,
+  }: IllustrationRevealProps): ReactElement {
+  const reveal = useIllustrationReveal(deps, pieceId, heroExcerpt)
+  const { phase, heroImageUrl, pendingMoment, go } = reveal
+  const illustratedMoments = reveal.moments
   const [chosenStyle, setChosenStyle] = useState<IllustrationStyle>(defaultStyle)
-  const [heroImageUrl, setHeroImageUrl] = useState('')
-  const [illustratedMoments, setIllustratedMoments] = useState<IllustratedMoment[]>([])
-  const [pendingMoment, setPendingMoment] = useState<string | null>(null)
-  const timers = useRef<number[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    const lineTimer = window.setInterval(() => setLineIndex((i) => (i + 1) % PAINTING_LINES.length), 1800)
-    Promise.all([minDelay(3600), requestIllustration(pieceId, { prompt_excerpt: heroExcerpt, order: 0, is_hero: true })]).then(([, illustration]) => {
-      if (cancelled) return
-      setHeroImageUrl(illustration?.image_url ?? '')
-      go('hero')
-    })
-    return () => {
-      cancelled = true
-      window.clearInterval(lineTimer)
-      timers.current.forEach(clearTimeout)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function go(next: Phase) {
-    timers.current.forEach(clearTimeout)
-    timers.current = []
-    setPhase(next)
-  }
-
-  function saveToStorybook() {
+  const saveToStorybook = (): void => {
     go('done')
   }
-
-  function generateMore(moment: string) {
-    timers.current.forEach(clearTimeout)
-    timers.current = []
-    setPendingMoment(moment)
-    setPhase('generating')
-    Promise.all([
-      minDelay(2200),
-      requestIllustration(pieceId, { prompt_excerpt: moment, order: illustratedMoments.length + 1, is_hero: false }),
-    ]).then(([, illustration]) => {
-      setIllustratedMoments((prev) => [...prev, { excerpt: moment, imageUrl: illustration?.image_url ?? '' }])
-      setPendingMoment(null)
-      setPhase('done')
-    })
-  }
+  const generateMore = reveal.illustrateMoment
 
   const remainingMoments = moments.filter((m) => !illustratedMoments.some((im) => im.excerpt === m))
   const galleryItems = [{ excerpt: heroExcerpt, isHero: true, imageUrl: heroImageUrl }, ...illustratedMoments.map((m) => ({ excerpt: m.excerpt, isHero: false, imageUrl: m.imageUrl }))]
   const pictureCount = galleryItems.length
 
-  const metas: Record<Phase, string> = {
+  const metas: Readonly<Record<RevealPhase, string>> = {
     painting: `${wordCount} words · revised`,
     hero: `${wordCount} words · 1 picture`,
     more: `${wordCount} words · 1 picture`,
@@ -206,7 +104,7 @@ export function IllustrationReveal({
               {[0, 1, 2].map((i) => (
                 <div key={i} style={{ width: 7, height: 7, borderRadius: 9999, background: '#C4B79E', animation: `stepDot 1.2s ease-in-out ${i * 0.15}s infinite` }} />
               ))}
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#7C7466', marginLeft: 4 }}>{PAINTING_LINES[lineIndex]}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#7C7466', marginLeft: 4 }}>{reveal.paintingLine}</div>
             </div>
           </div>
 
@@ -263,7 +161,9 @@ export function IllustrationReveal({
                 </div>
                 <button
                   type="button"
-                  onClick={() => go('hero')}
+                  onClick={() => {
+                    go('hero')
+                  }}
                   style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', padding: '6px 11px', borderRadius: 8, border: '1px solid #E0D7C4', background: '#FFFDF8', color: '#8A8272', cursor: 'pointer', flex: 'none' }}
                 >
                   No thanks
@@ -274,7 +174,9 @@ export function IllustrationReveal({
                   <button
                     key={m}
                     type="button"
-                    onClick={() => generateMore(m)}
+                    onClick={() => {
+                      generateMore(m)
+                    }}
                     style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', background: '#FFFFFF', border: '1.5px solid #F1ECE0', borderRadius: 14, padding: '13px 15px', cursor: 'pointer' }}
                   >
                     <div style={{ width: 30, height: 30, borderRadius: 10, background: '#EBF4FF', color: '#1F5FC4', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
@@ -317,7 +219,9 @@ export function IllustrationReveal({
                     <button
                       key={s.key}
                       type="button"
-                      onClick={() => setChosenStyle(s.key)}
+                      onClick={() => {
+                        setChosenStyle(s.key)
+                      }}
                       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 8px 11px', borderRadius: 15, cursor: 'pointer', background: on ? '#FFFFFF' : '#FFFDF8', border: `1.5px solid ${on ? '#5BCC2D' : '#EDE5D5'}` }}
                     >
                       <div style={{ width: '100%', height: 52, borderRadius: 11, background: s.swatch, border: '1px solid rgba(0,13,51,.08)' }} />
@@ -391,56 +295,13 @@ export function IllustrationReveal({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <DenButton label="Read it back" variant="primary" onClick={onReadItBack} />
-            <DenButton label="Write something else" variant="quiet" onClick={onWriteSomethingElse} />
+            <DenButton label="Read it back" variant="primary" {...(onReadItBack === undefined ? {} : { onClick: onReadItBack })} />
+            <DenButton label="Write something else" variant="quiet" {...(onWriteSomethingElse === undefined ? {} : { onClick: onWriteSomethingElse })} />
           </div>
         </div>
       )}
     </div>
   )
 }
-
-export interface IllustrationArrivalItem {
-  kicker: string
-  quote: string
-}
-
-interface IllustrationArrivalProps {
-  style?: IllustrationStyle
-  items: IllustrationArrivalItem[]
-}
-
-export function IllustrationArrival({ style = 'storybook', items }: IllustrationArrivalProps) {
-  const [replayKey, setReplayKey] = useState(0)
-
-  return (
-    <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '30px 32px 34px', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-        <div style={{ fontSize: 14.5, lineHeight: 1.6, color: '#7C7466', maxWidth: '62ch' }}>
-          Extra pictures for longer pieces settle in one after another while the hero is still being looked at.
-        </div>
-        <div style={{ flex: 1 }} />
-        <button
-          type="button"
-          onClick={() => setReplayKey((k) => k + 1)}
-          style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', padding: '6px 11px', borderRadius: 8, border: '1px solid #E0D7C4', background: '#FFFDF8', color: '#8A8272', cursor: 'pointer', flex: 'none' }}
-        >
-          Replay
-        </button>
-      </div>
-      <div key={replayKey} style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
-        {items.map((item, i) => (
-          <div key={item.kicker} style={{ display: 'flex', alignItems: 'center', gap: 20, animation: `riseIn 620ms cubic-bezier(.22,1,.36,1) ${0.15 + i * 0.55}s both` }}>
-            <div style={{ width: 190, height: 140, borderRadius: 18, overflow: 'hidden', border: '1.5px solid #EDE5D5', background: '#F6F1E6', flex: 'none' }}>
-              <ArtPlaceholder style={style} label={`Moment ${i + 1}`} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: '#B7AC96' }}>{item.kicker}</div>
-              <div style={{ fontSize: 15.5, lineHeight: 1.55, color: '#5C5849', fontStyle: 'italic', marginTop: 7 }}>&ldquo;{item.quote}&rdquo;</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+  return IllustrationReveal
 }

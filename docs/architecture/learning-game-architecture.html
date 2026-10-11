@@ -219,7 +219,6 @@ code { font-family:var(--mono); font-size:.9em; }
   subgraph COMP[&quot;Legacy components — src/components&quot;]
     arena[&quot;framework/ZombieArena + R3F scene&lt;br/&gt;EquationOutbreakScene, ZombieCharacter3D,&lt;br/&gt;EquationBlaster, ApproachLane, MuzzleFlash&quot;]
     pathc[&quot;Pathfinder UI&lt;br/&gt;Board, Editor, MapBuilder, PlayTest,&lt;br/&gt;LevelGallery, MyMaps, PublishedMaps&quot;]
-    write[&quot;Writing UI&lt;br/&gt;WritingSurface,&lt;br/&gt;IllustrationReveal, CoachPanel&quot;]
   end
 
   subgraph LIB[&quot;Legacy logic — src/lib (pure, unit-tested)&quot;]
@@ -240,6 +239,8 @@ code { font-family:var(--mono); font-size:.9em; }
     practice[&quot;practice/&lt;br/&gt;usePracticeSession: next item → attempt →&lt;br/&gt;handoff/verify → rating (api/practice_api)&quot;]
     pgames[&quot;syllable_builder/, equation_builder/&lt;br/&gt;bind* games over practice/&quot;]
     tiles[&quot;tiles/&lt;br/&gt;TileBoard + pure placement rules&quot;]
+    writing[&quot;writing/&lt;br/&gt;WritingSurface, CoachPanel, ModifierDeck,&lt;br/&gt;bindIllustrationReveal (pieces_api + timers)&quot;]
+    timing[&quot;timing/&lt;br/&gt;Timers capability + useScheduled&quot;]
     badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
     speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
     ids[&quot;ids/&lt;br/&gt;v4 UUIDs from getRandomValues (works on http LAN)&quot;]
@@ -262,12 +263,13 @@ code { font-family:var(--mono); font-size:.9em; }
   badges --&gt; query &amp; apiad &amp; den
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
   dev --&gt; root --&gt; example
-  gWord --&gt; write
+  gWord &amp; meta --&gt; writing
+  writing --&gt; timing &amp; apiad &amp; den
   gMath --&gt; arena
   gWord &amp; gMath --&gt; session
   gPath --&gt; pathc
   picker &amp; meta --&gt; den
-  write &amp; pathc --&gt; den
+  pathc --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
   profiles -- &quot;injected camera&lt;br/&gt;(navigator.mediaDevices)&quot; --&gt; browser[[&quot;Browser camera&quot;]]
@@ -278,7 +280,7 @@ code { font-family:var(--mono); font-size:.9em; }
   pathc --&gt; plib
   gPath --&gt; plat
   gWord &amp; gMath --&gt; plat
-  gWord &amp; gMath &amp; write -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
+  gWord &amp; gMath -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
   picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
   plat -- &quot;fetch&quot; --&gt; api
   SCREENS -.-&gt; types
