@@ -18,8 +18,11 @@
  */
 
 import type { PathfinderCustomMap, PublishedPathfinderMap } from '../types/generated'
-import { randomId } from './id'
+import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import type { Difficulty, DotPuzzle } from './pathfinderTypes'
+
+// Migrated (src/ids/); assembled once for this legacy module.
+const randomId = assembleRandomId()
 
 export interface CustomMapRecord {
   puzzle: DotPuzzle

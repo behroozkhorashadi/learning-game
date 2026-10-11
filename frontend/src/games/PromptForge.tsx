@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { randomId } from '../lib/id'
+import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
 import { CoachPanel } from '../components/CoachPanel'
 import { WritingSurface } from '../components/WritingSurface'
@@ -11,6 +11,9 @@ import { DenTile, type DenTileTheme } from '@app/den/den_tile.pure.ui.tsx'
 import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RevisionPassCreate } from '../types/generated'
+
+// Migrated (src/ids/); assembled once for this legacy module.
+const randomId = assembleRandomId()
 
 /**
  * Prompt Forge — ported from the Claude Design handoff bundle

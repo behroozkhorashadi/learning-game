@@ -22,7 +22,7 @@ flowchart TB
   subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
     zlib["Zombie engine<br/>zombieWaveEngine, raycastOutcome,<br/>laneNavigation, rootMotion, zombieRoster"]
     plib["Pathfinder engine<br/>Rules, Solver, Generator,<br/>Difficulty, Levels, usePathfinderPlay"]
-    plat["Platform adapters<br/>gameAudio, speech, errorReporting,<br/>pathfinderProgress, pathfinderCustomMaps"]
+    plat["Platform adapters<br/>gameAudio, errorReporting,<br/>pathfinderProgress, pathfinderCustomMaps"]
   end
 
   subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
@@ -34,6 +34,8 @@ flowchart TB
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
     apiad["api/<br/>profiles_api, admin_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
+    speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
+    ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
     boundary["boundary/<br/>AsyncBoundary"]
     example["examples/todo/<br/>the worked example to copy"]
   end
@@ -63,6 +65,7 @@ flowchart TB
   pathc --> plib
   gPath --> plat
   gWord & gMath --> plat
+  gWord & gMath & write -- "assembleSpeech(), assembleRandomId()" --> speech & ids
   picker & gWord & gMath & meta -- "fetch (legacy)" --> api
   plat -- "fetch" --> api
   SCREENS -.-> types

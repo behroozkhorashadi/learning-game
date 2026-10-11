@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { randomId } from '../lib/id'
+import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
 import { CoachPanel } from '../components/CoachPanel'
 import { IllustrationReveal } from '../components/IllustrationReveal'
@@ -7,6 +7,9 @@ import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '@app/den/den_chip.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RevisionPassCreate, TurnAuthor, TurnLineCreate } from '../types/generated'
+
+// Migrated (src/ids/); assembled once for this legacy module.
+const randomId = assembleRandomId()
 
 /**
  * Tag-Team Story — ported from the Claude Design handoff bundle

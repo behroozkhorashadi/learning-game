@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { CircleCheckIcon, HelpCircleIcon, SparklesIcon, SpeakerIcon, UndoIcon } from '@app/den/icons.pure.ui.tsx'
-import { speakWord } from '../lib/speech'
+import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
+
+// Migrated (src/speech/); assembled once for this legacy module.
+const { speakWord } = assembleSpeech()
 
 /**
  * Tile-assembly primitive — ported from the Claude Design handoff bundle

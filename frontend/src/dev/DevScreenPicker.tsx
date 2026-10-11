@@ -1,4 +1,4 @@
-import { speakText, speakWord } from '../lib/speech'
+import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { assembleDevScreens } from '@app/main/dev_screens.assembly.main.ts'
 import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
@@ -28,6 +28,9 @@ import { ZombieMathBlaster } from '../games/ZombieMathBlaster'
 import { PathfinderMapBuilder } from '../components/PathfinderMapBuilder'
 import { PathfinderLevelGallery } from '../components/PathfinderLevelGallery'
 import type { Profile } from '../types/generated'
+
+// Migrated (src/speech/); assembled once for this legacy module.
+const { speakText, speakWord } = assembleSpeech()
 
 /**
  * Dev-only screen picker (`?screen=<id>`, `import.meta.env.DEV`-gated) so any

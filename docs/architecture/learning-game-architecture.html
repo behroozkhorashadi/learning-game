@@ -225,7 +225,7 @@ code { font-family:var(--mono); font-size:.9em; }
   subgraph LIB[&quot;Legacy logic — src/lib (pure, unit-tested)&quot;]
     zlib[&quot;Zombie engine&lt;br/&gt;zombieWaveEngine, raycastOutcome,&lt;br/&gt;laneNavigation, rootMotion, zombieRoster&quot;]
     plib[&quot;Pathfinder engine&lt;br/&gt;Rules, Solver, Generator,&lt;br/&gt;Difficulty, Levels, usePathfinderPlay&quot;]
-    plat[&quot;Platform adapters&lt;br/&gt;gameAudio, speech, errorReporting,&lt;br/&gt;pathfinderProgress, pathfinderCustomMaps&quot;]
+    plat[&quot;Platform adapters&lt;br/&gt;gameAudio, errorReporting,&lt;br/&gt;pathfinderProgress, pathfinderCustomMaps&quot;]
   end
 
   subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
@@ -237,6 +237,8 @@ code { font-family:var(--mono); font-size:.9em; }
     query[&quot;query/&lt;br/&gt;useQuery, useReloadableQuery + QueryState (server state)&quot;]
     apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
     flags[&quot;flags/&lt;br/&gt;feature flags, read in assembly only&quot;]
+    speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
+    ids[&quot;ids/&lt;br/&gt;v4 UUIDs from getRandomValues (works on http LAN)&quot;]
     boundary[&quot;boundary/&lt;br/&gt;AsyncBoundary&quot;]
     example[&quot;examples/todo/&lt;br/&gt;the worked example to copy&quot;]
   end
@@ -266,6 +268,7 @@ code { font-family:var(--mono); font-size:.9em; }
   pathc --&gt; plib
   gPath --&gt; plat
   gWord &amp; gMath --&gt; plat
+  gWord &amp; gMath &amp; write -- &quot;assembleSpeech(), assembleRandomId()&quot; --&gt; speech &amp; ids
   picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
   plat -- &quot;fetch&quot; --&gt; api
   SCREENS -.-&gt; types

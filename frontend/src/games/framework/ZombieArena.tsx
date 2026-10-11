@@ -1,7 +1,7 @@
-import { speakText } from '../../lib/speech'
+import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { randomId } from '../../lib/id'
+import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import type { Item } from '../../types/generated'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenCard } from '@app/den/den_card.pure.ui.tsx'
@@ -39,6 +39,12 @@ import {
   type WaveState,
 } from '../../lib/zombieWaveEngine'
 import type { ZombieArenaBrain } from './zombieArenaTypes'
+
+// Migrated (src/ids/); assembled once for this legacy module.
+const randomId = assembleRandomId()
+
+// Migrated (src/speech/); assembled once for this legacy module.
+const { speakText } = assembleSpeech()
 
 /**
  * The reusable "zombie box": a fixed-camera 3D shooting-gallery speed

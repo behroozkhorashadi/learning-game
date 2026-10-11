@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 123 legacy frontend files (122 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 121 legacy frontend files (120 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -86,6 +86,7 @@ Lessons from ProfilePicker:
 | `games/CreateProfile.tsx` + `ProfileFormFields`, `ProfilePasswordFields`, `ProfilePhotoCapture`, `newPhotosPayload` → `profiles/` | ~15 min (agent) | Reused `HttpFetch` and the profiles adapter as predicted (it gained `create` and `remixPhoto`; `failureMessage` in `api/http.pure.lib.ts` keeps the server's user-facing `detail`). New seams: a `ProfileCamera` capability (`profile_camera.effect.lib.ts` over `navigator.mediaDevices` + a canvas factory) driven by `use_camera.pure.hook.ts`, and an injected `today()` clock replacing module-level `new Date()`. The photo panel is injected into the create screen as a bound component (`PhotoCapture` bind arg); legacy `EditProfile` assembles it with `useState(assembleProfilePhotoCapture)`. Fixed in passing: a camera stream that opened after unmount was never stopped. 7 legacy files out; 21 tests in the ported suites (no `global.fetch`/`navigator` stubs) plus 60 new; 12 stories. |
 | `games/ProfileUnlock.tsx`, `games/EditProfile.tsx`, `games/AdminPanel.tsx`, `components/AdminLoginForm.tsx` → `profiles/`, `admin/` | ~25 min (agent) | Profiles adapter gains `update`/`remove`/`unlock`/`listPhotos`/`deletePhoto`; `api/admin_api` for login. Auth headers became a typed `ProfileAuth` (`none`/`profile`/`admin`) that only the adapter turns into headers. New seams: `query/use_reloadable_query` (re-read after a mutation without blanking the list) and `profiles/use_saved_photos` (the one owner of the saved-photo list). Screens are keyed by profile id (`key={profile.id}`), since each mount is one editing session. Admin rows gained per-player accessible names (`Edit Rami`, `Delete Rami`). 7 legacy files out. |
 | `components/den/*` → `den/`, session shell (`SessionStart`, `SessionComplete`, `RatingPrompt`, `ParentVerify`, `HandoffPencil`) → `session/` | ~20 min (agent) | Props-only moves. Speaking became a callback prop (`onHearInstructions`, `onHearWord`); legacy callers still pass `lib/speech`, which migrates with its last caller. ParentVerify's 500 ms `setTimeout` became the shake animation's `onAnimationEnd`, so no timer is left to inject. `DenJar` gained `role="progressbar"`, and the PIN dots a live accessible label. `DenTabs` had no importers and was deleted. 14 legacy files out. |
+| `lib/speech.ts` → `speech/`, `lib/id.ts` → `ids/` | ~8 min (agent) | Migrated ahead of their callers because both the zombie arena and the word games use them. `Speech` is a capability (`bindSpeech({ synthesis, makeUtterance, playClip })`); the UUID maths is pure (`uuidV4FromBytes`), and `crypto` is read only in `assembleRandomId()`. Legacy callers assemble once at module scope (`const randomId = assembleRandomId()`) until they migrate and take these injected. 2 legacy files out. |
 Lessons:
 - **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
 - **Module-level `new Date()` is a hidden global.** `Date.now` is linted; `new Date()` isn't yet. Pass `today` in.
@@ -115,7 +116,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 123 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 121 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

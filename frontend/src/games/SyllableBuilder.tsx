@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { randomId } from '../lib/id'
+import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import type { AttemptCreate, AttemptRead, Item, VerificationCreate } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ImagePlaceholderIcon } from '@app/den/icons.pure.ui.tsx'
@@ -10,7 +10,13 @@ import { HandoffPencil } from '@app/session/handoff_pencil.pure.ui.tsx'
 import { ParentVerify } from '@app/session/parent_verify.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
-import { speakText, speakWord } from '../lib/speech'
+import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
+
+// Migrated (src/ids/); assembled once for this legacy module.
+const randomId = assembleRandomId()
+
+// Migrated (src/speech/); assembled once for this legacy module.
+const { speakText, speakWord } = assembleSpeech()
 
 /**
  * Syllable Builder item screen — ported from the Claude Design handoff

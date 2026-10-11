@@ -1,12 +1,18 @@
-import { speakText } from '../lib/speech'
+import { assembleSpeech } from '@app/speech/speech.assembly.main.ts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { randomId } from '../lib/id'
+import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ProgressBar } from '@app/session/progress_bar.pure.ui.tsx'
 import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
+
+// Migrated (src/ids/); assembled once for this legacy module.
+const randomId = assembleRandomId()
+
+// Migrated (src/speech/); assembled once for this legacy module.
+const { speakText } = assembleSpeech()
 
 /**
  * Equation Builder item screen — the first math game (PRD §7.3, §16 step 9),
