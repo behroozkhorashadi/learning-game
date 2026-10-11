@@ -1,13 +1,11 @@
 flowchart TB
-  main["main.tsx"] --> app
-  main -- "assembleErrorHandling()" --> errors
+  entry["main/entry.assembly.main<br/>(index.html loads it): error handling,<br/>then the root on #root"]
+  entry -- "assembleErrorHandling()" --> errors
+  entry -- "assembleRoot()" --> app
 
-  app["App.tsx<br/>state-driven screen router<br/>profile, gameId, editing, admin..."]
-  dev["dev/ DevScreenPicker via ?screen="]
-  app -. "DEV only" .-> dev
-
-  subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
-    root["main/<br/>dev_screens.assembly.main"]
+  subgraph NEW["src/ — every file is &lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
+    app["main/<br/>bindApp: one Screen union (app_navigation),<br/>every screen injected; assembleRoot picks app or dev"]
+    dev["main/ dev screens (DEV, ?screen=)<br/>bindDevScreens: mock-data demos + live screens"]
     profiles["profiles/<br/>picker, create, unlock, edit screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>CardShell, ProfileAvatar, AVATAR_OPTIONS"]
     admin["admin/<br/>AdminLogin + AdminPanel<br/>(X-Admin-Password, a UX gate)"]
     pathfinder["pathfinder/<br/>game, level select, map builder (editor, My Maps,<br/>play-test), published maps, dev level gallery (bind* + assemble*);<br/>pure engine: rules, solver, difficulty, generator, levels"]
@@ -38,8 +36,6 @@ flowchart TB
     zombie_lab["zombie_lab/<br/>dev: hit lab (labels shots for the e2e eval),<br/>zombie and weapon POC scenes"]
     example["examples/todo/<br/>the worked example to copy"]
   end
-
-  types["types/generated.ts (legacy)<br/>from backend models"]
   api[["FastAPI /api/*"]]
   assets[("public/ GLB models, images, audio")]
 
@@ -61,7 +57,8 @@ flowchart TB
   tiles --> den
   badges --> query & apiad & den
   admin --> profiles & query & apiad & den
-  dev --> root --> example
+  app -. "DEV, ?screen=" .-> dev
+  dev --> example
   writing --> timing & apiad & den
   app -- "assemblePromptForge(), assembleStyleRemix(),<br/>assembleTagTeam(), assembleClueMaster() once" --> wgames
   wgames --> writing & den
@@ -79,4 +76,3 @@ flowchart TB
   zombie_lab --> arena & zombies & blaster
   zombies & blaster & science_fair -- "GLB models, audio" --> assets
   outbreak -- "injected timers, rAF,<br/>Web Audio, matchMedia" --> webapis[["Browser APIs"]]
-  app -.-> types

@@ -11,8 +11,6 @@ RULE: Final = "test-colocation"
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath):
-        return
     module = source.module_name
     if module is not None and module.kind not in KINDS_WITHOUT_TESTS:
         expected = _test_path_for(source.relpath)

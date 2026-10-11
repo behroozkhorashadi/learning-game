@@ -1,13 +1,8 @@
 # Backend guardrail config. Every rule is an error; see backend/AGENTS.md.
-# The legacy lists below must equal scripts/lint_py/legacy_allowlist.txt
-# (scripts/lint_py/test_legacy_allowlist.py enforces it) and may only shrink.
 
 [tool.ruff]
 target-version = "py312"
 line-length = 120
-extend-exclude = [
-    # --- legacy (shrink-only) ---
-]
 
 [tool.ruff.lint]
 select = [
@@ -59,7 +54,6 @@ include = ["app", "tests", "scripts"]
 exclude = [
     "**/__pycache__",
     ".venv",
-    # --- legacy (shrink-only) ---
 ]
 pythonVersion = "3.12"
 venvPath = "."
@@ -83,7 +77,7 @@ include_external_packages = true
 contract_types = ["color_layers: scripts.lint_py.color_contract.ColorLayersContract"]
 
 [[tool.importlinter.contracts]]
-name = "Color layers: assembly -> effect -> pure, features independent, no new->legacy imports (backend/AGENTS.md#layers)"
+name = "Color layers: assembly -> effect -> pure, features independent, app.main imported by nothing (backend/AGENTS.md#layers)"
 type = "color_layers"
 
 [[tool.importlinter.contracts]]

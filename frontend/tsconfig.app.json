@@ -1,7 +1,5 @@
 {
   // New-style app code: every file under src/ that carries a <color>.<kind> suffix.
-  // Legacy files (scripts/lint/legacy_allowlist.json) are typechecked by
-  // tsconfig.legacy.json until they migrate.
   "extends": "./tsconfig.strict.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",

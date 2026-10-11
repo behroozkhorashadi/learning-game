@@ -10,7 +10,6 @@ COLOR_RANK / KIND_COLORS tables means updating backend/AGENTS.md in the same PR.
 import re
 from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
 from typing import Final
 
 
@@ -59,7 +58,6 @@ DOCS: Final = "backend/AGENTS.md"
 ENTRY_POINT: Final = "app/main.py"
 # Files allowed directly in app/: the package init (empty) and the entry point.
 APP_ROOT_FILES: Final = frozenset({"app/__init__.py", ENTRY_POINT})
-LEGACY_ALLOWLIST: Final = Path(__file__).resolve().parent / "legacy_allowlist.txt"
 
 
 @dataclass(frozen=True)
@@ -107,11 +105,6 @@ def parse_module_filename(filename: str) -> ModuleName | NamingProblem:
             f"not in the basename. See {DOCS}#file-naming."
         )
     return ModuleName(basename=basename, kind=kind, color=color)
-
-
-def load_legacy_allowlist(path: Path = LEGACY_ALLOWLIST) -> tuple[str, ...]:
-    lines = (line.strip() for line in path.read_text().splitlines())
-    return tuple(line for line in lines if line and not line.startswith("#"))
 
 
 def module_path_to_relpath(module: str) -> str:

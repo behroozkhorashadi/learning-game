@@ -1,12 +1,12 @@
 import path from 'node:path'
 import { defineRule, type ESTree } from '@oxlint/plugins'
-import { FRONTEND_ROOT, governedFile, isLegacy } from '../paths.ts'
+import { FRONTEND_ROOT, governedFile } from '../paths.ts'
 import { DOCS, isAmbientReference, see } from '../rule_utils.ts'
 
 const E2E_ROOT = path.join(FRONTEND_ROOT, 'e2e')
 
 function isScenarioFile(absPath: string): boolean {
-  if (absPath.startsWith(E2E_ROOT + path.sep) && absPath.endsWith('.spec.ts')) return !isLegacy(absPath)
+  if (absPath.startsWith(E2E_ROOT + path.sep) && absPath.endsWith('.spec.ts')) return true
   return governedFile(absPath)?.classified?.color === 'test'
 }
 

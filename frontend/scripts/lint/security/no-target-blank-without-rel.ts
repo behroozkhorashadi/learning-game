@@ -1,12 +1,12 @@
 import { defineRule, type ESTree } from '@oxlint/plugins'
-import { srcFile } from '../paths.ts'
+import { governedFile } from '../paths.ts'
 import { DOCS, jsxAttrName, see, staticJsxAttrValue } from '../rule_utils.ts'
 
-/** `target="_blank"` requires `rel="noopener noreferrer"` (autofix when rel is absent). Applies to legacy too. */
+/** `target="_blank"` requires `rel="noopener noreferrer"` (autofix when rel is absent). */
 export default defineRule({
   meta: { type: 'problem', fixable: 'code', docs: { description: 'target="_blank" requires rel="noopener noreferrer".' } },
   create(context) {
-    if (srcFile(context.filename) === null) return {}
+    if (governedFile(context.filename) === null) return {}
     return {
       JSXOpeningElement(node) {
         const attrs = node.attributes.filter((a): a is ESTree.JSXAttribute => a.type === 'JSXAttribute')

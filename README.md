@@ -16,7 +16,7 @@ make dev                # backend (:8000) + frontend (Vite) together. One comman
 make preflight          # every check CI runs, FE + BE + API contract
 make gen-api            # regenerate frontend/src/api/ types from the backend's OpenAPI
 make e2e                # on-demand Playwright happy paths (own temp DB, ports 8100/5174; not in CI)
-make help               # everything else (asset generators, gen-types, ...)
+make help               # everything else (asset generators, ...)
 ```
 
 ## Philosophy
@@ -207,7 +207,7 @@ Each idea is written down once. Everything else links to it.
 | FE↔BE contract | [frontend/src/api/AGENTS.md](frontend/src/api/AGENTS.md) |
 | server state (`useQuery`) | [frontend/src/query/AGENTS.md](frontend/src/query/AGENTS.md) |
 | what the AI reviewer checks (only what lint can't) | [review-conventions.md](review-conventions.md) |
-| moving legacy code over | [MIGRATION.md](MIGRATION.md), [backend/MIGRATION.md](backend/MIGRATION.md) |
+| how the codebase was migrated, and what we learned | [MIGRATION.md](MIGRATION.md), [backend/MIGRATION.md](backend/MIGRATION.md) |
 | architecture diagrams (and when to update them) | [docs/architecture/AGENTS.md](docs/architecture/AGENTS.md) |
 | the worked example | `frontend/src/examples/todo/`, `backend/app/todo/` |
 
@@ -225,9 +225,8 @@ CI. It drives Playwright's bundled Chromium (installed by `make install-frontend
 screenshots of key screens to `frontend/e2e-screens/`; the `e2e-happy-path` Claude Code skill runs it and reviews those
 screenshots.
 
-`make gen-types` (legacy) regenerates `frontend/src/types/generated.ts` from the Python
-models. It isn't run automatically. New code uses the OpenAPI-generated types from
-`make gen-api` instead, which CI checks for drift.
+The frontend's API types are generated from the backend's OpenAPI schema (`make gen-api`),
+and CI fails if they drift.
 
 ### Architecture
 

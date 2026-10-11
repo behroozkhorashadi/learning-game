@@ -8,7 +8,7 @@ file records how the migration went, for the next codebase that tries it.
 
 - **The API contract.** Every URL, status code, error `detail`, operation id, and published
   schema (names, fields, docstrings) is byte-identical: `make check-api` showed no diff after
-  every step, and the legacy `frontend/src/types/generated.ts` (`make gen-types`) is unchanged.
+  every step, and the legacy `frontend/src/types/generated.ts` (`make gen-types`) is unchanged (both since retired, with the frontend shell migration).
   Wire models keep pydantic's default `extra="ignore"` for that reason, and some keep docstrings
   that mention old module paths (they're operation descriptions; changing them is a frontend
   regeneration, best done in a frontend PR).

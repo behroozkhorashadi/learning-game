@@ -22,8 +22,6 @@ _TEST_FILE: Final = re.compile(r"^(test_[a-z0-9_]+|[a-z][a-z0-9_]*_fakes|conftes
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath):
-        return
     parts = source.relpath.split("/")
     if parts[0] == "app":
         yield from _check_app(source, parts)

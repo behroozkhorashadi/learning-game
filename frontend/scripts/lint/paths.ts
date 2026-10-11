@@ -1,10 +1,9 @@
 /**
- * Where the governed tree is, which files are legacy, and how import
- * specifiers resolve against the real `src/` tree. Every rule self-gates
- * through `governedFile` so the plugin is inert on tooling and on
- * allowlisted legacy files.
+ * Where the governed tree is, and how import specifiers resolve against the
+ * real `src/` tree. Every rule self-gates through `governedFile` so the
+ * plugin is inert on tooling.
  */
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { classify, type Classified } from './kinds.ts'
@@ -12,19 +11,6 @@ import { classify, type Classified } from './kinds.ts'
 export const FRONTEND_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 export const SRC_ROOT = path.join(FRONTEND_ROOT, 'src')
 export const ALIAS_PREFIX = '@app/'
-
-const ALLOWLIST_PATH = fileURLToPath(new URL('./legacy_allowlist.json', import.meta.url))
-
-function loadAllowlist(): ReadonlySet<string> {
-  const parsed: unknown = JSON.parse(readFileSync(ALLOWLIST_PATH, 'utf8'))
-  if (!Array.isArray(parsed) || !parsed.every((entry): entry is string => typeof entry === 'string')) {
-    throw new Error(`${ALLOWLIST_PATH} must be a JSON array of frontend-relative paths`)
-  }
-  return new Set(parsed)
-}
-
-/** Frontend-relative paths (e.g. `src/App.tsx`) exempt from the architecture rules until migrated. */
-export const LEGACY_FILES: ReadonlySet<string> = loadAllowlist()
 
 export const TS_FILE_RE = /\.tsx?$/
 
@@ -37,10 +23,6 @@ export function srcRelative(absPath: string): string | null {
   const rel = path.relative(SRC_ROOT, absPath)
   if (rel.startsWith('..') || path.isAbsolute(rel)) return null
   return toPosix(rel)
-}
-
-export function isLegacy(absPath: string): boolean {
-  return LEGACY_FILES.has(toPosix(path.relative(FRONTEND_ROOT, absPath)))
 }
 
 /** The feature a `src`-relative path belongs to: its first directory, or null for files at `src/` root. */
@@ -62,19 +44,11 @@ export interface GovernedFile {
 export function governedFile(absPath: string): GovernedFile | null {
   if (!TS_FILE_RE.test(absPath) || absPath.endsWith('.d.ts')) return null
   const srcRel = srcRelative(absPath)
-  if (srcRel === null || isLegacy(absPath)) return null
-  const fileName = path.basename(absPath)
-  return { absPath, srcRel, feature: featureOf(srcRel), fileName, classified: classify(fileName) }
-}
-
-/** Like `governedFile`, but also covers legacy files — for rules (security, barrels) that apply everywhere in `src/`. */
-export function srcFile(absPath: string): GovernedFile | null {
-  if (!TS_FILE_RE.test(absPath) || absPath.endsWith('.d.ts')) return null
-  const srcRel = srcRelative(absPath)
   if (srcRel === null) return null
   const fileName = path.basename(absPath)
   return { absPath, srcRel, feature: featureOf(srcRel), fileName, classified: classify(fileName) }
 }
+
 
 export type Resolved =
   | { readonly type: 'package' }

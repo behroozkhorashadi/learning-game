@@ -26,10 +26,6 @@ class Project:
     """What a rule may know about the rest of the tree: every backend-relative .py path."""
 
     relpaths: frozenset[str]
-    legacy: frozenset[str]
-
-    def is_checked(self, relpath: str) -> bool:
-        return relpath not in self.legacy
 
 
 @dataclass(frozen=True)

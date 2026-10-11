@@ -15,11 +15,10 @@ FIRST_PARTY = frozenset(
         "app.composition.app_wiring_assembly",
     }
 )
-LEGACY = frozenset({"app/db.py", "app/__init__.py"})
 
 
 def problems(importer: str, imported: str) -> list[str]:
-    return [p.message for p in find_violations([Edge(importer, imported, 1)], FIRST_PARTY, LEGACY)]
+    return [p.message for p in find_violations([Edge(importer, imported, 1)], FIRST_PARTY)]
 
 
 @pytest.mark.parametrize(
@@ -27,7 +26,6 @@ def problems(importer: str, imported: str) -> list[str]:
     [
         ("app.todo.todo_service_effect", "app.todo.todo_schemas_pure"),
         ("app.composition.app_wiring_assembly", "app.todo.todo_service_effect"),
-        ("app.composition.app_wiring_assembly", "app.db"),
         ("app.composition.app_wiring_assembly", "app.notes.notes_schemas_pure"),
         ("app.main", "app.composition.app_wiring_assembly"),
         ("app.todo.todo_schemas_pure", "pydantic"),
@@ -59,11 +57,11 @@ def test_features_do_not_import_each_other() -> None:
     assert "Features never import each other" in message
 
 
-def test_new_code_may_not_import_legacy() -> None:
-    [message] = problems("app.todo.todo_service_effect", "app.db")
-    assert "imports legacy module app.db" in message
+def test_features_may_not_import_the_entry_point() -> None:
+    [message] = problems("app.todo.todo_service_effect", "app.main")
+    assert "imports the entry point app.main" in message
 
 
-def test_legacy_may_not_import_assembly() -> None:
-    [message] = problems("app.db", "app.composition.app_wiring_assembly")
+def test_a_package_may_not_import_assembly() -> None:
+    [message] = problems("app.todo", "app.composition.app_wiring_assembly")
     assert "Nothing imports assembly" in message

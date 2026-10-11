@@ -6,10 +6,8 @@ from textwrap import dedent
 from scripts.lint_py.core import Project, Rule, SourceFile
 
 
-def run_rule(
-    rule: Rule, relpath: str, text: str = "", *, others: Iterable[str] = (), legacy: Iterable[str] = ()
-) -> list[str]:
+def run_rule(rule: Rule, relpath: str, text: str = "", *, others: Iterable[str] = ()) -> list[str]:
     """Returns the messages `rule` reports for `relpath`; `others` are other files that exist."""
     source = SourceFile.parse(relpath, dedent(text))
-    project = Project(relpaths=frozenset({relpath, *others}), legacy=frozenset(legacy))
+    project = Project(relpaths=frozenset({relpath, *others}))
     return [v.message for v in rule(source, project)]

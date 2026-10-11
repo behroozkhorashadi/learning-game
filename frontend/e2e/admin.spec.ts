@@ -1,4 +1,4 @@
-import { test, expect, openPicker, createProfile, switchPlayer, playButton, snap, uniqueName, E2E_ADMIN_PASSWORD } from './fixtures'
+import { test, expect, openPicker, createProfile, switchPlayer, playButton, snap, uniqueName, E2E_ADMIN_PASSWORD } from './fixtures.ts'
 
 test('admin screen: wrong password is refused, right one lists players and can remove one', async ({ page }) => {
   const name = uniqueName('Remove Me')

@@ -16,7 +16,7 @@ DB_METHODS: Final = frozenset({"exec", "execute", "commit", "rollback", "scalars
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
     module = source.module_name
-    if not project.is_checked(source.relpath) or module is None or module.kind != "routes":
+    if module is None or module.kind != "routes":
         return
     feature = source.relpath.split("/")[1]
     where = (

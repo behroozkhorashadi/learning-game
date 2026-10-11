@@ -1098,9 +1098,8 @@ export interface components {
         /**
          * ProfileRead
          * @description What the API returns for a profile: `Profile` plus whether it's
-         *     password-protected. Exported to the frontend *as* `Profile` (see
-         *     `scripts/generate_ts_types.py`), since this — not the table row — is the
-         *     shape the frontend ever sees.
+         *     password-protected. This, not the table row, is the shape the frontend
+         *     ever sees.
          */
         readonly ProfileRead: {
             /** Avatar */

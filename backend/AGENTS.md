@@ -184,8 +184,8 @@ Exceptions are architecture changes. `# noqa` and `# type: ignore` are banned
 `# pyright: ignore[reportX] -- reason (10+ chars)` is accepted. The right fix is to move the
 code, or to change the rule in `pyproject.toml` / `scripts/lint_py/` openly in a PR.
 
-## Legacy
+## No exemptions
 
-None left: every backend file follows these rules (`MIGRATION.md` records how it got
-here). `scripts/lint_py/legacy_allowlist.txt` is empty and `MAX_LEGACY_FILES` is 0; the
-machinery stays so nothing can quietly be exempted again (`test_legacy_allowlist.py`).
+Every backend file follows these rules; there is no allowlist (`MIGRATION.md` records how
+the code got here). A rule that's wrong for a case is changed in `pyproject.toml` or
+`scripts/lint_py/`, openly, in review.

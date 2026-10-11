@@ -38,10 +38,8 @@ same comment comes up again and again, propose a lint rule for it instead (see
   test would still pass with the feature's core logic deleted, it isn't testing the feature.
 - **New UI ships a story** with a `play` function for its main interaction and its error state.
 
-## Porting legacy code
+## Rewrites
 
 - Port **behavior**, not just JSX: focus management, IME/composition input, scroll position,
   disabled and loading states, keyboard shortcuts, error recovery. Diff the old and new
   behavior, not the markup.
-- The PR should lower the legacy ceiling (`LEGACY_CEILING` / `MAX_LEGACY_FILES`) by the
-  number of files it migrated.

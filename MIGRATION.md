@@ -1,21 +1,14 @@
-# Migration: legacy → guardrailed
+# Migration: legacy → guardrailed (done)
 
-Agents: read this file and follow the steps for the component you were asked to migrate.
-The backend is fully migrated; its record is [backend/MIGRATION.md](backend/MIGRATION.md).
+**Every file now follows the guardrails.** 151 legacy frontend files and 67 backend files
+were migrated or deleted, and the scaffolding that let the two styles coexist is gone:
+the allowlists, their ratchet tests, `tsconfig.legacy.json`, the oxlint legacy override,
+and the `make gen-types` model-walker. There is nothing to exempt a file any more, and an
+`oxlint-disable` / `# noqa` / `@ts-ignore` comment is itself a lint error.
 
-## Where things stand
-
-- The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
-  have landed. Every rule is on for **new and migrated paths**.
-- 4 legacy frontend files, all in `src/` (the app shell and `types/generated.ts`), are on
-  `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
-  `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
-  strict-style rules skip them. The security, barrel, context, and scenario-test rules
-  already apply to them.
-- The list **only shrinks**. `legacy_allowlist.test.ts` fails if it grows, holds a path
-  that no longer exists, holds an already-migrated file, or misses an unsuffixed file.
-  When you migrate a file, delete its entry and lower `LEGACY_CEILING`.
-- Backend: fully migrated (0 legacy files; `backend/scripts/lint_py/legacy_allowlist.txt` is empty). How it went: [backend/MIGRATION.md](backend/MIGRATION.md).
+This file is the record: the method, the effort, and the lessons. Read it before a large
+rewrite or before bringing outside code in. The backend's record is
+[backend/MIGRATION.md](backend/MIGRATION.md).
 
 ## The unit of migration: "renders in isolation"
 
@@ -31,7 +24,7 @@ explicitly, split UI from logic, and remove ambient state (`fetch`, `localStorag
 Migrate when someone is already changing the component. The migrated version comes with
 fast unit tests and a story, so the change itself gets faster. That DX is the incentive.
 
-## Steps (one component)
+## The method (one component at a time)
 
 1. **Pick the component and its closest dependencies.** New-style code can't import legacy,
    so list the legacy files it needs (`grep` its imports). Either migrate them too, or have
@@ -47,25 +40,21 @@ fast unit tests and a story, so the change itself gets faster. That DX is the in
    - each `useEffect` → `use_<x>.<color>.hook.ts`
    - the component → `<x>.pure.ui.tsx` (props only) and/or `<x>s.effect.ui.tsx` (`bindX`)
    - wiring → `<x>.assembly.main.ts` (`assembleX()`)
-4. **Point the legacy caller at it.** The caller calls `assembleX()` once (e.g.
-   `useState(() => assembleX())`, as `src/dev/DevScreenPicker.tsx` does), or move the
-   caller to `src/main/` if you're migrating it too.
+4. **Point the legacy caller at it.** While the shell was legacy, callers assembled once
+   with `useState(assembleX)` or at module scope; the shell itself migrated last.
 5. **Tests and a story:** colocated `.test.tsx` per file, `.stories.tsx` per UI file with a
    `play` function. Port **behavior**, not just JSX: focus, IME, scroll, disabled states,
    error states. Keep the old test passing until the new one covers the same behavior,
    then delete the old one.
-6. **Ratchet:** delete the old files, remove their entries from
-   `legacy_allowlist.json`, lower `LEGACY_CEILING` in `legacy_allowlist.test.ts`, run
-   `make preflight`.
+6. **Ratchet:** delete the old files and lower the allowlist ceiling (both since removed),
+   then `make preflight`.
 
-## Pilot (do these first, measure the effort, then estimate the rest)
+## Pilot
 
 | | component | why | effort |
 |---|---|---|---|
 | [x] | `components/ProgressBar.tsx` → `session/progress_bar.pure.ui.tsx` | simple: props only, no state | ~3 min (agent). Its two legacy deps had to migrate with it: `DenButton` → `den/den_button.pure.ui.tsx`, `icons` → `den/icons.pure.ui.tsx`. 3 files moved (`git mv`, history kept), 36 legacy importers repointed to `@app/…`, then explicit return types and `readonly` props (strict tsc already passed). 21 tests and 10 stories added. |
 | [x] | `games/ProfilePicker.tsx` → `profiles/` | coupled: calls `fetch('/api/profiles')` in an effect, owns loading/error state | ~13 min (agent), about half of it e2e baseline verification. New seams it needed: `api/profiles_api.effect.lib.ts` + `profiles_schema.pure.lib.ts` (zod, tied to the OpenAPI type), `api/http.pure.lib.ts` (shared `HttpFetch`), and `query/` (`useQuery` + `QueryState`, the server-state seam). Split into a props-only view (all states renderable) + `bindProfilePicker({ listProfiles })` + `assembleProfilePicker()`. Shared exports moved out: `ProfileAvatar` → `profiles/profile_avatar.pure.ui.tsx`, `AVATAR_OPTIONS` → `profiles/avatar_options.pure.lib.ts`, `PENCIL_ICON` → `den/icon_paths.pure.lib.ts`. The 8 legacy tests (which mocked `global.fetch`) are ported; 34 tests + 8 stories now. e2e: no change vs. baseline (see Known debt). |
-
-Record the time each took, plus anything the steps above missed, then update this file.
 
 Lessons from ProgressBar:
 - **Leaf dependencies set the real scope.** The component itself was trivial; the work was its legacy imports. Check `grep "^import"` first, and migrate shared leaves (design-system pieces like `den/`) whole, since many later migrations need them.
@@ -97,7 +86,7 @@ Lessons from ProfilePicker:
 | `games/ClueMaster.tsx` → `clue_master/` | ~20 min (agent) | Last writing game. Case files and the deal became `case_files.pure.lib.ts` (`dealCase` never repeats the case just dealt). Both effects were event handlers: the deal moved to a `useState` initializer, and the 1.4 s "reading it back" now starts when saving succeeds. "Play it again" remounts a keyed round component instead of resetting ten state variables by hand, which also resets the coach. 2 legacy files out. |
 | `components/ErrorBoundary.tsx`, `lib/errorReporting.ts`, `games/GamePicker.tsx` → `errors/`, `home/` | ~20 min (agent) | Error reporting became a `ReportError` capability (`bindErrorReporting({ fetch, page })`) and `installGlobalErrorReporting` over a narrow `ErrorEventTarget`. `window` listeners and `location.reload` are named only in `errors.assembly.main.ts`; the class boundary is bound over `{ report, reload }`. `main.tsx` calls `assembleErrorHandling()` once. GamePicker became a props-only `GamePickerView` over a `QueryState` plus `bindGamePicker({ listGames })`; the roster trim is `home_games.pure.lib.ts`, and the unused `onOpenStorybook` prop is gone. 5 legacy files out. |
 | Equation Outbreak, the whole zombie/3D cluster (54 legacy files: `lib/zombie*`, lanes, colliders, characters, weapon, audio, the R3F scene components, `games/framework/*`, `ZombieMathBlaster`, `EquationOutbreakSettings`, the dev zombie labs, `e2e/zombie-hit-lab.spec.ts`) → `zombies/`, `arena/`, `science_fair/`, `blaster/`, `outbreak/`, `motion/`, `zombie_lab/` | one long agent session | The arena (`bindZombieArena`) takes its 3D view as a bind arg (`Viewport`), so its suites run over a plain-DOM viewport and a virtual clock: the four ported ZombieMathBlaster suites went from ~2 min of real waiting with `vi.mock` of the scene to well under a second, with none. Its effect chain (feedback on `wave.lastHit`, outcome on `wave.outcome`, lives on `phase`) became transitions where the cause happens (`use_arena_session.pure.hook.ts`), so each fires once by construction. New seams: `ArenaScheduler` (timers + frame loop), `ArenaAudio` (`bindGameAudio` over an injected context, loader, and storage: no module singletons), `ArenaRoster`, `MotionPreference`, items/attempts/ratings/practice-config adapters, and `AsyncBoundary`'s `onError` (it works inside `<Canvas>`, so every R3F `<Suspense>` now has one, and a failed scene shows a message instead of an empty canvas). Zombie hit targets are a typed WeakMap (`arena/raycast_tags`) instead of `any` userData. `@react-three/test-renderer` 9.1.1 (dev only) tests the 3D pieces without WebGL over a synthetic GLTF; stories run them in Chromium with the real models. 53 src files + 1 e2e spec out. |
-
+| `App.tsx`, `main.tsx`, `dev/DevScreenPicker.tsx`, `types/generated.ts`, and the legacy scaffolding → `main/` | ~45 min (agent) | The shell last. App's ten independent booleans, picked by precedence, became one `Screen` union with a pure transition per user action (`app_navigation.pure.lib.ts`). `bindApp({ screens, Overlay })` takes every screen injected. `assembleRoot()` holds the only `window.location` / `import.meta.env.DEV` reads, and `entry.assembly.main.ts` (what `index.html` loads) mounts it with `createElement`, since assembly has no JSX. The dev picker became `bindDevScreens(deps)` plus a props-only picker. `types/generated.ts` and its generator were deleted. Then the scaffolding went: both allowlists, `tsconfig.legacy.json`, the oxlint legacy override, `srcFile`, and the backend's `is_checked`. `e2e/` gained a strict `tsconfig.e2e.json`; it had been typechecked by nothing. |
 Lessons:
 - **Most effects in legacy screens are event handlers in disguise.** "When phase becomes X, do Y" belongs in whatever sets phase to X. Moving it there removes the effect, the `exhaustive-deps` disable, and the stale-closure bugs together.
 - **Look for the copy-paste before the component.** Two "different" games were one session loop with different payloads. Migrate the shared loop once (`practice/`) and each game shrinks to a parser and a view.
@@ -112,28 +101,21 @@ Lessons:
 - **Time-based R3F motion should sum frame deltas,** not read `state.clock`: identical in the browser, and the test renderer (which doesn't advance the clock) can then drive it.
 - **A null guard can expose a vacuous test.** The legacy "reached carrier can't be hit" engine test passed `null!` as the carrier id, because nothing ever reached the player in its 1 s tick.
 
-## Known debt surfaced by the new rules (fix during migration)
+## Open follow-ups
 
-- **e2e and the local Chrome (resolved):** the installed Google Chrome 155 on this machine exits about 5.7s after launch, even on `about:blank`, so long runs failed with "Target page, context or browser has been closed". e2e and the Storybook tests now use Playwright's bundled Chromium, as CI does.
-
-- **React-compiler correctness** (`react/refs`, `react/purity`, `react/set-state-in-effect`)
-  in `ModifierDeck` (Pathfinder's, TileAssembly's, and the zombie scene's, blaster's, and
-  muzzle flash's were fixed when they migrated). Off for legacy, on for new code.
 - **The zombie arena re-renders every frame:** the wave engine's state lives in React state
-  and the frame loop sets it each tick (as it did before migrating). The 3D side is now
+  and the frame loop sets it each tick (as it did before migrating). The 3D side is
   allocation-free per frame (aim quaternion, lane positions, muzzle flash), but moving the
   wave into a ref read by `useFrame` would cut the React work too. Measure before changing.
-- **Legacy unit tests mock `global.fetch` directly.** Migrated tests inject a fake `fetch`
-  through the adapter's bind args instead.
-- **`src/types/generated.ts`** (from `make gen-types`, the legacy model-walker) overlaps
-  with the OpenAPI-generated `src/api/openapi_schema.pure.lib.ts`. Retire `gen-types` once
-  nothing legacy imports `types/generated.ts`.
+- **`outbreak/`'s `ArenaScheduler` overlaps `timing/`'s `Timers`.** Both inject timers; the
+  arena's also schedules animation frames. Unify them when one of them next changes.
+- **Dev screens duplicate some stories.** The `?screen=` demos of props-only components
+  (session shell, tile board, writing pieces) now also exist as Storybook stories; the live,
+  backend-hitting screens are the dev picker's real value. Prune the demos if they drift.
 
-## Progress
-
-| area | legacy files left |
-|---|---|
-| frontend `src/` + e2e | 4 (`legacy_allowlist.json`) |
-| backend | 0 (done; `backend/scripts/lint_py/legacy_allowlist.txt`) |
-
-Update this table in the PR that lowers a ceiling.
+Resolved along the way: the local Chrome 155 that exited after ~5.7 s (e2e and Storybook
+use Playwright's bundled Chromium, as CI does); `<Suspense>` without an error boundary in
+the R3F scenes (now `AsyncBoundary`, which works inside `<Canvas>`); the React-compiler
+violations in the scene, blaster, muzzle flash, deck, and Pathfinder; `global.fetch` mocks
+in tests (every test injects fakes through `bind*`); the timing-flaky e2e hit-lab spec
+(waits on a ready signal); and `types/generated.ts` (retired with `make gen-types`).

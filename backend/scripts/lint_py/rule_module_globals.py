@@ -22,7 +22,7 @@ _MUTABLE: Final = (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath) or not (source.is_app or source.is_test):
+    if not (source.is_app or source.is_test):
         return
     entry = source.relpath == ENTRY_POINT  # the one module-level `app = assemble_app(...)`
     for node in ast.walk(source.tree):

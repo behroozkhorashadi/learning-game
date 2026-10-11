@@ -11,7 +11,6 @@ tester.run('globals-in-assembly', rule, {
     { filename: effect, code: 'export function f(setTimeout: () => void) { setTimeout() }' },
     { filename: effect, code: 'export const d = new Date(0)' },
     { filename: src('examples/todo/x.effect.lib.test.ts'), code: 'localStorage.clear()' },
-    { filename: src('types/generated.ts'), code: 'export const n = Date.now()' },
   ],
   invalid: [
     {

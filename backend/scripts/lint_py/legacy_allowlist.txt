@@ -1,6 +1,0 @@
-# Legacy modules exempt from the new-style backend rules (backend/AGENTS.md).
-# This list may only SHRINK: scripts/lint_py/test_legacy_allowlist.py fails if it
-# grows past its committed size or names a file that no longer exists.
-# Migrating a module = move/rename it to app/<feature>/<basename>_<kind>_<color>.py,
-# delete its line here, and delete the same path from pyproject.toml's
-# [tool.ruff] extend-exclude and [tool.pyright] exclude (a test keeps those in sync).

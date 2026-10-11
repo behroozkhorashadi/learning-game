@@ -22,7 +22,6 @@ from scripts.lint_py import (
     rule_thin_routes,
 )
 from scripts.lint_py.core import Project, Rule, SourceFile, Violation
-from scripts.lint_py.naming import load_legacy_allowlist
 
 BACKEND_ROOT: Final = Path(__file__).resolve().parents[2]
 SCANNED_DIRS: Final = ("app", "tests", "scripts")
@@ -46,7 +45,7 @@ def collect_relpaths(root: Path) -> frozenset[str]:
 
 
 def lint(root: Path, only: Sequence[str]) -> list[Violation]:
-    project = Project(relpaths=collect_relpaths(root), legacy=frozenset(load_legacy_allowlist()))
+    project = Project(relpaths=collect_relpaths(root))
     targets = sorted(only) if only else sorted(project.relpaths)
     violations: list[Violation] = []
     for relpath in targets:

@@ -1051,7 +1051,7 @@
         "type": "object"
       },
       "ProfileRead": {
-        "description": "What the API returns for a profile: `Profile` plus whether it's\npassword-protected. Exported to the frontend *as* `Profile` (see\n`scripts/generate_ts_types.py`), since this \u2014 not the table row \u2014 is the\nshape the frontend ever sees.",
+        "description": "What the API returns for a profile: `Profile` plus whether it's\npassword-protected. This, not the table row, is the shape the frontend\never sees.",
         "properties": {
           "avatar": {
             "title": "Avatar",

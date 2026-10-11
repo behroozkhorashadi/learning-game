@@ -11,8 +11,6 @@ tester.run('no-unstable-scenario-test', rule, {
     { filename: test, code: 'vi.useFakeTimers(); vi.advanceTimersByTime(100)' },
     { filename: spec, code: "await expect(page.getByRole('button', { name: 'Add' })).toBeVisible()" },
     { name: 'production code is not a test', filename: src('examples/todo/x.assembly.main.ts'), code: 'setTimeout(f, 1)' },
-    // GamePicker belongs to the app shell, the last legacy code to migrate (MIGRATION.md).
-    { name: 'allowlisted legacy test', filename: path.join(FRONTEND_ROOT, 'src/games/GamePicker.test.tsx'), code: 'await page.waitForTimeout(3000)' },
   ],
   invalid: [
     { filename: spec, code: 'await page.waitForTimeout(500)', errors: [{ message: /A fixed sleep \(waitForTimeout\) makes this test flaky\. Await an observable change/ }] },

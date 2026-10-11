@@ -1,4 +1,4 @@
-.PHONY: help serve test e2e gen-types gen-api check-api check-docs gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend install-hooks dev preflight preflight-backend preflight-frontend
+.PHONY: help serve test e2e gen-api check-api check-docs gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend install-hooks dev preflight preflight-backend preflight-frontend
 
 # Use frontend/.nvmrc's Node when nvm is available (CI sets Node up itself).
 NODE_ENV = if [ -s "$$NVM_DIR/nvm.sh" ]; then . "$$NVM_DIR/nvm.sh" && nvm use >/dev/null; fi
@@ -48,9 +48,6 @@ check-docs: ## Fail if a feature folder isn't drawn in docs/architecture/ or the
 
 check-api: ## Fail if frontend/src/api/ doesn't match the backend's OpenAPI schema
 	cd frontend && $(NODE_ENV) && scripts/gen_api.sh --check
-
-gen-types: ## (legacy) Regenerate frontend/src/types/generated.ts from the Python models
-	cd backend && .venv/bin/python -m scripts.generate_ts_types
 
 gen-audio: ## Regenerate word-bank audio assets
 	cd backend && .venv/bin/python -m scripts.generate_word_audio

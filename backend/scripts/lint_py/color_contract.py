@@ -1,12 +1,11 @@
 """`color_layers` import-linter contract: the backend dependency matrix.
 
-    assembly  may import assembly, effect, pure (and legacy modules)
+    assembly  may import assembly, effect, pure
     effect    may import effect, pure
     pure      may import pure, plus an allowlist of side-effect-free libraries
 
-Plus: features never import each other (assembly wires them), new-style code never
-imports a legacy module (migrate it first), and only app.main (the legacy entry) or
-assembly may import assembly. Classification is by filename (scripts/lint_py/naming.py);
+Plus: features never import each other (assembly wires them), and only app.main (the
+entry point) or assembly may import assembly. Classification is by filename (scripts/lint_py/naming.py);
 import-linter's stock wildcards can only match whole module names, not a `_pure` suffix.
 
 `find_violations` is plain data in, data out so it can be tested without grimp.
@@ -23,12 +22,11 @@ from scripts.lint_py.naming import (
     DOCS,
     Color,
     ModuleName,
-    load_legacy_allowlist,
     module_path_to_relpath,
     parse_module_filename,
 )
 
-LEGACY_ENTRY: Final = "app.main"
+ENTRY_MODULE: Final = "app.main"
 _FEATURE_MODULE_DEPTH: Final = 3  # app.<feature>.<module>
 
 # Third-party and stdlib packages a pure module may import: no I/O, no clock, no env.
@@ -74,13 +72,11 @@ class Problem:
     message: str
 
 
-def classify(module: str, legacy: frozenset[str]) -> ModuleName | str:
-    """A ModuleName for new-style modules; 'legacy', 'package', or 'entry' otherwise."""
-    if module == LEGACY_ENTRY:
+def classify(module: str) -> ModuleName | str:
+    """A ModuleName for a feature or assembly module; 'package' or 'entry' otherwise."""
+    if module == ENTRY_MODULE:
         return "entry"
     relpath = module_path_to_relpath(module)
-    if relpath in legacy or f"{module.replace('.', '/')}/__init__.py" in legacy:
-        return "legacy"
     parsed = parse_module_filename(relpath.rsplit("/", 1)[-1])
     return parsed if isinstance(parsed, ModuleName) else "package"
 
@@ -90,13 +86,13 @@ def _feature(module: str) -> str | None:
     return parts[1] if len(parts) >= _FEATURE_MODULE_DEPTH else None
 
 
-def find_violations(edges: Iterable[Edge], first_party: frozenset[str], legacy: frozenset[str]) -> list[Problem]:
+def find_violations(edges: Iterable[Edge], first_party: frozenset[str]) -> list[Problem]:
     problems: list[Problem] = []
     for edge in edges:
-        source = classify(edge.importer, legacy)
+        source = classify(edge.importer)
         if not isinstance(source, ModuleName):
-            if source in {"legacy", "package"} and edge.imported in first_party:
-                target = classify(edge.imported, legacy)
+            if source == "package" and edge.imported in first_party:
+                target = classify(edge.imported)
                 if isinstance(target, ModuleName) and target.color is Color.ASSEMBLY:
                     problems.append(Problem(edge, _msg_assembly_import(edge)))
             continue
@@ -112,15 +108,14 @@ def find_violations(edges: Iterable[Edge], first_party: frozenset[str], legacy: 
                     )
                 )
             continue
-        target = classify(edge.imported, legacy)
-        if target in {"legacy", "entry"}:
+        target = classify(edge.imported)
+        if target == "entry":
             if source.color is not Color.ASSEMBLY:
                 problems.append(
                     Problem(
                         edge,
-                        f"{edge.importer} imports legacy module {edge.imported}. New-style code depends only on "
-                        f"new-style code: migrate it (see backend/MIGRATION.md) or have assembly adapt it and "
-                        f"inject a narrow callable. See {DOCS}#legacy.",
+                        f"{edge.importer} imports the entry point {edge.imported}. Nothing depends on app.main: "
+                        f"move what you need into a feature or assembly. See {DOCS}#layers.",
                     )
                 )
             continue
@@ -173,7 +168,7 @@ class ColorLayersContract(Contract):
     @override
     def check(self, graph: ImportGraph, verbose: bool) -> ContractCheck:
         edges, first_party = graph_edges(graph, "app")
-        problems = find_violations(edges, first_party, frozenset(load_legacy_allowlist()))
+        problems = find_violations(edges, first_party)
         rendered = [f"{p.edge.importer} -> {p.edge.imported} (l.{p.edge.line}): {p.message}" for p in problems]
         return ContractCheck(kept=not problems, metadata={"report": "\n\n".join(rendered)})
 

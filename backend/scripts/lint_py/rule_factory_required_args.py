@@ -14,7 +14,7 @@ RULE: Final = "factory-required-args"
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath) or source.is_test:
+    if source.is_test:
         return
     for node in ast.walk(source.tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and FACTORY.match(node.name):

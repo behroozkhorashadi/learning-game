@@ -5,7 +5,7 @@ import { DOCS, ancestors, jsxElementName, see } from '../rule_utils.ts'
 const SUSPENSE = new Set(['Suspense', 'React.Suspense'])
 const BOUNDARIES = new Set(['ErrorBoundary', 'AsyncBoundary'])
 
-/** A `<Suspense>` needs an `<ErrorBoundary>`/`<AsyncBoundary>` ancestor in the same file. Legacy R3F scenes are tracked in MIGRATION.md. */
+/** A `<Suspense>` needs an `<ErrorBoundary>`/`<AsyncBoundary>` ancestor in the same file. */
 export default defineRule({
   meta: { type: 'problem', docs: { description: '<Suspense> has an error boundary ancestor in the same file.' } },
   create(context) {

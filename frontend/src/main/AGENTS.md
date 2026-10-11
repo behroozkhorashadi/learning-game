@@ -1,15 +1,17 @@
-# src/main — the frontend composition root
+# src/main — the frontend shell and composition root
 
-The top of the dependency graph. Files here are `*.assembly.main.ts`: they call each
-feature's `assembleX()` and hand the results to whatever renders them. Nothing imports
-from here except the legacy shell (and tests).
+The top of the dependency graph. Nothing imports from here except tests.
 
-- `dev_screens.assembly.main.ts` registers new-style screens for the `?screen=` dev picker
-  (`src/dev/DevScreenPicker.tsx`, legacy). Each entry's `assemble` is called **once**, when
-  the picker mounts it. Add your feature's screen here to drive it in the real app with
-  `make dev`, then `?screen=<id>`.
-- The production shell (`src/main.tsx`, `src/App.tsx`) is still legacy. As screens
-  migrate, it moves here: one `assembleApp()` that reads globals once and passes bound
-  components down. Until then, legacy calls into these assemblies, never the reverse.
-- Assembly rules apply: no JSX, no component declarations, `bind*` and `assemble*` only
-  inside functions, and globals and flags read here and injected.
+- `entry.assembly.main.ts` is what `index.html` loads: it installs error handling
+  (`errors/`), then mounts `assembleRoot()` on `#root`.
+- `app.assembly.main.ts`: `assembleAppScreens()` calls every feature's `assembleX()` once;
+  `assembleRoot()` returns the app, or, in dev builds with `?screen=`, the dev picker.
+- `app.effect.ui.tsx`: `bindApp({ screens, Overlay })` routes between the injected screens.
+  Where the app is lives in one value, `app_navigation.pure.lib.ts`'s `Screen` union, with
+  a pure transition per user action. A new screen is a new union member, a transition, and
+  a field in `AppScreens`.
+- `dev_screens.*`: the `?screen=` catalogue. `bindDevScreens(deps)` returns zero-prop
+  screens over mock data (`dev_fixtures.pure.lib.ts`) and the live bound screens; add a
+  feature's screen there to drive it in the real app with `make dev`.
+- Assembly rules apply: no JSX (use `createElement`), no component declarations, `bind*` and
+  `assemble*` only inside functions, globals and flags read here and injected.

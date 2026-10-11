@@ -75,7 +75,6 @@ code { font-family:var(--mono); font-size:.9em; }
 
   subgraph Tooling[&quot;Dev tooling&quot;]
     genapi[&quot;make gen-api&lt;br/&gt;OpenAPI export to src/api/ types&lt;br/&gt;(CI fails on drift)&quot;]
-    gentypes[&quot;make gen-types (legacy)&lt;br/&gt;Pydantic to types/generated.ts&quot;]
     genassets[&quot;asset scripts&lt;br/&gt;word images, audio, badges&quot;]
     e2e[&quot;Playwright e2e, on demand&lt;br/&gt;bundled Chromium, temp DB, ports 8100/5174&quot;]
   end
@@ -99,7 +98,6 @@ code { font-family:var(--mono); font-size:.9em; }
   env -.-&gt; api
   api -- &quot;illustrations, photo remix&quot; --&gt; openai
   genapi -. &quot;backend OpenAPI to FE types&quot; .-&gt; spa
-  gentypes -. &quot;legacy types&quot; .-&gt; spa
   genassets -- uses --&gt; openai
   genassets -. writes .-&gt; glb
   e2e -. drives .-&gt; spa
@@ -155,19 +153,17 @@ code { font-family:var(--mono); font-size:.9em; }
 <section>
   <div class="eyebrow">Level 2 · frontend</div>
   <h2>Frontend code (React 19, Vite, Three.js)</h2>
-  <p><code>App.tsx</code> routes between screens with component state, not a router library. Legacy screens fetch <code>/api</code> directly, and game rules live in pure modules under <code>src/lib</code>. Migrated code lives in feature folders whose filenames carry their layer: screens are bound with injected capabilities, reach the server through <code>src/api/</code> adapters (zod-parsed, typed from the backend's OpenAPI schema) and <code>useQuery</code>, and are assembled once. Legacy may import new-style code, never the reverse (<code>MIGRATION.md</code>).</p>
+  <p>Every file lives in a feature folder and carries its layer in its name. <code>src/main/</code> is the shell: one navigation value routes between screens (no router library), and every screen is bound with injected capabilities and assembled once at startup. Screens reach the server through <code>src/api/</code> adapters (zod-parsed, typed from the backend's OpenAPI schema) and <code>useQuery</code>; browser globals are named only in <code>*.assembly.*</code> files. Game rules are pure libraries inside their features.</p>
   <div class="plate"><div class="zoombar"><output aria-live="polite">100%</output><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit to view">Fit</button><button type="button" data-z="full" aria-label="Full screen">Full</button></div><div class="stage"></div><div class="status">Rendering diagram…</div></div>
   <div class="hint">Drag to pan · pinch or Ctrl/⌘ + scroll to zoom · double-click to zoom in (Shift to zoom out)</div>
   <details><summary>Mermaid source (3-frontend.mmd)</summary><pre>flowchart TB
-  main[&quot;main.tsx&quot;] --&gt; app
-  main -- &quot;assembleErrorHandling()&quot; --&gt; errors
+  entry[&quot;main/entry.assembly.main&lt;br/&gt;(index.html loads it): error handling,&lt;br/&gt;then the root on #root&quot;]
+  entry -- &quot;assembleErrorHandling()&quot; --&gt; errors
+  entry -- &quot;assembleRoot()&quot; --&gt; app
 
-  app[&quot;App.tsx&lt;br/&gt;state-driven screen router&lt;br/&gt;profile, gameId, editing, admin...&quot;]
-  dev[&quot;dev/ DevScreenPicker via ?screen=&quot;]
-  app -. &quot;DEV only&quot; .-&gt; dev
-
-  subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
-    root[&quot;main/&lt;br/&gt;dev_screens.assembly.main&quot;]
+  subgraph NEW[&quot;src/ — every file is &amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
+    app[&quot;main/&lt;br/&gt;bindApp: one Screen union (app_navigation),&lt;br/&gt;every screen injected; assembleRoot picks app or dev&quot;]
+    dev[&quot;main/ dev screens (DEV, ?screen=)&lt;br/&gt;bindDevScreens: mock-data demos + live screens&quot;]
     profiles[&quot;profiles/&lt;br/&gt;picker, create, unlock, edit screens (bind* + assemble*),&lt;br/&gt;photo panel (camera + remix), form &amp;amp; password fields,&lt;br/&gt;CardShell, ProfileAvatar, AVATAR_OPTIONS&quot;]
     admin[&quot;admin/&lt;br/&gt;AdminLogin + AdminPanel&lt;br/&gt;(X-Admin-Password, a UX gate)&quot;]
     pathfinder[&quot;pathfinder/&lt;br/&gt;game, level select, map builder (editor, My Maps,&lt;br/&gt;play-test), published maps, dev level gallery (bind* + assemble*);&lt;br/&gt;pure engine: rules, solver, difficulty, generator, levels&quot;]
@@ -198,8 +194,6 @@ code { font-family:var(--mono); font-size:.9em; }
     zombie_lab[&quot;zombie_lab/&lt;br/&gt;dev: hit lab (labels shots for the e2e eval),&lt;br/&gt;zombie and weapon POC scenes&quot;]
     example[&quot;examples/todo/&lt;br/&gt;the worked example to copy&quot;]
   end
-
-  types[&quot;types/generated.ts (legacy)&lt;br/&gt;from backend models&quot;]
   api[[&quot;FastAPI /api/*&quot;]]
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
@@ -221,7 +215,8 @@ code { font-family:var(--mono); font-size:.9em; }
   tiles --&gt; den
   badges --&gt; query &amp; apiad &amp; den
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
-  dev --&gt; root --&gt; example
+  app -. &quot;DEV, ?screen=&quot; .-&gt; dev
+  dev --&gt; example
   writing --&gt; timing &amp; apiad &amp; den
   app -- &quot;assemblePromptForge(), assembleStyleRemix(),&lt;br/&gt;assembleTagTeam(), assembleClueMaster() once&quot; --&gt; wgames
   wgames --&gt; writing &amp; den
@@ -239,7 +234,6 @@ code { font-family:var(--mono); font-size:.9em; }
   zombie_lab --&gt; arena &amp; zombies &amp; blaster
   zombies &amp; blaster &amp; science_fair -- &quot;GLB models, audio&quot; --&gt; assets
   outbreak -- &quot;injected timers, rAF,&lt;br/&gt;Web Audio, matchMedia&quot; --&gt; webapis[[&quot;Browser APIs&quot;]]
-  app -.-&gt; types
 </pre></details>
 </section>
 </main>

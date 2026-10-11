@@ -8,7 +8,6 @@ tester.run('no-unchecked-cast', rule, {
     { filename: file, code: 'export const xs = [1, 2] as const' },
     { filename: file, code: "type Id = string & { readonly __brand: 'Id' }\nexport const toId = (s: string): Id => s as Id" },
     { filename: src('examples/todo/x.pure.lib.test.ts'), code: '// jsdom lacks the type; this is the shape the test needs\nconst el = node as HTMLInputElement' },
-    { filename: src('types/generated.ts'), code: 'const x = y as Foo' },
   ],
   invalid: [
     { filename: file, code: 'export const t = JSON.parse(s) as Todo', errors: [{ message: /Unchecked type assertion.*parse with zod.*AGENTS\.md#typescript/ }] },

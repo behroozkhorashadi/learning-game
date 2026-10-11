@@ -1,5 +1,5 @@
 {
-  // Shared strictness for every project except tsconfig.legacy.json.
+  // Shared strictness for every project.
   // Never relax these — see AGENTS.md "TypeScript hard rules".
   "compilerOptions": {
     "strict": true,

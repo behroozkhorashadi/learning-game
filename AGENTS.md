@@ -16,7 +16,7 @@ make dev                # start backend (:8000) + frontend (Vite) together, to s
 Narrower loops while iterating (from `frontend/`):
 
 ```
-npm run typecheck       # tsc -b: app (strict) + legacy + tooling projects
+npm run typecheck       # tsc -b: app, tooling, and e2e projects (all strict)
 npm run lint            # oxlint --type-aware --deny-warnings + local plugin (scripts/lint/)
 npm run check:cycles    # value import cycles over src/
 npm run test:lint-rules # the lint plugin's own tests
@@ -68,10 +68,8 @@ The worked example is [`frontend/src/examples/todo/`](frontend/src/examples/todo
 9. **Backend endpoint?** Add it in `backend/app/<feature>/`, then run `make gen-api` and write the zod adapter in `src/api/`.
 10. **Draw it:** add the feature's node and arrows to `docs/architecture/3-frontend.mmd` (or `2-backend.mmd`), then run `python3 docs/architecture/build.py`. `make check-docs` fails until a new folder is drawn.
 
-Touching legacy code (anything on `frontend/scripts/lint/legacy_allowlist.json` or
-`backend/scripts/lint_py/legacy_allowlist.txt`)? Small fixes are fine in place. A new
-feature or a real rework means migrating the touched component first:
-[MIGRATION.md](MIGRATION.md).
+There is no legacy code and no exemption list: every file follows these rules. How the
+codebase got here, and the patterns that came out of it, are in [MIGRATION.md](MIGRATION.md).
 
 ## Testing
 
@@ -111,7 +109,7 @@ Python: `pyright --strict`, ruff (with `ANN401`, no `Any`), no bare suppressions
 
 ## Security
 
-Output sinks are linted everywhere in `src/`, legacy included:
+Output sinks are linted everywhere in `src/`:
 
 - No `dangerouslySetInnerHTML`, `.innerHTML =`, `.outerHTML =`, or `insertAdjacentHTML` unless the value comes from an allowlisted sanitizer. `document.write` is never allowed (`app/no-dangerous-html`). Render text through JSX.
 - No `javascript:`/`vbscript:`/`data:text/html` URLs in `href`/`src`/`action`/`formAction`/… (`app/no-unsafe-jsx-url`).
@@ -123,5 +121,5 @@ Output sinks are linted everywhere in `src/`, legacy included:
 
 - Selectors and `useSyncExternalStore` snapshots return stable references (`app/no-unstable-selector`). A fresh object re-renders every consumer.
 - Derive during render instead of syncing with an effect. Most `useEffect` + `setState` pairs are a bug (`react/set-state-in-effect`).
-- `bind*` runs once per assembly, not per render. Keep construction out of components (`useState(() => …)` if a legacy bridge must assemble lazily).
-- The 3D scenes (`react-three-fiber`) are legacy and perf-sensitive. Measure before and after when you touch them.
+- `bind*` runs once per assembly, not per render. Keep construction out of components.
+- The 3D scenes (`react-three-fiber`, `arena/`, `zombies/`, `blaster/`, `science_fair/`) are perf-sensitive: keep `useFrame` hot paths allocation-free and per-frame work out of React state. Measure before and after when you touch them. Story files run one at a time (`fileParallelism: false` in the storybook project): dozens of live WebGL canvases in one test browser starve the CPU until tests hang.

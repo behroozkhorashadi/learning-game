@@ -1,12 +1,12 @@
 import { defineRule } from '@oxlint/plugins'
-import { srcFile } from '../paths.ts'
+import { governedFile } from '../paths.ts'
 import { DOCS, see } from '../rule_utils.ts'
 
-/** No `index.ts(x)` anywhere under src/ (legacy included): barrels hide where code lives and create cycles. */
+/** No `index.ts(x)` anywhere under src/: barrels hide where code lives and create cycles. */
 export default defineRule({
   meta: { type: 'problem', docs: { description: 'No index.ts barrels under src/.' } },
   create(context) {
-    const file = srcFile(context.filename)
+    const file = governedFile(context.filename)
     if (file === null || !/^index\.tsx?$/.test(file.fileName)) return {}
     return {
       Program(node) {

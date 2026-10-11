@@ -1,5 +1,5 @@
 import { defineRule } from '@oxlint/plugins'
-import { srcFile } from '../paths.ts'
+import { governedFile } from '../paths.ts'
 import { DOCS, jsxAttrName, see, staticJsxAttrValue } from '../rule_utils.ts'
 
 export const URL_PROPS: ReadonlySet<string> = new Set([
@@ -33,11 +33,11 @@ export function normalizeUrl(value: string): string {
   return out.toLowerCase()
 }
 
-/** No `javascript:` / `vbscript:` / `data:text/html` in URL-bearing JSX props. Applies to legacy too. */
+/** No `javascript:` / `vbscript:` / `data:text/html` in URL-bearing JSX props. */
 export default defineRule({
   meta: { type: 'problem', docs: { description: 'No script-capable URL schemes in JSX URL props.' } },
   create(context) {
-    if (srcFile(context.filename) === null) return {}
+    if (governedFile(context.filename) === null) return {}
     return {
       JSXAttribute(node) {
         const name = jsxAttrName(node)

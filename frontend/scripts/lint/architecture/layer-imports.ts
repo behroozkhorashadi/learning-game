@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { defineRule } from '@oxlint/plugins'
 import { COLOR_ALLOWED, KIND_ALLOWED, SNAKE_CASE_RE, classify } from '../kinds.ts'
-import { governedFile, isLegacy, resolveImport, srcRelative } from '../paths.ts'
+import { governedFile, resolveImport, srcRelative } from '../paths.ts'
 import { DOCS, importVisitors, see } from '../rule_utils.ts'
 
 /**
@@ -60,12 +60,11 @@ export default defineRule({
         }
         const to = classify(path.basename(resolved.absPath))
         if (to === null) {
-          const legacy = isLegacy(resolved.absPath) ? ' (a legacy file on scripts/lint/legacy_allowlist.json)' : ''
           context.report({
             node: edge.node,
             message:
-              `"${edge.specifier}" targets src/${targetRel}${legacy}, which has no <color>.<kind> suffix, so its layer is unknown. ` +
-              `Migrate that file first (see MIGRATION.md), or depend on a migrated equivalent.` +
+              `"${edge.specifier}" targets src/${targetRel}, which has no <color>.<kind> suffix, so its layer is unknown. ` +
+              `Give that file its suffix (FILE_NAMING_CONVENTION.md), then import it by its new name.` +
               see(DOCS.deps, 'color-matrix'),
           })
           return

@@ -67,10 +67,8 @@ Rules: `app/layer-imports`, `app/kind-discipline`, `app/hook-filename`, `no-rest
 - Same feature: **relative** imports (`app/relative-within-feature`). Another feature:
   the **`@app/` alias to the concrete file**, e.g. `@app/api/todos_api.effect.lib.ts`
   (`app/require-alias-across-features`, which autofixes and names the exact path).
-- New-style code never imports legacy (unsuffixed) files. Migrate the dependency first
-  ([MIGRATION.md](MIGRATION.md)). Legacy may import new-style code.
-- Composition roots: `src/main/` (the legacy shell `src/main.tsx` + `App.tsx` until it
-  migrates). See [`frontend/src/main/AGENTS.md`](frontend/src/main/AGENTS.md).
+- Composition root: `src/main/` (the entry point, the app shell, and the dev screens). See
+  [`frontend/src/main/AGENTS.md`](frontend/src/main/AGENTS.md).
 
 ## Bind
 

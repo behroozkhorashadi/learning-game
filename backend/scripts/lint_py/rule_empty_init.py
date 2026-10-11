@@ -12,7 +12,7 @@ RULE: Final = "empty-init"
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if source.filename != "__init__.py" or not project.is_checked(source.relpath):
+    if source.filename != "__init__.py":
         return
     body = source.tree.body
     if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):

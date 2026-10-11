@@ -14,7 +14,7 @@ RULE: Final = "factory-in-function"
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
     # The entry point exists to build the one app at import time (`uvicorn app.main:app`).
-    if not project.is_checked(source.relpath) or source.relpath == ENTRY_POINT:
+    if source.relpath == ENTRY_POINT:
         return
     for node in walk_module_scope(source.tree):
         if isinstance(node, ast.Call):

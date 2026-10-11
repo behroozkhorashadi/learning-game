@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as base, expect, type Locator, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -80,7 +80,7 @@ export async function switchPlayer(page: Page): Promise<void> {
   await expect(page.getByText("Who's playing?")).toBeVisible()
 }
 
-export function playButton(page: Page, name: string) {
+export function playButton(page: Page, name: string): Locator {
   return page.getByRole('button', { name: new RegExp(`^Play as ${escapeRegExp(name)}`) })
 }
 

@@ -1,5 +1,5 @@
 import { defineRule, type ESTree } from '@oxlint/plugins'
-import { srcFile } from '../paths.ts'
+import { governedFile } from '../paths.ts'
 import { DOCS, calleeName, jsxAttrName, see } from '../rule_utils.ts'
 
 function sanitizers(options: readonly unknown[]): ReadonlySet<string> {
@@ -16,14 +16,14 @@ const HTML_PROPS: ReadonlySet<string> = new Set(['innerHTML', 'outerHTML'])
 /**
  * HTML sinks only take output of an allowlisted sanitizer (`sanitizers` option):
  * `dangerouslySetInnerHTML`, `.innerHTML`/`.outerHTML =`, `insertAdjacentHTML`.
- * `document.write` is never allowed. Applies to legacy too.
+ * `document.write` is never allowed.
  */
 export default defineRule({
   meta: {
     type: 'problem',
     schema: [{ type: 'object', properties: { sanitizers: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }], docs: { description: 'No HTML injection sinks without an allowlisted sanitizer.' } },
   create(context) {
-    if (srcFile(context.filename) === null) return {}
+    if (governedFile(context.filename) === null) return {}
     const allowed = sanitizers(context.options)
     const isSanitized = (expr: ESTree.Node | null | undefined): boolean => {
       if (expr?.type !== 'CallExpression') return false

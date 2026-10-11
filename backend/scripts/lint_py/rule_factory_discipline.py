@@ -16,7 +16,7 @@ ASSEMBLE: Final = re.compile(r"^assemble_[a-z0-9_]+$")
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath) or source.is_test or not source.is_app:
+    if source.is_test or not source.is_app:
         return
     module = source.module_name
     color = module.color if module is not None else None

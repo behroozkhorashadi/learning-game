@@ -6,7 +6,7 @@ Three Mermaid sources, one generated page:
 |---|---|
 | `1-system.mmd` | what runs where: browser, Vite, FastAPI, SQLite, OpenAI, tooling, guardrails, CI |
 | `2-backend.mmd` | backend: the `app/main.py` entry, `app/composition/`, and every feature folder with the ports between them |
-| `3-frontend.mmd` | frontend layers: the legacy shell, screens, components, and lib, plus the guardrailed `src/<feature>/` folders |
+| `3-frontend.mmd` | frontend: the `main/` shell and entry, and every `src/<feature>/` folder with the dependencies between them |
 | `learning-game-architecture.html` | **generated** by `build.py` from the three sources plus their captions. Never edit by hand |
 
 ## Enforced (fails `make check-docs`, part of `make preflight` and CI)
@@ -22,7 +22,6 @@ Three Mermaid sources, one generated page:
 The check only sees folders. These need you:
 
 - **add a feature folder:** add a node labelled `<name>/`, with arrows to what it depends on and from what uses it;
-- **migrate a component** from legacy into a feature: move its name out of the legacy box and into the feature node, and redirect the arrows (e.g. `App.tsx → profiles/`);
 - **add or change a data flow** between features, or between the frontend and an `/api` route group (new endpoint group, a screen that now goes through `src/api/` instead of raw `fetch`);
 - **add an external service** (another API, a queue, storage), or change what runs where (a new process, port, or proxy);
 - **change the guardrails or CI** (a new job, a new check, a new generator);
@@ -34,7 +33,7 @@ same dependencies) don't need a diagram change.
 ## How
 
 ```
-edit docs/architecture/<n>-*.mmd    # keep legacy boxes; draw new-style code in the "Guardrailed" subgraph
+edit docs/architecture/<n>-*.mmd    # one node per feature folder, arrows for what it depends on
 python3 docs/architecture/build.py   # regenerates the page; update a caption in build.py's SECTIONS if the story changed
 make check-docs                      # coverage + freshness + the checker's own tests
 ```

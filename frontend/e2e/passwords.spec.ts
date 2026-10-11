@@ -9,7 +9,7 @@ import {
   snap,
   uniqueName,
   E2E_ADMIN_PASSWORD,
-} from './fixtures'
+} from './fixtures.ts'
 
 test('a password-protected profile asks for its password, and rejects a wrong one', async ({ page }) => {
   const name = uniqueName('Maya')

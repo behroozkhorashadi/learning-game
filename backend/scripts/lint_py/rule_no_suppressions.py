@@ -22,8 +22,6 @@ _HOW: Final = (
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath):
-        return
     tokens = tokenize.generate_tokens(io.StringIO(source.text).readline)
     for token in tokens:
         if token.type != tokenize.COMMENT:

@@ -18,9 +18,8 @@ kind  ∈ main | ui | hook | lib                 (see DEPENDENCIES.md#kind-matri
 
 - `basename` is snake_case.
 - A file that exports a hook is `use_<name>.<color>.hook.ts` (`.ts`; hooks render nothing).
-- Every production file under `src/` carries the suffix. A missing suffix is a lint error,
-  except for files on the shrinking legacy allowlist
-  (`frontend/scripts/lint/legacy_allowlist.json`, see [MIGRATION.md](MIGRATION.md)).
+- Every file under `src/` carries the suffix. A missing suffix is a lint error, with no
+  exemptions.
 - `test`-colored non-fixture files (`fake_clock.test.lib.ts`) hold shared fakes for tests.
 - Generated files follow the grammar too (`src/api/openapi_schema.pure.lib.ts`).
 
@@ -60,21 +59,23 @@ never as a `_`-separated basename segment (`app/reserved-filename-tokens`).
 ```
 frontend/
   oxlint.config.ts          lint config (every rule `error`)
-  tsconfig.json             solution: app (strict) + legacy (shrinking) + tooling (strict)
+  tsconfig.json             solution: app + tooling + e2e (all strict)
   scripts/lint/             local oxlint plugin: one rule per file + colocated test
   scripts/check_cycles.ts   whole-graph value-cycle check
   scripts/gen_api.sh        OpenAPI → src/api/openapi_schema.pure.lib.ts
+  e2e/                      Playwright happy-path specs (make e2e, on demand)
   src/
-    main/                   composition root (assembles new-style screens)
+    main/                   the shell: entry, bindApp (navigation), dev screens, assembleRoot
     examples/todo/          THE worked example, copy it
-    api/                    HTTP adapters + generated OpenAPI types
-    flags/                  feature-flag client (assembly-only)
-    boundary/               <AsyncBoundary>
-    den/                    design system (DenButton, icons), migrating from components/den/
-    session/                session-flow UI (ProgressBar)
-    profiles/               profile picker, avatars
-    query/                  useQuery: the server-state seam
-    components/ games/ lib/ dev/ types/ styles/   legacy (allowlisted, migrating)
+    api/                    HTTP adapters (zod at the door) + generated OpenAPI types
+    query/  timing/  ids/  speech/  flags/  boundary/  errors/   shared seams and capabilities
+    den/  session/  tiles/  writing/                            shared UI (design system, session shell, tile board, writing pipeline)
+    profiles/  admin/  home/  badges/  story_library/           player-facing screens
+    practice/  syllable_builder/  equation_builder/             the practice loop and its games
+    prompt_forge/  style_remix/  tag_team/  clue_master/        the writing games
+    pathfinder/                                                 Pathfinder
+    outbreak/  arena/  zombies/  blaster/  science_fair/  motion/  zombie_lab/   Equation Outbreak (3D)
+    styles/                 design tokens (CSS, imported by index.css)
 docs/architecture/          system/backend/frontend diagrams (.mmd sources → generated page; make check-docs)
 backend/
   app/<feature>/            new-style features (app/todo/ is the example)

@@ -12,6 +12,6 @@ tester.run('no-service-context', rule, {
       code: 'export const Api = createContext(null)',
       errors: [{ message: /createContext\(\) outside an allowlisted presentation-context file.*bind\* arguments.*#why-not-context/ }],
     },
-    { name: 'legacy too', filename: src('games/Foo.tsx'), code: 'const api = React.useContext(Api)', errors: [{ message: /useContext\(\)/ }] },
+    { name: 'any src/ file', filename: src('games/Foo.tsx'), code: 'const api = React.useContext(Api)', errors: [{ message: /useContext\(\)/ }] },
   ],
 })

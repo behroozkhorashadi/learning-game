@@ -1,5 +1,5 @@
 import { defineRule } from '@oxlint/plugins'
-import { srcFile } from '../paths.ts'
+import { governedFile } from '../paths.ts'
 import { DOCS, reactCalleeName, see } from '../rule_utils.ts'
 
 const CONTEXT_APIS: ReadonlySet<string> = new Set(['createContext', 'useContext'])
@@ -15,14 +15,14 @@ function allowedFiles(options: readonly unknown[]): ReadonlySet<string> {
 
 /**
  * Context is only for intentionally tree-scoped presentation values (theme,
- * locale) in allowlisted files. Services are bind* args. Applies to legacy too.
+ * locale) in allowlisted files. Services are bind* args.
  */
 export default defineRule({
   meta: {
     type: 'problem',
     schema: [{ type: 'object', properties: { allow: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }], docs: { description: 'createContext/useContext only in allowlisted presentation-context files.' } },
   create(context) {
-    const file = srcFile(context.filename)
+    const file = governedFile(context.filename)
     if (file === null) return {}
     if (allowedFiles(context.options).has(`src/${file.srcRel}`)) return {}
     return {

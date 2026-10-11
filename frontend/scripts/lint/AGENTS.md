@@ -8,12 +8,11 @@ Loaded through `jsPlugins` as TypeScript (Node ≥ 22.18 strips types natively).
 ```
 plugin.ts          registers every rule under the `app/` prefix
 kinds.ts           filename grammar + COLOR_ALLOWED / KIND_ALLOWED (the single source)
-paths.ts           src root, legacy allowlist, import resolution (`@app/*`, extensions)
+paths.ts           src root, import resolution (`@app/*`, extensions)
 rule_utils.ts      shared AST helpers + DOCS links
 rule_tester.ts     oxlint RuleTester wired to vitest
 architecture/  components/  security/  state/  testing/  types/
                    one rule per file, each with a colocated <rule>.test.ts
-legacy_allowlist.json (+ .test.ts)   the shrinking legacy list
 docs_sync.test.ts  the DEPENDENCIES.md / FILE_NAMING_CONVENTION.md tables match kinds.ts
 ```
 
@@ -26,8 +25,8 @@ docs_sync.test.ts  the DEPENDENCIES.md / FILE_NAMING_CONVENTION.md tables match 
   invalid cases. Nothing is `warn`.
 - **Every message says where the code goes instead**, and links a doc via `see(...)`. An
   agent must be able to fix the violation from the message alone.
-- **Rules self-gate** on the paths they govern: `governedFile()` for new-style code only,
-  `srcFile()` for rules that also apply to legacy. That keeps them inert on tooling.
+- **Rules self-gate** on the paths they govern (`governedFile()`: every `.ts(x)` under
+  `src/`). That keeps them inert on tooling.
 - **Import-policy rules resolve against the real `src/` tree.** Test fixtures must import
   files that actually exist (the example's files are the usual targets). The importing
   `filename` itself doesn't need to exist.
@@ -36,7 +35,7 @@ docs_sync.test.ts  the DEPENDENCIES.md / FILE_NAMING_CONVENTION.md tables match 
 - **Cycle detection is not a lint rule.** It's `scripts/check_cycles.ts` (the whole graph,
   Tarjan SCC, type-only edges allowed). Don't add `import/no-cycle`, since it can't allow
   type-only cycles.
-- **Legacy:** never add to `legacy_allowlist.json`. The test caps it at `LEGACY_CEILING`;
-  lower the ceiling when you migrate a file.
+- **There are no exemptions.** No allowlist, and `app/no-disable-comments` rejects
+  `oxlint-disable` in `src/`. A rule that's wrong for a case is changed here, in review.
 
-Run: `npm run test:lint-rules` (rules, cycles, allowlist, docs sync) and `npm run lint`.
+Run: `npm run test:lint-rules` (rules, cycles, docs sync) and `npm run lint`.

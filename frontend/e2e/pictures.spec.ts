@@ -1,4 +1,5 @@
-import { test, expect, openPicker, playButton, snap, uniqueName, PURPLE_PNG, ORANGE_PNG } from './fixtures'
+import { savedPhotoListSchema } from '../src/api/profiles_schema.pure.lib.ts'
+import { test, expect, openPicker, playButton, snap, uniqueName, PURPLE_PNG, ORANGE_PNG } from './fixtures.ts'
 import type { APIRequestContext } from '@playwright/test'
 
 // Saved pictures are seeded through the API (two tiny PNGs), so this needs
@@ -27,8 +28,9 @@ async function avatarSrc(page: import('@playwright/test').Page, name: string) {
 test('switch between saved pictures and delete one', async ({ page, request }) => {
   const name = uniqueName('Kai')
   const profile = await seedProfileWithPictures(request, name)
-  const photos: { id: number; url: string; label: string }[] = await (await request.get(`/api/profiles/${profile.id}/photos`)).json()
-  const wizard = photos.find((p) => p.label === 'Wizard')!
+  const photos = savedPhotoListSchema.parse(await (await request.get(`/api/profiles/${String(profile.id)}/photos`)).json())
+  const wizard = photos.find((p) => p.label === 'Wizard')
+  if (wizard === undefined) throw new Error('the seeded profile has no Wizard picture')
 
   await openPicker(page)
   expect(await avatarSrc(page, name)).toBe(profile.avatar)

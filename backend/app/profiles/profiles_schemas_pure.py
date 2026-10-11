@@ -117,9 +117,8 @@ class ProfilePhotoRemixResponse(BaseModel):
 
 class ProfileRead(BaseModel):
     """What the API returns for a profile: `Profile` plus whether it's
-    password-protected. Exported to the frontend *as* `Profile` (see
-    `scripts/generate_ts_types.py`), since this — not the table row — is the
-    shape the frontend ever sees."""
+    password-protected. This, not the table row, is the shape the frontend
+    ever sees."""
 
     model_config = ConfigDict(frozen=True)
 

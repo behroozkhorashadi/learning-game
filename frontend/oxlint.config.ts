@@ -8,7 +8,6 @@
  * override repeats the state-library ban.
  */
 import { defineConfig } from 'oxlint'
-import { LEGACY_FILES } from './scripts/lint/paths.ts'
 
 const STATE_LIBRARY_MESSAGE =
   'Client state is plain React (useState/useReducer/useSyncExternalStore) with pure reducers in *.pure.lib.ts. See DEPENDENCIES.md#state.'
@@ -81,19 +80,6 @@ const APP_ARCHITECTURE_RULES = [
   'app/serializable-actions',
 ] as const
 
-/** New-style strictness that legacy code predates. */
-const STRICT_STYLE_RULES = [
-  'typescript/no-explicit-any',
-  'typescript/no-non-null-assertion',
-  'typescript/explicit-module-boundary-types',
-  'typescript/ban-ts-comment',
-  'react/exhaustive-deps',
-  // React-compiler correctness rules newer than the legacy code.
-  'react/refs',
-  'react/purity',
-  'react/set-state-in-effect',
-] as const
-
 const off = (rules: readonly string[]): Record<string, 'off'> => Object.fromEntries(rules.map((r) => [r, 'off']))
 
 export default defineConfig({
@@ -152,12 +138,6 @@ export default defineConfig({
       // Tests and stories run under Node/Vitest/Playwright and may cross the matrix (layer-imports classifies them as test × main).
       files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.stories.tsx', 'e2e/**'],
       env: { node: true, browser: true },
-    },
-    {
-      // Legacy (scripts/lint/legacy_allowlist.json): only shrinks. Keeps its pre-guardrail rules
-      // until migrated (MIGRATION.md); security/barrel/context/suspense rules still apply.
-      files: [...LEGACY_FILES, 'e2e/**', 'src/types/generated.ts'],
-      rules: { ...off(TYPE_AWARE_RULES), ...off(STRICT_STYLE_RULES) },
     },
     {
       // Tooling: node scripts, configs, and the lint plugin itself.

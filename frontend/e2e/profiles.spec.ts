@@ -1,4 +1,4 @@
-import { test, expect, openPicker, createProfile, switchPlayer, playButton, expectGamePicker, snap, uniqueName } from './fixtures'
+import { test, expect, openPicker, createProfile, switchPlayer, playButton, expectGamePicker, snap, uniqueName } from './fixtures.ts'
 
 // The seeded "Demo Kid" only exists until a real profile does (backend
 // tests/test_demo_profile.py), and this suite shares one database, so every

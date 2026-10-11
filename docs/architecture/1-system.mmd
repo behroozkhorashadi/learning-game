@@ -25,7 +25,6 @@ flowchart LR
 
   subgraph Tooling["Dev tooling"]
     genapi["make gen-api<br/>OpenAPI export to src/api/ types<br/>(CI fails on drift)"]
-    gentypes["make gen-types (legacy)<br/>Pydantic to types/generated.ts"]
     genassets["asset scripts<br/>word images, audio, badges"]
     e2e["Playwright e2e, on demand<br/>bundled Chromium, temp DB, ports 8100/5174"]
   end
@@ -49,7 +48,6 @@ flowchart LR
   env -.-> api
   api -- "illustrations, photo remix" --> openai
   genapi -. "backend OpenAPI to FE types" .-> spa
-  gentypes -. "legacy types" .-> spa
   genassets -- uses --> openai
   genassets -. writes .-> glb
   e2e -. drives .-> spa

@@ -22,10 +22,6 @@ def test_kind_named_folder_fails() -> None:
     assert "never by kind" in message
 
 
-def test_legacy_files_are_skipped() -> None:
-    assert run_rule(check, "app/db.py", legacy=["app/db.py"]) == []
-
-
 def test_tests_live_in_feature_folders() -> None:
     assert run_rule(check, "tests/todo/test_todo_reducers_pure.py") == []
     assert run_rule(check, "tests/todo/todo_fakes.py") == []

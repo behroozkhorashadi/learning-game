@@ -3,10 +3,8 @@ their mandatory telemetry core, explicit ratings, and parent verifications — P
 §5, §6.
 
 The request/response models are wire shapes: their names, fields, and docstrings are
-the API contract the frontend's types are generated from (`make check-api`, and the
-legacy `make gen-types`), so they keep pydantic's default `extra="ignore"` and their
-docstrings verbatim. The stored shapes (`Attempt`, `Level`, ...) are also exported to
-the legacy generated types, so they keep their names.
+the API contract the frontend's types are generated from (`make check-api`), so they
+keep pydantic's default `extra="ignore"` and their docstrings verbatim.
 """
 
 from dataclasses import dataclass

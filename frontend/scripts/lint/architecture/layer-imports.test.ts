@@ -7,9 +7,8 @@ tester.run('layer-imports', rule, {
     { filename: src('examples/todo/new.assembly.main.ts'), code: "import { bindTodos } from './todos.effect.ui.tsx'" },
     { filename: src('examples/todo/new.pure.ui.test.tsx'), code: "import { assembleTodos } from './todo.assembly.main.ts'" },
     { filename: src('examples/todo/new.pure.lib.ts'), code: "import { z } from 'zod'\nimport './missing.css'" },
-    // Legacy files and tooling are not governed. (types/generated.ts is the last legacy file to go; see MIGRATION.md.)
-    { filename: src('types/generated.ts'), code: "import { assembleTodos } from '../examples/todo/todo.assembly.main.ts'" },
-    { filename: src('../scripts/whatever.ts'), code: "import x from '../src/types/generated.ts'" },
+    // Tooling is not governed.
+    { filename: src('../scripts/whatever.ts'), code: "import x from '../src/examples/todo/todo.assembly.main.ts'" },
   ],
   invalid: [
     {
@@ -37,11 +36,6 @@ tester.run('layer-imports', rule, {
       filename: src('examples/todo/new.pure.hook.ts'),
       code: "const m = import('./todo.pure.ui.tsx')",
       errors: [{ message: /Hooks never depend on components/ }],
-    },
-    {
-      filename: src('examples/todo/new.pure.lib.ts'),
-      code: "import type { Profile } from '@app/types/generated.ts'",
-      errors: [{ message: /legacy_allowlist\.json\), which has no <color>\.<kind> suffix, so its layer is unknown.*MIGRATION\.md/ }],
     },
     {
       filename: src('examples/todo/helpers.ts'),

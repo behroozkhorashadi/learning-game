@@ -40,12 +40,12 @@ SECTIONS = [
         "3-frontend.mmd",
         "Level 2 · frontend",
         "Frontend code (React 19, Vite, Three.js)",
-        "<code>App.tsx</code> routes between screens with component state, not a router library. Legacy screens "
-        "fetch <code>/api</code> directly, and game rules live in pure modules under <code>src/lib</code>. "
-        "Migrated code lives in feature folders whose filenames carry their layer: screens are bound with "
-        "injected capabilities, reach the server through <code>src/api/</code> adapters (zod-parsed, typed from "
-        "the backend's OpenAPI schema) and <code>useQuery</code>, and are assembled once. Legacy may import "
-        "new-style code, never the reverse (<code>MIGRATION.md</code>).",
+        "Every file lives in a feature folder and carries its layer in its name. <code>src/main/</code> is the "
+        "shell: one navigation value routes between screens (no router library), and every screen is bound "
+        "with injected capabilities and assembled once at startup. Screens reach the server through "
+        "<code>src/api/</code> adapters (zod-parsed, typed from the backend's OpenAPI schema) and "
+        "<code>useQuery</code>; browser globals are named only in <code>*.assembly.*</code> files. Game rules "
+        "are pure libraries inside their features.",
     ),
 ]
 
