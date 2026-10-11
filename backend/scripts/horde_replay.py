@@ -225,6 +225,7 @@ class Options(argparse.Namespace):
     flag: int | None = None
     shot: int | None = None
     svg: Path | None = None
+    db: Path | None = None
 
 
 def moment(recording: Recording, args: Options) -> float:
@@ -311,7 +312,8 @@ def svg(recording: Recording, snapshot: Snapshot) -> str:
         parts.append(
             f'<rect x="{x0}" y="{y0}" width="{box.half_width * 2 * scale}" height="{box.half_depth * 2 * scale}"'
             f' fill="{"#3D3550" if tall else "#8A6A45"}" stroke="#000"/>'
-            f'<text x="{x0 + 2}" y="{y0 - 3}" font-size="10" fill="#ddd">{box.id} ({box.height}m)</text>'
+            f'<text x="{x0 + 2}" y="{y0 + box.half_depth * 2 * scale + 11}" font-size="10" fill="#ddd">'
+            f"{box.id} ({box.height}m)</text>"
         )
     for projectile in snapshot.projectiles:
         px, py = point(projectile.from_x, projectile.from_depth)
@@ -356,9 +358,10 @@ def main(argv: Sequence[str]) -> None:
     parser.add_argument("--flag", type=int)
     parser.add_argument("--shot", type=int)
     parser.add_argument("--svg", type=Path)
+    parser.add_argument("--db", type=Path, help="a SQLite file (default: DATABASE_URL in backend/.env)")
     args = parser.parse_args(argv, namespace=Options())
 
-    connection = sqlite3.connect(database_path())
+    connection = sqlite3.connect(args.db or database_path())
     if args.command == "list":
         for back, row in enumerate(rows(connection, args.profile)):
             label = "last" if back == 0 else f"last-{back}"
