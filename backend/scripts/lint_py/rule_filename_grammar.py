@@ -7,7 +7,14 @@ from collections.abc import Iterator
 from typing import Final
 
 from scripts.lint_py.core import Project, SourceFile, Violation, violation
-from scripts.lint_py.naming import DOCS, KIND_NAMED_DIRS, NamingProblem, is_snake_case, parse_module_filename
+from scripts.lint_py.naming import (
+    APP_ROOT_FILES,
+    DOCS,
+    KIND_NAMED_DIRS,
+    NamingProblem,
+    is_snake_case,
+    parse_module_filename,
+)
 
 RULE: Final = "filename-grammar"
 _ROOT_DEPTH: Final = 2
@@ -26,6 +33,8 @@ def check(source: SourceFile, project: Project) -> Iterator[Violation]:
 
 def _check_app(source: SourceFile, parts: list[str]) -> Iterator[Violation]:
     if len(parts) == _ROOT_DEPTH:  # app/<file>.py
+        if source.relpath in APP_ROOT_FILES:
+            return
         yield violation(
             RULE,
             source,

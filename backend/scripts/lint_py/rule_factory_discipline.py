@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from typing import Final
 
 from scripts.lint_py.core import Project, SourceFile, Violation, called_name, violation
-from scripts.lint_py.naming import DOCS, Color
+from scripts.lint_py.naming import DOCS, ENTRY_POINT, Color
 
 RULE: Final = "factory-discipline"
 FACTORY: Final = re.compile(r"^(bind|make)_[a-z0-9_]+$")
@@ -56,12 +56,17 @@ def _visit(source: SourceFile, node: ast.AST, color: Color | None, *, inside_fac
                     f"of your own factory, and call `{name}` from assemble_* in "
                     f"app/composition/app_wiring_assembly.py. See {DOCS}#factories.",
                 )
-            if name is not None and ASSEMBLE.match(name) and color is not Color.ASSEMBLY:
+            if (
+                name is not None
+                and ASSEMBLE.match(name)
+                and color is not Color.ASSEMBLY
+                and source.relpath != ENTRY_POINT
+            ):
                 yield violation(
                     RULE,
                     source,
                     child,
-                    f"`{name}(...)` may only be called from assembly (or the legacy app/main.py entry). "
+                    f"`{name}(...)` may only be called from assembly (or the app/main.py entry point). "
                     f"See {DOCS}#factories.",
                 )
         yield from _visit(source, child, color, inside_factory=child_inside)

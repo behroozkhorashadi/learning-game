@@ -7,73 +7,6 @@ target-version = "py312"
 line-length = 120
 extend-exclude = [
     # --- legacy (shrink-only) ---
-    "app/__init__.py",
-    "app/admin_auth.py",
-    "app/db.py",
-    "app/engine/__init__.py",
-    "app/engine/level_selector.py",
-    "app/engine/loop_a.py",
-    "app/events/__init__.py",
-    "app/events/log.py",
-    "app/games/__init__.py",
-    "app/games/_arithmetic.py",
-    "app/games/base.py",
-    "app/games/clue_master.py",
-    "app/games/equation_builder.py",
-    "app/games/fact_fluency.py",
-    "app/games/pathfinder.py",
-    "app/games/prompt_forge.py",
-    "app/games/registry.py",
-    "app/games/style_remix_lab.py",
-    "app/games/syllable_builder.py",
-    "app/games/tag_team_story.py",
-    "app/main.py",
-    "app/models/__init__.py",
-    "app/models/attempt.py",
-    "app/models/badge.py",
-    "app/models/enums.py",
-    "app/models/event.py",
-    "app/models/game.py",
-    "app/models/item.py",
-    "app/models/pathfinder.py",
-    "app/models/piece.py",
-    "app/models/practice_config.py",
-    "app/models/profile.py",
-    "app/models/rating.py",
-    "app/models/session.py",
-    "app/models/skill.py",
-    "app/models/stats.py",
-    "app/models/verification.py",
-    "app/services/__init__.py",
-    "app/services/badges_service.py",
-    "app/services/client_error_log.py",
-    "app/services/image_generation.py",
-    "app/services/loop_a_service.py",
-    "app/services/profile_avatars.py",
-    "app/services/profile_passwords.py",
-    "app/services/profile_photos.py",
-    "app/util.py",
-    "scripts/generate_badge_assets.py",
-    "scripts/generate_game_assets.py",
-    "scripts/generate_ts_types.py",
-    "scripts/generate_word_audio.py",
-    "scripts/generate_word_images.py",
-    "tests/__init__.py",
-    "tests/conftest.py",
-    "tests/test_api.py",
-    "tests/test_demo_profile.py",
-    "tests/test_arithmetic.py",
-    "tests/test_badges.py",
-    "tests/test_equation_builder.py",
-    "tests/test_fact_fluency.py",
-    "tests/test_loop_a_engine.py",
-    "tests/test_loop_a_service.py",
-    "tests/test_pathfinder_api.py",
-    "tests/test_pathfinder.py",
-    "tests/test_pieces.py",
-    "tests/test_practice_config.py",
-    "tests/test_profiles.py",
-    "tests/test_syllable_builder.py",
 ]
 
 [tool.ruff.lint]
@@ -83,6 +16,8 @@ select = [
 ]
 # RUF100 reports any `# noqa` that suppresses nothing; scripts/lint_py bans the rest.
 extend-select = ["RUF100"]
+# The math games' multiplication sign is a real operator symbol, not a typo for "x".
+allowed-confusables = ["×"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Absolute imports everywhere (`from app.todo.todo_schemas_pure import Todo`).
@@ -109,8 +44,9 @@ ban-relative-imports = "all"
 [tool.ruff.lint.per-file-ignores]
 # Assembly is where globals, clocks, ids, env, and implementations are chosen.
 "app/**/*_assembly.py" = ["TID251"]
-# Tests assert with `assert` and may use literal values; they stay subject to the API bans.
-"tests/**" = ["S101", "PLR2004"]
+# Tests assert with `assert`, use literal values, and use literal fixture passwords; they
+# stay subject to the API bans.
+"tests/**" = ["S101", "PLR2004", "S105", "S106"]
 "scripts/**/test_*.py" = ["S101", "PLR2004"]
 # Tooling: reads env and prints reports.
 "scripts/**" = ["TID251", "T201"]
@@ -124,73 +60,6 @@ exclude = [
     "**/__pycache__",
     ".venv",
     # --- legacy (shrink-only) ---
-    "app/__init__.py",
-    "app/admin_auth.py",
-    "app/db.py",
-    "app/engine/__init__.py",
-    "app/engine/level_selector.py",
-    "app/engine/loop_a.py",
-    "app/events/__init__.py",
-    "app/events/log.py",
-    "app/games/__init__.py",
-    "app/games/_arithmetic.py",
-    "app/games/base.py",
-    "app/games/clue_master.py",
-    "app/games/equation_builder.py",
-    "app/games/fact_fluency.py",
-    "app/games/pathfinder.py",
-    "app/games/prompt_forge.py",
-    "app/games/registry.py",
-    "app/games/style_remix_lab.py",
-    "app/games/syllable_builder.py",
-    "app/games/tag_team_story.py",
-    "app/main.py",
-    "app/models/__init__.py",
-    "app/models/attempt.py",
-    "app/models/badge.py",
-    "app/models/enums.py",
-    "app/models/event.py",
-    "app/models/game.py",
-    "app/models/item.py",
-    "app/models/pathfinder.py",
-    "app/models/piece.py",
-    "app/models/practice_config.py",
-    "app/models/profile.py",
-    "app/models/rating.py",
-    "app/models/session.py",
-    "app/models/skill.py",
-    "app/models/stats.py",
-    "app/models/verification.py",
-    "app/services/__init__.py",
-    "app/services/badges_service.py",
-    "app/services/client_error_log.py",
-    "app/services/image_generation.py",
-    "app/services/loop_a_service.py",
-    "app/services/profile_avatars.py",
-    "app/services/profile_passwords.py",
-    "app/services/profile_photos.py",
-    "app/util.py",
-    "scripts/generate_badge_assets.py",
-    "scripts/generate_game_assets.py",
-    "scripts/generate_ts_types.py",
-    "scripts/generate_word_audio.py",
-    "scripts/generate_word_images.py",
-    "tests/__init__.py",
-    "tests/conftest.py",
-    "tests/test_api.py",
-    "tests/test_demo_profile.py",
-    "tests/test_arithmetic.py",
-    "tests/test_badges.py",
-    "tests/test_equation_builder.py",
-    "tests/test_fact_fluency.py",
-    "tests/test_loop_a_engine.py",
-    "tests/test_loop_a_service.py",
-    "tests/test_pathfinder_api.py",
-    "tests/test_pathfinder.py",
-    "tests/test_pieces.py",
-    "tests/test_practice_config.py",
-    "tests/test_profiles.py",
-    "tests/test_syllable_builder.py",
 ]
 pythonVersion = "3.12"
 venvPath = "."
@@ -220,10 +89,4 @@ type = "color_layers"
 [[tool.importlinter.contracts]]
 name = "Composition sits above every new-style feature; only app.main imports it"
 type = "layers"
-layers = ["app.main", "app.composition", "app.todo"]
-
-[[tool.importlinter.contracts]]
-name = "Legacy packages never import the composition root"
-type = "forbidden"
-source_modules = ["app.models", "app.services", "app.games", "app.engine", "app.events", "app.db", "app.admin_auth", "app.util"]
-forbidden_modules = ["app.composition"]
+layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder | app.crash_reports | app.profiles | app.admin | app.play | app.events | app.badges | app.pieces"]

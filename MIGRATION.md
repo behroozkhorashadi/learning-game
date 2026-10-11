@@ -1,7 +1,7 @@
 # Migration: legacy → guardrailed
 
 Agents: read this file and follow the steps for the component you were asked to migrate.
-Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
+The backend is fully migrated; its record is [backend/MIGRATION.md](backend/MIGRATION.md).
 
 ## Where things stand
 
@@ -15,7 +15,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 - The list **only shrinks**. `legacy_allowlist.test.ts` fails if it grows, holds a path
   that no longer exists, holds an already-migrated file, or misses an unsuffixed file.
   When you migrate a file, delete its entry and lower `LEGACY_CEILING`.
-- Backend: 67 legacy files, same ratchet (`backend/scripts/lint_py/legacy_allowlist.txt`).
+- Backend: fully migrated (0 legacy files; `backend/scripts/lint_py/legacy_allowlist.txt` is empty). How it went: [backend/MIGRATION.md](backend/MIGRATION.md).
 
 ## The unit of migration: "renders in isolation"
 
@@ -131,6 +131,6 @@ Lessons:
 | area | legacy files left |
 |---|---|
 | frontend `src/` + e2e | 58 (`legacy_allowlist.json`) |
-| backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
+| backend | 0 (done; `backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

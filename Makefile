@@ -50,16 +50,16 @@ check-api: ## Fail if frontend/src/api/ doesn't match the backend's OpenAPI sche
 	cd frontend && $(NODE_ENV) && scripts/gen_api.sh --check
 
 gen-types: ## (legacy) Regenerate frontend/src/types/generated.ts from the Python models
-	cd backend && .venv/bin/python scripts/generate_ts_types.py
+	cd backend && .venv/bin/python -m scripts.generate_ts_types
 
 gen-audio: ## Regenerate word-bank audio assets
-	cd backend && .venv/bin/python scripts/generate_word_audio.py
+	cd backend && .venv/bin/python -m scripts.generate_word_audio
 
 gen-images: ## Regenerate word-bank image assets
-	cd backend && .venv/bin/python scripts/generate_word_images.py
+	cd backend && .venv/bin/python -m scripts.generate_word_images
 
 gen-game-assets: ## Regenerate per-game hero/completion-badge assets
-	cd backend && .venv/bin/python scripts/generate_game_assets.py
+	cd backend && .venv/bin/python -m scripts.generate_game_assets
 
 gen-badge-assets: ## Regenerate Accomplishments-screen achievement badge assets
-	cd backend && .venv/bin/python scripts/generate_badge_assets.py
+	cd backend && .venv/bin/python -m scripts.generate_badge_assets

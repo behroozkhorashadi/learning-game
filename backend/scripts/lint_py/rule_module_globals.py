@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from typing import Final
 
 from scripts.lint_py.core import Project, SourceFile, Violation, called_name, violation
-from scripts.lint_py.naming import DOCS
+from scripts.lint_py.naming import DOCS, ENTRY_POINT
 
 RULE: Final = "module-globals"
 # Calls whose result is immutable and carries no I/O.
@@ -24,6 +24,7 @@ _MUTABLE: Final = (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
     if not project.is_checked(source.relpath) or not (source.is_app or source.is_test):
         return
+    entry = source.relpath == ENTRY_POINT  # the one module-level `app = assemble_app(...)`
     for node in ast.walk(source.tree):
         if isinstance(node, ast.Global | ast.Nonlocal):
             yield violation(
@@ -45,7 +46,7 @@ def check(source: SourceFile, project: Project) -> Iterator[Violation]:
                 "Module-level mutable value. Use an immutable one (tuple, frozenset, "
                 f"MappingProxyType) or build it inside a factory. See {DOCS}#state.",
             )
-        elif isinstance(value, ast.Call) and called_name(value) not in ALLOWED_CALLS:
+        elif isinstance(value, ast.Call) and called_name(value) not in ALLOWED_CALLS and not entry:
             yield violation(
                 RULE,
                 source,

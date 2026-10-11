@@ -6,14 +6,15 @@ from collections.abc import Iterator
 from typing import Final
 
 from scripts.lint_py.core import Project, SourceFile, Violation, called_name, violation, walk_module_scope
-from scripts.lint_py.naming import DOCS
+from scripts.lint_py.naming import DOCS, ENTRY_POINT
 from scripts.lint_py.rule_factory_discipline import ASSEMBLE, FACTORY
 
 RULE: Final = "factory-in-function"
 
 
 def check(source: SourceFile, project: Project) -> Iterator[Violation]:
-    if not project.is_checked(source.relpath):
+    # The entry point exists to build the one app at import time (`uvicorn app.main:app`).
+    if not project.is_checked(source.relpath) or source.relpath == ENTRY_POINT:
         return
     for node in walk_module_scope(source.tree):
         if isinstance(node, ast.Call):

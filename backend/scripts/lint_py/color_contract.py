@@ -37,6 +37,9 @@ PURE_EXTERNALS: Final = frozenset(
         "__future__",
         "abc",
         "annotated_types",
+        # Pure encoding (decoding a data URL is computation, not I/O).
+        "base64",
+        "binascii",
         "collections",
         "dataclasses",
         "datetime",

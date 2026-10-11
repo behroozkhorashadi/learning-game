@@ -29,12 +29,12 @@ SECTIONS = [
         "2-backend.mmd",
         "Level 2 · backend",
         "Backend code (FastAPI, Python 3.12)",
-        "Routes in <code>app/main.py</code> call services for IO and orchestration. The Loop A engine is pure "
-        "functions with no DB access; <code>loop_a_service</code> wraps it with persistence and the append-only "
-        "event log. Games plug in through the <code>GameModule</code> contract and self-register in the registry. "
-        "New-style features (<code>app/todo/</code> is the example) are built from factories and wired only in "
-        "<code>app/composition/</code>, which <code>app/main.py</code> calls to mount their routers. Legacy modules "
-        "migrate into that shape one at a time (<code>backend/MIGRATION.md</code>).",
+        "Every route group is a feature folder under <code>app/</code> (<code>app/todo/</code> is the worked "
+        "example): pure schemas and rules, effect repositories, clients, services and routes built by factories, "
+        "and wired only in <code>app/composition/</code>. Features never import each other; assembly passes each "
+        "one what it needs from the others (a profile lookup, the event log, badge awarding). "
+        "<code>app/main.py</code> is just the uvicorn entry. The Loop A engine and the game item generators are "
+        "pure; the play service runs them over storage and the append-only event log.",
     ),
     (
         "3-frontend.mmd",

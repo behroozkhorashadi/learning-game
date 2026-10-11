@@ -110,89 +110,46 @@ code { font-family:var(--mono); font-size:.9em; }
 <section>
   <div class="eyebrow">Level 2 · backend</div>
   <h2>Backend code (FastAPI, Python 3.12)</h2>
-  <p>Routes in <code>app/main.py</code> call services for IO and orchestration. The Loop A engine is pure functions with no DB access; <code>loop_a_service</code> wraps it with persistence and the append-only event log. Games plug in through the <code>GameModule</code> contract and self-register in the registry. New-style features (<code>app/todo/</code> is the example) are built from factories and wired only in <code>app/composition/</code>, which <code>app/main.py</code> calls to mount their routers. Legacy modules migrate into that shape one at a time (<code>backend/MIGRATION.md</code>).</p>
+  <p>Every route group is a feature folder under <code>app/</code> (<code>app/todo/</code> is the worked example): pure schemas and rules, effect repositories, clients, services and routes built by factories, and wired only in <code>app/composition/</code>. Features never import each other; assembly passes each one what it needs from the others (a profile lookup, the event log, badge awarding). <code>app/main.py</code> is just the uvicorn entry. The Loop A engine and the game item generators are pure; the play service runs them over storage and the append-only event log.</p>
   <div class="plate"><div class="zoombar"><output aria-live="polite">100%</output><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit to view">Fit</button><button type="button" data-z="full" aria-label="Full screen">Full</button></div><div class="stage"></div><div class="status">Rendering diagram…</div></div>
   <div class="hint">Drag to pan · pinch or Ctrl/⌘ + scroll to zoom · double-click to zoom in (Shift to zoom out)</div>
   <details><summary>Mermaid source (2-backend.mmd)</summary><pre>flowchart TB
-  client[&quot;React SPA&quot;] -- &quot;/api/*&quot; --&gt; main
+  client[&quot;React SPA&quot;] -- &quot;/api/*, /static/*&quot; --&gt; main
 
-  subgraph API[&quot;HTTP layer — app/main.py (FastAPI, legacy entry: uvicorn app.main:app)&quot;]
-    main[&quot;App + lifespan&lt;br/&gt;CORS, /static mount, seed demo profile + badges&quot;]
-    r_prof[&quot;Profiles and auth&lt;br/&gt;/profiles, /unlock, /photos, /admin/login&quot;]
-    r_play[&quot;Gameplay&lt;br/&gt;/games, /items/next, /attempts&quot;]
-    r_eval[&quot;Feedback&lt;br/&gt;/ratings, /verifications&quot;]
-    r_write[&quot;Writing pieces&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&quot;]
-    r_path[&quot;Pathfinder&lt;br/&gt;/completions, /maps, /published-maps&quot;]
-    r_prog[&quot;Progress&lt;br/&gt;/badges, /stats, /practice-config, /client-errors&quot;]
-    auth[&quot;admin_auth&lt;br/&gt;require_admin dependency&quot;]
-  end
-
-  subgraph SVC[&quot;Services — app/services (IO + orchestration)&quot;]
-    s_loop[&quot;loop_a_service&lt;br/&gt;choose_next_item_level, process_attempt&quot;]
-    s_badge[&quot;badges_service&lt;br/&gt;stats, award badges&quot;]
-    s_img[&quot;image_generation&lt;br/&gt;ImageGenerator: OpenAI or Noop&quot;]
-    s_avatar[&quot;profile_avatars / photos&lt;br/&gt;photo remix + storage&quot;]
-    s_pw[&quot;profile_passwords&lt;br/&gt;hashing&quot;]
-    s_err[&quot;client_error_log&quot;]
-  end
-
-  subgraph ENG[&quot;Engine — app/engine (pure, no IO)&quot;]
-    loopa[&quot;loop_a&lt;br/&gt;evaluate_level: promote / hold / support&lt;br/&gt;select_next_item_level&quot;]
-    lvl[&quot;level_selector&lt;br/&gt;get_or_create_level&quot;]
-  end
-
-  subgraph GAMES[&quot;Game modules — app/games&quot;]
-    reg[&quot;registry&lt;br/&gt;game_id to GameModule&quot;]
-    base[&quot;GameModule contract&lt;br/&gt;generate_item, repeat_key, score_attempt&quot;]
-    g1[&quot;syllable_builder&quot;]
-    g2[&quot;equation_builder&quot;]
-    g3[&quot;fact_fluency&quot;]
-    g4[&quot;pathfinder&quot;]
-    g5[&quot;prompt_forge, style_remix_lab&lt;br/&gt;tag_team_story, clue_master&quot;]
-    arith[&quot;_arithmetic helpers&quot;]
-  end
-
-  subgraph DATA[&quot;Persistence&quot;]
-    events[&quot;events/log&lt;br/&gt;append_event: append-only&quot;]
-    models[&quot;models/ SQLModel&lt;br/&gt;Profile, Level, Attempt, Event, Piece,&lt;br/&gt;Badge, Rating, Verification, PlaySession...&quot;]
-    dbpy[&quot;db.py&lt;br/&gt;engine + get_session&quot;]
-    sqlite[(&quot;SQLite&quot;)]
-  end
+  main[&quot;app/main.py&lt;br/&gt;uvicorn entry: app = assemble_app(load_settings())&quot;]
 
   subgraph NEW[&quot;Guardrailed — app/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;_&amp;lt;kind&amp;gt;_&amp;lt;color&amp;gt;.py (assembly → effect → pure)&quot;]
-    comp[&quot;app/composition (assembly)&lt;br/&gt;AppSettings via load_settings()&lt;br/&gt;assemble_features(app, settings)&quot;]
-    t_routes[&quot;todo/ todo_routes_effect&lt;br/&gt;bind_todo_routes(service): /api/examples/todos&quot;]
-    t_svc[&quot;todo_service_effect&lt;br/&gt;make_todo_service(repository, clock, new_id)&quot;]
-    t_repo[&quot;todo_repository_effect&lt;br/&gt;over an injected engine&quot;]
-    t_pure[&quot;todo_reducers_pure, todo_schemas_pure,&lt;br/&gt;todo_ports_pure (no IO, no framework)&quot;]
+    comp[&quot;app/composition (assembly)&lt;br/&gt;AppSettings (env + backend/.env)&lt;br/&gt;assemble_app: CORS, /static, lifespan seeds, every router&quot;]
+    todo[&quot;todo/&lt;br/&gt;/api/examples/todos (the worked example)&quot;]
+    profiles[&quot;profiles/&lt;br/&gt;/profiles, /unlock, /photos, /profile-photos/remix&lt;br/&gt;passwords (scrypt), photo files, demo seeding&quot;]
+    admin[&quot;admin/&lt;br/&gt;/admin/login + the admin password check&quot;]
+    play[&quot;play/&lt;br/&gt;/games, /items/next, /attempts, /ratings, /verifications&lt;br/&gt;games/ (item generators), Loop A (pure)&quot;]
+    events[&quot;events/&lt;br/&gt;the append-only event log&quot;]
+    badges[&quot;badges/&lt;br/&gt;/profiles/{id}/badges, /stats&lt;br/&gt;seeded badges, awarding, live stats&quot;]
+    pieces[&quot;pieces/&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&lt;br/&gt;illustration files&quot;]
+    practice[&quot;practice/&lt;br/&gt;/api/practice-config&quot;]
+    pathfinder[&quot;pathfinder/&lt;br/&gt;/completions, /maps, /published-maps&quot;]
+    crash[&quot;crash_reports/&lt;br/&gt;POST /api/client-errors&lt;br/&gt;→ logs/client_errors.log&quot;]
   end
 
+  sqlite[(&quot;SQLite&lt;br/&gt;same tables and columns as before&quot;)]
+  files[(&quot;static/&lt;br/&gt;profile-avatars/, illustrations/&quot;)]
   openai[&quot;OpenAI Images API&quot;]
 
-  main --&gt; r_prof &amp; r_play &amp; r_eval &amp; r_write &amp; r_path &amp; r_prog
-  main -- &quot;mounts new-style routers&quot; --&gt; comp
-  comp -- &quot;builds + wires&quot; --&gt; t_routes &amp; t_svc &amp; t_repo
-  t_routes --&gt; t_svc --&gt; t_repo
-  t_routes &amp; t_svc &amp; t_repo --&gt; t_pure
-  t_repo --&gt; sqlite
-  r_prof --&gt; auth
-  r_prof --&gt; s_pw &amp; s_avatar
-  r_play --&gt; s_loop
-  r_play --&gt; reg
-  r_write --&gt; s_img
-  r_prog --&gt; s_badge &amp; s_err
-  r_play --&gt; s_badge
-  s_loop --&gt; loopa
-  s_loop --&gt; lvl
-  s_loop --&gt; events
-  reg --&gt; base
-  base --&gt; g1 &amp; g2 &amp; g3 &amp; g4 &amp; g5
-  g2 &amp; g3 --&gt; arith
-  s_img --&gt; openai
-  s_avatar --&gt; openai
-  r_play &amp; r_eval &amp; r_write &amp; r_path &amp; r_prog &amp; r_prof --&gt; models
-  events --&gt; models
-  models --&gt; dbpy --&gt; sqlite
+  main --&gt; comp
+  comp -- &quot;builds + wires&lt;br/&gt;(features never import each other)&quot; --&gt; todo &amp; profiles &amp; admin &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; crash
+  profiles -- &quot;is_admin_password&quot; --&gt; admin
+  profiles -- &quot;erase a profile&#x27;s data&quot; --&gt; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder
+  play -- &quot;birth year, practice config&quot; --&gt; profiles &amp; practice
+  play &amp; pieces &amp; badges -- &quot;append events&quot; --&gt; events
+  play &amp; pieces -- &quot;after an attempt / piece:&lt;br/&gt;award badges&quot; --&gt; badges
+  badges -- &quot;history: attempts, ratings,&lt;br/&gt;pieces, event times&quot; --&gt; play &amp; pieces &amp; events
+  practice -- &quot;game rules&quot; --&gt; play
+  practice &amp; pathfinder &amp; pieces &amp; badges -- &quot;profile lookups&quot; --&gt; profiles
+  todo &amp; profiles &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder --&gt; sqlite
+  profiles &amp; pieces --&gt; files
+  profiles -- &quot;photo remix&quot; --&gt; openai
+  pieces -- &quot;illustrations&quot; --&gt; openai
 </pre></details>
 </section>
 <section>

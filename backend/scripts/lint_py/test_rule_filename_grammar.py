@@ -33,3 +33,10 @@ def test_tests_live_in_feature_folders() -> None:
     assert "tests/<feature>/test_<module>.py" in root
     [odd] = run_rule(check, "tests/todo/helpers.py")
     assert "test_<module>.py, <name>_fakes.py" in odd
+
+
+def test_only_the_package_init_and_the_entry_point_sit_directly_in_app() -> None:
+    assert run_rule(check, "app/__init__.py") == []
+    assert run_rule(check, "app/main.py", "app = assemble_app(load_settings())\n") == []
+    [message] = run_rule(check, "app/server.py")
+    assert "feature folder" in message
