@@ -18,7 +18,7 @@ export function HordeViewport({ onSceneError, ...scene }: HordeViewportProps): R
     <Canvas
       shadows={scene.shadows}
       onPointerMissed={() => {
-        if (!scene.grenadeArmed) scene.onShot(null)
+        if (!scene.grenadeArmed) scene.onShot(null, null)
       }}
     >
       <AsyncBoundary loading={null} failed={() => null} onError={onSceneError}>

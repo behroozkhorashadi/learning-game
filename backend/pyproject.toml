@@ -83,4 +83,4 @@ type = "color_layers"
 [[tool.importlinter.contracts]]
 name = "Composition sits above every new-style feature; only app.main imports it"
 type = "layers"
-layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder | app.crash_reports | app.profiles | app.admin | app.play | app.events | app.badges | app.pieces | app.armory"]
+layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder | app.crash_reports | app.profiles | app.admin | app.play | app.events | app.badges | app.pieces | app.armory | app.replays"]

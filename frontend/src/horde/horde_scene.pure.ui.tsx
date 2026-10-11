@@ -51,8 +51,8 @@ export interface HordeSceneProps {
   readonly aimNdc: { readonly x: number; readonly y: number } | null
   readonly reducedMotion: boolean
   readonly grenadeArmed: boolean
-  /** A shot resolved: the zombie and zone it hit, or null for a miss or a shot blocked by cover. */
-  readonly onShot: (target: HordeHitMeta | null) => void
+  /** A shot resolved: the zombie and zone it hit (or null for a miss or a shot blocked by cover), and the cover that blocked it, if any. */
+  readonly onShot: (target: HordeHitMeta | null, blockedBy: string | null) => void
   readonly onGrenade: (at: { readonly x: number; readonly depth: number }) => void
   readonly onReloadStart: () => void
   /** Told once each zombie's model has loaded and is a hit target. */
@@ -119,6 +119,17 @@ function GrenadeBlast({ blast, elapsedMs, radius }: { readonly blast: Blast; rea
   )
 }
 
+const COLLIDER_PREFIX = 'collider-'
+
+/** The id of the nearest cover collider along the shot, from its mesh name. */
+function blockingCoverId(intersections: readonly THREE.Intersection[]): string | null {
+  let nearest: THREE.Intersection | null = null
+  for (const hit of intersections) {
+    if (hit.object.name.startsWith(COLLIDER_PREFIX) && (nearest === null || hit.distance < nearest.distance)) nearest = hit
+  }
+  return nearest === null ? null : nearest.object.name.slice(COLLIDER_PREFIX.length)
+}
+
 export function HordeScene({
   zombies,
   answers,
@@ -152,7 +163,7 @@ export function HordeScene({
       return
     }
     const outcome = resolveRaycastOutcome(classifyHordeIntersections(event.intersections))
-    onShot(outcome.type === 'zombie' ? outcome.meta : null)
+    onShot(outcome.type === 'zombie' ? outcome.meta : null, outcome.type === 'blocked' ? blockingCoverId(event.intersections) : null)
   }
 
   return (

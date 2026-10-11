@@ -38,6 +38,10 @@ export interface HordeHudProps {
   readonly onToggleMute: () => void
   /** Zaps a zombie's body from the answer buttons. */
   readonly onZap: (zombieId: string) => void
+  /** Moments flagged so far this round. */
+  readonly flags: number
+  /** Flags this moment in the round's recording, to look at later. */
+  readonly onFlag: () => void
 }
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
@@ -57,7 +61,7 @@ const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, paddin
 
 const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C', shove: '#3D8BFF' }
 
-export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleShove, onToggleMute, onZap }: HordeHudProps): ReactElement {
+export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleShove, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const shoveArmed = armed === 'shove'
   const ring = ARMED_COLOR[armed]
@@ -101,6 +105,11 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves
               style={{ ...PILL, border: shoveArmed ? '3px solid #3D8BFF' : '3px solid transparent', cursor: shoves > 0 ? 'pointer' : 'not-allowed', opacity: shoves > 0 ? 1 : 0.5 }}
             >
               ✋ {shoves}
+            </button>
+          </span>
+          <span style={{ pointerEvents: 'auto' }}>
+            <button type="button" aria-label={`Flag this moment (${String(flags)} flagged)`} title="Something feel off? Flag it (M)" onClick={onFlag} style={{ ...PILL, border: 0, cursor: 'pointer' }}>
+              🚩 {flags}
             </button>
           </span>
           <span style={{ pointerEvents: 'auto' }}>

@@ -27,6 +27,8 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     onToggleShove: vi.fn(),
     onToggleMute: vi.fn(),
     onZap: vi.fn(),
+    flags: 0,
+    onFlag: vi.fn(),
     ...overrides,
   }
 }
@@ -89,5 +91,12 @@ describe('HordeHud', () => {
   it('disables the push-back with none left', () => {
     render(<HordeHud {...props({ shoves: 0 })} />)
     expect(screen.getByRole('button', { name: 'Push back (0 left)' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('flags a moment for the recording', () => {
+    const onFlag = vi.fn()
+    render(<HordeHud {...props({ onFlag, flags: 2 })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Flag this moment (2 flagged)' }))
+    expect(onFlag).toHaveBeenCalledTimes(1)
   })
 })

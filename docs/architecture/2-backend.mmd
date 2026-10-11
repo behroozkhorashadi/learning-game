@@ -15,6 +15,7 @@ flowchart TB
     practice["practice/<br/>/api/practice-config"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
     armory["armory/<br/>/profiles/{id}/armory, /rounds, /purchases, /art<br/>Zombie Horde points ledger + catalog, art studio"]
+    replays["replays/<br/>/profiles/{id}/horde/replays<br/>last 3 Zombie Horde round recordings"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
   end
 
@@ -23,16 +24,16 @@ flowchart TB
   openai["OpenAI Images API"]
 
   main --> comp
-  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & armory & crash
+  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & armory & replays & crash
   profiles -- "is_admin_password" --> admin
-  profiles -- "erase a profile's data" --> play & events & badges & pieces & practice & pathfinder & armory
+  profiles -- "erase a profile's data" --> play & events & badges & pieces & practice & pathfinder & armory & replays
   play -- "birth year, practice config" --> profiles & practice
   play & pieces & badges -- "append events" --> events
   play & pieces -- "after an attempt / piece:<br/>award badges" --> badges
   badges -- "history: attempts, ratings,<br/>pieces, event times" --> play & pieces & events
   practice -- "game rules" --> play
-  practice & pathfinder & pieces & badges & armory -- "profile lookups" --> profiles
-  todo & profiles & play & events & badges & pieces & practice & pathfinder & armory --> sqlite
+  practice & pathfinder & pieces & badges & armory & replays -- "profile lookups" --> profiles
+  todo & profiles & play & events & badges & pieces & practice & pathfinder & armory & replays --> sqlite
   profiles & pieces --> files
   profiles -- "photo remix" --> openai
   armory -- "art studio (via the photo remixer)" --> openai

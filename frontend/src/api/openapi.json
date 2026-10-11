@@ -752,6 +752,7 @@
         "title": "Item",
         "type": "object"
       },
+      "JsonValue": {},
       "NewProfilePhoto": {
         "description": "One photo (the camera original or an AI remix of it) to add to a\nprofile's saved pictures on create/update. Every version a kid made gets\nsaved, so they can switch back to any of them later; `use_as_avatar`\nmarks the one to show right now (at most one per request).",
         "properties": {
@@ -1776,6 +1777,111 @@
         "title": "RemixVersionCreate",
         "type": "object"
       },
+      "Replay": {
+        "additionalProperties": false,
+        "description": "A summary and the full recording.",
+        "properties": {
+          "recording": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Recording",
+            "type": "object"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReplaySummary"
+          }
+        },
+        "required": [
+          "summary",
+          "recording"
+        ],
+        "title": "Replay",
+        "type": "object"
+      },
+      "ReplayCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "flags": {
+            "minimum": 0.0,
+            "title": "Flags",
+            "type": "integer"
+          },
+          "outcome": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          },
+          "recording": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Recording",
+            "type": "object"
+          }
+        },
+        "required": [
+          "outcome",
+          "duration_ms",
+          "flags",
+          "recording"
+        ],
+        "title": "ReplayCreate",
+        "type": "object"
+      },
+      "ReplaySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "flags": {
+            "title": "Flags",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "created_at",
+          "outcome",
+          "duration_ms",
+          "flags",
+          "size_bytes"
+        ],
+        "title": "ReplaySummary",
+        "type": "object"
+      },
       "RevisionPass": {
         "properties": {
           "changed": {
@@ -2408,6 +2514,48 @@
           }
         },
         "summary": "List Games"
+      }
+    },
+    "/api/horde/replays/{replay_id}": {
+      "get": {
+        "operationId": "get_horde_replay_api_horde_replays__replay_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "replay_id",
+            "required": true,
+            "schema": {
+              "title": "Replay Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Replay"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Horde Replay",
+        "tags": [
+          "replays"
+        ]
       }
     },
     "/api/items/next": {
@@ -3644,6 +3792,104 @@
           }
         },
         "summary": "Get Profile Badges"
+      }
+    },
+    "/api/profiles/{profile_id}/horde/replays": {
+      "get": {
+        "description": "The profile's kept recordings, newest first, without their data.",
+        "operationId": "list_horde_replays_api_profiles__profile_id__horde_replays_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReplaySummary"
+                  },
+                  "title": "Response List Horde Replays Api Profiles  Profile Id  Horde Replays Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Horde Replays",
+        "tags": [
+          "replays"
+        ]
+      },
+      "post": {
+        "description": "Keeps a finished (or left) round's recording; older ones past the last few are dropped.",
+        "operationId": "save_horde_replay_api_profiles__profile_id__horde_replays_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplayCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplaySummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Horde Replay",
+        "tags": [
+          "replays"
+        ]
       }
     },
     "/api/profiles/{profile_id}/pathfinder/completions": {

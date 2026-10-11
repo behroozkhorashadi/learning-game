@@ -128,6 +128,7 @@ code { font-family:var(--mono); font-size:.9em; }
     practice[&quot;practice/&lt;br/&gt;/api/practice-config&quot;]
     pathfinder[&quot;pathfinder/&lt;br/&gt;/completions, /maps, /published-maps&quot;]
     armory[&quot;armory/&lt;br/&gt;/profiles/{id}/armory, /rounds, /purchases, /art&lt;br/&gt;Zombie Horde points ledger + catalog, art studio&quot;]
+    replays[&quot;replays/&lt;br/&gt;/profiles/{id}/horde/replays&lt;br/&gt;last 3 Zombie Horde round recordings&quot;]
     crash[&quot;crash_reports/&lt;br/&gt;POST /api/client-errors&lt;br/&gt;→ logs/client_errors.log&quot;]
   end
 
@@ -136,16 +137,16 @@ code { font-family:var(--mono); font-size:.9em; }
   openai[&quot;OpenAI Images API&quot;]
 
   main --&gt; comp
-  comp -- &quot;builds + wires&lt;br/&gt;(features never import each other)&quot; --&gt; todo &amp; profiles &amp; admin &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory &amp; crash
+  comp -- &quot;builds + wires&lt;br/&gt;(features never import each other)&quot; --&gt; todo &amp; profiles &amp; admin &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory &amp; replays &amp; crash
   profiles -- &quot;is_admin_password&quot; --&gt; admin
-  profiles -- &quot;erase a profile&#x27;s data&quot; --&gt; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory
+  profiles -- &quot;erase a profile&#x27;s data&quot; --&gt; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory &amp; replays
   play -- &quot;birth year, practice config&quot; --&gt; profiles &amp; practice
   play &amp; pieces &amp; badges -- &quot;append events&quot; --&gt; events
   play &amp; pieces -- &quot;after an attempt / piece:&lt;br/&gt;award badges&quot; --&gt; badges
   badges -- &quot;history: attempts, ratings,&lt;br/&gt;pieces, event times&quot; --&gt; play &amp; pieces &amp; events
   practice -- &quot;game rules&quot; --&gt; play
-  practice &amp; pathfinder &amp; pieces &amp; badges &amp; armory -- &quot;profile lookups&quot; --&gt; profiles
-  todo &amp; profiles &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory --&gt; sqlite
+  practice &amp; pathfinder &amp; pieces &amp; badges &amp; armory &amp; replays -- &quot;profile lookups&quot; --&gt; profiles
+  todo &amp; profiles &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory &amp; replays --&gt; sqlite
   profiles &amp; pieces --&gt; files
   profiles -- &quot;photo remix&quot; --&gt; openai
   armory -- &quot;art studio (via the photo remixer)&quot; --&gt; openai

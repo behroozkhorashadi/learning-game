@@ -212,6 +212,37 @@ describe('ZombieHorde: special rounds', () => {
   })
 })
 
+describe('ZombieHorde: recording the round', () => {
+  it('saves a recording of the round with its questions, shots, flags, and snapshots', WHOLE_ROUND, async () => {
+    const harness = await open()
+    await startRound(harness)
+    press('blocked')
+    await harness.scheduler.advance(800)
+    press('Flag this moment (0 flagged)')
+    fireEvent.keyDown(screen.getByRole('application', { name: 'Zombie horde' }), { key: 'm' })
+    press(`head ${String(rightAnswer(0))}`)
+    await harness.scheduler.advance(60_000)
+    expect(harness.replays).toHaveLength(1)
+    const recording = harness.replays[0]
+    expect(recording?.outcome).toBe('survived')
+    expect(recording?.flags).toBe(2)
+    expect(recording?.header).toMatchObject({ seed: 1234, startedAt: '2026-10-11T12:00:00.000Z' })
+    expect(recording?.header.characters).toHaveLength(4)
+    expect(recording?.marks.flatMap((m) => (m.type === 'question' ? [m.text] : []))).toEqual(['3 + 4 =', '3 + 6 ='])
+    expect(recording?.marks.find((m) => m.type === 'shot' && m.blockedBy === 'lockers-near-right')).toBeTruthy()
+    expect(recording?.marks.find((m) => m.type === 'shot' && m.target?.correct === true)).toBeTruthy()
+    expect(recording?.snapshots.length).toBeGreaterThan(100)
+  })
+
+  it('saves the recording when the player leaves mid-round', async () => {
+    const harness = await open()
+    await startRound(harness)
+    press('Back')
+    cleanup()
+    expect(harness.replays.map((r) => r.outcome)).toEqual(['left'])
+  })
+})
+
 describe('ZombieHorde: the art studio', () => {
   it('opens from the start screen, spends points on art, and comes back with the new balance', async () => {
     const harness = await open({ armory: fakeArmory({ balance: 350 }) })

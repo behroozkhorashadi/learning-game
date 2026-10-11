@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { bindArmoryApi } from '@app/api/armory_api.effect.lib.ts'
 import { bindPracticeApi } from '@app/api/practice_api.effect.lib.ts'
+import { bindReplaysApi } from '@app/api/replays_api.effect.lib.ts'
 import { preloadBlasterModels } from '@app/blaster/equation_blaster.pure.ui.tsx'
 import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import { assembleMotionPreference } from '@app/motion/motion_preference.assembly.main.ts'
@@ -24,6 +25,7 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
   preloadZombieModels(ZOMBIE_CHARACTER_REGISTRY)
   const practice = bindPracticeApi(http)
   const armory = bindArmoryApi(http)
+  const replays = bindReplaysApi(http)
   const AudioContextClass = 'AudioContext' in window ? window.AudioContext : null
   return bindZombieHorde({
     nextItem: practice.nextItem,
@@ -46,6 +48,8 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
     reportError: (message, error) => {
       console.error(message, error)
     },
+    saveReplay: (profileId, recording) => replays.save(profileId, { outcome: recording.outcome ?? 'left', duration_ms: recording.durationMs, flags: recording.flags, recording }),
+    nowIso: () => new Date().toISOString(),
     Viewport: HordeViewport,
     ArtStudio: bindArtStudio({
       camera: bindProfileCamera({

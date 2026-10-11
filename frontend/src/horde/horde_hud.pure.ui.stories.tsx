@@ -37,6 +37,8 @@ const meta = {
     onToggleShove: fn(),
     onToggleMute: fn(),
     onZap: fn(),
+    flags: 1,
+    onFlag: fn(),
   },
 } satisfies Meta<typeof HordeHud>
 

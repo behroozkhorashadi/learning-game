@@ -69,6 +69,9 @@ from app.profiles.profiles_repository_effect import make_sql_profile_repository
 from app.profiles.profiles_routes_effect import bind_profiles_routes
 from app.profiles.profiles_schemas_pure import AvatarImage, LocalSeedProfile
 from app.profiles.profiles_service_effect import make_profiles_service
+from app.replays.replays_repository_effect import make_sql_replay_repository
+from app.replays.replays_routes_effect import bind_replays_routes
+from app.replays.replays_service_effect import make_replays_service
 from app.todo.todo_repository_effect import make_sql_todo_repository
 from app.todo.todo_routes_effect import bind_todo_routes
 from app.todo.todo_schemas_pure import TodoId
@@ -122,6 +125,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
     piece_repository = make_sql_piece_repository(engine=engine)
     profile_repository = make_sql_profile_repository(engine=engine)
     armory_repository = make_sql_armory_repository(engine=engine)
+    replay_repository = make_sql_replay_repository(engine=engine)
     for create_schema in (
         events.create_schema,
         practice_configs.create_schema,
@@ -131,6 +135,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         piece_repository.create_schema,
         profile_repository.create_schema,
         armory_repository.create_schema,
+        replay_repository.create_schema,
     ):
         create_schema()
 
@@ -143,6 +148,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
             practice_configs.delete_for_profile,
             pathfinder.delete_for_profile,
             armory_repository.delete_for_profile,
+            replay_repository.delete_for_profile,
         ):
             delete_for_profile(profile_id)
 
@@ -232,6 +238,10 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         new_id=lambda: uuid4().hex,
     )
     app.include_router(bind_art_studio_routes(service=art_studio))
+    replays = make_replays_service(
+        repository=replay_repository, profile_exists=profiles.exists, clock=utc_now, new_id=lambda: uuid4().hex
+    )
+    app.include_router(bind_replays_routes(service=replays))
 
     crash_reports = make_crash_reports_service(log=make_file_client_error_log(log_dir=settings.log_dir))
     app.include_router(bind_crash_reports_routes(service=crash_reports))

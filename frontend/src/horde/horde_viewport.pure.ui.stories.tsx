@@ -56,7 +56,7 @@ export const ClickingTheSkyIsAMiss: Story = {
     )
     await userEvent.pointer({ keys: '[MouseLeft]', target: canvas, coords: { offsetX: 4, offsetY: 4 } })
     await waitFor(async () => {
-      await expect(args.onShot).toHaveBeenCalledWith(null)
+      await expect(args.onShot).toHaveBeenCalledWith(null, null)
     })
     await expect(args.onSceneError).not.toHaveBeenCalled()
   },

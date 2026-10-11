@@ -68,6 +68,7 @@ def test_the_entry_point_serves_every_route_group(monkeypatch: pytest.MonkeyPatc
         "/api/practice-config",
         "/api/pathfinder/published-maps",
         "/api/profiles/{profile_id}/armory",
+        "/api/profiles/{profile_id}/horde/replays",
         "/api/client-errors",
     ):
         assert path in paths
@@ -124,6 +125,8 @@ def test_deleting_a_profile_removes_everything_other_features_keep_for_it(tmp_pa
             json={"profile_id": kid, "game_id": "fact_fluency", "operations": ["+"], "difficulty": 2},
         )
         client.post(f"/api/profiles/{kid}/armory/rounds", json={"points": 300, "grenades_used": 0})
+        replay: dict[str, object] = {"outcome": "left", "duration_ms": 1, "flags": 0, "recording": {"marks": []}}
+        assert client.post(f"/api/profiles/{kid}/horde/replays", json=replay).status_code == 201
 
         assert client.delete(f"/api/profiles/{kid}", headers=dict(ADMIN)).status_code == 204
 
@@ -134,3 +137,4 @@ def test_deleting_a_profile_removes_everything_other_features_keep_for_it(tmp_pa
         assert client.post(f"/api/profiles/{other}/pathfinder/maps", json=game_map).status_code == 201
         assert client.get(f"/api/profiles/{other}/stats").json()["total_stars"] == 0
         assert client.get(f"/api/profiles/{other}/armory").json()["earned"] == 0
+        assert client.get(f"/api/profiles/{other}/horde/replays").json() == []

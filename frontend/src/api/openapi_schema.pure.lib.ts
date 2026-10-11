@@ -117,6 +117,23 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/horde/replays/{replay_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Get Horde Replay */
+        readonly get: operations["get_horde_replay_api_horde_replays__replay_id__get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/items/next": {
         readonly parameters: {
             readonly query?: never;
@@ -518,6 +535,30 @@ export interface paths {
         readonly get: operations["get_profile_badges_api_profiles__profile_id__badges_get"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/profiles/{profile_id}/horde/replays": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List Horde Replays
+         * @description The profile's kept recordings, newest first, without their data.
+         */
+        readonly get: operations["list_horde_replays_api_profiles__profile_id__horde_replays_get"];
+        readonly put?: never;
+        /**
+         * Save Horde Replay
+         * @description Keeps a finished (or left) round's recording; older ones past the last few are dropped.
+         */
+        readonly post: operations["save_horde_replay_api_profiles__profile_id__horde_replays_post"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1041,6 +1082,7 @@ export interface components {
             /** Variant Id */
             readonly variant_id?: string | null;
         };
+        readonly JsonValue: unknown;
         /**
          * NewProfilePhoto
          * @description One photo (the camera original or an AI remix of it) to add to a
@@ -1492,6 +1534,50 @@ export interface components {
             /** Style Key */
             readonly style_key: string;
         };
+        /**
+         * Replay
+         * @description A summary and the full recording.
+         */
+        readonly Replay: {
+            /** Recording */
+            readonly recording: {
+                readonly [key: string]: components["schemas"]["JsonValue"];
+            };
+            readonly summary: components["schemas"]["ReplaySummary"];
+        };
+        /** ReplayCreate */
+        readonly ReplayCreate: {
+            /** Duration Ms */
+            readonly duration_ms: number;
+            /** Flags */
+            readonly flags: number;
+            /** Outcome */
+            readonly outcome: string;
+            /** Recording */
+            readonly recording: {
+                readonly [key: string]: components["schemas"]["JsonValue"];
+            };
+        };
+        /** ReplaySummary */
+        readonly ReplaySummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /** Duration Ms */
+            readonly duration_ms: number;
+            /** Flags */
+            readonly flags: number;
+            /** Id */
+            readonly id: string;
+            /** Outcome */
+            readonly outcome: string;
+            /** Profile Id */
+            readonly profile_id: number;
+            /** Size Bytes */
+            readonly size_bytes: number;
+        };
         /** RevisionPass */
         readonly RevisionPass: {
             /**
@@ -1889,6 +1975,37 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": readonly components["schemas"]["GameMetadata"][];
+                };
+            };
+        };
+    };
+    readonly get_horde_replay_api_horde_replays__replay_id__get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly replay_id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Replay"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2747,6 +2864,72 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": readonly components["schemas"]["BadgeStatus"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly list_horde_replays_api_profiles__profile_id__horde_replays_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["ReplaySummary"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly save_horde_replay_api_profiles__profile_id__horde_replays_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ReplayCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ReplaySummary"];
                 };
             };
             /** @description Validation Error */

@@ -128,10 +128,10 @@ describe('HordeScene shots', () => {
     const [mesh] = taggedMeshes(renderer.scene.instance, zombie(1).id)
     if (mesh === undefined) throw new Error('expected a tagged mesh')
     await renderer.fireEvent(target, 'onPointerDown', { stopPropagation: () => undefined, intersections: [{ object: mesh, distance: 5, point: new THREE.Vector3(zombie(1).x, 100, -zombie(1).depth) }] })
-    expect(onShot).toHaveBeenCalledWith({ zombieId: zombie(1).id, zone: 'head' })
+    expect(onShot).toHaveBeenCalledWith({ zombieId: zombie(1).id, zone: 'head' }, null)
   })
 
-  it('a click on cover is a blocked shot: a miss', async () => {
+  it('a click on cover is a blocked shot: a miss, naming the cover', async () => {
     const onShot = vi.fn()
     const renderer = await ReactThreeTestRenderer.create(<HordeScene {...props({ onShot })} />)
     const target = await clickable(renderer)
@@ -145,7 +145,7 @@ describe('HordeScene shots', () => {
         { object: mesh, distance: 5, point: new THREE.Vector3() },
       ],
     })
-    expect(onShot).toHaveBeenCalledWith(null)
+    expect(onShot).toHaveBeenCalledWith(null, COVER[0]?.id)
   })
 
   it('with a grenade armed, a click lands it where the ray meets the floor', async () => {

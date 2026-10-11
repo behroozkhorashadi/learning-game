@@ -8,6 +8,7 @@ import { NO_MOTION_PREFERENCE, recordingAudio, virtualScheduler, type VirtualSch
 import type { ArenaScheduler } from '@app/outbreak/zombie_arena_state.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import { bindArtStudio } from './art_studio.effect.ui.tsx'
+import type { Recording } from './horde_recording.pure.lib.ts'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
 
@@ -142,10 +143,18 @@ export function FakeHordeViewport({ zombies, answers, grenadeArmed, onShot, onGr
       <button
         type="button"
         onClick={() => {
-          onShot(null)
+          onShot(null, null)
         }}
       >
         miss
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onShot(null, 'lockers-near-right')
+        }}
+      >
+        blocked
       </button>
       {grenadeArmed && <span>armed</span>}
       {zombies.map((zombie, i) => {
@@ -158,7 +167,7 @@ export function FakeHordeViewport({ zombies, answers, grenadeArmed, onShot, onGr
                 key={zone}
                 type="button"
                 onClick={() => {
-                  onShot({ zombieId: zombie.id, zone })
+                  onShot({ zombieId: zombie.id, zone }, null)
                 }}
               >{`${zone} ${answer}`}</button>
             ))}
@@ -181,6 +190,8 @@ export interface HordeHarness {
   readonly audio: ReturnType<typeof recordingAudio>
   readonly attempts: readonly AttemptBody[]
   readonly armory: FakeArmory
+  /** Every recording saved, in order. */
+  readonly replays: readonly Recording[]
 }
 
 export interface HordeHarnessOptions {
@@ -199,6 +210,7 @@ export function hordeHarness({ approachMs = 60_000, armory = fakeArmory(), motio
   const scheduler = virtualScheduler()
   const audio = recordingAudio()
   const attempts: AttemptBody[] = []
+  const replays: Recording[] = []
   let items = 0
   let sessions = 0
   const ZombieHorde = bindZombieHorde({
@@ -215,10 +227,15 @@ export function hordeHarness({ approachMs = 60_000, armory = fakeArmory(), motio
     createSessionId: () => `session-${String(++sessions)}`,
     newSeed: () => 1234,
     reportError: () => undefined,
+    saveReplay: (_profileId, recording) => {
+      replays.push(recording)
+      return Promise.resolve()
+    },
+    nowIso: () => '2026-10-11T12:00:00.000Z',
     Viewport,
     ArtStudio: bindArtStudio({ camera: fakeCamera(), gallery: armory.gallery, createArt: armory.createArt }),
     motion,
     speakText: () => undefined,
   })
-  return { ZombieHorde, scheduler, audio, attempts, armory }
+  return { ZombieHorde, scheduler, audio, attempts, armory, replays }
 }

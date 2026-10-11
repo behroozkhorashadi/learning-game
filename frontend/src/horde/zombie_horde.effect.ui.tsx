@@ -179,11 +179,14 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
           tabIndex={0}
           onPointerMove={(event) => {
             if (event.pointerType === 'touch') return
-            setAimNdc(aimFromPointer(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect()))
+            const aim = aimFromPointer(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect())
+            setAimNdc(aim)
+            round.trackAim(aim)
           }}
           onKeyDown={(event) => {
             if (event.key === 'g' || event.key === 'G') round.toggleGrenade()
             else if (event.key === 'f' || event.key === 'F') round.toggleShove()
+            else if (event.key === 'm' || event.key === 'M') round.flag()
           }}
           style={{ position: 'relative', flex: 1, overflow: 'hidden', cursor: aimNdc === null ? 'crosshair' : 'none', outline: 'none', animation: round.feedback?.kind === 'hurt' && !reducedMotion ? 'screenShake 600ms ease-out' : 'none' }}
         >
@@ -206,7 +209,9 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             aimNdc={aimNdc}
             reducedMotion={reducedMotion}
             grenadeArmed={round.armed === 'grenade'}
-            onShot={round.shoot}
+            onShot={(target, blockedBy) => {
+              round.shoot(target, { aim: aimNdc, blockedBy, via: 'click' })
+            }}
             onGrenade={round.throwGrenade}
             onReloadStart={deps.audio.playReload}
           />
@@ -229,8 +234,10 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             onToggleShove={round.toggleShove}
             onToggleMute={round.toggleMute}
             onZap={(zombieId) => {
-              round.shoot({ zombieId, zone: 'body' })
+              round.shoot({ zombieId, zone: 'body' }, { aim: null, blockedBy: null, via: 'button' })
             }}
+            flags={round.flags}
+            onFlag={round.flag}
           />
         </div>
       </div>

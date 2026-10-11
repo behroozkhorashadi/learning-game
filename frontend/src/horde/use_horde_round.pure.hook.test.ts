@@ -40,6 +40,8 @@ function controlled() {
     createSessionId: () => 'session',
     newSeed: () => 7,
     reportError: () => undefined,
+    saveReplay: () => Promise.resolve(),
+    nowIso: () => '2026-10-11T12:00:00.000Z',
   }
   return { deps, items, banks, scheduler }
 }
@@ -79,7 +81,7 @@ describe('useHordeRound', () => {
     const state = result.current.state
     const right = state?.zombies.find((z) => state.answers[z.slot]?.label === String(rightAnswer(0)))
     act(() => {
-      result.current.shoot({ zombieId: right?.id ?? '', zone: 'body' })
+      result.current.shoot({ zombieId: right?.id ?? '', zone: 'body' }, { aim: null, blockedBy: null, via: 'button' })
     })
     expect(result.current.state?.question).toBeNull()
     await scheduler.advance(NEXT_QUESTION_MS + 20)

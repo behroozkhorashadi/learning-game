@@ -22,6 +22,8 @@ import {
 } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HORDE_GAME_ID, hordeQuestion, travelMsFor } from './horde_question.pure.lib.ts'
+import { RECORDING_VERSION, finished, startRecording, withFlag, withFrame, withGrenade, withQuestion, withShot, type Recording, type ShotDetail } from './horde_recording.pure.lib.ts'
+import { CAMERA_POSITION } from './horde_scene_rules.pure.lib.ts'
 import { roundPoints } from './horde_scoring.pure.lib.ts'
 
 /** The question fills the screen for a beat before the horde moves. */
@@ -67,6 +69,10 @@ export interface HordeRoundDeps {
   /** The seed for the round's movement. */
   readonly newSeed: () => number
   readonly reportError: (message: string, error: unknown) => void
+  /** Keeps a round's recording (the server keeps a profile's last few). A failure is reported, never interrupts play. */
+  readonly saveReplay: (profileId: number, recording: Recording) => Promise<unknown>
+  /** The current time as ISO-8601, for the recording's start time. */
+  readonly nowIso: () => string
 }
 
 export interface HordeRound {
@@ -89,7 +95,13 @@ export interface HordeRound {
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
   /** A shot at a zombie (or at nothing: null). With a push-back armed, a zombie is pushed back instead. */
-  readonly shoot: (target: ShotTarget | null) => void
+  readonly shoot: (target: ShotTarget | null, detail: ShotDetail) => void
+  /** Where the player is aiming, for the recording (no re-render). */
+  readonly trackAim: (aim: { readonly x: number; readonly y: number } | null) => void
+  /** Flags this moment in the recording, to look at later ("flag 2"). */
+  readonly flag: () => void
+  /** Flags marked so far this round. */
+  readonly flags: number
   readonly toggleGrenade: () => void
   /** Arms (or disarms) a push-back: the next zombie shot is knocked back instead, whatever its answer. */
   readonly toggleShove: () => void
@@ -113,6 +125,9 @@ interface Live {
   characters: readonly CharacterDefinition[]
   /** The loaded bullet, for reporting the special rounds a round used. */
   bulletId: string
+  /** This round's recording; null when there's no round, or once it's been saved. */
+  recording: Recording | null
+  aim: { readonly x: number; readonly y: number } | null
 }
 
 /**
@@ -129,7 +144,7 @@ interface Live {
  * loop are cancelled on unmount, and results for a superseded round are dropped.
  */
 export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRound {
-  const { nextItem, recordAttempt, bankRound, scheduler, audio, pickRoster, createSessionId, newSeed, reportError } = deps
+  const { nextItem, recordAttempt, bankRound, scheduler, audio, pickRoster, createSessionId, newSeed, reportError, saveReplay, nowIso } = deps
   const [phase, setPhaseState] = useState<HordePhase>('ready')
   const [state, setStateValue] = useState<HordeState | null>(null)
   const [characters, setCharacters] = useState<readonly CharacterDefinition[]>([])
@@ -142,6 +157,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [audioMuted, setAudioMuted] = useState(() => audio.isMuted())
   const [solved, setSolved] = useState<readonly SolvedFact[]>([])
   const [bank, setBank] = useState<BankState>({ kind: 'idle' })
+  const [flags, setFlags] = useState(0)
 
   const live = useRef<Live>({
     mounted: true,
@@ -156,6 +172,8 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     cancelFeedback: null,
     characters: [],
     bulletId: '',
+    recording: null,
+    aim: null,
   })
   const timers = useRef(new Set<Cancel>())
 
@@ -201,7 +219,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       ({ question }) => {
         const current = live.current.state
         if (!live.current.mounted || live.current.sessionId !== sessionId || current === null) return
-        commit(setQuestion(current, question))
+        const asked = setQuestion(current, question)
+        commit(asked)
+        record_(live.current.recording === null ? null : withQuestion(live.current.recording, asked, question))
       },
       (err: unknown) => {
         if (live.current.mounted && live.current.sessionId === sessionId) setError(errorMessage(err))
@@ -224,7 +244,22 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     })
   }
 
+  function record_(recording: Recording | null): void {
+    if (recording !== null) live.current.recording = recording
+  }
+
+  /** Saves the round's recording once, however the round ended. */
+  function saveRecording(final: HordeState | null, outcome: HordeState['outcome'] | 'left'): void {
+    const recording = live.current.recording
+    if (recording === null) return
+    live.current.recording = null
+    saveReplay(profileId, finished(recording, final, outcome)).catch((err: unknown) => {
+      reportError('Saving the round recording failed', err)
+    })
+  }
+
   function finish(final: HordeState): void {
+    saveRecording(final, final.outcome)
     setPhase('over')
     setArmed('shot')
     // A question they tried and didn't get counts as a miss; one nobody shot at says nothing.
@@ -298,15 +333,24 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     }
   }
 
-  function commit(next: HordeState): void {
+  /** Makes `next` the round's state and reacts to its events; `recorded` when the caller has already recorded it. */
+  function commit(next: HordeState, recorded = false): void {
     live.current.state = next
+    if (!recorded && live.current.recording !== null) live.current.recording = withFrame(live.current.recording, next, live.current.aim)
     setStateValue(next)
     if (next.events.length > 0) react(next.events, next)
   }
 
+  /** Leaving mid-round (Back, or the screen going away) still keeps the recording. */
+  function leave(): void {
+    saveRecording(live.current.state, 'left')
+  }
+
   const commitRef = useRef(commit)
+  const leaveRef = useRef(leave)
   useEffect(() => {
     commitRef.current = commit
+    leaveRef.current = leave
   })
 
   // One frame loop for the game's lifetime; it advances the round only while playing.
@@ -327,6 +371,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       commitRef.current(tick(round, Math.min(nowMs - last, MAX_STEP_MS), config))
     })
     return () => {
+      leaveRef.current()
       current.mounted = false
       stopFrames()
       for (const cancel of pending) cancel()
@@ -350,7 +395,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     audio.preloadZombies(roster.map((character) => character.groanSoundUrl))
     for (const cancel of timers.current) cancel()
     timers.current.clear()
-    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id })
+    leave()
+    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id, recording: null })
+    setFlags(0)
     setCharacters(roster)
     setLoadout(chosen)
     setStateValue(null)
@@ -362,10 +409,32 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     fetchQuestion(sessionId).then(
       ({ item, question }) => {
         if (!live.current.mounted || live.current.sessionId !== sessionId) return
-        live.current.config = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER }
+        const config: HordeConfig = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER }
+        live.current.config = config
         live.current.upcoming = fetchQuestion(sessionId)
         live.current.upcoming.catch(() => undefined)
-        commit(setQuestion(createRound({ seed: newSeed(), lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, ammo: chosen.bullet.id === STARTER_LOADOUT.bullet.id ? 0 : ammo, cover: COVER }), question))
+        const seed = newSeed()
+        const first = setQuestion(createRound({ seed, lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, ammo: chosen.bullet.id === STARTER_LOADOUT.bullet.id ? 0 : ammo, cover: COVER }), question)
+        live.current.recording = withQuestion(
+          startRecording({
+            version: RECORDING_VERSION,
+            sessionId,
+            startedAt: nowIso(),
+            seed,
+            weaponId: chosen.weapon.id,
+            bulletId: chosen.bullet.id,
+            travelMs: config.travelMs,
+            cooldownMs: config.cooldownMs,
+            power: config.power,
+            basePower: config.basePower,
+            camera: CAMERA_POSITION,
+            cover: COVER,
+            characters: roster.map((character) => character.id),
+          }),
+          first,
+          question,
+        )
+        commit(first)
         setPhase('intro')
         for (const character of roster) audio.playGroan(character.groanSoundUrl)
         later(INTRO_MS, () => {
@@ -398,7 +467,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     bank,
     durationMs: ROUND_MS,
     start,
+    flags,
     reset: () => {
+      leave()
       for (const cancel of timers.current) cancel()
       timers.current.clear()
       live.current.sessionId = ''
@@ -406,19 +477,29 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       setStateValue(null)
       setPhase('ready')
     },
-    shoot: (target) => {
+    shoot: (target, detail) => {
       const current = live.current.state
       const config = live.current.config
       if (live.current.phase !== 'playing' || current === null || config === null) return
-      if (armed === 'shove') {
-        // A push-back needs a zombie: a miss leaves it armed.
-        if (target === null) return
-        const next = shoveEngine(current, target.zombieId, config)
-        if (next !== current) commit(next)
-        return
-      }
-      const next = shootEngine(current, target, config)
-      if (next !== current) commit(next)
+      // A push-back needs a zombie: a miss leaves it armed.
+      if (armed === 'shove' && target === null) return
+      const mode = armed === 'shove' ? 'shove' : 'shot'
+      const next = target !== null && mode === 'shove' ? shoveEngine(current, target.zombieId, config) : shootEngine(current, target, config)
+      const recording = live.current.recording
+      if (recording !== null) live.current.recording = withShot(recording, current, next, target, detail, mode, live.current.aim)
+      if (next !== current) commit(next, true)
+    },
+    trackAim: (aim) => {
+      live.current.aim = aim
+    },
+    flag: () => {
+      const current = live.current.state
+      const recording = live.current.recording
+      if (current === null || recording === null || live.current.phase !== 'playing') return
+      const flagged = withFlag(recording, current, live.current.aim)
+      live.current.recording = flagged
+      setFlags(flagged.flags)
+      setLiveMessage(`Flag ${String(flagged.flags)} marked`)
     },
     toggleGrenade: () => {
       const current = live.current.state
@@ -435,8 +516,10 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       const config = live.current.config
       if (live.current.phase !== 'playing' || current === null || config === null) return
       const next = throwEngine(current, at, config)
+      const recording = live.current.recording
+      if (recording !== null) live.current.recording = withGrenade(recording, current, next, at, live.current.aim)
       if (next === current) setArmed('shot')
-      else commit(next)
+      else commit(next, true)
     },
     toggleMute: () => {
       setAudioMuted(audio.toggleMuted())
