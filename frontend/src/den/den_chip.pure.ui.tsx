@@ -1,12 +1,12 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactElement } from 'react'
 
 export type DenChipTone = 'neutral' | 'green' | 'blue' | 'purple' | 'amber' | 'pink'
 
-interface Props {
-  label?: string
-  tone?: DenChipTone
-  mono?: boolean
-  iconPaths?: string[]
+export interface DenChipProps {
+  readonly label?: string
+  readonly tone?: DenChipTone
+  readonly mono?: boolean
+  readonly iconPaths?: readonly string[]
 }
 
 const TONES: Record<DenChipTone, { color: string; bg: string; border: string }> = {
@@ -18,8 +18,8 @@ const TONES: Record<DenChipTone, { color: string; bg: string; border: string }> 
   pink: { color: 'var(--pink-800)', bg: 'var(--pink-100)', border: 'var(--pink-200)' },
 }
 
-export function DenChip({ label = 'Chip', tone = 'neutral', mono = false, iconPaths = [] }: Props) {
-  const t = TONES[tone] || TONES.neutral
+export function DenChip({ label = 'Chip', tone = 'neutral', mono = false, iconPaths = [] }: DenChipProps): ReactElement {
+  const t = TONES[tone]
 
   const typeStyle: CSSProperties = mono
     ? { fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '.09em', textTransform: 'uppercase', fontWeight: 700, padding: '5px 8px', borderRadius: 7 }
@@ -49,4 +49,3 @@ export function DenChip({ label = 'Chip', tone = 'neutral', mono = false, iconPa
   )
 }
 
-export type { Props as DenChipProps }

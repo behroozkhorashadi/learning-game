@@ -1,5 +1,5 @@
+import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { speakWord } from '../lib/speech'
 
 /**
  * Paper-and-pencil handoff prompt — ported from the Claude Design handoff
@@ -12,12 +12,14 @@ const SPEAKER_ICON = [
   'M15.75 10.75C15.75 10.75 16.25 11.234 16.25 12C16.25 12.766 15.75 13.25 15.75 13.25M17.75 7.75C17.75 7.75 19.25 9 19.25 11.999C19.25 14.997 17.75 16.25 17.75 16.25M13.25 4.75L8.5 8.75H5.75C5.48478 8.75 5.23043 8.85536 5.04289 9.04289C4.85536 9.23043 4.75 9.48478 4.75 9.75V14.25C4.75 14.5152 4.85536 14.7696 5.04289 14.9571C5.23043 15.1446 5.48478 15.25 5.75 15.25H8.5L13.25 19.25V4.75Z',
 ]
 
-interface Props {
-  word: string
-  onWroteIt: () => void
+export interface HandoffPencilProps {
+  readonly word: string
+  /** Says the word aloud (the caller's speech capability, e.g. speakWord(word)). */
+  readonly onHearWord: () => void
+  readonly onWroteIt: () => void
 }
 
-export function HandoffPencil({ word, onWroteIt }: Props) {
+export function HandoffPencil({ word, onHearWord, onWroteIt }: HandoffPencilProps): ReactElement {
   return (
     <div style={{ background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 32, padding: '44px 40px', boxShadow: 'var(--elevation-300)', boxSizing: 'border-box' }}>
       <div style={{ textAlign: 'center' }}>
@@ -59,7 +61,7 @@ export function HandoffPencil({ word, onWroteIt }: Props) {
           iconOnly
           iconSize={28}
           iconPaths={SPEAKER_ICON}
-          onClick={() => speakWord(word)}
+          onClick={onHearWord}
         />
         <DenButton label="I wrote it" variant="blue" shape="pill" size="lg" lipColor="#0037DB" onClick={onWroteIt} />
       </div>

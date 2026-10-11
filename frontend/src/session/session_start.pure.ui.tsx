@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { SparklesIcon } from '@app/den/icons.pure.ui.tsx'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { speakText } from '../lib/speech'
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 const SPEAKER_ICON = [
@@ -15,17 +14,19 @@ const PLAY_ICON = [{ d: 'M7.75 5.5L18.25 12L7.75 18.5V5.5Z', fill: '#FFFFFF' }]
  * each session, before the first item loads.
  */
 
-interface Props {
-  eyebrow: string
-  headline: string
-  subtitle: string
-  sessionLength: number
-  heroSrc: string
-  onStart: () => void
-  onBack: () => void
+export interface SessionStartProps {
+  readonly eyebrow: string
+  readonly headline: string
+  readonly subtitle: string
+  readonly sessionLength: number
+  readonly heroSrc: string
+  /** Reads the instructions aloud (the caller's speech capability, e.g. speakText(subtitle)). */
+  readonly onHearInstructions: () => void
+  readonly onStart: () => void
+  readonly onBack: () => void
 }
 
-function HeroArt({ src }: { src: string }) {
+function HeroArt({ src }: { readonly src: string }): ReactElement {
   const [broken, setBroken] = useState(false)
   const boxStyle = {
     width: 168,
@@ -51,12 +52,14 @@ function HeroArt({ src }: { src: string }) {
 
   return (
     <div style={boxStyle}>
-      <img src={src} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      <img src={src} alt="" onError={() => {
+          setBroken(true)
+        }} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
     </div>
   )
 }
 
-export function SessionStart({ eyebrow, headline, subtitle, sessionLength, heroSrc, onStart, onBack }: Props) {
+export function SessionStart({ eyebrow, headline, subtitle, sessionLength, heroSrc, onHearInstructions, onStart, onBack }: SessionStartProps): ReactElement {
   return (
     <div style={{ position: 'relative', background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '48px 40px 44px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', textAlign: 'center', overflow: 'hidden', boxSizing: 'border-box' }}>
       <div style={{ position: 'absolute', top: 26, left: 26 }}>
@@ -82,7 +85,7 @@ export function SessionStart({ eyebrow, headline, subtitle, sessionLength, heroS
         {subtitle}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, margin: '26px 0 30px' }} aria-label={`${sessionLength} words in this set`}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, margin: '26px 0 30px' }} role="img" aria-label={`${String(sessionLength)} words in this set`}>
         {Array.from({ length: sessionLength }, (_, i) => (
           <span key={i} style={{ width: 14, height: 14, borderRadius: 9999, background: '#E4DCCB' }} />
         ))}
@@ -96,7 +99,7 @@ export function SessionStart({ eyebrow, headline, subtitle, sessionLength, heroS
           size="xl"
           iconOnly
           iconPaths={SPEAKER_ICON}
-          onClick={() => speakText(subtitle)}
+          onClick={onHearInstructions}
         />
         <DenButton label="Start" variant="blue" shape="pill" size="xl" lipColor="#0037DB" iconPaths={PLAY_ICON} onClick={onStart} />
       </div>

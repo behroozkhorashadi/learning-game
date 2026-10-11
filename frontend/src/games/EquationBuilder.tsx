@@ -1,11 +1,12 @@
+import { speakText } from '../lib/speech'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { randomId } from '../lib/id'
 import type { AttemptCreate, AttemptRead, Item } from '../types/generated'
 import { TileAssembly, type TileAssemblyItem, type TileResult } from '../components/TileAssembly'
 import { ProgressBar } from '@app/session/progress_bar.pure.ui.tsx'
-import { RatingPrompt } from '../components/RatingPrompt'
-import { SessionComplete } from '../components/SessionComplete'
-import { SessionStart } from '../components/SessionStart'
+import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
+import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
+import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 
 /**
  * Equation Builder item screen — the first math game (PRD §7.3, §16 step 9),
@@ -216,6 +217,7 @@ export function EquationBuilder({ profileId, onBack }: Props) {
             eyebrow="Number sense"
             headline="Let's build some equations"
             subtitle="Figure out the missing piece and pop it into place. Take your time — there's no clock."
+            onHearInstructions={() => speakText("Figure out the missing piece and pop it into place. Take your time — there's no clock.")}
             sessionLength={SESSION_LENGTH}
             heroSrc={`/images/badges/${GAME_ID}.png`}
             onStart={() => setPhase('playing')}

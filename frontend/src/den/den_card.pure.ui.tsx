@@ -1,19 +1,19 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, ReactNode, ReactElement } from 'react'
 
 export type DenCardTone = 'paper' | 'warm' | 'sunken' | 'plain'
 export type DenCardShadow = 'none' | 'soft' | 'card' | 'deep'
 
-interface Props {
-  kicker?: string
-  title?: string
-  meta?: string
-  footerNote?: string
-  tone?: DenCardTone
-  shadow?: DenCardShadow
-  radius?: number
-  bodyPadding?: number
-  children?: ReactNode
-  footerSlot?: ReactNode
+export interface DenCardProps {
+  readonly kicker?: string
+  readonly title?: string
+  readonly meta?: string
+  readonly footerNote?: string
+  readonly tone?: DenCardTone
+  readonly shadow?: DenCardShadow
+  readonly radius?: number
+  readonly bodyPadding?: number
+  readonly children?: ReactNode
+  readonly footerSlot?: ReactNode
 }
 
 const TONES: Record<DenCardTone, CSSProperties> = {
@@ -30,7 +30,7 @@ const SHADOWS: Record<DenCardShadow, string> = {
   deep: '0 24px 48px -20px rgba(0,13,51,.16)',
 }
 
-export function DenCard({ kicker = '', title = '', meta = '', footerNote = '', tone = 'paper', shadow = 'deep', radius = 28, bodyPadding = 26, children, footerSlot }: Props) {
+export function DenCard({ kicker = '', title = '', meta = '', footerNote = '', tone = 'paper', shadow = 'deep', radius = 28, bodyPadding = 26, children, footerSlot }: DenCardProps): ReactElement {
   const hasHeader = !!(kicker || title)
   const hasFooter = !!(footerNote || footerSlot)
 
@@ -40,7 +40,7 @@ export function DenCard({ kicker = '', title = '', meta = '', footerNote = '', t
         boxSizing: 'border-box',
         overflow: 'hidden',
         borderRadius: radius,
-        ...(TONES[tone] || TONES.paper),
+        ...TONES[tone],
         ...(SHADOWS[shadow] ? { boxShadow: SHADOWS[shadow] } : {}),
       }}
     >
@@ -86,7 +86,7 @@ export function DenCard({ kicker = '', title = '', meta = '', footerNote = '', t
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-paper-faint)', textWrap: 'pretty' as CSSProperties['textWrap'] }}>{footerNote}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-paper-faint)', textWrap: 'pretty' }}>{footerNote}</div>
           {footerSlot && <div style={{ flex: 'none' }}>{footerSlot}</div>}
         </div>
       )}
@@ -94,4 +94,3 @@ export function DenCard({ kicker = '', title = '', meta = '', footerNote = '', t
   )
 }
 
-export type { Props as DenCardProps }

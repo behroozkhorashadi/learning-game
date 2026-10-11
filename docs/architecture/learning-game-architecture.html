@@ -217,11 +217,9 @@ code { font-family:var(--mono); font-size:.9em; }
   end
 
   subgraph COMP[&quot;Legacy components — src/components&quot;]
-    shared[&quot;Session shell&lt;br/&gt;SessionStart, SessionComplete,&lt;br/&gt;RatingPrompt, ParentVerify, CoachPanel&quot;]
-    denOld[&quot;components/den/&lt;br/&gt;DenCard, DenTabs, DenTile...&quot;]
     arena[&quot;framework/ZombieArena + R3F scene&lt;br/&gt;EquationOutbreakScene, ZombieCharacter3D,&lt;br/&gt;EquationBlaster, ApproachLane, MuzzleFlash&quot;]
     pathc[&quot;Pathfinder UI&lt;br/&gt;Board, Editor, MapBuilder, PlayTest,&lt;br/&gt;LevelGallery, MyMaps, PublishedMaps&quot;]
-    write[&quot;Writing UI&lt;br/&gt;WritingSurface, TileAssembly,&lt;br/&gt;IllustrationReveal, HandoffPencil&quot;]
+    write[&quot;Writing UI&lt;br/&gt;WritingSurface, TileAssembly,&lt;br/&gt;IllustrationReveal, CoachPanel&quot;]
   end
 
   subgraph LIB[&quot;Legacy logic — src/lib (pure, unit-tested)&quot;]
@@ -234,8 +232,8 @@ code { font-family:var(--mono); font-size:.9em; }
     root[&quot;main/&lt;br/&gt;dev_screens.assembly.main&quot;]
     profiles[&quot;profiles/&lt;br/&gt;picker, create, unlock, edit screens (bind* + assemble*),&lt;br/&gt;photo panel (camera + remix), form &amp;amp; password fields,&lt;br/&gt;CardShell, ProfileAvatar, AVATAR_OPTIONS&quot;]
     admin[&quot;admin/&lt;br/&gt;AdminLogin + AdminPanel&lt;br/&gt;(X-Admin-Password, a UX gate)&quot;]
-    session[&quot;session/&lt;br/&gt;ProgressBar&quot;]
-    den[&quot;den/&lt;br/&gt;DenButton, icons, icon_paths&quot;]
+    session[&quot;session/&lt;br/&gt;session shell: SessionStart, SessionComplete,&lt;br/&gt;RatingPrompt, ParentVerify, HandoffPencil, ProgressBar&quot;]
+    den[&quot;den/&lt;br/&gt;DenButton, DenCard, DenChip, DenFlipCard,&lt;br/&gt;DenJar, DenTile, icons, icon_paths&quot;]
     query[&quot;query/&lt;br/&gt;useQuery, useReloadableQuery + QueryState (server state)&quot;]
     apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
     flags[&quot;flags/&lt;br/&gt;feature flags, read in assembly only&quot;]
@@ -252,12 +250,12 @@ code { font-family:var(--mono); font-size:.9em; }
   app -- &quot;assembleAdminPanel() once&quot; --&gt; admin
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
   dev --&gt; root --&gt; example
-  gWord --&gt; shared &amp; write
-  gMath --&gt; shared &amp; arena
+  gWord --&gt; write
+  gMath --&gt; arena
   gWord &amp; gMath --&gt; session
   gPath --&gt; pathc
   picker &amp; meta --&gt; den
-  shared &amp; write &amp; pathc --&gt; den
+  write &amp; pathc --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
   profiles -- &quot;injected camera&lt;br/&gt;(navigator.mediaDevices)&quot; --&gt; browser[[&quot;Browser camera&quot;]]
@@ -267,7 +265,7 @@ code { font-family:var(--mono); font-size:.9em; }
   arena --&gt; assets
   pathc --&gt; plib
   gPath --&gt; plat
-  shared &amp; gWord &amp; gMath --&gt; plat
+  gWord &amp; gMath --&gt; plat
   picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
   plat -- &quot;fetch&quot; --&gt; api
   SCREENS -.-&gt; types

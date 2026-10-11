@@ -5,12 +5,12 @@ import { TileAssembly, type TileAssemblyItem, type TileResult } from '../compone
 import { ImagePlaceholderIcon } from '@app/den/icons.pure.ui.tsx'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { ProgressBar } from '@app/session/progress_bar.pure.ui.tsx'
-import { RatingPrompt } from '../components/RatingPrompt'
-import { HandoffPencil } from '../components/HandoffPencil'
-import { ParentVerify } from '../components/ParentVerify'
-import { SessionComplete } from '../components/SessionComplete'
-import { SessionStart } from '../components/SessionStart'
-import { speakWord } from '../lib/speech'
+import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
+import { HandoffPencil } from '@app/session/handoff_pencil.pure.ui.tsx'
+import { ParentVerify } from '@app/session/parent_verify.pure.ui.tsx'
+import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
+import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
+import { speakText, speakWord } from '../lib/speech'
 
 /**
  * Syllable Builder item screen — ported from the Claude Design handoff
@@ -251,6 +251,7 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
             eyebrow="Word building"
             headline="Let's build some words"
             subtitle="Slide the sounds together to make five words. Take your time — there's no clock."
+            onHearInstructions={() => speakText("Slide the sounds together to make five words. Take your time — there's no clock.")}
             sessionLength={SESSION_LENGTH}
             heroSrc={`/images/badges/${GAME_ID}.png`}
             onStart={() => setPhase('playing')}
@@ -259,7 +260,7 @@ export function SyllableBuilder({ profileId, profileName, onBack }: Props) {
         )}
 
         {phase === 'handoff' && finalWord && (
-          <HandoffPencil word={finalWord} onWroteIt={() => setPhase('verify')} />
+          <HandoffPencil word={finalWord} onHearWord={() => speakWord(finalWord)} onWroteIt={() => setPhase('verify')} />
         )}
 
         {phase === 'verify' && finalWord && (

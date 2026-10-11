@@ -4,7 +4,7 @@ import type { CoachQuestion, CoachStatus } from '../components/CoachPanel'
 import { CoachPanel } from '../components/CoachPanel'
 import { IllustrationReveal } from '../components/IllustrationReveal'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { DenFlipCard } from '../components/den/DenFlipCard'
+import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { Piece, PieceCreate, RemixVersionCreate, RevisionPassCreate } from '../types/generated'
 

@@ -1,12 +1,13 @@
+import { speakText } from '../../lib/speech'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { randomId } from '../../lib/id'
 import type { Item } from '../../types/generated'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { DenCard } from '../../components/den/DenCard'
-import { RatingPrompt } from '../../components/RatingPrompt'
-import { SessionComplete } from '../../components/SessionComplete'
-import { SessionStart } from '../../components/SessionStart'
+import { DenCard } from '@app/den/den_card.pure.ui.tsx'
+import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
+import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
+import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 import { EquationOutbreakScene } from '../../components/EquationOutbreakScene'
 import { ChargeHud } from '../../components/ChargeHud'
 import { WeaponTuningPanel } from '../../dev/WeaponTuningPanel'
@@ -616,6 +617,7 @@ export function ZombieArena({ profileId, onBack, brain }: Props) {
             eyebrow="Speed round"
             headline={brain.copy.title}
             subtitle={brain.copy.subtitle}
+            onHearInstructions={() => speakText(brain.copy.subtitle)}
             sessionLength={brain.sessionLength}
             heroSrc={`/images/badges/${brain.gameId}.png`}
             onStart={startSession}

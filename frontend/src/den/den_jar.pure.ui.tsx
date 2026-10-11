@@ -1,11 +1,13 @@
-interface Props {
-  count?: number
-  goal?: number
-  heading?: string
-  caption?: string
+import type { ReactElement } from 'react'
+
+export interface DenJarProps {
+  readonly count?: number
+  readonly goal?: number
+  readonly heading?: string
+  readonly caption?: string
 }
 
-export function DenJar({ count = 0, goal = 120, heading = 'Story\njar', caption }: Props) {
+export function DenJar({ count = 0, goal = 120, heading = 'Story\njar', caption }: DenJarProps): ReactElement {
   const pct = Math.min(100, Math.round((count / goal) * 100))
   const full = pct >= 100
   const resolvedCaption = caption ?? (full ? 'jar is full!' : 'words so far')
@@ -28,6 +30,11 @@ export function DenJar({ count = 0, goal = 120, heading = 'Story\njar', caption 
         {heading}
       </div>
       <div
+        role="progressbar"
+        aria-label={heading.replace('\n', ' ')}
+        aria-valuenow={Math.min(count, goal)}
+        aria-valuemin={0}
+        aria-valuemax={goal}
         style={{
           position: 'relative',
           width: 60,
@@ -60,4 +67,3 @@ export function DenJar({ count = 0, goal = 120, heading = 'Story\njar', caption 
   )
 }
 
-export type { Props as DenJarProps }

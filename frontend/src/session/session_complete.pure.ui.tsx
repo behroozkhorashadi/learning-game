@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import { SparklesIcon } from '@app/den/icons.pure.ui.tsx'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
@@ -22,21 +22,21 @@ const SPARKLES = [
   { left: '78%', top: '60%', color: '#F59E0B', delay: '0.3s' },
 ]
 
-interface Props {
-  headline: string
-  subtitle: string
-  badgeSrc: string
-  badgeTitle: string
-  words: string[]
+export interface SessionCompleteProps {
+  readonly headline: string
+  readonly subtitle: string
+  readonly badgeSrc: string
+  readonly badgeTitle: string
+  readonly words: readonly string[]
   /** Label above the `words` chips — defaults to Syllable Builder's original
    * copy; other games pass their own (e.g. "Equations you solved"). */
-  itemsLabel?: string
-  summarySlot?: ReactNode
-  onPlayAgain: () => void
-  onAllDone: () => void
+  readonly itemsLabel?: string
+  readonly summarySlot?: ReactNode
+  readonly onPlayAgain: () => void
+  readonly onAllDone: () => void
 }
 
-function BadgeArt({ src, title }: { src: string; title: string }) {
+function BadgeArt({ src, title }: { readonly src: string; readonly title: string }): ReactElement {
   const [broken, setBroken] = useState(false)
   const boxStyle = {
     width: 150,
@@ -62,12 +62,14 @@ function BadgeArt({ src, title }: { src: string; title: string }) {
 
   return (
     <div style={boxStyle}>
-      <img src={src} alt={title} onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      <img src={src} alt={title} onError={() => {
+          setBroken(true)
+        }} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
     </div>
   )
 }
 
-export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, words, itemsLabel = 'Words you built', summarySlot, onPlayAgain, onAllDone }: Props) {
+export function SessionComplete({ headline, subtitle, badgeSrc, badgeTitle, words, itemsLabel = 'Words you built', summarySlot, onPlayAgain, onAllDone }: SessionCompleteProps): ReactElement {
   return (
     <div style={{ position: 'relative', background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '44px 40px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', overflow: 'hidden', boxSizing: 'border-box' }}>
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>

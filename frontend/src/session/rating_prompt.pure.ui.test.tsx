@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { RatingPrompt } from './RatingPrompt'
+import { RatingPrompt } from './rating_prompt.pure.ui.tsx'
 
-afterEach(() => cleanup())
+afterEach(cleanup)
 
 describe('RatingPrompt', () => {
   it('reports the tapped star and shows a thank-you caption', () => {

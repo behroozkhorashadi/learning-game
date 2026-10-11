@@ -1,17 +1,19 @@
-interface Props {
-  flipped?: boolean
-  backLabel?: string
-  kicker?: string
-  cardName?: string
-  meaning?: string
-  example?: string
-  exampleLabel?: string
-  accent?: string
-  tint?: string
-  tier?: 0 | 1 | 2 | 3
-  width?: number
-  height?: number
-  iconPaths?: string[]
+import type { ReactElement } from 'react'
+
+export interface DenFlipCardProps {
+  readonly flipped?: boolean
+  readonly backLabel?: string
+  readonly kicker?: string
+  readonly cardName?: string
+  readonly meaning?: string
+  readonly example?: string
+  readonly exampleLabel?: string
+  readonly accent?: string
+  readonly tint?: string
+  readonly tier?: 0 | 1 | 2 | 3
+  readonly width?: number
+  readonly height?: number
+  readonly iconPaths?: readonly string[]
 }
 
 export function DenFlipCard({
@@ -28,7 +30,7 @@ export function DenFlipCard({
   width = 236,
   height = 320,
   iconPaths = [],
-}: Props) {
+}: DenFlipCardProps): ReactElement {
   const pips = tier ? [1, 2, 3].map((i) => i <= tier) : []
 
   return (
@@ -174,4 +176,3 @@ export function DenFlipCard({
   )
 }
 
-export type { Props as DenFlipCardProps }

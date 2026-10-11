@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 /**
@@ -13,12 +13,12 @@ import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 const CAPTIONS = ['', 'Thanks for telling us', 'Thanks for telling us', 'Glad you liked it', 'Glad you liked it', 'Yay — thank you!']
 
-interface Props {
-  onRate: (value: number) => void
-  onDismiss: () => void
+export interface RatingPromptProps {
+  readonly onRate: (value: number) => void
+  readonly onDismiss: () => void
 }
 
-function StarIcon({ size = 46, fill, stroke }: { size?: number; fill: string; stroke: string }) {
+function StarIcon({ size = 46, fill, stroke }: { readonly size?: number; readonly fill: string; readonly stroke: string }): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -32,7 +32,7 @@ function StarIcon({ size = 46, fill, stroke }: { size?: number; fill: string; st
   )
 }
 
-export function RatingPrompt({ onRate, onDismiss }: Props) {
+export function RatingPrompt({ onRate, onDismiss }: RatingPromptProps): ReactElement {
   const [rating, setRating] = useState(0)
   const [hover, setHover] = useState(0)
   const active = hover || rating

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { DenChip, type DenChipTone } from './den/DenChip'
-import { DenFlipCard } from './den/DenFlipCard'
+import { DenChip, type DenChipTone } from '@app/den/den_chip.pure.ui.tsx'
+import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 
 /**
  * Card-draw + pinned-rule views — ported from the Claude Design handoff bundle

@@ -1,15 +1,15 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactElement } from 'react'
 
 export type DenTileTheme = 'purple' | 'blue' | 'green' | 'amber' | 'pink'
 export type DenTileSize = 'sm' | 'md' | 'phrase'
 
-interface Props {
-  label?: string
-  theme?: DenTileTheme
-  size?: DenTileSize
-  selected?: boolean
-  flipping?: boolean
-  onClick?: () => void
+export interface DenTileProps {
+  readonly label?: string
+  readonly theme?: DenTileTheme
+  readonly size?: DenTileSize
+  readonly selected?: boolean
+  readonly flipping?: boolean
+  readonly onClick?: () => void
 }
 
 const THEMES: Record<DenTileTheme, { fill: string; text: string; lip: string }> = {
@@ -26,8 +26,8 @@ const SIZES: Record<DenTileSize, CSSProperties> = {
   phrase: { minWidth: 112, height: 88, padding: '0 16px', fontSize: 16, borderRadius: 18 },
 }
 
-export function DenTile({ label = '', theme = 'purple', size = 'md', selected = false, flipping = false, onClick }: Props) {
-  const t = THEMES[theme] || THEMES.purple
+export function DenTile({ label = '', theme = 'purple', size = 'md', selected = false, flipping = false, onClick }: DenTileProps): ReactElement {
+  const t = THEMES[theme]
 
   return (
     <button
@@ -70,4 +70,3 @@ export function DenTile({ label = '', theme = 'purple', size = 'md', selected = 
   )
 }
 
-export type { Props as DenTileProps }

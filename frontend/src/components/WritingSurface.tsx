@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { DenJar } from './den/DenJar'
+import { DenJar } from '@app/den/den_jar.pure.ui.tsx'
 
 /**
  * Drafting view — ported from the Claude Design handoff bundle

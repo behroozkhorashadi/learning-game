@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { ImagePlaceholderIcon } from '@app/den/icons.pure.ui.tsx'
 
 /**
@@ -12,7 +12,7 @@ import { ImagePlaceholderIcon } from '@app/den/icons.pure.ui.tsx'
 const PIN = '1234'
 const PIN_LENGTH = 4
 
-function LockIcon({ size = 32 }: { size?: number }) {
+function LockIcon({ size = 32 }: { readonly size?: number }): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <rect x="5.75" y="10.75" width="12.5" height="9.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -22,7 +22,7 @@ function LockIcon({ size = 32 }: { size?: number }) {
   )
 }
 
-function CheckIcon({ size = 22 }: { size?: number }) {
+function CheckIcon({ size = 22 }: { readonly size?: number }): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M5 12.5L9.5 17L19 6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -30,7 +30,7 @@ function CheckIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function CrossIcon({ size = 22 }: { size?: number }) {
+function CrossIcon({ size = 22 }: { readonly size?: number }): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -40,19 +40,19 @@ function CrossIcon({ size = 22 }: { size?: number }) {
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'del']
 
-interface Props {
-  word: string
-  kidName?: string
-  onResult: (correct: boolean) => void
+export interface ParentVerifyProps {
+  readonly word: string
+  readonly kidName?: string
+  readonly onResult: (correct: boolean) => void
 }
 
-export function ParentVerify({ word, kidName, onResult }: Props) {
+export function ParentVerify({ word, kidName, onResult }: ParentVerifyProps): ReactElement {
   const [entry, setEntry] = useState('')
   const [unlocked, setUnlocked] = useState(false)
   const [error, setError] = useState(false)
   const [shake, setShake] = useState(false)
 
-  function pressKey(key: string) {
+  function pressKey(key: string): void {
     if (key === 'clear') {
       setEntry('')
       return
@@ -71,12 +71,9 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
         setError(false)
         setEntry('')
       } else {
+        // The dots shake, then clear when the shake animation ends (no timer).
         setError(true)
         setShake(true)
-        setTimeout(() => {
-          setShake(false)
-          setEntry('')
-        }, 500)
       }
     }
   }
@@ -99,6 +96,12 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
             gap: 14,
             margin: '28px 0 8px',
             animation: shake ? 'shakeX 0.4s ease-in-out' : undefined,
+          }}
+          role="img"
+          aria-label={`PIN digits entered: ${String(entry.length)} of ${String(PIN_LENGTH)}`}
+          onAnimationEnd={() => {
+            setShake(false)
+            setEntry('')
           }}
         >
           {Array.from({ length: PIN_LENGTH }, (_, i) => (
@@ -124,7 +127,9 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
             <button
               key={key}
               type="button"
-              onClick={() => pressKey(key)}
+              onClick={() => {
+                pressKey(key)
+              }}
               aria-label={key === 'del' ? 'Delete' : key === 'clear' ? 'Clear' : key}
               style={{
                 width: 64,
@@ -158,7 +163,7 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
           Unlocked for grown-ups
         </span>
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 26, color: 'var(--fg-primary)', marginTop: 14 }}>
-          Did {kidName ? kidName : 'they'} write it correctly?
+          Did {kidName ?? 'they'} write it correctly?
         </div>
       </div>
 
@@ -175,7 +180,9 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 28, flexWrap: 'wrap' }}>
         <button
           type="button"
-          onClick={() => onResult(false)}
+          onClick={() => {
+            onResult(false)
+          }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 10, height: 60, padding: '0 26px', borderRadius: 9999, background: '#FFFFFF', border: '2px solid #E7E2D6', color: '#515E71', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 18, cursor: 'pointer' }}
         >
           <CrossIcon size={18} />
@@ -183,7 +190,9 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => onResult(true)}
+          onClick={() => {
+            onResult(true)
+          }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 10, height: 60, padding: '0 36px', borderRadius: 9999, background: '#1F9D4C', border: 'none', color: '#FFFFFF', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, cursor: 'pointer', boxShadow: '0 6px 0 #14733A' }}
         >
           <CheckIcon />
@@ -194,7 +203,9 @@ export function ParentVerify({ word, kidName, onResult }: Props) {
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
         <button
           type="button"
-          onClick={() => setUnlocked(false)}
+          onClick={() => {
+            setUnlocked(false)
+          }}
           style={{ background: 'none', border: 'none', color: 'var(--fg-tertiary)', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: '8px 12px' }}
         >
           Lock again

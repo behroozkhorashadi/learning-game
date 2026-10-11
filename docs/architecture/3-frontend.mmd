@@ -14,11 +14,9 @@ flowchart TB
   end
 
   subgraph COMP["Legacy components — src/components"]
-    shared["Session shell<br/>SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, CoachPanel"]
-    denOld["components/den/<br/>DenCard, DenTabs, DenTile..."]
     arena["framework/ZombieArena + R3F scene<br/>EquationOutbreakScene, ZombieCharacter3D,<br/>EquationBlaster, ApproachLane, MuzzleFlash"]
     pathc["Pathfinder UI<br/>Board, Editor, MapBuilder, PlayTest,<br/>LevelGallery, MyMaps, PublishedMaps"]
-    write["Writing UI<br/>WritingSurface, TileAssembly,<br/>IllustrationReveal, HandoffPencil"]
+    write["Writing UI<br/>WritingSurface, TileAssembly,<br/>IllustrationReveal, CoachPanel"]
   end
 
   subgraph LIB["Legacy logic — src/lib (pure, unit-tested)"]
@@ -31,8 +29,8 @@ flowchart TB
     root["main/<br/>dev_screens.assembly.main"]
     profiles["profiles/<br/>picker, create, unlock, edit screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>CardShell, ProfileAvatar, AVATAR_OPTIONS"]
     admin["admin/<br/>AdminLogin + AdminPanel<br/>(X-Admin-Password, a UX gate)"]
-    session["session/<br/>ProgressBar"]
-    den["den/<br/>DenButton, icons, icon_paths"]
+    session["session/<br/>session shell: SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, HandoffPencil, ProgressBar"]
+    den["den/<br/>DenButton, DenCard, DenChip, DenFlipCard,<br/>DenJar, DenTile, icons, icon_paths"]
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
     apiad["api/<br/>profiles_api, admin_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
@@ -49,12 +47,12 @@ flowchart TB
   app -- "assembleAdminPanel() once" --> admin
   admin --> profiles & query & apiad & den
   dev --> root --> example
-  gWord --> shared & write
-  gMath --> shared & arena
+  gWord --> write
+  gMath --> arena
   gWord & gMath --> session
   gPath --> pathc
   picker & meta --> den
-  shared & write & pathc --> den
+  write & pathc --> den
   session --> den
   profiles --> query & apiad & den
   profiles -- "injected camera<br/>(navigator.mediaDevices)" --> browser[["Browser camera"]]
@@ -64,7 +62,7 @@ flowchart TB
   arena --> assets
   pathc --> plib
   gPath --> plat
-  shared & gWord & gMath --> plat
+  gWord & gMath --> plat
   picker & gWord & gMath & meta -- "fetch (legacy)" --> api
   plat -- "fetch" --> api
   SCREENS -.-> types

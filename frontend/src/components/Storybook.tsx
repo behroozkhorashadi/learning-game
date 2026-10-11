@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { DenChip, type DenChipTone } from './den/DenChip'
+import { DenChip, type DenChipTone } from '@app/den/den_chip.pure.ui.tsx'
 import { ArrowLeftIcon, TrashIcon } from '@app/den/icons.pure.ui.tsx'
 import { styleLabel, swatchOf, type IllustrationStyle } from './IllustrationReveal'
 import type { GameMetadata, Illustration, Piece } from '../types/generated'

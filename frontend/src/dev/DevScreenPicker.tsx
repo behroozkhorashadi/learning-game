@@ -1,3 +1,4 @@
+import { speakText, speakWord } from '../lib/speech'
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { assembleDevScreens } from '@app/main/dev_screens.assembly.main.ts'
 import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
@@ -7,13 +8,13 @@ import { GamePicker } from '../games/GamePicker'
 import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
 import { SyllableBuilder } from '../games/SyllableBuilder'
 import { BadgesAccomplishments } from '../components/BadgesAccomplishments'
-import { SessionStart } from '../components/SessionStart'
+import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 import { ProgressBar } from '@app/session/progress_bar.pure.ui.tsx'
 import { TileAssembly, type TileAssemblyItem } from '../components/TileAssembly'
-import { HandoffPencil } from '../components/HandoffPencil'
-import { ParentVerify } from '../components/ParentVerify'
-import { RatingPrompt } from '../components/RatingPrompt'
-import { SessionComplete } from '../components/SessionComplete'
+import { HandoffPencil } from '@app/session/handoff_pencil.pure.ui.tsx'
+import { ParentVerify } from '@app/session/parent_verify.pure.ui.tsx'
+import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
+import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
 import { WritingSurface } from '../components/WritingSurface'
 import { CoachPanel, type CoachQuestion } from '../components/CoachPanel'
 import { ModifierDeck, ModifierRuleBar, type ModifierCard } from '../components/ModifierDeck'
@@ -254,6 +255,7 @@ const SCREENS: ScreenEntry[] = [
           eyebrow="Word building"
           headline="Let's build some words"
           subtitle="Slide the sounds together to make five words. Take your time — there's no clock."
+          onHearInstructions={() => speakText("Slide the sounds together to make five words. Take your time — there's no clock.")}
           sessionLength={5}
           heroSrc="/images/badges/syllable_builder.png"
           onStart={() => console.log('onStart')}
@@ -285,7 +287,7 @@ const SCREENS: ScreenEntry[] = [
     label: 'Handoff (paper write-out)',
     render: () => (
       <CardWrapper>
-        <HandoffPencil word="tomato" onWroteIt={() => console.log('onWroteIt')} />
+        <HandoffPencil word="tomato" onHearWord={() => speakWord("tomato")} onWroteIt={() => console.log('onWroteIt')} />
       </CardWrapper>
     ),
   },
