@@ -9,7 +9,7 @@ import { COVER } from './horde_field.pure.lib.ts'
 import { HordeScene } from './horde_scene.pure.ui.tsx'
 
 /** A frozen moment of a round: one zombie walking, one hiding, one knocked down, one dodging, plus a thrown object and a grenade blast. */
-const BASE = createRound({ seed: 5, lives: 3, grenades: 1, cover: COVER }).zombies
+const BASE = createRound({ seed: 5, lives: 3, grenades: 1, shoves: 3, cover: COVER }).zombies
 const POSES: readonly { readonly posture: Posture; readonly x: number; readonly depth: number; readonly health: number }[] = [
   { posture: 'advancing', x: -1.5, depth: 6, health: 100 },
   { posture: 'hiding', x: 3.3, depth: 9.8, health: 50 },

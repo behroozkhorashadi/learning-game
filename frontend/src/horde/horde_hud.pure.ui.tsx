@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import type { FeedbackKind } from './use_horde_round.pure.hook.ts'
+import type { ArmedMode, FeedbackKind } from './use_horde_round.pure.hook.ts'
 
 /**
  * Everything drawn over the 3D view during a round: Back, the clock, lives,
- * grenades, mute, the question, the answers as real buttons (the same
+ * grenades, push-backs, mute, the question, the answers as real buttons (the same
  * targets for keyboard and screen-reader players, independent of the
  * canvas), the crosshair, and the hit/hurt flashes. Props only.
  */
@@ -21,7 +21,10 @@ export interface HordeHudProps {
   readonly secondsLeft: number
   readonly lives: number
   readonly grenades: number
-  readonly grenadeArmed: boolean
+  /** Push-backs left this round. */
+  readonly shoves: number
+  /** What the next click does. */
+  readonly armed: ArmedMode
   readonly muted: boolean
   readonly answers: readonly HudAnswer[]
   readonly feedback: { readonly kind: FeedbackKind; readonly id: number } | null
@@ -29,6 +32,7 @@ export interface HordeHudProps {
   readonly reducedMotion: boolean
   readonly onBack: () => void
   readonly onToggleGrenade: () => void
+  readonly onToggleShove: () => void
   readonly onToggleMute: () => void
   /** Zaps a zombie's body from the answer buttons. */
   readonly onZap: (zombieId: string) => void
@@ -44,11 +48,17 @@ const FLASH: Record<FeedbackKind, string> = {
   wrong: 'radial-gradient(ellipse at center, transparent 58%, rgba(245,158,11,0.55) 100%)',
   dud: 'radial-gradient(ellipse at center, transparent 58%, rgba(156,163,175,0.55) 100%)',
   hurt: 'radial-gradient(ellipse at center, transparent 40%, rgba(205,42,32,0.65) 100%)',
+  shove: 'radial-gradient(ellipse at center, transparent 58%, rgba(61,139,255,0.55) 100%)',
 }
 
 const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 9999, background: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' } as const
 
-export function HordeHud({ question, intro, secondsLeft, lives, grenades, grenadeArmed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleMute, onZap }: HordeHudProps): ReactElement {
+const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C', shove: '#3D8BFF' }
+
+export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleShove, onToggleMute, onZap }: HordeHudProps): ReactElement {
+  const grenadeArmed = armed === 'grenade'
+  const shoveArmed = armed === 'shove'
+  const ring = ARMED_COLOR[armed]
   return (
     <>
       <div style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 200, pointerEvents: 'none' }}>
@@ -72,6 +82,18 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, grenad
               style={{ ...PILL, border: grenadeArmed ? '3px solid #FF9F1C' : '3px solid transparent', cursor: grenades > 0 ? 'pointer' : 'not-allowed', opacity: grenades > 0 ? 1 : 0.5 }}
             >
               💣 {grenades}
+            </button>
+          </span>
+          <span style={{ pointerEvents: 'auto' }}>
+            <button
+              type="button"
+              aria-pressed={shoveArmed}
+              aria-label={`Push back (${String(shoves)} left)${shoveArmed ? ': armed, click a zombie to push it back' : ''}`}
+              disabled={shoves <= 0}
+              onClick={onToggleShove}
+              style={{ ...PILL, border: shoveArmed ? '3px solid #3D8BFF' : '3px solid transparent', cursor: shoves > 0 ? 'pointer' : 'not-allowed', opacity: shoves > 0 ? 1 : 0.5 }}
+            >
+              ✋ {shoves}
             </button>
           </span>
           <span style={{ pointerEvents: 'auto' }}>
@@ -108,9 +130,9 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, grenad
         </div>
       )}
 
-      {grenadeArmed && (
-        <div role="status" style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, padding: '8px 16px', borderRadius: 9999, background: '#FF9F1C', color: '#FFFFFF', fontWeight: 800, pointerEvents: 'none' }}>
-          Grenade ready: click near the right zombie
+      {armed !== 'shot' && (
+        <div role="status" style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, padding: '8px 16px', borderRadius: 9999, background: ring, color: '#FFFFFF', fontWeight: 800, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          {grenadeArmed ? 'Grenade ready: click near the right zombie' : 'Push back ready: click any zombie'}
         </div>
       )}
 
@@ -150,16 +172,16 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, grenad
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
             zIndex: 210,
-            width: grenadeArmed ? 52 : 36,
-            height: grenadeArmed ? 52 : 36,
+            width: armed === 'shot' ? 36 : 52,
+            height: armed === 'shot' ? 36 : 52,
             borderRadius: 9999,
-            border: `2.5px solid ${grenadeArmed ? '#FF9F1C' : '#FFFFFF'}`,
+            border: `2.5px solid ${ring}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <div style={{ width: 3, height: 3, borderRadius: 9999, background: grenadeArmed ? '#FF9F1C' : '#FFFFFF' }} />
+          <div style={{ width: 3, height: 3, borderRadius: 9999, background: ring }} />
         </div>
       )}
     </>

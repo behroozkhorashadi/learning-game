@@ -4,9 +4,16 @@ import { BULLETS, STARTER_LOADOUT, WEAPONS, bestOwned, hitsToDefeat, loadoutFor,
 const STARTER = ['starter_blaster', 'standard_rounds']
 
 describe('horde armory', () => {
-  it('the starter loadout is 1 hit to the head, 2 to the body, 3 to a leg', () => {
+  it('the starter loadout is 2 hits to the head, 4 to the body, 5 to a leg', () => {
     const power = shotPower(STARTER_LOADOUT)
-    expect([hitsToDefeat(power, 'head'), hitsToDefeat(power, 'body'), hitsToDefeat(power, 'leg')]).toEqual([1, 2, 3])
+    expect([hitsToDefeat(power, 'head'), hitsToDefeat(power, 'body'), hitsToDefeat(power, 'leg')]).toEqual([2, 4, 5])
+  })
+
+  it('never makes a headshot a one-hit defeat, whatever the gear', () => {
+    const everything = [...WEAPONS, ...BULLETS].map((item) => item.id)
+    for (const weapon of WEAPONS) {
+      for (const bullet of BULLETS) expect(hitsToDefeat(shotPower(loadoutFor(weapon.id, bullet.id, everything)), 'head')).toBeGreaterThanOrEqual(2)
+    }
   })
 
   it('every upgrade hits at least as hard, and faster weapons reload faster', () => {
@@ -19,11 +26,11 @@ describe('horde armory', () => {
     }
   })
 
-  it('the best gear makes a body shot a one-hit defeat', () => {
+  it('the best gear brings a body defeat down to 2 hits', () => {
     const owned = [...STARTER, 'rapid_blaster', 'mega_blaster', 'armor_piercing', 'explosive_rounds']
     const { weaponId, bulletId } = bestOwned(owned)
     expect([weaponId, bulletId]).toEqual(['mega_blaster', 'explosive_rounds'])
-    expect(hitsToDefeat(shotPower(loadoutFor(weaponId, bulletId, owned)), 'body')).toBe(1)
+    expect(hitsToDefeat(shotPower(loadoutFor(weaponId, bulletId, owned)), 'body')).toBe(2)
   })
 
   it('falls back to the starter for anything not owned or unknown', () => {

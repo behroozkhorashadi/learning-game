@@ -152,6 +152,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
           }}
           onKeyDown={(event) => {
             if (event.key === 'g' || event.key === 'G') round.toggleGrenade()
+            else if (event.key === 'f' || event.key === 'F') round.toggleShove()
           }}
           style={{ position: 'relative', flex: 1, overflow: 'hidden', cursor: aimNdc === null ? 'crosshair' : 'none', outline: 'none', animation: round.feedback?.kind === 'hurt' && !reducedMotion ? 'screenShake 600ms ease-out' : 'none' }}
         >
@@ -173,7 +174,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             recoilSignal={round.recoilSignal}
             aimNdc={aimNdc}
             reducedMotion={reducedMotion}
-            grenadeArmed={round.grenadeArmed}
+            grenadeArmed={round.armed === 'grenade'}
             onShot={round.shoot}
             onGrenade={round.throwGrenade}
             onReloadStart={deps.audio.playReload}
@@ -184,7 +185,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             secondsLeft={secondsLeft(state.elapsedMs, round.durationMs)}
             lives={state.lives}
             grenades={state.grenades}
-            grenadeArmed={round.grenadeArmed}
+            shoves={state.shoves}
+            armed={round.armed}
             muted={round.audioMuted}
             answers={phase === 'playing' ? answers : []}
             feedback={round.feedback}
@@ -192,6 +194,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             reducedMotion={reducedMotion}
             onBack={onBack}
             onToggleGrenade={round.toggleGrenade}
+            onToggleShove={round.toggleShove}
             onToggleMute={round.toggleMute}
             onZap={(zombieId) => {
               round.shoot({ zombieId, zone: 'body' })

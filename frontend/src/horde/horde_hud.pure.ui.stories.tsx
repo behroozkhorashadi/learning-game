@@ -19,7 +19,8 @@ const meta = {
     secondsLeft: 37,
     lives: 2,
     grenades: 3,
-    grenadeArmed: false,
+    shoves: 3,
+    armed: 'shot',
     muted: false,
     answers: [
       { zombieId: 'z1', label: '42' },
@@ -32,6 +33,7 @@ const meta = {
     reducedMotion: false,
     onBack: fn(),
     onToggleGrenade: fn(),
+    onToggleShove: fn(),
     onToggleMute: fn(),
     onZap: fn(),
   },
@@ -51,9 +53,16 @@ export const Playing: Story = {
 }
 
 export const GrenadeArmed: Story = {
-  args: { grenadeArmed: true },
+  args: { armed: 'grenade' },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('status')).toHaveTextContent('Grenade ready')
+  },
+}
+
+export const PushBackArmed: Story = {
+  args: { armed: 'shove', shoves: 2 },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole('status')).toHaveTextContent('Push back ready')
   },
 }
 

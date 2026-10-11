@@ -11,8 +11,8 @@ import type { HordeOutcome, HordeStats } from './horde_engine.pure.lib.ts'
  */
 
 export const POINTS = {
-  correctAnswer: 5,
-  defeat: 15,
+  correctAnswer: 10,
+  defeat: 20,
   headshot: 5,
   survived: 50,
   lifeLeft: 10,

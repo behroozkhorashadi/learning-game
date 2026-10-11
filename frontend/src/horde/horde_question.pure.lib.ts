@@ -12,8 +12,8 @@ import type { HordeQuestion } from './horde_engine.pure.lib.ts'
 
 export const HORDE_GAME_ID = 'zombie_horde'
 
-/** A zombie crosses the field in this many times the item's approach time: 9s at level 1 becomes 45s. */
-const TRAVEL_FACTOR = 5
+/** A zombie crosses the field in this many times the item's approach time: 9s at level 1 becomes 54s. */
+const TRAVEL_FACTOR = 6
 
 const factPayloadSchema = z.object({
   left: z.number(),

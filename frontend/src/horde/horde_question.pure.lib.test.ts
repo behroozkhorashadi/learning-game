@@ -19,7 +19,7 @@ describe('hordeQuestion', () => {
   })
 
   it("sets the crossing time from the item's pace", () => {
-    expect(travelMsFor(hordeItem(0, 9000))).toBe(45_000)
+    expect(travelMsFor(hordeItem(0, 9000))).toBe(54_000)
   })
 
   it("throws on a payload that isn't a fact", () => {

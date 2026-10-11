@@ -16,10 +16,10 @@ describe('ArmoryShop', () => {
   it('shows what each piece of gear does', () => {
     render(<ArmoryShop {...props()} />)
     const blasters = within(screen.getByRole('list', { name: 'Blasters' }))
-    expect(blasters.getByText('Reload 0.70s · Head 1 hit · Body 2 hits · Leg 3 hits')).toBeTruthy()
+    expect(blasters.getByText('Reload 0.70s · Head 2 hits · Body 4 hits · Leg 5 hits')).toBeTruthy()
     const rounds = within(screen.getByRole('list', { name: 'Rounds' }))
-    // Armor-piercing and explosive both take two hits to the body or a leg with the starter blaster.
-    expect(rounds.getAllByText('Head 1 hit · Body 2 hits · Leg 2 hits')).toHaveLength(2)
+    expect(rounds.getByText('Head 2 hits · Body 3 hits · Leg 4 hits')).toBeTruthy()
+    expect(rounds.getByText('Head 2 hits · Body 3 hits · Leg 3 hits')).toBeTruthy()
     expect(within(screen.getByRole('list', { name: 'Grenades' })).getByText(/3 grenades/)).toBeTruthy()
   })
 

@@ -10,6 +10,7 @@ import {
   isTargetable,
   setQuestion,
   shoot,
+  shove,
   throwGrenade,
   tick,
   type HordeConfig,
@@ -42,7 +43,7 @@ const QUESTION: HordeQuestion = {
 }
 
 function round(seed = 1, config: HordeConfig = CONFIG): HordeState {
-  return setQuestion(createRound({ seed, lives: 3, grenades: 2, cover: config.cover }), QUESTION)
+  return setQuestion(createRound({ seed, lives: 3, grenades: 2, shoves: 3, cover: config.cover }), QUESTION)
 }
 
 function run(state: HordeState, ms: number, config: HordeConfig = CONFIG, stepMs = 16): HordeState {
@@ -67,7 +68,7 @@ function eventTypes(state: HordeState): readonly string[] {
 
 describe('createRound', () => {
   it('starts four full-health zombies spread over the back of the field, inside it and outside cover', () => {
-    const state = createRound({ seed: 42, lives: 3, grenades: 1, cover: COVER })
+    const state = createRound({ seed: 42, lives: 3, grenades: 1, shoves: 3, cover: COVER })
     expect(state.zombies).toHaveLength(ZOMBIE_COUNT)
     expect(new Set(state.zombies.map((z) => z.depth)).size).toBe(ZOMBIE_COUNT)
     for (const zombie of state.zombies) {
@@ -94,7 +95,7 @@ describe('setQuestion', () => {
 
   it('never gives the right answer to a zombie waiting to respawn', () => {
     for (let seed = 0; seed < 40; seed++) {
-      let state = createRound({ seed, lives: 3, grenades: 0, cover: [] })
+      let state = createRound({ seed, lives: 3, grenades: 0, shoves: 3, cover: [] })
       state = withZombie(withZombie(state, 0, { posture: 'dead', postureUntilMs: 9999 }), 1, { posture: 'gone', postureUntilMs: 9999 })
       state = setQuestion(state, QUESTION)
       const right = state.answers.findIndex((a) => a.correct)
@@ -105,7 +106,7 @@ describe('setQuestion', () => {
   it('keeps the right answer on the field when there are more options than zombies', () => {
     const many: HordeQuestion = { ...QUESTION, options: [...QUESTION.options.slice(1), { label: '9', correct: false }, { label: '7', correct: true }] }
     for (let seed = 0; seed < 20; seed++) {
-      const state = setQuestion(createRound({ seed, lives: 3, grenades: 0, cover: [] }), many)
+      const state = setQuestion(createRound({ seed, lives: 3, grenades: 0, shoves: 3, cover: [] }), many)
       expect(state.answers).toHaveLength(ZOMBIE_COUNT)
       expect(state.answers.some((a) => a.correct)).toBe(true)
     }
@@ -176,30 +177,49 @@ describe('movement', () => {
   })
 })
 
+/** Asks a fresh question whose right answer is on `slot`'s zombie, waits out the cooldown, and shoots it there. */
+function shootSlot(state: HordeState, slot: number, zone: 'head' | 'body' | 'leg', config: HordeConfig = OPEN_FIELD): HordeState {
+  let next = run(state, 800, config)
+  next = setQuestion(next, { ...QUESTION, id: `q${String(next.elapsedMs)}` })
+  next = { ...next, answers: next.answers.map((a, s) => ({ ...a, correct: s === slot })) }
+  const id = next.zombies.find((z) => z.slot === slot)?.id ?? ''
+  return shoot(next, { zombieId: id, zone }, config)
+}
+
 describe('shooting the right zombie', () => {
-  it('a headshot defeats it, solves the question, and clears the answers', () => {
+  it('a headshot takes half its health, solves the question, and clears the answers', () => {
     const state = round(4)
     const target = holding(state, true)
     const after = shoot(state, { zombieId: target.id, zone: 'head' }, CONFIG)
-    expect(after.zombies.find((z) => z.id === target.id)?.posture).toBe('dead')
+    expect(after.zombies.find((z) => z.id === target.id)).toMatchObject({ health: 50, posture: 'staggered' })
     expect(eventTypes(after)).toEqual(['shot', 'hit', 'solved'])
     expect(after.question).toBeNull()
     expect(after.zombies.every((z) => answerFor(after, z) === null)).toBe(true)
-    expect(after.stats).toMatchObject({ kills: 1, headshots: 1, solved: 1, correctHits: 1 })
+    expect(after.stats).toMatchObject({ kills: 0, headshots: 1, solved: 1, correctHits: 1 })
   })
 
-  it('a body shot takes half its health and staggers it', () => {
-    const state = round(4)
+  it('a second headshot defeats it', () => {
+    const state = round(4, OPEN_FIELD)
+    const slot = holding(state, true).slot
+    const after = shootSlot(shootSlot(state, slot, 'head'), slot, 'head')
+    expect(after.zombies.find((z) => z.slot === slot)).toMatchObject({ health: 0, posture: 'dead', defeatedBy: 'head' })
+    expect(after.stats.kills).toBe(1)
+  })
+
+  it('a body shot takes a quarter of its health, staggers it, and knocks it back a little', () => {
+    const state = round(4, OPEN_FIELD)
     const target = holding(state, true)
-    const after = shoot(state, { zombieId: target.id, zone: 'body' }, CONFIG)
-    expect(after.zombies.find((z) => z.id === target.id)).toMatchObject({ health: 50, posture: 'staggered' })
+    const after = shoot(state, { zombieId: target.id, zone: 'body' }, OPEN_FIELD)
+    const hit = after.zombies.find((z) => z.id === target.id)
+    expect(hit).toMatchObject({ health: 75, posture: 'staggered' })
+    expect(hit?.depth).toBeGreaterThan(target.depth)
   })
 
   it('a leg shot knocks it down to crawl, then it gets back up', () => {
     const state = round(4, OPEN_FIELD)
     const target = holding(state, true)
     let after = shoot(state, { zombieId: target.id, zone: 'leg' }, OPEN_FIELD)
-    expect(after.zombies.find((z) => z.id === target.id)).toMatchObject({ health: 66, posture: 'downed' })
+    expect(after.zombies.find((z) => z.id === target.id)).toMatchObject({ health: 80, posture: 'downed' })
     const downedDepth = after.zombies.find((z) => z.id === target.id)?.depth ?? 0
     after = run(after, 1000, OPEN_FIELD)
     const crawled = downedDepth - (after.zombies.find((z) => z.id === target.id)?.depth ?? 0)
@@ -210,26 +230,55 @@ describe('shooting the right zombie', () => {
     expect(['rising', 'advancing']).toContain(after.zombies.find((z) => z.id === target.id)?.posture)
   })
 
-  it('three body shots across three questions defeat it; health carries over', () => {
+  it('four body shots across four questions defeat it; health carries over', () => {
     let state = round(9, OPEN_FIELD)
     const slot = holding(state, true).slot
-    for (let i = 0; i < 2; i++) {
-      state = setQuestion(state, { ...QUESTION, id: `q${String(i)}` })
-      state = { ...state, answers: state.answers.map((a, s) => ({ ...a, correct: s === slot })) }
-      const id = state.zombies.find((z) => z.slot === slot)?.id ?? ''
-      state = run(shoot(state, { zombieId: id, zone: 'body' }, OPEN_FIELD), 800, OPEN_FIELD)
-    }
+    for (let i = 0; i < 3; i++) state = shootSlot(state, slot, 'body')
+    expect(state.zombies.find((z) => z.slot === slot)).toMatchObject({ health: 25 })
+    state = shootSlot(state, slot, 'body')
     expect(state.zombies.find((z) => z.slot === slot)).toMatchObject({ health: 0, posture: 'dead' })
   })
 
   it('a defeated zombie is replaced at the back with full health and its slot', () => {
-    const state = round(4)
-    const target = holding(state, true)
-    const after = run(shoot(state, { zombieId: target.id, zone: 'head' }, CONFIG), 3000)
-    const replacement = after.zombies.find((z) => z.slot === target.slot)
-    expect(replacement?.id).not.toBe(target.id)
+    const state = round(4, OPEN_FIELD)
+    const slot = holding(state, true).slot
+    const defeated = shootSlot(shootSlot(state, slot, 'head'), slot, 'head')
+    const deadId = defeated.zombies.find((z) => z.slot === slot)?.id
+    const after = run(defeated, 3000, OPEN_FIELD)
+    const replacement = after.zombies.find((z) => z.slot === slot)
+    expect(replacement?.id).not.toBe(deadId)
     expect(replacement).toMatchObject({ health: 100, posture: 'advancing' })
     expect(replacement?.depth).toBeGreaterThan(SPAWN_DEPTH - 1)
+  })
+})
+
+describe('pushing a zombie back', () => {
+  it('knocks any zombie well back, with no damage and no penalty, a limited number of times', () => {
+    const state = round(4, OPEN_FIELD)
+    const wrong = holding(state, false)
+    const after = shove(state, wrong.id, OPEN_FIELD)
+    const pushed = after.zombies.find((z) => z.id === wrong.id)
+    expect(pushed?.depth).toBeCloseTo(Math.min(wrong.depth + 4, SPAWN_DEPTH + 1.5), 5)
+    expect(pushed).toMatchObject({ health: 100, posture: 'staggered' })
+    expect(after.shoves).toBe(2)
+    expect(after.lives).toBe(3)
+    expect(after.question).toBe(QUESTION)
+    expect(eventTypes(after)).toEqual(['shot', 'shoved'])
+    // Cools down like a shot, and runs out.
+    expect(shove(after, wrong.id, OPEN_FIELD)).toBe(after)
+    let rest = after
+    for (let i = 0; i < 2; i++) rest = shove(run(rest, 800, OPEN_FIELD), wrong.id, OPEN_FIELD)
+    expect(rest.shoves).toBe(0)
+    expect(shove(run(rest, 800, OPEN_FIELD), wrong.id, OPEN_FIELD).shoves).toBe(0)
+  })
+
+  it('stops short of cover behind the zombie', () => {
+    const box: Cover = { id: 'wall', kind: 'lockers', x: 0, depth: 10, halfWidth: 1, halfDepth: 0.4, height: 2.3 }
+    const config: HordeConfig = { ...CONFIG, cover: [box] }
+    const state = withZombie(round(4, config), 0, { x: 0, depth: 8 })
+    const after = shove(state, state.zombies[0]?.id ?? '', config)
+    expect(after.zombies[0]?.depth).toBeLessThan(box.depth - box.halfDepth)
+    expect(after.zombies[0]?.depth).toBeGreaterThan(8)
   })
 })
 
@@ -283,7 +332,7 @@ describe('the weapon', () => {
   })
 
   it('a shot between questions hurts nobody', () => {
-    const state = createRound({ seed: 4, lives: 3, grenades: 0, cover: [] })
+    const state = createRound({ seed: 4, lives: 3, grenades: 0, shoves: 3, cover: [] })
     const zombie = state.zombies[0]
     const after = shoot(state, { zombieId: zombie?.id ?? '', zone: 'head' }, OPEN_FIELD)
     expect(after.zombies).toBe(state.zombies)
@@ -355,7 +404,7 @@ describe('grenades', () => {
   it('does nothing without grenades or between questions', () => {
     const none = { ...round(4), grenades: 0 }
     expect(throwGrenade(none, { x: 0, depth: 8 }, CONFIG)).toBe(none)
-    const between = createRound({ seed: 4, lives: 3, grenades: 2, cover: [] })
+    const between = createRound({ seed: 4, lives: 3, grenades: 2, shoves: 3, cover: [] })
     expect(throwGrenade(between, { x: 0, depth: 8 }, CONFIG)).toBe(between)
   })
 })
@@ -383,9 +432,59 @@ describe('spreading out', () => {
   })
 
   it('gives each slot its own side of the field', () => {
-    const state = createRound({ seed: 3, lives: 3, grenades: 0, cover: [] })
+    const state = createRound({ seed: 3, lives: 3, grenades: 0, shoves: 3, cover: [] })
     const xs = state.zombies.map((z) => z.x)
     expect(xs[0]).toBeLessThan(0)
     expect(xs[3]).toBeGreaterThan(0)
+  })
+})
+
+describe('never stuck, never hidden with the answer', () => {
+  it('walks around cover at the side of the field instead of getting stuck against the edge', () => {
+    const crates = COVER.find((box) => box.id === 'crates-near-left')
+    if (crates === undefined) throw new Error('expected the near-left crates')
+    // Just behind the crates, on the edge side, where the edge leaves no room to pass.
+    let state = withZombie(round(4), 0, { x: crates.x - 0.5, depth: crates.depth + crates.halfDepth + 0.5, targetX: crates.x - 0.5, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
+    state = run(state, 6000)
+    expect(state.zombies[0]?.depth).toBeLessThan(crates.depth - crates.halfDepth)
+  })
+
+  it('every walking zombie keeps making progress toward the player', () => {
+    for (let seed = 0; seed < 25; seed++) {
+      let state = round(seed)
+      const stalledSince = new Map<string, { readonly at: number; readonly depth: number }>()
+      for (let i = 0; i < 3000; i++) {
+        state = tick(state, 16, CONFIG)
+        for (const zombie of state.zombies) {
+          if (zombie.posture !== 'advancing') {
+            stalledSince.delete(zombie.id)
+            continue
+          }
+          const since = stalledSince.get(zombie.id)
+          if (since === undefined || since.depth - zombie.depth > 0.5) stalledSince.set(zombie.id, { at: state.elapsedMs, depth: zombie.depth })
+          else expect(state.elapsedMs - since.at, `seed ${String(seed)}: ${zombie.id} stalled at x=${zombie.x.toFixed(2)} depth=${zombie.depth.toFixed(2)}`).toBeLessThan(6000)
+        }
+        if (state.outcome !== 'playing') break
+      }
+    }
+  })
+
+  it('the zombie with the right answer never hides, and steps out when it gets the answer', () => {
+    const box: Cover = { id: 'wall', kind: 'lockers', x: 0, depth: 10, halfWidth: 1, halfDepth: 0.4, height: 2.3 }
+    const config: HordeConfig = { ...CONFIG, cover: [box] }
+    for (let seed = 0; seed < 20; seed++) {
+      let state = round(seed, config)
+      const right = holding(state, true)
+      state = withZombie(state, right.slot, { x: 0, targetX: 0, depth: 10.6, retargetAtMs: 1e9, hideReadyAtMs: 0 })
+      for (let i = 0; i < 200; i++) {
+        state = tick(state, 16, config)
+        expect(state.zombies.find((z) => z.slot === right.slot)?.posture).not.toBe('hiding')
+      }
+    }
+    let state = round(1, config)
+    const right = holding(state, true)
+    state = withZombie(state, right.slot, { posture: 'hiding', postureUntilMs: 1e9 })
+    state = tick(state, 16, config)
+    expect(state.zombies.find((z) => z.slot === right.slot)?.posture).toBe('advancing')
   })
 })

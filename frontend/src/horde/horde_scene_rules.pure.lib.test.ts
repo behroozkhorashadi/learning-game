@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createRound, type HordeZombie, type Posture } from './horde_engine.pure.lib.ts'
 import { blastProgress, clipRoleFor, healthFraction, isDrawn, projectilePosition, secondsLeft, slotColor, zoneAlongBody } from './horde_scene_rules.pure.lib.ts'
 
-const ZOMBIE: HordeZombie = createRound({ seed: 1, lives: 3, grenades: 0, cover: [] }).zombies[0] ?? (() => { throw new Error('no zombie') })()
+const ZOMBIE: HordeZombie = createRound({ seed: 1, lives: 3, grenades: 0, shoves: 3, cover: [] }).zombies[0] ?? (() => { throw new Error('no zombie') })()
 
 function posed(posture: Posture, change: Partial<HordeZombie> = {}): HordeZombie {
   return { ...ZOMBIE, posture, ...change }

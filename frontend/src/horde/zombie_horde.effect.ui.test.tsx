@@ -122,6 +122,20 @@ describe('ZombieHorde: a round', () => {
     expect(screen.queryByText('armed')).toBeNull()
   })
 
+  it('a push-back knocks a wrong zombie away with no penalty, three times a round', async () => {
+    const harness = await open()
+    await startRound(harness)
+    press('Push back (3 left)')
+    press(`body ${String(wrongAnswer(0))}`)
+    await harness.scheduler.advance(2500)
+    expect(screen.getByRole('img', { name: '3 lives left' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Push back (2 left)' }).getAttribute('aria-pressed')).toBe('false')
+    expect(question()).toBe('3 + 4 =')
+    // F arms it from the keyboard too.
+    fireEvent.keyDown(screen.getByRole('application', { name: 'Zombie horde' }), { key: 'f' })
+    expect(screen.getByRole('button', { name: /Push back \(2 left\): armed/ })).toBeTruthy()
+  })
+
   it('G arms a grenade from the keyboard', async () => {
     const harness = await open()
     await startRound(harness)
@@ -140,9 +154,9 @@ describe('ZombieHorde: the end of a round', () => {
     press(`head ${String(rightAnswer(0))}`)
     await harness.scheduler.advance(60_000)
     expect(screen.getByRole('heading', { name: 'You held off the horde!' })).toBeTruthy()
-    // 1 right answer (5) + 1 defeat (15) + 1 headshot (5) + survived (50) + 3 lives (30)
-    expect(harness.armory.rounds).toEqual([{ points: 105, grenades_used: 0 }])
-    expect(screen.getByRole('status').textContent).toContain('You now have 105 points')
+    // 1 right answer (10) + 1 headshot (5) + survived (50) + 3 lives (30)
+    expect(harness.armory.rounds).toEqual([{ points: 95, grenades_used: 0 }])
+    expect(screen.getByRole('status').textContent).toContain('You now have 95 points')
     expect(within(screen.getByRole('list', { name: 'Facts you solved' })).getByText('3 + 4 = 7')).toBeTruthy()
     expect(harness.audio.count('stopMusic')).toBeGreaterThan(0)
   })
@@ -167,7 +181,7 @@ describe('ZombieHorde: the end of a round', () => {
     await harness.scheduler.advance(60_000)
     press('Play again')
     await settle()
-    expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('105')
+    expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('95')
   })
 })
 

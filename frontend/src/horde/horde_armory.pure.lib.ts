@@ -4,8 +4,9 @@
  * plays with, keyed by the same ids. The engine never sees an item: it gets a
  * plain `ShotPower` and cooldown, worked out here from the chosen loadout.
  *
- * Health is 100. With the starter blaster and standard rounds, a headshot
- * takes 1 hit, a body shot 2, and a leg shot 3 (and knocks the zombie down).
+ * Health is 100. With the starter blaster and standard rounds, a zombie takes
+ * 2 headshots, 4 body shots, or 5 leg shots (each of which knocks it down).
+ * Upgrades bring the body and leg counts down; a headshot is never a one-hit kill.
  */
 
 export type ShotZone = 'head' | 'body' | 'leg'
@@ -35,7 +36,7 @@ export interface GrenadeStats {
 export const ZOMBIE_MAX_HEALTH = 100
 
 const STARTER_WEAPON: WeaponStats = { id: 'starter_blaster', damageScale: 1, cooldownMs: 700 }
-const STANDARD_ROUNDS: BulletStats = { id: 'standard_rounds', power: { head: 100, body: 50, leg: 34 } }
+const STANDARD_ROUNDS: BulletStats = { id: 'standard_rounds', power: { head: 50, body: 25, leg: 20 } }
 
 export const WEAPONS: readonly WeaponStats[] = [
   STARTER_WEAPON,
@@ -45,8 +46,8 @@ export const WEAPONS: readonly WeaponStats[] = [
 
 export const BULLETS: readonly BulletStats[] = [
   STANDARD_ROUNDS,
-  { id: 'armor_piercing', power: { head: 100, body: 70, leg: 50 } },
-  { id: 'explosive_rounds', power: { head: 100, body: 85, leg: 60 } },
+  { id: 'armor_piercing', power: { head: 50, body: 35, leg: 25 } },
+  { id: 'explosive_rounds', power: { head: 55, body: 45, leg: 35 } },
 ]
 
 export const GRENADE: GrenadeStats = { radius: 2.6, damage: 100 }

@@ -25,6 +25,12 @@ import { CONTACT_DEPTH, SPAWN_DEPTH, ZOMBIE_RADIUS, clampX, coverAt, coverInFron
 export const ZOMBIE_COUNT = 4
 export const ROUND_MS = 60_000
 export const STARTING_LIVES = 3
+/** Push-backs per round: a limited way out when a zombie with a wrong answer gets close. */
+export const SHOVES_PER_ROUND = 3
+/** How far a push-back knocks a zombie toward the back. */
+const SHOVE_DISTANCE = 4
+/** How far a right hit that doesn't defeat a zombie knocks it back. */
+const HIT_KNOCKBACK = 0.6
 
 /** Sideways walking speed, in field units per ms. */
 const LATERAL_SPEED = 0.0012
@@ -145,6 +151,7 @@ export interface HordeStats {
   readonly headshots: number
   readonly legShots: number
   readonly grenadesUsed: number
+  readonly shoves: number
   readonly solved: number
   readonly livesLost: number
 }
@@ -159,6 +166,7 @@ export type HordeEvent =
   | { readonly type: 'thrown'; readonly projectileId: string }
   | { readonly type: 'playerHit'; readonly cause: 'thrown' | 'contact' }
   | { readonly type: 'grenade'; readonly dud: boolean }
+  | { readonly type: 'shoved'; readonly zombieId: string }
   | { readonly type: 'spawned'; readonly slot: number }
   | { readonly type: 'roundOver'; readonly outcome: 'survived' | 'overrun' }
 
@@ -167,6 +175,8 @@ export interface HordeState {
   readonly outcome: HordeOutcome
   readonly lives: number
   readonly grenades: number
+  /** Push-backs left this round. */
+  readonly shoves: number
   /** The random stream's position. */
   readonly seed: number
   /** For ids: zombies, projectiles, blasts. */
@@ -202,7 +212,7 @@ export interface ShotTarget {
   readonly zone: ShotZone
 }
 
-const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, solved: 0, livesLost: 0 }
+const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, solved: 0, livesLost: 0 }
 
 /** A deterministic stream over a 32-bit seed (mulberry32). Local to one step, so the step stays pure. */
 interface Rng {
@@ -275,7 +285,7 @@ function spawnZombie(slot: number, id: number, nowMs: number, depth: number, rng
 }
 
 /** A fresh round: four zombies spread across the back of the field, the clock at zero, no question yet. */
-export function createRound({ seed, lives, grenades, cover }: { readonly seed: number; readonly lives: number; readonly grenades: number; readonly cover: readonly Cover[] }): HordeState {
+export function createRound({ seed, lives, grenades, shoves, cover }: { readonly seed: number; readonly lives: number; readonly grenades: number; readonly shoves: number; readonly cover: readonly Cover[] }): HordeState {
   const rng = rngFrom(seed)
   // Staggered depths, so they don't arrive as one line.
   const zombies = Array.from({ length: ZOMBIE_COUNT }, (_, slot) => spawnZombie(slot, slot, 0, SPAWN_DEPTH - slot * 1.6 - between(rng, 0, 1), rng, cover))
@@ -284,6 +294,7 @@ export function createRound({ seed, lives, grenades, cover }: { readonly seed: n
     outcome: 'playing',
     lives,
     grenades,
+    shoves,
     seed: rng.seed(),
     nextId: ZOMBIE_COUNT,
     zombies,
@@ -357,17 +368,29 @@ interface StepOutput {
   respawn: boolean
 }
 
-function advance(zombie: HordeZombie, now: number, dt: number, speed: number, rng: Rng, cover: readonly Cover[]): HordeZombie {
+/** How close a zombie's centre may pass beside cover: tighter than its full radius, so a zombie that's alongside cover can still walk on. */
+const SIDE_MARGIN = ZOMBIE_RADIUS * 0.5
+
+/** The cover a zombie walking to (`x`, `depth`) would bump into: its full radius front and back, a tighter margin at the sides. */
+function blockingCover(x: number, depth: number, cover: readonly Cover[]): Cover | null {
+  for (const box of cover) {
+    if (Math.abs(x - box.x) < box.halfWidth + SIDE_MARGIN && Math.abs(depth - box.depth) < box.halfDepth + ZOMBIE_RADIUS) return box
+  }
+  return null
+}
+
+function advance(zombie: HordeZombie, now: number, dt: number, speed: number, rng: Rng, cover: readonly Cover[], holdsRightAnswer: boolean): HordeZombie {
   let { x, depth, targetX, retargetAtMs, hideReadyAtMs } = zombie
   if (now >= retargetAtMs) {
     // Usually somewhere in its own share of the field; sometimes straight for a piece of cover ahead on its side, to hide behind it.
     const ahead = cover.filter((box) => box.depth + box.halfDepth < depth && Math.abs(box.x / maxAbsX(box.depth) - slotCentre(zombie.slot)) < 0.5)
-    const toCover = ahead.length > 0 && rng.next() < 0.4 ? ahead[Math.floor(rng.next() * ahead.length)] : undefined
+    const toCover = ahead.length > 0 && !holdsRightAnswer && rng.next() < 0.4 ? ahead[Math.floor(rng.next() * ahead.length)] : undefined
     targetX = toCover === undefined ? slotX(zombie.slot, depth, rng) : toCover.x
     retargetAtMs = now + between(rng, RETARGET_MIN_MS, RETARGET_MAX_MS)
   }
 
-  if (now >= hideReadyAtMs) {
+  // The zombie with the right answer never hides: there must always be a way to hit it.
+  if (now >= hideReadyAtMs && !holdsRightAnswer) {
     const shelter = coverInFront(x, depth, HIDE_BAND, cover)
     if (shelter !== null && rng.next() < HIDE_CHANCE) {
       return { ...zombie, targetX, retargetAtMs, posture: 'hiding', postureUntilMs: now + between(rng, HIDE_MIN_MS, HIDE_MAX_MS), hideReadyAtMs: now + HIDE_COOLDOWN_MS, heading: 0 }
@@ -379,13 +402,21 @@ function advance(zombie: HordeZombie, now: number, dt: number, speed: number, rn
   let vx = steer * LATERAL_SPEED
   let vDepth = speed
   const nextDepth = depth - vDepth * dt
-  const blocking = coverAt(x, nextDepth, ZOMBIE_RADIUS, cover)
+  const bumped = blockingCover(x, nextDepth, cover)
+  // Already beside it (not behind it), a zombie just walks on past, without steering into it.
+  const alongside = bumped !== null && depth <= bumped.depth + bumped.halfDepth && Math.abs(x - bumped.x) >= bumped.halfWidth
+  if (alongside && Math.sign(vx) === -Math.sign(x - bumped.x)) vx = 0
+  const blocking = alongside ? null : bumped
   if (blocking !== null) {
-    // Walk around it: hold depth and sidestep toward the nearer edge, then carry on past it.
-    const side = x === blocking.x ? zombie.dodgeDirection : Math.sign(x - blocking.x)
+    // Walk around it: hold depth and sidestep toward the nearer edge, then carry on past it. A
+    // piece of cover near the side of the field may leave no room on that side: then go the other way.
+    const passAt = (side: number): number => blocking.x + side * (blocking.halfWidth + ZOMBIE_RADIUS + 0.4)
+    const roomOn = (side: number): boolean => Math.abs(blocking.x + side * (blocking.halfWidth + SIDE_MARGIN)) < maxAbsX(blocking.depth - blocking.halfDepth)
+    const nearer = x === blocking.x ? zombie.dodgeDirection : Math.sign(x - blocking.x)
+    const side = roomOn(nearer) ? nearer : -nearer
     vDepth = 0
     vx = side * LATERAL_SPEED * 1.5
-    targetX = blocking.x + side * (blocking.halfWidth + ZOMBIE_RADIUS + 0.4)
+    targetX = passAt(side)
   }
   depth -= vDepth * dt
   x = clampX(x + vx * dt, depth)
@@ -393,18 +424,19 @@ function advance(zombie: HordeZombie, now: number, dt: number, speed: number, rn
   return { ...zombie, x, depth, targetX, retargetAtMs, hideReadyAtMs, heading }
 }
 
-function stepZombie(zombie: HordeZombie, now: number, dt: number, speed: number, rng: Rng, cover: readonly Cover[]): StepOutput {
+function stepZombie(zombie: HordeZombie, now: number, dt: number, speed: number, rng: Rng, cover: readonly Cover[], holdsRightAnswer: boolean): StepOutput {
   const out: StepOutput = { zombie, throwFrom: null, struck: false, respawn: false }
   const done = now >= zombie.postureUntilMs
   switch (zombie.posture) {
     case 'advancing': {
-      const moved = advance(zombie, now, dt, speed, rng, cover)
+      const moved = advance(zombie, now, dt, speed, rng, cover, holdsRightAnswer)
       out.zombie = moved.posture === 'advancing' && moved.depth <= CONTACT_DEPTH ? { ...moved, depth: CONTACT_DEPTH, posture: 'attacking', postureUntilMs: now + ATTACK_MS, heading: 0 } : moved
       return out
     }
     case 'hiding':
     case 'staggered':
-      if (done) out.zombie = { ...zombie, posture: 'advancing' }
+      // A hiding zombie that now holds the right answer steps out at once.
+      if (done || (zombie.posture === 'hiding' && holdsRightAnswer)) out.zombie = { ...zombie, posture: 'advancing' }
       return out
     case 'dodging': {
       const x = clampX(zombie.x + zombie.dodgeDirection * DODGE_SPEED * dt, zombie.depth)
@@ -483,7 +515,7 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
   const projectiles: Projectile[] = []
 
   const stepped = state.zombies.map((zombie) => {
-    const out = stepZombie(zombie, now, dtMs, speed, rng, config.cover)
+    const out = stepZombie(zombie, now, dtMs, speed, rng, config.cover, state.question !== null && state.answers[zombie.slot]?.correct === true)
     if (out.throwFrom !== null) {
       const id = `p${String(nextId++)}`
       projectiles.push({ id, fromX: out.throwFrom.x, fromDepth: out.throwFrom.depth, launchedAtMs: now, landsAtMs: now + FLIGHT_MS })
@@ -525,6 +557,16 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
     events,
   }
   return settle(next, config, events)
+}
+
+/** Knocks a zombie back toward the far end, stopping short of any cover in the way. */
+function pushedBack(zombie: HordeZombie, distance: number, cover: readonly Cover[]): HordeZombie {
+  let depth = Math.min(zombie.depth + distance, SPAWN_DEPTH + 1.5)
+  for (const box of cover) {
+    const front = box.depth - box.halfDepth - ZOMBIE_RADIUS
+    if (Math.abs(zombie.x - box.x) <= box.halfWidth + ZOMBIE_RADIUS && zombie.depth <= front && depth > front) depth = front - 0.05
+  }
+  return { ...zombie, depth: Math.max(depth, zombie.depth), x: clampX(zombie.x, depth) }
 }
 
 /** Damage to one zombie: defeated at 0, knocked down by a leg hit, staggered by anything else. */
@@ -585,8 +627,9 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
     return { ...fired, stats, questionWrongShots: state.questionWrongShots + 1, zombies: state.zombies.map((z) => (z.id === zombie.id ? dodging : z)) }
   }
 
-  const hit = damaged(zombie, config.power[target.zone], target.zone, now)
-  const killed = hit.posture === 'dead'
+  const damage = damaged(zombie, config.power[target.zone], target.zone, now)
+  const killed = damage.posture === 'dead'
+  const hit = killed ? damage : pushedBack(damage, HIT_KNOCKBACK, config.cover)
   events.push({ type: 'hit', zombieId: zombie.id, zone: target.zone, killed })
   const solved = solvedEvent(state)
   if (solved !== null) events.push(solved)
@@ -635,4 +678,28 @@ export function throwGrenade(state: HordeState, at: { readonly x: number; readon
   const solved = solvedEvent(state)
   if (solved !== null) events.push(solved)
   return { ...spent, zombies, question: null, answers: [], stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + kills, solved: spent.stats.solved + 1 } }
+}
+
+/**
+ * Knocks a zombie well back, whatever answer it carries: no damage, no
+ * dodge, no penalty, but only SHOVES_PER_ROUND times a round. Uses the
+ * weapon like a shot (it has to be ready, then cools down). Ignored, returning
+ * the same state, with no push-backs left, while cooling down, or at a
+ * zombie that can't be hit.
+ */
+export function shove(state: HordeState, zombieId: string, config: HordeConfig): HordeState {
+  if (!canShoot(state) || state.shoves <= 0) return state
+  const zombie = state.zombies.find((z) => z.id === zombieId)
+  if (zombie === undefined || !isTargetable(zombie)) return state
+  const now = state.elapsedMs
+  const grounded = zombie.posture === 'downed' || zombie.posture === 'rising'
+  const pushed = pushedBack(grounded ? zombie : { ...zombie, posture: 'staggered', postureUntilMs: now + STAGGER_MS }, SHOVE_DISTANCE, config.cover)
+  return {
+    ...state,
+    shoves: state.shoves - 1,
+    readyAtMs: now + config.cooldownMs,
+    zombies: state.zombies.map((z) => (z.id === zombieId ? pushed : z)),
+    stats: { ...state.stats, shoves: state.stats.shoves + 1 },
+    events: [{ type: 'shot' }, { type: 'shoved', zombieId }],
+  }
 }

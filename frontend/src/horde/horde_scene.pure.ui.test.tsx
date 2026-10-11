@@ -19,7 +19,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const ZOMBIES = createRound({ seed: 3, lives: 3, grenades: 0, cover: COVER }).zombies
+const ZOMBIES = createRound({ seed: 3, lives: 3, grenades: 0, shoves: 3, cover: COVER }).zombies
 
 function props(overrides: Partial<HordeSceneProps> = {}): HordeSceneProps {
   return {

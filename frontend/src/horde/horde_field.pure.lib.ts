@@ -43,12 +43,17 @@ export interface Cover {
   readonly height: number
 }
 
+/**
+ * Each piece either reaches the side of the field along its whole length or
+ * leaves a gap at least a zombie wide (2 × ZOMBIE_RADIUS) all along: a
+ * narrower gap is a corner a zombie can wedge into.
+ */
 export const COVER: readonly Cover[] = [
-  { id: 'crates-near-left', kind: 'crates', x: -3.4, depth: 7, halfWidth: 0.75, halfDepth: 0.6, height: 1.2 },
-  { id: 'lockers-near-right', kind: 'lockers', x: 3.3, depth: 9, halfWidth: 1, halfDepth: 0.4, height: 2.3 },
+  { id: 'crates-near-left', kind: 'crates', x: -3.9, depth: 7, halfWidth: 0.75, halfDepth: 0.6, height: 1.2 },
+  { id: 'lockers-near-right', kind: 'lockers', x: 2.95, depth: 9, halfWidth: 1, halfDepth: 0.4, height: 2.3 },
   { id: 'table-middle', kind: 'table', x: 0, depth: 11.5, halfWidth: 1.4, halfDepth: 0.55, height: 1 },
-  { id: 'crates-far-left', kind: 'crates', x: -5.6, depth: 14, halfWidth: 0.85, halfDepth: 0.7, height: 1.3 },
-  { id: 'lockers-far-right', kind: 'lockers', x: 5.6, depth: 15, halfWidth: 0.9, halfDepth: 0.4, height: 2.3 },
+  { id: 'crates-far-left', kind: 'crates', x: -4.8, depth: 14, halfWidth: 0.85, halfDepth: 0.7, height: 1.3 },
+  { id: 'lockers-far-right', kind: 'lockers', x: 5.2, depth: 15, halfWidth: 0.9, halfDepth: 0.4, height: 2.3 },
   { id: 'barrier-far-middle', kind: 'barrier', x: -1.4, depth: 16.5, halfWidth: 1.1, halfDepth: 0.4, height: 1.1 },
 ]
 

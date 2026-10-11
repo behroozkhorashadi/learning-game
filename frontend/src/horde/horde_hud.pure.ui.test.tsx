@@ -11,7 +11,8 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     secondsLeft: 42,
     lives: 2,
     grenades: 1,
-    grenadeArmed: false,
+    shoves: 3,
+    armed: 'shot',
     muted: false,
     answers: [
       { zombieId: 'z1', label: '7' },
@@ -22,6 +23,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     reducedMotion: false,
     onBack: vi.fn(),
     onToggleGrenade: vi.fn(),
+    onToggleShove: vi.fn(),
     onToggleMute: vi.fn(),
     onZap: vi.fn(),
     ...overrides,
@@ -48,7 +50,7 @@ describe('HordeHud', () => {
     const { rerender } = render(<HordeHud {...props({ onToggleGrenade })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Grenade (1 left)' }))
     expect(onToggleGrenade).toHaveBeenCalledTimes(1)
-    rerender(<HordeHud {...props({ grenadeArmed: true })} />)
+    rerender(<HordeHud {...props({ armed: 'grenade' })} />)
     expect(screen.getByRole('button', { name: /armed/ }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('status').textContent).toContain('Grenade ready')
   })
@@ -71,5 +73,20 @@ describe('HordeHud', () => {
   it('flashes each kind of feedback', () => {
     const { container } = render(<HordeHud {...props({ feedback: { kind: 'hurt', id: 1 } })} />)
     expect(container.querySelector('[data-feedback-kind="hurt"]')).toBeTruthy()
+  })
+
+  it('arms a push-back, and says so', () => {
+    const onToggleShove = vi.fn()
+    const { rerender } = render(<HordeHud {...props({ onToggleShove })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Push back (3 left)' }))
+    expect(onToggleShove).toHaveBeenCalledTimes(1)
+    rerender(<HordeHud {...props({ armed: 'shove', shoves: 2 })} />)
+    expect(screen.getByRole('button', { name: /Push back \(2 left\): armed/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('status').textContent).toContain('Push back ready')
+  })
+
+  it('disables the push-back with none left', () => {
+    render(<HordeHud {...props({ shoves: 0 })} />)
+    expect(screen.getByRole('button', { name: 'Push back (0 left)' }).hasAttribute('disabled')).toBe(true)
   })
 })

@@ -146,6 +146,6 @@ describe('useHordeRound', () => {
     act(() => {
       result.current.toggleGrenade()
     })
-    expect(result.current.grenadeArmed).toBe(false)
+    expect(result.current.armed).toBe('shot')
   })
 })

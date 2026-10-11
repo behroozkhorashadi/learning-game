@@ -9,7 +9,9 @@ import {
   STARTING_LIVES,
   createRound,
   setQuestion,
+  SHOVES_PER_ROUND,
   shoot as shootEngine,
+  shove as shoveEngine,
   throwGrenade as throwEngine,
   tick,
   type HordeConfig,
@@ -33,7 +35,10 @@ const MAX_STEP_MS = 50
 
 export type HordePhase = 'ready' | 'loading' | 'intro' | 'playing' | 'over'
 
-export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'dud'
+export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'dud' | 'shove'
+
+/** What the next click does: a normal shot, a grenade, or a push-back. */
+export type ArmedMode = 'shot' | 'grenade' | 'shove'
 
 export interface Feedback {
   readonly kind: FeedbackKind
@@ -73,7 +78,7 @@ export interface HordeRound {
   readonly liveMessage: string
   readonly feedback: Feedback | null
   readonly recoilSignal: number
-  readonly grenadeArmed: boolean
+  readonly armed: ArmedMode
   readonly audioMuted: boolean
   readonly solved: readonly SolvedFact[]
   readonly points: number
@@ -82,8 +87,11 @@ export interface HordeRound {
   readonly start: (loadout: Loadout, grenades: number) => void
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
+  /** A shot at a zombie (or at nothing: null). With a push-back armed, a zombie is pushed back instead. */
   readonly shoot: (target: ShotTarget | null) => void
   readonly toggleGrenade: () => void
+  /** Arms (or disarms) a push-back: the next zombie shot is knocked back instead, whatever its answer. */
+  readonly toggleShove: () => void
   readonly throwGrenade: (at: { readonly x: number; readonly depth: number }) => void
   readonly toggleMute: () => void
   readonly sceneFailed: (error: unknown) => void
@@ -127,7 +135,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [liveMessage, setLiveMessage] = useState('')
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [recoilSignal, setRecoilSignal] = useState(0)
-  const [grenadeArmed, setGrenadeArmed] = useState(false)
+  const [armed, setArmed] = useState<ArmedMode>('shot')
   const [audioMuted, setAudioMuted] = useState(() => audio.isMuted())
   const [solved, setSolved] = useState<readonly SolvedFact[]>([])
   const [bank, setBank] = useState<BankState>({ kind: 'idle' })
@@ -214,7 +222,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
 
   function finish(final: HordeState): void {
     setPhase('over')
-    setGrenadeArmed(false)
+    setArmed('shot')
     // A question they tried and didn't get counts as a miss; one nobody shot at says nothing.
     if (final.question !== null && final.questionWrongShots > 0) record(final.question.id, false, final.elapsedMs - final.questionStartedMs, final.questionWrongShots)
     const points = roundPoints(final.stats, final.outcome, final.lives)
@@ -263,7 +271,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
           break
         case 'grenade':
           flash(event.dud ? 'dud' : 'boom')
-          setGrenadeArmed(false)
+          setArmed('shot')
           if (event.dud) setLiveMessage('The grenade fizzled: it only works near the right answer.')
           break
         case 'spawned': {
@@ -271,6 +279,11 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
           if (character !== undefined) audio.playGroan(character.groanSoundUrl)
           break
         }
+        case 'shoved':
+          flash('shove')
+          setArmed('shot')
+          setLiveMessage('Pushed back!')
+          break
         case 'roundOver':
           finish(next)
           break
@@ -339,7 +352,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     setSolved([])
     setBank({ kind: 'idle' })
     setError(null)
-    setGrenadeArmed(false)
+    setArmed('shot')
     setPhase('loading')
     fetchQuestion(sessionId).then(
       ({ item, question }) => {
@@ -347,7 +360,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
         live.current.config = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER }
         live.current.upcoming = fetchQuestion(sessionId)
         live.current.upcoming.catch(() => undefined)
-        commit(setQuestion(createRound({ seed: newSeed(), lives: STARTING_LIVES, grenades, cover: COVER }), question))
+        commit(setQuestion(createRound({ seed: newSeed(), lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, cover: COVER }), question))
         setPhase('intro')
         for (const character of roster) audio.playGroan(character.groanSoundUrl)
         later(INTRO_MS, () => {
@@ -373,7 +386,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     liveMessage,
     feedback,
     recoilSignal,
-    grenadeArmed,
+    armed,
     audioMuted,
     solved,
     points: finalPoints,
@@ -392,20 +405,32 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       const current = live.current.state
       const config = live.current.config
       if (live.current.phase !== 'playing' || current === null || config === null) return
+      if (armed === 'shove') {
+        // A push-back needs a zombie: a miss leaves it armed.
+        if (target === null) return
+        const next = shoveEngine(current, target.zombieId, config)
+        if (next !== current) commit(next)
+        return
+      }
       const next = shootEngine(current, target, config)
       if (next !== current) commit(next)
     },
     toggleGrenade: () => {
       const current = live.current.state
       if (live.current.phase !== 'playing' || current === null || current.grenades <= 0) return
-      setGrenadeArmed((armed) => !armed)
+      setArmed((mode) => (mode === 'grenade' ? 'shot' : 'grenade'))
+    },
+    toggleShove: () => {
+      const current = live.current.state
+      if (live.current.phase !== 'playing' || current === null || current.shoves <= 0) return
+      setArmed((mode) => (mode === 'shove' ? 'shot' : 'shove'))
     },
     throwGrenade: (at) => {
       const current = live.current.state
       const config = live.current.config
       if (live.current.phase !== 'playing' || current === null || config === null) return
       const next = throwEngine(current, at, config)
-      if (next === current) setGrenadeArmed(false)
+      if (next === current) setArmed('shot')
       else commit(next)
     },
     toggleMute: () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONTACT_DEPTH, COVER, SPAWN_DEPTH, clampX, coverAt, coverInFront, fieldPoint, maxAbsX, worldPosition } from './horde_field.pure.lib.ts'
+import { CONTACT_DEPTH, COVER, SPAWN_DEPTH, ZOMBIE_RADIUS, clampX, coverAt, coverInFront, fieldPoint, maxAbsX, worldPosition } from './horde_field.pure.lib.ts'
 
 describe('horde field', () => {
   it('narrows toward the player', () => {
@@ -10,7 +10,8 @@ describe('horde field', () => {
 
   it('keeps every piece of cover on the field, between the player and the spawn line, apart from the others', () => {
     for (const box of COVER) {
-      expect(Math.abs(box.x) + box.halfWidth).toBeLessThan(maxAbsX(box.depth))
+      // A piece may reach past the side of the field, but stands on it.
+      expect(Math.abs(box.x)).toBeLessThan(maxAbsX(box.depth))
       expect(box.depth).toBeGreaterThan(CONTACT_DEPTH + 3)
       expect(box.depth).toBeLessThan(SPAWN_DEPTH - 1)
       for (const other of COVER) {
@@ -32,5 +33,14 @@ describe('horde field', () => {
   it('maps field points to the scene and back', () => {
     expect(worldPosition(2, 8)).toEqual([2, 0, -8])
     expect(fieldPoint(2, -8)).toEqual({ x: 2, depth: 8 })
+  })
+
+  it('leaves no gap between cover and the side of the field that a zombie could wedge into', () => {
+    for (const box of COVER) {
+      const edge = Math.abs(box.x) + box.halfWidth
+      const front = maxAbsX(box.depth - box.halfDepth) - edge
+      const back = maxAbsX(box.depth + box.halfDepth) - edge
+      expect(back <= 0 || front >= ZOMBIE_RADIUS * 2, `${box.id} leaves a ${front.toFixed(2)}..${back.toFixed(2)} gap`).toBe(true)
+    }
   })
 })
