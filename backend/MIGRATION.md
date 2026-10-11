@@ -1,6 +1,6 @@
 # Backend migration: legacy → feature/color layout
 
-25 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
+9 pre-guardrail files are on `scripts/lint_py/legacy_allowlist.txt`. They keep working
 unchanged, but new code can't import them. Don't big-bang rename. **Migrate a module when
 you're already changing it and you need it from new-style code.**
 
@@ -27,11 +27,12 @@ nothing more.
 
 ## Order (smallest blast radius first)
 
-- [ ] `app/util.py` → inline `utcnow` into assembly as the clock (pilot: simple)
+- [x] `app/util.py` → the clock is chosen in assembly (`utc_now`) and injected
 - [x] practice-config routes + `app/models/practice_config.py` → `app/practice/` (pilot: coupled to DB)
 - [x] pathfinder completions/maps routes + `app/models/pathfinder.py` → `app/pathfinder/`
 - [x] `app/admin_auth.py` → `AppSettings.admin_password: SecretStr`, checked by `app/admin/` (no Depends needed: the header is a route parameter)
 - [x] profiles, passwords, photos, remix preview → `app/profiles/`
-- [ ] `app/db.py` → engine created in assembly (last; every legacy route depends on it)
+- [x] `app/db.py` → the engine is created in assembly (`assemble_engine`)
 - [x] games, engine, Loop A, attempts, ratings, verifications → `app/play/`; the event log → `app/events/`
-- [ ] badges + stats, writing pieces, then db.py, util.py, models/, main.py, scripts/
+- [x] badges + stats → `app/badges/`; writing pieces + illustrations → `app/pieces/`; db.py, util.py, models/, services/ deleted
+- [ ] the entry (`app/main.py`, `app/__init__.py`), tooling scripts, and the test package

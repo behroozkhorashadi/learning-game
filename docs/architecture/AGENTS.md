@@ -5,7 +5,7 @@ Three Mermaid sources, one generated page:
 | file | shows |
 |---|---|
 | `1-system.mmd` | what runs where: browser, Vite, FastAPI, SQLite, OpenAI, tooling, guardrails, CI |
-| `2-backend.mmd` | backend layers: legacy `app/main.py` routes, services, engine, games, persistence, plus the guardrailed `app/composition/` and features |
+| `2-backend.mmd` | backend: the `app/main.py` entry, `app/composition/`, and every feature folder with the ports between them |
 | `3-frontend.mmd` | frontend layers: the legacy shell, screens, components, and lib, plus the guardrailed `src/<feature>/` folders |
 | `learning-game-architecture.html` | **generated** by `build.py` from the three sources plus their captions. Never edit by hand |
 

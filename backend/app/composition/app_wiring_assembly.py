@@ -1,15 +1,14 @@
-"""The backend composition root for new-style features. The only place that reads
-settings, creates engines and clients, picks implementations, and calls bind_*/make_*.
+"""The backend composition root. The only place that reads settings, creates engines
+and clients, picks implementations, and calls bind_*/make_*.
 
-The legacy app (app/main.py) calls `assemble_features` to mount these routers on
-itself, and uses the `LegacyHandles` it returns for what its remaining routes still
-need during the migration; `assemble_app` builds a standalone app of just the
-new-style features and is what the integration test boots.
+`assemble_app(settings)` is the whole backend; app/main.py (the uvicorn entry,
+`app.main:app`) calls it once with `load_settings()`, and the integration tests boot it
+on a temp SQLite file.
 """
 
 import os
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import AsyncGenerator, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from random import Random
 from typing import Final
@@ -17,22 +16,35 @@ from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import Engine, create_engine
 
 from app.admin.admin_routes_effect import bind_admin_routes
 from app.admin.admin_service_effect import make_admin_service
+from app.badges.badges_ports_pure import BadgeNeighbors
+from app.badges.badges_repository_effect import make_sql_badge_repository
+from app.badges.badges_routes_effect import bind_badges_routes
+from app.badges.badges_schemas_pure import Activity, ActivityAttempt
+from app.badges.badges_service_effect import make_badges_service
 from app.composition.app_settings_assembly import AppSettings
 from app.crash_reports.crash_reports_repository_effect import make_file_client_error_log
 from app.crash_reports.crash_reports_routes_effect import bind_crash_reports_routes
 from app.crash_reports.crash_reports_service_effect import make_crash_reports_service
-from app.events.events_repository_effect import make_sql_event_log
+from app.events.events_repository_effect import SqlEventLog, make_sql_event_log
 from app.pathfinder.pathfinder_repository_effect import make_sql_pathfinder_repository
 from app.pathfinder.pathfinder_routes_effect import bind_pathfinder_routes
 from app.pathfinder.pathfinder_service_effect import make_pathfinder_service
+from app.pieces.illustrations_repository_effect import make_file_illustration_store
+from app.pieces.image_generation_client_effect import make_no_image_generator, make_openai_image_generator
+from app.pieces.pieces_ports_pure import ImageGenerator, PieceNeighbors, PieceOutputs
+from app.pieces.pieces_repository_effect import SqlPieceRepository, make_sql_piece_repository
+from app.pieces.pieces_routes_effect import bind_pieces_routes
+from app.pieces.pieces_service_effect import make_pieces_service
 from app.play.games.arithmetic_reducers_pure import ALL_OPERATORS
 from app.play.games.catalog_reducers_pure import game_catalog
 from app.play.play_ports_pure import PlayNeighbors, PlayService
-from app.play.play_repository_effect import make_sql_play_repository
+from app.play.play_repository_effect import SqlPlayRepository, make_sql_play_repository
 from app.play.play_routes_effect import bind_play_routes
 from app.play.play_schemas_pure import PracticeSettings
 from app.play.play_service_effect import make_play_service
@@ -44,7 +56,7 @@ from app.profiles.photo_remix_client_effect import make_openai_photo_remixer, ma
 from app.profiles.photo_remix_service_effect import make_photo_remix_service
 from app.profiles.profile_passwords_service_effect import make_scrypt_password_hasher
 from app.profiles.profile_photos_repository_effect import make_file_photo_store
-from app.profiles.profiles_ports_pure import PhotoRemixer, ProfilesService
+from app.profiles.profiles_ports_pure import PhotoRemixer
 from app.profiles.profiles_repository_effect import make_sql_profile_repository
 from app.profiles.profiles_routes_effect import bind_profiles_routes
 from app.profiles.profiles_schemas_pure import LocalSeedProfile
@@ -55,16 +67,7 @@ from app.todo.todo_schemas_pure import TodoId
 from app.todo.todo_service_effect import make_todo_service
 
 TODO_ROUTE_PREFIX: Final = "/api/examples/todos"
-
-
-@dataclass(frozen=True)
-class LegacyHandles:
-    """What the legacy routes in app/main.py still use until they migrate."""
-
-    profiles: ProfilesService
-    play: PlayService
-    # Runs at startup: the demo profile, the optional local tester, photo backfill.
-    seed_profiles: Callable[[], None]
+APP_TITLE: Final = "Adaptive Learning Games API"
 
 
 def utc_now() -> datetime:
@@ -76,15 +79,27 @@ def assemble_engine(settings: AppSettings) -> Engine:
     return create_engine(settings.database_url, connect_args=connect_args)
 
 
-def assemble_features(
-    app: FastAPI,
-    settings: AppSettings,
-    *,
-    erase_legacy_profile_rows: Callable[[int], None],
-    after_attempt: Callable[[int, str | None], None],
-) -> LegacyHandles:
-    """`erase_legacy_profile_rows` deletes what the unmigrated routes keep for a profile;
-    `after_attempt` awards badges (still legacy)."""
+def assemble_app(settings: AppSettings) -> FastAPI:
+    """The whole backend. Tables are created here, at assembly; startup seeds the demo
+    profile (and the optional local tester) and the badges."""
+    seeds: list[Callable[[], None]] = []
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        for seed in seeds:
+            seed()
+        yield
+
+    app = FastAPI(title=APP_TITLE, lifespan=lifespan)
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+    settings.static_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
+    seeds.extend(assemble_features(app, settings))
+    return app
+
+
+def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[], None], ...]:
+    """Mounts every feature's routes on `app`; returns the startup seeds."""
     engine = assemble_engine(settings)
     assemble_todo_example(app, settings, engine)
 
@@ -92,23 +107,34 @@ def assemble_features(
     app.include_router(bind_admin_routes(service=admin))
 
     events = make_sql_event_log(engine=engine, clock=utc_now, new_id=lambda: str(uuid4()))
-    events.create_schema()
     practice_configs = make_sql_practice_config_repository(engine=engine)
-    practice_configs.create_schema()
     pathfinder = make_sql_pathfinder_repository(engine=engine)
-    pathfinder.create_schema()
     play_repository = make_sql_play_repository(engine=engine)
-    play_repository.create_schema()
+    badge_repository = make_sql_badge_repository(engine=engine)
+    piece_repository = make_sql_piece_repository(engine=engine)
+    profile_repository = make_sql_profile_repository(engine=engine)
+    for create_schema in (
+        events.create_schema,
+        practice_configs.create_schema,
+        pathfinder.create_schema,
+        play_repository.create_schema,
+        badge_repository.create_schema,
+        piece_repository.create_schema,
+        profile_repository.create_schema,
+    ):
+        create_schema()
 
     def erase_profile_data(profile_id: int) -> None:
-        erase_legacy_profile_rows(profile_id)
-        play_repository.delete_for_profile(profile_id)
-        events.delete_for_profile(profile_id)
-        practice_configs.delete_for_profile(profile_id)
-        pathfinder.delete_for_profile(profile_id)
+        for delete_for_profile in (
+            piece_repository.delete_for_profile,
+            play_repository.delete_for_profile,
+            badge_repository.delete_for_profile,
+            events.delete_for_profile,
+            practice_configs.delete_for_profile,
+            pathfinder.delete_for_profile,
+        ):
+            delete_for_profile(profile_id)
 
-    profile_repository = make_sql_profile_repository(engine=engine)
-    profile_repository.create_schema()
     profiles = make_profiles_service(
         repository=profile_repository,
         photo_store=make_file_photo_store(
@@ -122,19 +148,50 @@ def assemble_features(
     remix = make_photo_remix_service(remixer=assemble_photo_remixer(settings))
     app.include_router(bind_profiles_routes(service=profiles, remix=remix))
 
+    catalog = game_catalog()
+    badges = make_badges_service(
+        repository=badge_repository,
+        events=events,
+        neighbors=BadgeNeighbors(
+            activity=lambda profile_id: activity_of(play_repository, piece_repository, events, profile_id),
+            profile_exists=profiles.exists,
+            game_title=lambda game_id: catalog[game_id].metadata.title if game_id in catalog else None,
+        ),
+        clock=utc_now,
+    )
+    app.include_router(bind_badges_routes(service=badges))
+
+    def award_badges(profile_id: int, session_id: str | None) -> None:
+        badges.evaluate(profile_id, session_id)
+
     play = make_play_service(
         repository=play_repository,
         events=events,
-        games=game_catalog(),
+        games=catalog,
         neighbors=PlayNeighbors(
             birth_year=profiles.birth_year,
             practice_settings=lambda profile_id, game_id: practice_settings(practice_configs, profile_id, game_id),
-            after_attempt=after_attempt,
+            after_attempt=award_badges,
         ),
         clock=utc_now,
         new_rng=Random,
     )
     app.include_router(bind_play_routes(service=play))
+
+    pieces = make_pieces_service(
+        repository=piece_repository,
+        events=events,
+        outputs=PieceOutputs(
+            images=assemble_image_generator(settings),
+            store=make_file_illustration_store(
+                directory=settings.static_dir / "illustrations", new_name=lambda: uuid4().hex
+            ),
+        ),
+        neighbors=PieceNeighbors(profile_exists=profiles.exists, after_piece=award_badges),
+        clock=utc_now,
+        new_id=lambda: str(uuid4()),
+    )
+    app.include_router(bind_pieces_routes(service=pieces))
 
     practice_service = make_practice_service(
         repository=practice_configs,
@@ -157,7 +214,7 @@ def assemble_features(
     app.include_router(bind_crash_reports_routes(service=crash_reports))
 
     local_seed = assemble_local_seed(settings)
-    return LegacyHandles(profiles=profiles, play=play, seed_profiles=lambda: profiles.seed(local_seed))
+    return (lambda: profiles.seed(local_seed), badges.seed)
 
 
 def assemble_todo_example(app: FastAPI, settings: AppSettings, engine: Engine) -> None:
@@ -169,11 +226,27 @@ def assemble_todo_example(app: FastAPI, settings: AppSettings, engine: Engine) -
     app.include_router(bind_todo_routes(service=todo_service), prefix=TODO_ROUTE_PREFIX)
 
 
+def _openai_key(settings: AppSettings) -> str:
+    return settings.openai_api_key.get_secret_value() if settings.openai_api_key is not None else ""
+
+
 def assemble_photo_remixer(settings: AppSettings) -> PhotoRemixer:
-    api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key is not None else ""
+    api_key = _openai_key(settings)
     if not api_key:
         return make_unavailable_photo_remixer()
     return make_openai_photo_remixer(
+        http=httpx.Client(timeout=120.0),
+        api_key=api_key,
+        model=settings.openai_image_model,
+        size=settings.openai_image_size,
+    )
+
+
+def assemble_image_generator(settings: AppSettings) -> ImageGenerator:
+    api_key = _openai_key(settings)
+    if settings.image_provider == "none" or not api_key:
+        return make_no_image_generator()
+    return make_openai_image_generator(
         http=httpx.Client(timeout=120.0),
         api_key=api_key,
         model=settings.openai_image_model,
@@ -189,17 +262,6 @@ def assemble_local_seed(settings: AppSettings) -> LocalSeedProfile | None:
         avatar=settings.local_seed_profile_avatar,
         birth_year=settings.local_seed_profile_birth_year,
     )
-
-
-def assemble_app(settings: AppSettings) -> FastAPI:
-    app = FastAPI(title="Adaptive Learning Games API")
-    assemble_features(
-        app,
-        settings,
-        erase_legacy_profile_rows=lambda _profile_id: None,
-        after_attempt=lambda _profile_id, _session_id: None,
-    )
-    return app
 
 
 # --- Translations between features' own types (features never import each other) ---
@@ -219,3 +281,15 @@ def practice_game(play: PlayService, game_id: str) -> PracticeGame | None:
     if rules is None:
         return None
     return PracticeGame(supports_practice_config=rules.supports_practice_config, max_level=rules.max_level)
+
+
+def activity_of(play: SqlPlayRepository, pieces: SqlPieceRepository, events: SqlEventLog, profile_id: int) -> Activity:
+    return Activity(
+        attempts=tuple(
+            ActivityAttempt(game_id=a.game_id, correct=a.correct, time_ms=a.time_ms, created_at=a.created_at)
+            for a in play.attempts_for_profile(profile_id)
+        ),
+        piece_game_ids=pieces.game_ids_for(profile_id),
+        rating_values=play.rating_values(profile_id),
+        event_timestamps=events.timestamps(profile_id),
+    )

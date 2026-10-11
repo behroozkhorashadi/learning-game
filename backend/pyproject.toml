@@ -8,21 +8,7 @@ line-length = 120
 extend-exclude = [
     # --- legacy (shrink-only) ---
     "app/__init__.py",
-    "app/db.py",
-    "app/events/log.py",
     "app/main.py",
-    "app/models/__init__.py",
-    "app/models/attempt.py",
-    "app/models/badge.py",
-    "app/models/enums.py",
-    "app/models/event.py",
-    "app/models/piece.py",
-    "app/models/rating.py",
-    "app/models/stats.py",
-    "app/services/__init__.py",
-    "app/services/badges_service.py",
-    "app/services/image_generation.py",
-    "app/util.py",
     "scripts/generate_badge_assets.py",
     "scripts/generate_game_assets.py",
     "scripts/generate_ts_types.py",
@@ -30,8 +16,6 @@ extend-exclude = [
     "scripts/generate_word_images.py",
     "tests/__init__.py",
     "tests/conftest.py",
-    "tests/test_badges.py",
-    "tests/test_pieces.py",
 ]
 
 [tool.ruff.lint]
@@ -86,21 +70,7 @@ exclude = [
     ".venv",
     # --- legacy (shrink-only) ---
     "app/__init__.py",
-    "app/db.py",
-    "app/events/log.py",
     "app/main.py",
-    "app/models/__init__.py",
-    "app/models/attempt.py",
-    "app/models/badge.py",
-    "app/models/enums.py",
-    "app/models/event.py",
-    "app/models/piece.py",
-    "app/models/rating.py",
-    "app/models/stats.py",
-    "app/services/__init__.py",
-    "app/services/badges_service.py",
-    "app/services/image_generation.py",
-    "app/util.py",
     "scripts/generate_badge_assets.py",
     "scripts/generate_game_assets.py",
     "scripts/generate_ts_types.py",
@@ -108,8 +78,6 @@ exclude = [
     "scripts/generate_word_images.py",
     "tests/__init__.py",
     "tests/conftest.py",
-    "tests/test_badges.py",
-    "tests/test_pieces.py",
 ]
 pythonVersion = "3.12"
 venvPath = "."
@@ -139,10 +107,4 @@ type = "color_layers"
 [[tool.importlinter.contracts]]
 name = "Composition sits above every new-style feature; only app.main imports it"
 type = "layers"
-layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder | app.crash_reports | app.profiles | app.admin | app.play | app.events"]
-
-[[tool.importlinter.contracts]]
-name = "Legacy packages never import the composition root"
-type = "forbidden"
-source_modules = ["app.models", "app.services", "app.events.log", "app.db", "app.util"]
-forbidden_modules = ["app.composition"]
+layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder | app.crash_reports | app.profiles | app.admin | app.play | app.events | app.badges | app.pieces"]

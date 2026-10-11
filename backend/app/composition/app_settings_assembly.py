@@ -7,6 +7,7 @@ by the legacy `app/__init__.py` until that goes; see `backend/.env.example`.
 """
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +28,8 @@ class AppSettings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_image_model: str = "gpt-image-1"
     openai_image_size: str = "1024x1024"
+    # Illustrations: "openai" (when a key is set) or "none" (always the placeholder).
+    image_provider: Literal["openai", "none"] = "openai"
     # An optional second seed profile for a real named tester, kept out of the repo.
     local_seed_profile_name: str | None = None
     local_seed_profile_avatar: str = "fox"

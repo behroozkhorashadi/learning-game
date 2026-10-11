@@ -97,6 +97,19 @@ class SqlPlayRepository:
             rows = connection.execute(query).mappings().all()
         return tuple(Attempt.model_validate(dict(row)) for row in reversed(rows))
 
+    def attempts_for_profile(self, profile_id: int) -> tuple[Attempt, ...]:
+        """Oldest first."""
+        c = self.attempts.c
+        query = select(self.attempts).where(c.profile_id == profile_id).order_by(c.created_at, c.id)
+        with self.engine.connect() as connection:
+            rows = connection.execute(query).mappings().all()
+        return tuple(Attempt.model_validate(dict(row)) for row in rows)
+
+    def rating_values(self, profile_id: int) -> tuple[int, ...]:
+        query = select(self.ratings.c.value).where(self.ratings.c.profile_id == profile_id)
+        with self.engine.connect() as connection:
+            return tuple(int(value) for value in connection.execute(query).scalars())
+
     def add_rating(self, rating: Rating) -> Rating:
         with self.engine.begin() as connection:
             statement = insert(self.ratings).values(**rating.model_dump(exclude={"id"})).returning(self.ratings.c.id)

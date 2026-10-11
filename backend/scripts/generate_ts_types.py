@@ -15,9 +15,9 @@ from typing import Any
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.models.badge import BadgeStatus  # noqa: E402
+from app.badges.badges_schemas_pure import BadgeStatus, ProfileStats  # noqa: E402
 from app.events.events_schemas_pure import Event  # noqa: E402
-from app.models.piece import (  # noqa: E402
+from app.pieces.pieces_schemas_pure import (  # noqa: E402
     Illustration,
     IllustrationCreate,
     IllustrationGenerateRequest,
@@ -49,7 +49,6 @@ from app.profiles.profiles_schemas_pure import (  # noqa: E402
     ProfileUnlockRequest,
     ProfileUpdate,
 )
-from app.models.stats import ProfileStats  # noqa: E402
 from app.play.play_schemas_pure import (  # noqa: E402
     Attempt,
     AttemptCreate,

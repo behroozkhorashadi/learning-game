@@ -3,7 +3,7 @@
 Distinct from `generate_game_assets.py`'s per-game hero/completion-badge pair
 (which lives under `frontend/public/images/badges/{game_id}.png` and backs the
 Syllable Builder wrap-up screen): these are the cross-game achievement badges
-in `app.services.badges_service.SEED_BADGES` (Word Wizard, Sound Master, ...),
+in `app.badges.badges_reducers_pure.SEED_BADGES` (Word Wizard, Sound Master, ...),
 shown on the Accomplishments screen (`BadgesAccomplishments.tsx`). They get
 their own output directory, keyed by badge `key`, so the two "badge" concepts
 never collide on a filename again.
@@ -22,7 +22,7 @@ import httpx
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.services.badges_service import SEED_BADGES  # noqa: E402
+from app.badges.badges_reducers_pure import SEED_BADGES  # noqa: E402
 
 ACHIEVEMENTS_OUTPUT_DIR = BACKEND_ROOT.parent / "frontend" / "public" / "images" / "achievements"
 MODEL = "gpt-image-1"
@@ -50,7 +50,7 @@ def main() -> None:
 
     with httpx.Client(headers={"Authorization": f"Bearer {api_key}"}) as client:
         for entry in SEED_BADGES:
-            key = entry["key"]
+            key = entry.key
             badge_path = ACHIEVEMENTS_OUTPUT_DIR / f"{key}.png"
             if badge_path.exists() and not force:
                 print(f"skip {key} (exists)")
@@ -58,7 +58,7 @@ def main() -> None:
 
             prompt = (
                 f"A round achievement badge sticker for a kids' learning app, "
-                f"celebrating: {entry['description']}. Flat vector style, bold "
+                f"celebrating: {entry.description}. Flat vector style, bold "
                 "clean outlines, bright colors, centered on a plain white "
                 "background, no text or letters, looks like a collectible "
                 "sticker."

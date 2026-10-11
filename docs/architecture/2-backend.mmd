@@ -1,56 +1,37 @@
 flowchart TB
-  client["React SPA"] -- "/api/*" --> main
+  client["React SPA"] -- "/api/*, /static/*" --> main
 
-  subgraph API["Legacy HTTP layer — app/main.py (FastAPI entry: uvicorn app.main:app)"]
-    main["App + lifespan<br/>CORS, /static mount, seeds (via profiles/) + badges"]
-    r_write["Writing pieces<br/>/pieces, /illustrations, /revisions, /remixes, /turns"]
-    r_prog["Progress<br/>/badges, /stats"]
-  end
-
-  subgraph SVC["Legacy services — app/services"]
-    s_badge["badges_service<br/>stats, award badges"]
-    s_img["image_generation<br/>ImageGenerator: OpenAI or Noop"]
-  end
-
-  subgraph DATA["Legacy persistence"]
-    elog["events/log<br/>append_event (pieces, badges)"]
-    models["models/ SQLModel<br/>Piece, Badge, Attempt/Rating (read by badges)"]
-    dbpy["db.py<br/>engine + get_session"]
-  end
-
-  sqlite[("SQLite")]
+  main["app/main.py<br/>uvicorn entry: app = assemble_app(load_settings())"]
 
   subgraph NEW["Guardrailed — app/&lt;feature&gt;/&lt;name&gt;_&lt;kind&gt;_&lt;color&gt;.py (assembly → effect → pure)"]
-    comp["app/composition (assembly)<br/>AppSettings via load_settings()<br/>assemble_features(app, settings)"]
+    comp["app/composition (assembly)<br/>AppSettings (env + backend/.env)<br/>assemble_app: CORS, /static, lifespan seeds, every router"]
     todo["todo/<br/>/api/examples/todos (the worked example)"]
     profiles["profiles/<br/>/profiles, /unlock, /photos, /profile-photos/remix<br/>passwords (scrypt), photo files, demo seeding"]
     admin["admin/<br/>/admin/login + the admin password check"]
     play["play/<br/>/games, /items/next, /attempts, /ratings, /verifications<br/>games/ (item generators), Loop A (pure)"]
     events["events/<br/>the append-only event log"]
+    badges["badges/<br/>/profiles/{id}/badges, /stats<br/>seeded badges, awarding, live stats"]
+    pieces["pieces/<br/>/pieces, /illustrations, /revisions, /remixes, /turns<br/>illustration files"]
     practice["practice/<br/>/api/practice-config"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
   end
 
+  sqlite[("SQLite<br/>same tables and columns as before")]
+  files[("static/<br/>profile-avatars/, illustrations/")]
   openai["OpenAI Images API"]
 
-  main --> r_write & r_prog
-  main -- "mounts new-style routers" --> comp
-  comp -- "builds + wires" --> todo & profiles & admin & play & events & practice & pathfinder & crash
+  main --> comp
+  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & crash
   profiles -- "is_admin_password" --> admin
-  profiles -- "erase a profile's data" --> play & events & practice & pathfinder & main
+  profiles -- "erase a profile's data" --> play & events & badges & pieces & practice & pathfinder
   play -- "birth year, practice config" --> profiles & practice
-  play -- "append / read events" --> events
-  play -- "after an attempt: award badges" --> s_badge
+  play & pieces & badges -- "append events" --> events
+  play & pieces -- "after an attempt / piece:<br/>award badges" --> badges
+  badges -- "history: attempts, ratings,<br/>pieces, event times" --> play & pieces & events
   practice -- "game rules" --> play
-  practice & pathfinder -- "profile lookups" --> profiles
-  r_write & r_prog -- "profile exists, game titles" --> profiles & play
-  r_write --> s_img
-  r_prog --> s_badge
-  s_img --> openai
+  practice & pathfinder & pieces & badges -- "profile lookups" --> profiles
+  todo & profiles & play & events & badges & pieces & practice & pathfinder --> sqlite
+  profiles & pieces --> files
   profiles -- "photo remix" --> openai
-  r_write & r_prog & s_badge --> models
-  s_badge & r_write --> elog
-  elog --> models
-  models --> dbpy --> sqlite
-  todo & profiles & play & events & practice & pathfinder --> sqlite
+  pieces -- "illustrations" --> openai
