@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HttpFetch, HttpResponse } from './http.pure.lib.ts'
-import { bindProfilesApi } from './profiles_api.effect.lib.ts'
+import { authHeaders, bindProfilesApi } from './profiles_api.effect.lib.ts'
 
 function fetchReturning(response: HttpResponse): HttpFetch & { readonly urls: string[] } {
   const urls: string[] = []
@@ -58,5 +58,39 @@ describe('bindProfilesApi', () => {
 
   it('rejects a remix response without a picture', async () => {
     await expect(bindProfilesApi({ fetch: fetchReturning(ok({})), baseUrl: '' }).remixPhoto({ image_data_url: 'data:o' })).rejects.toThrow('unexpected body')
+  })
+
+  it('sends each kind of auth as the header the backend checks', () => {
+    expect(authHeaders({ kind: 'none' })).toEqual({})
+    expect(authHeaders({ kind: 'profile', password: 'p' })).toEqual({ 'X-Profile-Password': 'p' })
+    expect(authHeaders({ kind: 'admin', password: 'a' })).toEqual({ 'X-Admin-Password': 'a' })
+  })
+
+  it('PATCHes, DELETEs, and lists photos with the auth header', async () => {
+    const calls: { url: string; method: string; headers: Readonly<Record<string, string>> }[] = []
+    const fetch: HttpFetch = (url, init) => {
+      calls.push({ url, method: init.method, headers: init.headers })
+      if (url.endsWith('/photos')) return Promise.resolve(ok([{ id: 1, url: '/static/a.jpg', label: 'Photo', created_at: '2026-10-01T00:00:00' }]))
+      return Promise.resolve(init.method === 'PATCH' ? ok({ id: 4, name: 'B', avatar: 'owl', birth_year: 2019 }) : { ok: true, status: 204, json: () => Promise.resolve(null) })
+    }
+    const api = bindProfilesApi({ fetch, baseUrl: '' })
+    const auth = { kind: 'admin', password: 's' } as const
+    expect((await api.update(4, { name: 'B', new_photos: [], remove_password: false }, auth)).name).toBe('B')
+    await api.remove(4, auth)
+    expect(await api.listPhotos(4, auth)).toHaveLength(1)
+    await api.deletePhoto(4, 1, auth)
+    expect(calls.map((c) => `${c.method} ${c.url} ${c.headers['X-Admin-Password'] ?? ''}`)).toEqual([
+      'PATCH /api/profiles/4 s',
+      'DELETE /api/profiles/4 s',
+      'GET /api/profiles/4/photos s',
+      'DELETE /api/profiles/4/photos/1 s',
+    ])
+  })
+
+  it('maps an unlock 401 to a wrong password and 204 to unlocked', async () => {
+    const statusFetch = (code: number): HttpFetch => () => Promise.resolve({ ok: code < 300, status: code, json: () => Promise.resolve(null) })
+    expect(await bindProfilesApi({ fetch: statusFetch(204), baseUrl: '' }).unlock(3, 'x')).toBe('unlocked')
+    expect(await bindProfilesApi({ fetch: statusFetch(401), baseUrl: '' }).unlock(3, 'x')).toBe('wrong-password')
+    await expect(bindProfilesApi({ fetch: statusFetch(500), baseUrl: '' }).unlock(3, 'x')).rejects.toThrow('HTTP 500')
   })
 })

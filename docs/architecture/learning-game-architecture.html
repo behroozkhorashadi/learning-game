@@ -209,7 +209,6 @@ code { font-family:var(--mono); font-size:.9em; }
   app -. &quot;DEV only&quot; .-&gt; dev
 
   subgraph SCREENS[&quot;Legacy screens — src/games&quot;]
-    prof[&quot;Profile flow&lt;br/&gt;ProfileUnlock, EditProfile, AdminPanel&quot;]
     picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
     gWord[&quot;Word games&lt;br/&gt;SyllableBuilder, PromptForge,&lt;br/&gt;StyleRemixLab, TagTeamStory, ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;EquationBuilder, ZombieMathBlaster&quot;]
@@ -233,11 +232,12 @@ code { font-family:var(--mono); font-size:.9em; }
 
   subgraph NEW[&quot;Guardrailed features — src/&amp;lt;feature&amp;gt;/&amp;lt;name&amp;gt;.&amp;lt;color&amp;gt;.&amp;lt;kind&amp;gt;.ts(x)&quot;]
     root[&quot;main/&lt;br/&gt;dev_screens.assembly.main&quot;]
-    profiles[&quot;profiles/&lt;br/&gt;picker + create screens (bind* + assemble*),&lt;br/&gt;photo panel (camera + remix), form &amp;amp; password fields,&lt;br/&gt;ProfileAvatar, AVATAR_OPTIONS&quot;]
+    profiles[&quot;profiles/&lt;br/&gt;picker, create, unlock, edit screens (bind* + assemble*),&lt;br/&gt;photo panel (camera + remix), form &amp;amp; password fields,&lt;br/&gt;CardShell, ProfileAvatar, AVATAR_OPTIONS&quot;]
+    admin[&quot;admin/&lt;br/&gt;AdminLogin + AdminPanel&lt;br/&gt;(X-Admin-Password, a UX gate)&quot;]
     session[&quot;session/&lt;br/&gt;ProgressBar&quot;]
     den[&quot;den/&lt;br/&gt;DenButton, icons, icon_paths&quot;]
-    query[&quot;query/&lt;br/&gt;useQuery + QueryState (server state)&quot;]
-    apiad[&quot;api/&lt;br/&gt;profiles_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
+    query[&quot;query/&lt;br/&gt;useQuery, useReloadableQuery + QueryState (server state)&quot;]
+    apiad[&quot;api/&lt;br/&gt;profiles_api, admin_api, todos_api (zod at the door)&lt;br/&gt;openapi_schema (generated), http types&quot;]
     flags[&quot;flags/&lt;br/&gt;feature flags, read in assembly only&quot;]
     boundary[&quot;boundary/&lt;br/&gt;AsyncBoundary&quot;]
     example[&quot;examples/todo/&lt;br/&gt;the worked example to copy&quot;]
@@ -247,15 +247,16 @@ code { font-family:var(--mono); font-size:.9em; }
   api[[&quot;FastAPI /api/*&quot;]]
   assets[(&quot;public/ GLB models, images, audio&quot;)]
 
-  app --&gt; prof &amp; picker &amp; gWord &amp; gMath &amp; gPath &amp; meta
-  app -- &quot;assembleProfilePicker(),&lt;br/&gt;assembleCreateProfile() once&quot; --&gt; profiles
+  app --&gt; picker &amp; gWord &amp; gMath &amp; gPath &amp; meta
+  app -- &quot;assemble* once:&lt;br/&gt;picker, create, unlock, edit&quot; --&gt; profiles
+  app -- &quot;assembleAdminPanel() once&quot; --&gt; admin
+  admin --&gt; profiles &amp; query &amp; apiad &amp; den
   dev --&gt; root --&gt; example
   gWord --&gt; shared &amp; write
   gMath --&gt; shared &amp; arena
   gWord &amp; gMath --&gt; session
   gPath --&gt; pathc
-  prof &amp; picker &amp; meta --&gt; den
-  prof --&gt; profiles
+  picker &amp; meta --&gt; den
   shared &amp; write &amp; pathc --&gt; den
   session --&gt; den
   profiles --&gt; query &amp; apiad &amp; den
@@ -267,7 +268,7 @@ code { font-family:var(--mono); font-size:.9em; }
   pathc --&gt; plib
   gPath --&gt; plat
   shared &amp; gWord &amp; gMath --&gt; plat
-  prof &amp; picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
+  picker &amp; gWord &amp; gMath &amp; meta -- &quot;fetch (legacy)&quot; --&gt; api
   plat -- &quot;fetch&quot; --&gt; api
   SCREENS -.-&gt; types
   LIB -.-&gt; types

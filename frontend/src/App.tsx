@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
 import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.main.ts'
-import { EditProfile } from './games/EditProfile'
-import { ProfileUnlock } from './games/ProfileUnlock'
-import { AdminPanel } from './games/AdminPanel'
+import { assembleEditProfile } from '@app/profiles/edit_profile.assembly.main.ts'
+import { assembleProfileUnlock } from '@app/profiles/profile_unlock.assembly.main.ts'
+import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
+import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { EquationOutbreakSettings } from './games/EquationOutbreakSettings'
 import { GamePicker } from './games/GamePicker'
 import { SyllableBuilder } from './games/SyllableBuilder'
@@ -17,14 +18,16 @@ import { Pathfinder } from './games/Pathfinder'
 import { BadgesAccomplishments } from './components/BadgesAccomplishments'
 import { Storybook } from './components/Storybook'
 import { DevScreenPicker, DevScreenLink } from './dev/DevScreenPicker'
-import type { Profile } from './types/generated'
 
 function App() {
   // Assembled once for the app's lifetime (src/profiles/, migrated); the rest of
   // this shell is legacy until it moves to src/main/ (MIGRATION.md).
   const [ProfilePicker] = useState(assembleProfilePicker)
   const [CreateProfile] = useState(assembleCreateProfile)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [ProfileUnlock] = useState(assembleProfileUnlock)
+  const [EditProfile] = useState(assembleEditProfile)
+  const [AdminPanel] = useState(assembleAdminPanel)
+  const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
   // kept in memory only so "Edit profile" doesn't ask again. Null for an
   // unprotected profile.
@@ -35,10 +38,10 @@ function App() {
   const [creatingProfile, setCreatingProfile] = useState(false)
   // A protected profile picked on ProfilePicker (to play, or via its edit
   // pencil) waiting on its password.
-  const [unlocking, setUnlocking] = useState<{ profile: Profile; next: 'play' | 'edit' } | null>(null)
+  const [unlocking, setUnlocking] = useState<{ profile: ProfileRecord; next: 'play' | 'edit' } | null>(null)
   // Set from either picker's pencil; `returnToGames` records which one so
   // Save/Cancel lands back where the edit started.
-  const [editing, setEditing] = useState<{ profile: Profile; password: string | null; returnToGames: boolean } | null>(null)
+  const [editing, setEditing] = useState<{ profile: ProfileRecord; password: string | null; returnToGames: boolean } | null>(null)
   const [showAdmin, setShowAdmin] = useState(false)
   const [practiceSettingsGameId, setPracticeSettingsGameId] = useState<string | null>(null)
 
@@ -82,8 +85,9 @@ function App() {
   } else if (editing != null) {
     content = (
       <EditProfile
+        key={editing.profile.id}
         profile={editing.profile}
-        authHeaders={editing.password != null ? { 'X-Profile-Password': editing.password } : {}}
+        auth={editing.password != null ? { kind: 'profile', password: editing.password } : { kind: 'none' }}
         onSaved={(updated, newPassword) => {
           setEditing(null)
           if (editing.returnToGames) {

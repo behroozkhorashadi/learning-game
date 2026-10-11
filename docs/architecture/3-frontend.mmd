@@ -6,7 +6,6 @@ flowchart TB
   app -. "DEV only" .-> dev
 
   subgraph SCREENS["Legacy screens — src/games"]
-    prof["Profile flow<br/>ProfileUnlock, EditProfile, AdminPanel"]
     picker["GamePicker<br/>+ EquationOutbreakSettings"]
     gWord["Word games<br/>SyllableBuilder, PromptForge,<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
     gMath["Math games<br/>EquationBuilder, ZombieMathBlaster"]
@@ -30,11 +29,12 @@ flowchart TB
 
   subgraph NEW["Guardrailed features — src/&lt;feature&gt;/&lt;name&gt;.&lt;color&gt;.&lt;kind&gt;.ts(x)"]
     root["main/<br/>dev_screens.assembly.main"]
-    profiles["profiles/<br/>picker + create screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>ProfileAvatar, AVATAR_OPTIONS"]
+    profiles["profiles/<br/>picker, create, unlock, edit screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>CardShell, ProfileAvatar, AVATAR_OPTIONS"]
+    admin["admin/<br/>AdminLogin + AdminPanel<br/>(X-Admin-Password, a UX gate)"]
     session["session/<br/>ProgressBar"]
     den["den/<br/>DenButton, icons, icon_paths"]
-    query["query/<br/>useQuery + QueryState (server state)"]
-    apiad["api/<br/>profiles_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
+    query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
+    apiad["api/<br/>profiles_api, admin_api, todos_api (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
     boundary["boundary/<br/>AsyncBoundary"]
     example["examples/todo/<br/>the worked example to copy"]
@@ -44,15 +44,16 @@ flowchart TB
   api[["FastAPI /api/*"]]
   assets[("public/ GLB models, images, audio")]
 
-  app --> prof & picker & gWord & gMath & gPath & meta
-  app -- "assembleProfilePicker(),<br/>assembleCreateProfile() once" --> profiles
+  app --> picker & gWord & gMath & gPath & meta
+  app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
+  app -- "assembleAdminPanel() once" --> admin
+  admin --> profiles & query & apiad & den
   dev --> root --> example
   gWord --> shared & write
   gMath --> shared & arena
   gWord & gMath --> session
   gPath --> pathc
-  prof & picker & meta --> den
-  prof --> profiles
+  picker & meta --> den
   shared & write & pathc --> den
   session --> den
   profiles --> query & apiad & den
@@ -64,7 +65,7 @@ flowchart TB
   pathc --> plib
   gPath --> plat
   shared & gWord & gMath --> plat
-  prof & picker & gWord & gMath & meta -- "fetch (legacy)" --> api
+  picker & gWord & gMath & meta -- "fetch (legacy)" --> api
   plat -- "fetch" --> api
   SCREENS -.-> types
   LIB -.-> types

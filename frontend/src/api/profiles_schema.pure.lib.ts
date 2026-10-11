@@ -27,3 +27,20 @@ export type ProfileRecord = z.infer<typeof profileSchema>
 export const photoRemixResponseSchema = z
   .object({ image_data_url: z.string() })
   .readonly() satisfies z.ZodType<components['schemas']['ProfilePhotoRemixResponse']>
+
+export const savedPhotoSchema = z
+  .object({ id: z.number().int(), url: z.string(), label: z.string(), created_at: z.string() })
+  .readonly() satisfies z.ZodType<components['schemas']['ProfilePhotoRead']>
+
+export const savedPhotoListSchema = z.array(savedPhotoSchema).readonly()
+
+/**
+ * Who is acting on a profile. The adapter turns it into the header the
+ * backend checks (backend/app/admin_auth.py, services/profile_passwords.py):
+ * the profile's own password (or the admin password as an override) as
+ * `X-Profile-Password`, the admin screen's as `X-Admin-Password`, or nothing
+ * for an unprotected profile.
+ */
+export type ProfileAuth = { readonly kind: 'none' } | { readonly kind: 'profile'; readonly password: string } | { readonly kind: 'admin'; readonly password: string }
+
+export const NO_AUTH: ProfileAuth = { kind: 'none' }

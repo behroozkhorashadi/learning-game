@@ -14,5 +14,8 @@ from `query_state.pure.lib.ts`) that views render by switching on `kind`.
   re-read, not a local mirror.
 - Views take a `QueryState` as a prop (see `profiles/profile_picker.pure.ui.tsx`), so
   stories and tests render every state with `LOADING`, `loaded(data)`, and `failed(msg)`.
-- Caching, refetch, and invalidation would live here. Nothing needs them yet, so
+- **Re-read after a mutation** with `useReloadableQuery(load)` → `{ state, reload }`
+  (`admin/admin_panel.effect.ui.tsx`): call the adapter's command, then `reload()`. The
+  last data stays on screen until the new result lands; only the latest run lands.
+- Caching and cross-screen invalidation would live here. Nothing needs them yet, so
   they don't exist. Add them when a second screen needs the same data.

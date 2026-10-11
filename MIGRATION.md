@@ -7,7 +7,7 @@ Backend steps are in [backend/MIGRATION.md](backend/MIGRATION.md).
 
 - The tooling, docs, and worked example (`frontend/src/examples/todo/`, `backend/app/todo/`)
   have landed. Every rule is on for **new and migrated paths**.
-- 144 legacy frontend files (143 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
+- 137 legacy frontend files (136 in `src/` plus `e2e/zombie-hit-lab.spec.ts`) are on
   `frontend/scripts/lint/legacy_allowlist.json`. They're typechecked by
   `tsconfig.legacy.json` at their old strictness, and the architecture, type-aware, and
   strict-style rules skip them. The security, barrel, context, and scenario-test rules
@@ -84,6 +84,7 @@ Lessons from ProfilePicker:
 | component | effort | notes |
 |---|---|---|
 | `games/CreateProfile.tsx` + `ProfileFormFields`, `ProfilePasswordFields`, `ProfilePhotoCapture`, `newPhotosPayload` → `profiles/` | ~15 min (agent) | Reused `HttpFetch` and the profiles adapter as predicted (it gained `create` and `remixPhoto`; `failureMessage` in `api/http.pure.lib.ts` keeps the server's user-facing `detail`). New seams: a `ProfileCamera` capability (`profile_camera.effect.lib.ts` over `navigator.mediaDevices` + a canvas factory) driven by `use_camera.pure.hook.ts`, and an injected `today()` clock replacing module-level `new Date()`. The photo panel is injected into the create screen as a bound component (`PhotoCapture` bind arg); legacy `EditProfile` assembles it with `useState(assembleProfilePhotoCapture)`. Fixed in passing: a camera stream that opened after unmount was never stopped. 7 legacy files out; 21 tests in the ported suites (no `global.fetch`/`navigator` stubs) plus 60 new; 12 stories. |
+| `games/ProfileUnlock.tsx`, `games/EditProfile.tsx`, `games/AdminPanel.tsx`, `components/AdminLoginForm.tsx` → `profiles/`, `admin/` | ~25 min (agent) | Profiles adapter gains `update`/`remove`/`unlock`/`listPhotos`/`deletePhoto`; `api/admin_api` for login. Auth headers became a typed `ProfileAuth` (`none`/`profile`/`admin`) that only the adapter turns into headers. New seams: `query/use_reloadable_query` (re-read after a mutation without blanking the list) and `profiles/use_saved_photos` (the one owner of the saved-photo list). Screens are keyed by profile id (`key={profile.id}`), since each mount is one editing session. Admin rows gained per-player accessible names (`Edit Rami`, `Delete Rami`). 7 legacy files out. |
 
 Lessons:
 - **Inject a child component when a screen embeds a stateful panel** (`PhotoCapture: ComponentType<…>`). `bind*` can't be called outside assembly, so the parent's assembly binds the child and passes it in.
@@ -112,7 +113,7 @@ Lessons:
 
 | area | legacy files left |
 |---|---|
-| frontend `src/` + e2e | 144 (`legacy_allowlist.json`) |
+| frontend `src/` + e2e | 137 (`legacy_allowlist.json`) |
 | backend | 67 (`backend/scripts/lint_py/legacy_allowlist.txt`) |
 
 Update this table in the PR that lowers a ceiling.

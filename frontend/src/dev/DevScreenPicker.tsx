@@ -2,7 +2,7 @@ import { useState, type ComponentType, type ReactNode } from 'react'
 import { assembleDevScreens } from '@app/main/dev_screens.assembly.main.ts'
 import { assembleProfilePicker } from '@app/profiles/profile_picker.assembly.main.ts'
 import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.main.ts'
-import { AdminPanel } from '../games/AdminPanel'
+import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
 import { GamePicker } from '../games/GamePicker'
 import { EquationOutbreakSettings } from '../games/EquationOutbreakSettings'
 import { SyllableBuilder } from '../games/SyllableBuilder'
@@ -144,6 +144,11 @@ interface ScreenEntry {
 }
 
 /** The real, API-backed picker, assembled once per mount. */
+function DevAdminPanel() {
+  const [AdminPanel] = useState(assembleAdminPanel)
+  return <AdminPanel onClose={() => console.log('onClose')} />
+}
+
 function DevCreateProfile() {
   const [CreateProfile] = useState(assembleCreateProfile)
   return <CreateProfile onCreated={(p) => console.log('onCreated', p)} onCancel={() => console.log('onCancel')} />
@@ -188,7 +193,7 @@ const SCREENS: ScreenEntry[] = [
   {
     id: 'admin-panel',
     label: 'Admin panel',
-    render: () => <AdminPanel onClose={() => console.log('onClose')} />,
+    render: () => <DevAdminPanel />,
   },
   {
     id: 'game-picker',
