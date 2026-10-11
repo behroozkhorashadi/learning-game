@@ -44,7 +44,6 @@ extend-exclude = [
     "app/models/verification.py",
     "app/services/__init__.py",
     "app/services/badges_service.py",
-    "app/services/client_error_log.py",
     "app/services/image_generation.py",
     "app/services/loop_a_service.py",
     "app/services/profile_avatars.py",
@@ -159,7 +158,6 @@ exclude = [
     "app/models/verification.py",
     "app/services/__init__.py",
     "app/services/badges_service.py",
-    "app/services/client_error_log.py",
     "app/services/image_generation.py",
     "app/services/loop_a_service.py",
     "app/services/profile_avatars.py",
@@ -214,7 +212,7 @@ type = "color_layers"
 [[tool.importlinter.contracts]]
 name = "Composition sits above every new-style feature; only app.main imports it"
 type = "layers"
-layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder"]
+layers = ["app.main", "app.composition", "app.todo | app.practice | app.pathfinder | app.crash_reports"]
 
 [[tool.importlinter.contracts]]
 name = "Legacy packages never import the composition root"

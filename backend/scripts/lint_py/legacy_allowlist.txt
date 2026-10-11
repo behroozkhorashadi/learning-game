@@ -41,7 +41,6 @@ app/models/stats.py
 app/models/verification.py
 app/services/__init__.py
 app/services/badges_service.py
-app/services/client_error_log.py
 app/services/image_generation.py
 app/services/loop_a_service.py
 app/services/profile_avatars.py

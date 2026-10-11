@@ -122,7 +122,7 @@ code { font-family:var(--mono); font-size:.9em; }
     r_play[&quot;Gameplay&lt;br/&gt;/games, /items/next, /attempts&quot;]
     r_eval[&quot;Feedback&lt;br/&gt;/ratings, /verifications&quot;]
     r_write[&quot;Writing pieces&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&quot;]
-    r_prog[&quot;Progress&lt;br/&gt;/badges, /stats, /client-errors&quot;]
+    r_prog[&quot;Progress&lt;br/&gt;/badges, /stats&quot;]
     auth[&quot;admin_auth&lt;br/&gt;require_admin dependency&quot;]
   end
 
@@ -132,7 +132,6 @@ code { font-family:var(--mono); font-size:.9em; }
     s_img[&quot;image_generation&lt;br/&gt;ImageGenerator: OpenAI or Noop&quot;]
     s_avatar[&quot;profile_avatars / photos&lt;br/&gt;photo remix + storage&quot;]
     s_pw[&quot;profile_passwords&lt;br/&gt;hashing&quot;]
-    s_err[&quot;client_error_log&quot;]
   end
 
   subgraph ENG[&quot;Engine — app/engine (pure, no IO)&quot;]
@@ -165,6 +164,7 @@ code { font-family:var(--mono); font-size:.9em; }
     t_repo[&quot;todo_repository_effect&lt;br/&gt;over an injected engine&quot;]
     t_pure[&quot;todo_reducers_pure, todo_schemas_pure,&lt;br/&gt;todo_ports_pure (no IO, no framework)&quot;]
     practice[&quot;practice/&lt;br/&gt;/api/practice-config&lt;br/&gt;routes → service → SQL repository&quot;]
+    crash[&quot;crash_reports/&lt;br/&gt;POST /api/client-errors&lt;br/&gt;→ logs/client_errors.log&quot;]
     pathfinder[&quot;pathfinder/&lt;br/&gt;/completions, /maps, /published-maps&lt;br/&gt;routes → service → SQL repository&quot;]
   end
 
@@ -177,6 +177,7 @@ code { font-family:var(--mono); font-size:.9em; }
   practice --&gt; sqlite
   comp -- &quot;builds + wires&lt;br/&gt;(profile lookups)&quot; --&gt; pathfinder
   pathfinder --&gt; sqlite
+  comp -- &quot;builds + wires&lt;br/&gt;(log dir from AppSettings)&quot; --&gt; crash
   r_play -- &quot;reads a kid&#x27;s practice config&quot; --&gt; practice
   t_routes --&gt; t_svc --&gt; t_repo
   t_routes &amp; t_svc &amp; t_repo --&gt; t_pure
@@ -186,7 +187,7 @@ code { font-family:var(--mono); font-size:.9em; }
   r_play --&gt; s_loop
   r_play --&gt; reg
   r_write --&gt; s_img
-  r_prog --&gt; s_badge &amp; s_err
+  r_prog --&gt; s_badge
   r_play --&gt; s_badge
   s_loop --&gt; loopa
   s_loop --&gt; lvl

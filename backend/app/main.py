@@ -29,9 +29,7 @@
   app/composition/).
 - /api/profiles/{id}/pathfinder/completions, /maps[/{map_id}], and
   /api/pathfinder/published-maps: migrated to app/pathfinder/.
-- POST /api/client-errors: fire-and-forget sink for uncaught frontend errors
-  (React error boundary, window error/unhandledrejection) — see
-  `app/services/client_error_log.py`. Written to `logs/client_errors.log`.
+- POST /api/client-errors: migrated to app/crash_reports/.
 
 No accounts/auth (PRD §2 non-goals) beyond the admin screen's hardcoded
 password gate. A demo profile is always seeded on startup so there's
@@ -101,7 +99,6 @@ from app.models.session import PlaySession
 from app.models.stats import ProfileStats
 from app.models.verification import Verification, VerificationCreate
 from app.services.badges_service import compute_profile_stats, evaluate_and_award_badges, seed_badges
-from app.services.client_error_log import ClientErrorReport, log_client_error
 from app.services.image_generation import STATIC_DIR, ImageGenerator, get_image_generator, save_generated_image
 from app.services.loop_a_service import choose_next_item_level, process_attempt
 from app.services import profile_passwords, profile_photos
@@ -425,11 +422,6 @@ def get_profile_stats(profile_id: int, session: Session = Depends(get_session)) 
     if session.get(Profile, profile_id) is None:
         raise HTTPException(status_code=404, detail=f"no profile with id {profile_id}")
     return compute_profile_stats(session, profile_id)
-
-
-@app.post("/api/client-errors", status_code=204)
-def post_client_error(payload: ClientErrorReport) -> None:
-    log_client_error(payload)
 
 
 @app.get("/api/games", response_model=list[GameMetadata])

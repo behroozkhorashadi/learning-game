@@ -18,6 +18,9 @@ from sqlalchemy import Engine, create_engine
 from sqlmodel import Session, col, select
 
 from app.composition.app_settings_assembly import AppSettings
+from app.crash_reports.crash_reports_repository_effect import make_file_client_error_log
+from app.crash_reports.crash_reports_routes_effect import bind_crash_reports_routes
+from app.crash_reports.crash_reports_service_effect import make_crash_reports_service
 from app.games._arithmetic import ALL_OPERATORS
 from app.games.registry import get_game
 from app.models.profile import Profile
@@ -86,6 +89,9 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> LegacyHandles:
         clock=utc_now,
     )
     app.include_router(bind_pathfinder_routes(service=pathfinder_service))
+
+    crash_reports = make_crash_reports_service(log=make_file_client_error_log(log_dir=settings.log_dir))
+    app.include_router(bind_crash_reports_routes(service=crash_reports))
 
     return LegacyHandles(practice_configs=practice_configs, pathfinder=pathfinder)
 

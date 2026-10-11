@@ -7,7 +7,7 @@ flowchart TB
     r_play["Gameplay<br/>/games, /items/next, /attempts"]
     r_eval["Feedback<br/>/ratings, /verifications"]
     r_write["Writing pieces<br/>/pieces, /illustrations, /revisions, /remixes, /turns"]
-    r_prog["Progress<br/>/badges, /stats, /client-errors"]
+    r_prog["Progress<br/>/badges, /stats"]
     auth["admin_auth<br/>require_admin dependency"]
   end
 
@@ -17,7 +17,6 @@ flowchart TB
     s_img["image_generation<br/>ImageGenerator: OpenAI or Noop"]
     s_avatar["profile_avatars / photos<br/>photo remix + storage"]
     s_pw["profile_passwords<br/>hashing"]
-    s_err["client_error_log"]
   end
 
   subgraph ENG["Engine — app/engine (pure, no IO)"]
@@ -50,6 +49,7 @@ flowchart TB
     t_repo["todo_repository_effect<br/>over an injected engine"]
     t_pure["todo_reducers_pure, todo_schemas_pure,<br/>todo_ports_pure (no IO, no framework)"]
     practice["practice/<br/>/api/practice-config<br/>routes → service → SQL repository"]
+    crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps<br/>routes → service → SQL repository"]
   end
 
@@ -62,6 +62,7 @@ flowchart TB
   practice --> sqlite
   comp -- "builds + wires<br/>(profile lookups)" --> pathfinder
   pathfinder --> sqlite
+  comp -- "builds + wires<br/>(log dir from AppSettings)" --> crash
   r_play -- "reads a kid's practice config" --> practice
   t_routes --> t_svc --> t_repo
   t_routes & t_svc & t_repo --> t_pure
@@ -71,7 +72,7 @@ flowchart TB
   r_play --> s_loop
   r_play --> reg
   r_write --> s_img
-  r_prog --> s_badge & s_err
+  r_prog --> s_badge
   r_play --> s_badge
   s_loop --> loopa
   s_loop --> lvl
