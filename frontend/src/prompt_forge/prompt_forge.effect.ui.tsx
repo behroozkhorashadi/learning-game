@@ -1,22 +1,19 @@
-import { useMemo, useState } from 'react'
-import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
-import type { CoachQuestion, CoachStatus } from '@app/writing/coach_questions.pure.lib.ts'
+import { useState, type ComponentType, type ReactElement } from 'react'
+import type { PieceRecord } from '@app/api/pieces_schema.pure.lib.ts'
+import { useScheduled } from '@app/timing/use_scheduled.pure.hook.ts'
 import { CoachPanel } from '@app/writing/coach_panel.pure.ui.tsx'
+import type { IllustrationRevealProps } from '@app/writing/illustration_reveal.effect.ui.tsx'
+import { cardsIn, drawCard } from '@app/writing/modifier_cards.pure.lib.ts'
+import { useRevisionPass } from '@app/writing/use_revision_pass.pure.hook.ts'
+import { CARD_FLIP_MS, type WritingGameDeps } from '@app/writing/writing_game_state.pure.lib.ts'
+import { sentencesOf, wordCountOf } from '@app/writing/writing_text.pure.lib.ts'
 import { WritingSurface } from '@app/writing/writing_surface.pure.ui.tsx'
-import { assembleIllustrationReveal } from '@app/writing/writing.assembly.main.ts'
-import { CARDS, type ModifierCard } from '@app/writing/modifier_cards.pure.lib.ts'
+import { CATS, coachQuestions, forgedIngredients, pieceTitleOf, type CatKey, type Picks } from './forge_recipe.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { DenChip } from '@app/den/den_chip.pure.ui.tsx'
-import { DenTile, type DenTileTheme } from '@app/den/den_tile.pure.ui.tsx'
+import { DenTile } from '@app/den/den_tile.pure.ui.tsx'
 import { DenFlipCard } from '@app/den/den_flip_card.pure.ui.tsx'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
-import type { Piece, PieceCreate, RevisionPassCreate } from '../types/generated'
-
-// Migrated (src/writing/); assembled once for this legacy module.
-const IllustrationReveal = assembleIllustrationReveal()
-
-// Migrated (src/ids/); assembled once for this legacy module.
-const randomId = assembleRandomId()
 
 /**
  * Prompt Forge — ported from the Claude Design handoff bundle
@@ -26,52 +23,21 @@ const randomId = assembleRandomId()
  * card), then draft/revise/illustrate through the shared writing pipeline.
  */
 
-const GAME_ID = 'prompt_forge'
-
-type CatKey = 'character' | 'setting' | 'object' | 'mood'
-
-interface Cat {
-  key: CatKey
-  label: string
-  theme: DenTileTheme
-  options: string[]
-}
-
-const CATS: Cat[] = [
-  { key: 'character', label: 'Character', theme: 'purple', options: ['a lighthouse keeper', 'a retired spy', 'a talking crow'] },
-  { key: 'setting', label: 'Setting', theme: 'blue', options: ['an island in fog', 'the last night bus', 'behind the museum'] },
-  { key: 'object', label: 'Object', theme: 'green', options: ['a jar of oil', 'a chewed-up map', 'a key that fits nothing'] },
-  { key: 'mood', label: 'Mood', theme: 'amber', options: ['stubborn', 'uneasy', 'stupidly brave'] },
-]
-
-const TWIST_CARDS = CARDS.filter((c) => c.tier === 'twist')
-
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
-function wordCountOf(text: string): number {
-  const trimmed = text.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
-}
-
-function sentencesOf(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
 type Phase = 'forging' | 'twisting' | 'drafting' | 'revising' | 'revealing'
 
-interface Props {
-  profileId: number
-  profileName?: string
-  onBack: () => void
-  onFinished: () => void
+export interface PromptForgeProps {
+  readonly profileId: number
+  readonly onBack: () => void
+  readonly onFinished: () => void
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
+export interface PromptForgeDeps extends WritingGameDeps {
+  readonly IllustrationReveal: ComponentType<IllustrationRevealProps>
+}
+
+const GAME_ID = 'prompt_forge'
+
+function BackButton({ onClick }: { readonly onClick: () => void }): ReactElement {
   return (
     <button
       type="button"
@@ -85,108 +51,68 @@ function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function PromptForge({ profileId, onBack, onFinished }: Props) {
+export function bindPromptForge(deps: PromptForgeDeps): ComponentType<PromptForgeProps> {
+  const { IllustrationReveal } = deps
+  function PromptForge({ profileId, onBack, onFinished }: PromptForgeProps): ReactElement {
   const [phase, setPhase] = useState<Phase>('forging')
-  const [sessionId] = useState(() => randomId())
-  const [error, setError] = useState<string | null>(null)
+  const [sessionId] = useState(deps.createId)
+  const scheduled = useScheduled(deps.timers)
+  const pass = useRevisionPass(deps)
 
   // -- forging --
-  const [picks, setPicks] = useState<Partial<Record<CatKey, number>>>({})
+  const [picks, setPicks] = useState<Picks>({})
   const [rerolled, setRerolled] = useState(false)
 
   // -- twisting --
-  const [twistCard] = useState<ModifierCard>(() => TWIST_CARDS[Math.floor(Math.random() * TWIST_CARDS.length)] ?? TWIST_CARDS[0])
+  const [twistCard] = useState(() => drawCard(cardsIn('twist'), deps.random))
   const [twistState, setTwistState] = useState<'down' | 'flipping' | 'up'>('down')
 
-  // -- drafting / revising --
-  const [piece, setPiece] = useState<Piece | null>(null)
+  // -- drafting / revealing --
+  const [piece, setPiece] = useState<PieceRecord | null>(null)
   const [draft, setDraft] = useState('')
-  const [reviseDraft, setReviseDraft] = useState('')
-  const [revisionStart, setRevisionStart] = useState('')
-  const [coachStatus, setCoachStatus] = useState<CoachStatus>('thinking')
-  const [saving, setSaving] = useState(false)
 
-  const allFilled = CATS.every((c) => picks[c.key] !== undefined)
-  const ingredients = useMemo(
-    () => Object.fromEntries(CATS.map((c) => [c.key, picks[c.key] !== undefined ? c.options[picks[c.key]!] : null])) as Record<CatKey, string | null>,
-    [picks],
-  )
-  const pieceTitle = ingredients.character && ingredients.setting ? `${capitalize(ingredients.character)}, ${ingredients.setting}` : 'Your story'
+  const ingredients = forgedIngredients(picks)
+  const allFilled = ingredients !== null
+  const pieceTitle = pieceTitleOf(picks)
+  const reviseDraft = pass.text
+  const questions = ingredients === null ? [] : coachQuestions(ingredients, pass.changed)
 
-  function placeTile(cat: CatKey, index: number) {
+  function placeTile(cat: CatKey, index: number): void {
     setPicks((p) => ({ ...p, [cat]: index }))
   }
 
-  function reroll(cat: CatKey) {
+  function reroll(cat: CatKey): void {
     if (rerolled) return
-    const opts = CATS.find((c) => c.key === cat)!.options
-    setPicks((p) => ({ ...p, [cat]: ((p[cat] ?? 0) + 1) % opts.length }))
+    const count = CATS.find((c) => c.key === cat)?.options.length ?? 1
+    setPicks((p) => ({ ...p, [cat]: ((p[cat] ?? 0) + 1) % count }))
     setRerolled(true)
   }
 
-  function flipTwist() {
+  function flipTwist(): void {
     if (twistState !== 'down') return
     setTwistState('flipping')
-    setTimeout(() => setTwistState('up'), 700)
+    scheduled.after(CARD_FLIP_MS, () => {
+      setTwistState('up')
+    })
   }
 
-  function startDrafting() {
-    setPhase('drafting')
-  }
-
-  function startRevising() {
-    setRevisionStart(draft)
-    setReviseDraft(draft)
-    setPhase('revising')
-    setCoachStatus('thinking')
-    setTimeout(() => setCoachStatus('questions'), 1200)
-  }
-
-  const coachQuestions: CoachQuestion[] = useMemo(() => {
-    const changed = reviseDraft !== revisionStart
-    return [
-      { id: 'opening', kind: 'opening', text: `How does ${ingredients.character} first notice ${ingredients.object}?`, answered: changed },
-      { id: 'wordChoice', kind: 'wordChoice', text: 'Is there a word you used more than once? Try swapping one out.', answered: changed },
-      { id: 'feeling', kind: 'feeling', text: `Where does it feel most ${ingredients.mood}?`, answered: changed },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviseDraft, revisionStart])
-
-  async function finishRevising() {
-    setSaving(true)
-    setError(null)
-    const changed = reviseDraft !== revisionStart
-    const revisionPayload: RevisionPassCreate = { questions_asked: coachQuestions.map((q) => q.text), changed }
-    const piecePayload: PieceCreate = {
-      profile_id: profileId,
-      game_id: GAME_ID,
-      session_id: sessionId,
-      title: pieceTitle,
-      body: reviseDraft,
-      constraints: [ingredients.character!, ingredients.setting!, ingredients.object!, ingredients.mood!, twistCard.name],
-      art_style: 'storybook',
-    }
-    try {
-      const res = await fetch('/api/pieces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(piecePayload),
-      })
-      if (!res.ok) throw new Error(`POST /api/pieces -> ${res.status}`)
-      const created: Piece = await res.json()
-      await fetch(`/api/pieces/${created.id}/revisions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(revisionPayload),
-      })
-      setPiece(created)
-      setCoachStatus('done')
-      setPhase('revealing')
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setSaving(false)
-    }
+  async function finishRevising(): Promise<void> {
+    if (ingredients === null) return
+    const saved = await pass.finish(
+      {
+        profile_id: profileId,
+        game_id: GAME_ID,
+        session_id: sessionId,
+        title: pieceTitle,
+        body: reviseDraft,
+        constraints: [ingredients.character, ingredients.setting, ingredients.object, ingredients.mood, twistCard.name],
+        art_style: 'storybook',
+      },
+      questions.map((q) => q.text),
+    )
+    if (saved === null) return
+    setPiece(saved)
+    setPhase('revealing')
   }
 
   const sentences = sentencesOf(reviseDraft)
@@ -202,7 +128,11 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
           </div>
         )}
 
-        {error && <pre style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>Error: {error}</pre>}
+        {pass.error !== null && (
+          <pre role="alert" style={{ color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>
+            Error: {pass.error}
+          </pre>
+        )}
 
         {phase === 'forging' && (
           <div style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '30px 32px 34px', boxShadow: '0 24px 48px -20px rgba(0,13,51,.16)', boxSizing: 'border-box' }}>
@@ -239,7 +169,7 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
                       }}
                     >
                       {filled ? (
-                        <DenTile label={cat.options[pickIndex!]} theme={cat.theme} size="phrase" />
+                        <DenTile label={cat.options[pickIndex] ?? ''} theme={cat.theme} size="phrase" />
                       ) : (
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#C4B79E' }}>Empty</div>
                       )}
@@ -250,7 +180,9 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
                         variant="ghost"
                         size="sm"
                         disabled={rerolled}
-                        onClick={() => reroll(cat.key)}
+                        onClick={() => {
+                          reroll(cat.key)
+                        }}
                       />
                     )}
                   </div>
@@ -265,7 +197,9 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
                   <div style={{ width: 92, fontSize: 12.5, fontWeight: 700, color: '#8A8272' }}>{cat.label}</div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {cat.options.map((opt, i) => (
-                      <DenTile key={opt} label={opt} theme={cat.theme} size="phrase" onClick={() => placeTile(cat.key, i)} />
+                      <DenTile key={opt} label={opt} theme={cat.theme} size="phrase" onClick={() => {
+                          placeTile(cat.key, i)
+                        }} />
                     ))}
                   </div>
                 </div>
@@ -273,7 +207,9 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
             </div>
 
             <div style={{ marginTop: 28, display: 'flex', justifyContent: 'flex-end' }}>
-              <DenButton label="Forge it →" variant="primary" size="lg" disabled={!allFilled} onClick={() => setPhase('twisting')} />
+              <DenButton label="Forge it →" variant="primary" size="lg" disabled={!allFilled} onClick={() => {
+                  setPhase('twisting')
+                }} />
             </div>
           </div>
         )}
@@ -287,7 +223,7 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
               </div>
             </div>
 
-            <div onClick={flipTwist} style={{ cursor: twistState === 'down' ? 'pointer' : 'default' }}>
+            <div style={{ cursor: twistState === 'down' ? 'pointer' : 'default' }}>
               <DenFlipCard
                 flipped={twistState === 'up'}
                 backLabel="Twist"
@@ -304,19 +240,24 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
             {twistState !== 'up' ? (
               <DenButton label="Flip the twist" variant="primary" size="lg" onClick={flipTwist} />
             ) : (
-              <DenButton label="Start writing →" variant="primary" size="lg" onClick={startDrafting} />
+              <DenButton label="Start writing →" variant="primary" size="lg" onClick={() => {
+                  setPhase('drafting')
+                }} />
             )}
           </div>
         )}
 
-        {phase === 'drafting' && (
+        {phase === 'drafting' && ingredients !== null && (
           <WritingSurface
             briefTitle="Your forge"
             briefBody={`You forged ${ingredients.character} · ${ingredients.setting} · ${ingredients.object} · ${ingredients.mood} — then flipped ${twistCard.name}.`}
-            briefChips={[ingredients.character!, ingredients.setting!, ingredients.object!, ingredients.mood!, twistCard.name]}
+            briefChips={[ingredients.character, ingredients.setting, ingredients.object, ingredients.mood, twistCard.name]}
             value={draft}
             onChange={setDraft}
-            onPolish={startRevising}
+            onPolish={() => {
+              pass.begin(draft)
+              setPhase('revising')
+            }}
           />
         )}
 
@@ -324,17 +265,17 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
           <CoachPanel
             pieceTitle={pieceTitle}
             value={reviseDraft}
-            onChange={setReviseDraft}
-            status={coachStatus}
-            questions={coachStatus === 'thinking' ? [] : coachQuestions}
-            onHappy={finishRevising}
-            happyReady={!saving && reviseDraft !== revisionStart}
+            onChange={pass.setText}
+            status={pass.status}
+            questions={pass.status === 'thinking' ? [] : questions}
+            onHappy={() => void finishRevising()}
+            happyReady={!pass.saving && pass.changed}
           />
         )}
 
-        {phase === 'revealing' && piece && (
+        {phase === 'revealing' && piece !== null && (
           <IllustrationReveal
-            pieceId={piece.id!}
+            pieceId={piece.id}
             pieceTitle={piece.title ?? 'Your story'}
             wordCount={wordCountOf(reviseDraft)}
             heroExcerpt={heroExcerpt}
@@ -346,4 +287,6 @@ export function PromptForge({ profileId, onBack, onFinished }: Props) {
       </div>
     </div>
   )
+}
+  return PromptForge
 }

@@ -13,6 +13,7 @@ type Story = StoryObj<typeof meta>
 
 export const MissingPicture: Story = {
   play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText('No picture yet')).toBeVisible()
+    // The fallback waits on the image's 404, which can take over a second under load.
+    await expect(await within(canvasElement).findByText('No picture yet', {}, { timeout: 5000 })).toBeVisible()
   },
 }

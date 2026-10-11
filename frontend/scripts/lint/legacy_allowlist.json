@@ -49,8 +49,6 @@
   "src/games/GamePicker.tsx",
   "src/games/Pathfinder.test.tsx",
   "src/games/Pathfinder.tsx",
-  "src/games/PromptForge.test.tsx",
-  "src/games/PromptForge.tsx",
   "src/games/StyleRemixLab.test.tsx",
   "src/games/StyleRemixLab.tsx",
   "src/games/TagTeamStory.test.tsx",

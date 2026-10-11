@@ -10,7 +10,7 @@ import { GamePicker } from './games/GamePicker'
 import { assembleSyllableBuilder } from '@app/syllable_builder/syllable_builder.assembly.main.ts'
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
 import { ZombieMathBlaster } from './games/ZombieMathBlaster'
-import { PromptForge } from './games/PromptForge'
+import { assemblePromptForge } from '@app/prompt_forge/prompt_forge.assembly.main.ts'
 import { StyleRemixLab } from './games/StyleRemixLab'
 import { TagTeamStory } from './games/TagTeamStory'
 import { ClueMaster } from './games/ClueMaster'
@@ -30,6 +30,7 @@ function App() {
   const [Badges] = useState(assembleBadges)
   const [SyllableBuilder] = useState(assembleSyllableBuilder)
   const [EquationBuilder] = useState(assembleEquationBuilder)
+  const [PromptForge] = useState(assemblePromptForge)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   // The password that unlocked `profile` (its own, or the admin override),
   // kept in memory only so "Edit profile" doesn't ask again. Null for an
@@ -151,8 +152,7 @@ function App() {
   } else if (gameId === 'prompt_forge') {
     content = (
       <PromptForge
-        profileId={profile.id!}
-        profileName={profile.name}
+        profileId={profile.id}
         onBack={() => setGameId(null)}
         onFinished={() => {
           setGameId(null)

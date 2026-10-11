@@ -210,7 +210,7 @@ code { font-family:var(--mono); font-size:.9em; }
 
   subgraph SCREENS[&quot;Legacy screens — src/games&quot;]
     picker[&quot;GamePicker&lt;br/&gt;+ EquationOutbreakSettings&quot;]
-    gWord[&quot;Writing games&lt;br/&gt;PromptForge, StyleRemixLab,&lt;br/&gt;TagTeamStory, ClueMaster&quot;]
+    gWord[&quot;Writing games&lt;br/&gt;StyleRemixLab, TagTeamStory, ClueMaster&quot;]
     gMath[&quot;Math games&lt;br/&gt;ZombieMathBlaster&quot;]
     gPath[&quot;Pathfinder&quot;]
     meta[&quot;Storybook&quot;]
@@ -240,6 +240,7 @@ code { font-family:var(--mono); font-size:.9em; }
     pgames[&quot;syllable_builder/, equation_builder/&lt;br/&gt;bind* games over practice/&quot;]
     tiles[&quot;tiles/&lt;br/&gt;TileBoard + pure placement rules&quot;]
     writing[&quot;writing/&lt;br/&gt;WritingSurface, CoachPanel, ModifierDeck,&lt;br/&gt;bindIllustrationReveal (pieces_api + timers)&quot;]
+    wgames[&quot;prompt_forge/&lt;br/&gt;bind* writing games over writing/&quot;]
     timing[&quot;timing/&lt;br/&gt;Timers capability + useScheduled&quot;]
     badges[&quot;badges/&lt;br/&gt;BadgesView (pure) + bindBadges&quot;]
     speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
@@ -265,6 +266,8 @@ code { font-family:var(--mono); font-size:.9em; }
   dev --&gt; root --&gt; example
   gWord &amp; meta --&gt; writing
   writing --&gt; timing &amp; apiad &amp; den
+  app -- &quot;assemblePromptForge() once&quot; --&gt; wgames
+  wgames --&gt; writing &amp; den
   gMath --&gt; arena
   gWord &amp; gMath --&gt; session
   gPath --&gt; pathc

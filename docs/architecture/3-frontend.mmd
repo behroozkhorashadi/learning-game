@@ -7,7 +7,7 @@ flowchart TB
 
   subgraph SCREENS["Legacy screens — src/games"]
     picker["GamePicker<br/>+ EquationOutbreakSettings"]
-    gWord["Writing games<br/>PromptForge, StyleRemixLab,<br/>TagTeamStory, ClueMaster"]
+    gWord["Writing games<br/>StyleRemixLab, TagTeamStory, ClueMaster"]
     gMath["Math games<br/>ZombieMathBlaster"]
     gPath["Pathfinder"]
     meta["Storybook"]
@@ -37,6 +37,7 @@ flowchart TB
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
     tiles["tiles/<br/>TileBoard + pure placement rules"]
     writing["writing/<br/>WritingSurface, CoachPanel, ModifierDeck,<br/>bindIllustrationReveal (pieces_api + timers)"]
+    wgames["prompt_forge/<br/>bind* writing games over writing/"]
     timing["timing/<br/>Timers capability + useScheduled"]
     badges["badges/<br/>BadgesView (pure) + bindBadges"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
@@ -62,6 +63,8 @@ flowchart TB
   dev --> root --> example
   gWord & meta --> writing
   writing --> timing & apiad & den
+  app -- "assemblePromptForge() once" --> wgames
+  wgames --> writing & den
   gMath --> arena
   gWord & gMath --> session
   gPath --> pathc
