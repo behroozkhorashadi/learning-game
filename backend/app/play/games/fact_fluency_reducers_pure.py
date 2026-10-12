@@ -18,7 +18,7 @@ reskinned freely without touching this module; nothing here is zombie-shaped.
 """
 
 from collections.abc import Mapping, Sequence
-from typing import NamedTuple, override
+from typing import Literal, NamedTuple, override
 
 from app.play.games.arithmetic_reducers_pure import (
     ALL_OPERATORS,
@@ -35,6 +35,12 @@ from app.play.games.game_module_reducers_pure import GameModule
 from app.play.play_ports_pure import Rng
 from app.play.play_schemas_pure import GameMetadata, Item
 
+# Which term of `left operator right = answer` a kid supplies: the answer (a plain
+# fact, "3 + 4 = ?") or one of the operands (solve for x: "x + 3 = 7").
+Missing = Literal["answer", "left", "right"]
+_FACT: tuple[Missing, ...] = ("answer",)
+_SOLVE_FOR_X: tuple[Missing, ...] = ("left", "right")
+
 # 3 wrong options + the correct one — enough to require actually computing
 # the answer rather than pattern-matching, without cluttering a fast-paced
 # screen with too many moving targets at once (PRD: kid-facing, short
@@ -49,13 +55,15 @@ class Tier(NamedTuple):
     (faster is harder). `min_age` is the youngest PRD §4 persona this tier's
     operations typically suit — not a gate: a younger kid can still be
     promoted into it, just more slowly (see `typical_level_for_age`),
-    mirroring `equation_builder`'s identical rule."""
+    mirroring `equation_builder`'s identical rule. `missing` is which term a
+    kid supplies: the answer, or (the top tiers) an operand, solving for x."""
 
     max_level: int
     operand_max: int
     operations: tuple[Operator, ...]
     approach_ms: int
     min_age: int
+    missing: tuple[Missing, ...] = _FACT
 
 
 # Explicit and monotonic by construction: operand_max non-decreasing,
@@ -66,6 +74,11 @@ class Tier(NamedTuple):
 # multiplication/division (the last tier) are typical from age 10, one step past
 # equation_builder's introduction of it — Fact Fluency layers time pressure
 # on top of the same operators, so it earns a slightly later start.
+#
+# The top two tiers come after ×/÷: solving for x ("x + 3 = 7", then "x × 4 =
+# 12"), + and - first, then all four. Their `min_age` is past every age this
+# game targets, so they're never age-typical: a brand-new profile never starts
+# on them, and reaching them is earned by promotion alone.
 TIERS: tuple[Tier, ...] = (
     Tier(max_level=1, operand_max=5, operations=("+",), approach_ms=9000, min_age=8),
     Tier(max_level=2, operand_max=8, operations=("+",), approach_ms=8250, min_age=8),
@@ -77,6 +90,8 @@ TIERS: tuple[Tier, ...] = (
     Tier(max_level=8, operand_max=12, operations=ALL_OPERATORS, approach_ms=5250, min_age=10),
     Tier(max_level=9, operand_max=12, operations=ALL_OPERATORS, approach_ms=4750, min_age=10),
     Tier(max_level=10, operand_max=12, operations=ALL_OPERATORS, approach_ms=4500, min_age=10),
+    Tier(max_level=11, operand_max=12, operations=("+", "-"), approach_ms=4500, min_age=13, missing=_SOLVE_FOR_X),
+    Tier(max_level=12, operand_max=12, operations=ALL_OPERATORS, approach_ms=4500, min_age=13, missing=_SOLVE_FOR_X),
 )
 
 
@@ -163,6 +178,12 @@ def _starting_level_for_age(age: int) -> int:
     return _tier_start_level(start_band_first)
 
 
+def _draw_missing(tier: Tier, rng: Rng) -> Missing:
+    """Which term this item leaves out. A tier with one choice draws nothing, so
+    the plain-fact tiers' random stream (and items) are what they always were."""
+    return tier.missing[0] if len(tier.missing) == 1 else rng.choice(tier.missing)
+
+
 class FactFluencyGame(GameModule):
     metadata = GameMetadata(
         id="fact_fluency",
@@ -172,7 +193,7 @@ class FactFluencyGame(GameModule):
         min_age=8,
         max_age=12,
         icon="\U0001f4a5",
-        max_level=10,
+        max_level=12,
     )
 
     @override
@@ -198,9 +219,12 @@ class FactFluencyGame(GameModule):
             left, right = draw_operands(operator, tier.operand_max, rng)
             return Fact(left, operator, right, apply_operator(operator, left, right))
 
-        fact = first_unseen(draw, self._key, exclude)
+        missing = _draw_missing(tier, rng)
+        fact = first_unseen(draw, lambda f: self._key(f, missing), exclude)
 
-        return self._build_item(fact, level=level, approach_ms=tier.approach_ms, rng=rng, tag=f"L{level}")
+        return self._build_item(
+            fact, missing=missing, level=level, approach_ms=tier.approach_ms, rng=rng, tag=f"L{level}"
+        )
 
     @override
     def supports_practice_config(self) -> bool:
@@ -227,14 +251,18 @@ class FactFluencyGame(GameModule):
             left, right = draw_operands_with_focus(operator, tier.operand_max, rng, focus_numbers.get(operator))
             return Fact(left, operator, right, apply_operator(operator, left, right))
 
-        fact = first_unseen(draw, self._key, exclude)
+        missing = _draw_missing(tier, rng)
+        fact = first_unseen(draw, lambda f: self._key(f, missing), exclude)
 
-        return self._build_item(fact, level=difficulty, approach_ms=tier.approach_ms, rng=rng, tag=f"P{difficulty}")
+        return self._build_item(
+            fact, missing=missing, level=difficulty, approach_ms=tier.approach_ms, rng=rng, tag=f"P{difficulty}"
+        )
 
-    def _build_item(self, fact: Fact, *, level: int, approach_ms: int, rng: Rng, tag: str) -> Item:
+    def _build_item(self, fact: Fact, *, missing: Missing, level: int, approach_ms: int, rng: Rng, tag: str) -> Item:
         left, operator, right, answer = fact
-        distractors = numeric_distractors(answer, _OPTION_COUNT - 1, rng, floor=0)
-        options = [answer, *distractors]
+        value = {"answer": answer, "left": left, "right": right}[missing]
+        distractors = numeric_distractors(value, _OPTION_COUNT - 1, rng, floor=0)
+        options = [value, *distractors]
         rng.shuffle(options)
 
         item_id = f"{self.metadata.id}-{tag}-{rng.getrandbits(32):08x}"
@@ -247,16 +275,19 @@ class FactFluencyGame(GameModule):
                 "operator": operator,
                 "right": right,
                 "answer": answer,
+                "missing": missing,
                 "options": options,
                 "approach_ms": approach_ms,
             },
         )
 
-    def _fact_key(self, left: object, operator: object, right: object, answer: object) -> str:
-        return f"{left}{operator}{right}={answer}"
+    def _fact_key(self, left: object, operator: object, right: object, answer: object, missing: object) -> str:
+        # A plain fact keeps its original key, so sessions recorded before solving for x still dedupe.
+        fact = f"{left}{operator}{right}={answer}"
+        return fact if missing in (None, "answer") else f"{fact}|{missing}"
 
-    def _key(self, fact: Fact) -> str:
-        return self._fact_key(fact.left, fact.operator, fact.right, fact.answer)
+    def _key(self, fact: Fact, missing: Missing) -> str:
+        return self._fact_key(fact.left, fact.operator, fact.right, fact.answer, missing)
 
     @override
     def repeat_key(self, item_payload: Mapping[str, object]) -> str | None:
@@ -265,4 +296,5 @@ class FactFluencyGame(GameModule):
             item_payload.get("operator"),
             item_payload.get("right"),
             item_payload.get("answer"),
+            item_payload.get("missing"),
         )

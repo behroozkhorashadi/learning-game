@@ -24,6 +24,7 @@ def test_a_new_profile_owns_the_free_items_and_one_grenade() -> None:
     assert (state.balance, state.earned, state.spent) == (0, 0, 0)
     assert state.owned == ["starter_blaster", "standard_rounds"]
     assert state.grenades == STARTING_GRENADES
+    assert state.best_survived_ms == 0
     assert state.catalog == list(CATALOG)
 
 
@@ -38,6 +39,21 @@ def test_a_round_banks_points_and_spends_grenades() -> None:
     entries = round_entries(1, ArmoryRoundCreate(points=120, grenades_used=1), now=NOW)
     state = summarize(1, entries)
     assert (state.balance, state.earned, state.grenades) == (120, 120, STARTING_GRENADES - 1)
+
+
+def test_the_personal_best_is_the_longest_round_and_costs_no_points() -> None:
+    rounds = (
+        ArmoryRoundCreate(points=100, grenades_used=0, survived_ms=60_000),
+        ArmoryRoundCreate(points=300, grenades_used=0, survived_ms=95_500),
+        ArmoryRoundCreate(points=40, grenades_used=0, survived_ms=21_000),
+    )
+    state = summarize(1, tuple(entry for r in rounds for entry in round_entries(1, r, now=NOW)))
+    assert (state.best_survived_ms, state.balance) == (95_500, 440)
+
+
+def test_a_round_keeps_how_long_it_lasted_through_clamping() -> None:
+    clamped = clamped_round(summarize(1, ()), ArmoryRoundCreate(points=0, grenades_used=9, survived_ms=70_000))
+    assert (clamped.grenades_used, clamped.survived_ms) == (STARTING_GRENADES, 70_000)
 
 
 def test_an_empty_round_adds_nothing() -> None:

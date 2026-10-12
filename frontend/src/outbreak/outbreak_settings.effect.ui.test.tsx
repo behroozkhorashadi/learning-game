@@ -75,7 +75,7 @@ describe('OutbreakSettings: a saved config', () => {
     expect(screen.getByRole('button', { name: '×' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('button', { name: '7' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('button', { name: '8' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByText(/8\/10/)).toBeTruthy()
+    expect(screen.getByText(/8\/12/)).toBeTruthy()
   })
 
   it('shows a load failure but still offers the form', async () => {

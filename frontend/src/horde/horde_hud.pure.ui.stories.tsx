@@ -17,6 +17,8 @@ const meta = {
     question: '7 × 6 =',
     intro: false,
     secondsLeft: 37,
+    overtime: null,
+    onEndOvertime: fn(),
     lives: 2,
     grenades: 3,
     shoves: 3,
@@ -73,5 +75,23 @@ export const Hurt: Story = {
   args: { feedback: { kind: 'hurt', id: 1 }, lives: 1, secondsLeft: 8 },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('img', { name: '1 lives left' })).toBeVisible()
+  },
+}
+
+export const OvertimeStarts: Story = {
+  args: { secondsLeft: 0, overtime: { lastedMs: 60_800, bestMs: 84_000, clockMs: 60_000 } },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText('Overtime!', { exact: false })).toBeVisible()
+    await expect(canvas.getByRole('status', { name: 'Your best: 1 minute 24 seconds' })).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Stop & bank points' }))
+    await expect(args.onEndOvertime).toHaveBeenCalledTimes(1)
+  },
+}
+
+export const NewRecord: Story = {
+  args: { question: 'If x × 4 = 24, x =', secondsLeft: 0, overtime: { lastedMs: 91_000, bestMs: 84_000, clockMs: 60_000 } },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole('status', { name: 'New personal best!' })).toHaveTextContent('New record!')
   },
 }

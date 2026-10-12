@@ -33,6 +33,13 @@ async function startRound(harness: HordeHarness): Promise<void> {
   await harness.scheduler.advance(INTRO_MS + 50)
 }
 
+/** Plays out the 60-second clock, then stops in overtime and banks the round. */
+async function beatTheClockAndStop(harness: HordeHarness): Promise<void> {
+  await harness.scheduler.advance(60_000)
+  press('Stop & bank points')
+  await settle()
+}
+
 function question(): string {
   return screen.getByRole('heading', { name: 'Question' }).textContent
 }
@@ -152,18 +159,24 @@ describe('ZombieHorde: a round', () => {
   })
 })
 
-/** These play out a whole 60-second round frame by frame on the virtual clock, which takes a few seconds of real time under a loaded run. */
+/** These play out a whole 60-second clock frame by frame on the virtual clock, which takes a few seconds of real time under a loaded run. */
 const WHOLE_ROUND = { timeout: 30_000 }
 
 describe('ZombieHorde: the end of a round', () => {
-  it('surviving the clock shows the points and banks them', WHOLE_ROUND, async () => {
+  it('beating the clock goes on into overtime; stopping there shows the points and banks them', WHOLE_ROUND, async () => {
     const harness = await open()
     await startRound(harness)
     press(`head ${String(rightAnswer(0))}`)
     await harness.scheduler.advance(60_000)
+    expect(screen.getByRole('timer', { name: /^Overtime/ })).toBeTruthy()
+    press('Stop & bank points')
+    await settle()
     expect(screen.getByRole('heading', { name: 'You held off the horde!' })).toBeTruthy()
-    // 1 right answer (10) + 1 headshot (5) + survived (50) + 3 lives (30)
-    expect(harness.armory.rounds).toEqual([{ points: 95, grenades_used: 0, rounds_used: {} }])
+    // 1 right answer (10) + 1 headshot (5) + beat the clock (50) + 3 lives (30)
+    expect(harness.armory.rounds).toHaveLength(1)
+    expect(harness.armory.rounds[0]).toMatchObject({ points: 95, grenades_used: 0, rounds_used: {} })
+    expect(harness.armory.rounds[0]?.survived_ms).toBeGreaterThanOrEqual(60_000)
+    expect(harness.armory.state().best_survived_ms).toBe(harness.armory.rounds[0]?.survived_ms)
     expect(screen.getByRole('status').textContent).toContain('You now have 95 points')
     expect(within(screen.getByRole('list', { name: 'Facts you solved' })).getByText('3 + 4 = 7')).toBeTruthy()
     expect(harness.audio.count('stopMusic')).toBeGreaterThan(0)
@@ -177,16 +190,32 @@ describe('ZombieHorde: the end of a round', () => {
       await harness.scheduler.advance(2500)
     }
     expect(screen.getByRole('heading', { name: 'The horde got through!' })).toBeTruthy()
-    expect(harness.armory.rounds).toEqual([{ points: 0, grenades_used: 0, rounds_used: {} }])
+    expect(harness.armory.rounds).toHaveLength(1)
+    expect(harness.armory.rounds[0]).toMatchObject({ points: 0, grenades_used: 0, rounds_used: {} })
     // The question they tried and didn't get counts as a miss.
     expect(harness.attempts.at(-1)).toMatchObject({ telemetry: { correct: false, hints_used: 3 } })
+  })
+
+  it('beating the personal best says so and earns the bonus, and play again shows the new best', WHOLE_ROUND, async () => {
+    const harness = await open({ armory: fakeArmory({ bestMs: 61_000 }) })
+    expect(screen.getByText('Your best: 1:01', { exact: false })).toBeTruthy()
+    await startRound(harness)
+    await harness.scheduler.advance(62_000)
+    expect(screen.getByRole('status', { name: 'New personal best!' })).toBeTruthy()
+    press('Stop & bank points')
+    await settle()
+    expect(screen.getByText('🏅 New personal best: 1:02!')).toBeTruthy()
+    expect(screen.getByRole('rowheader', { name: 'New personal best × 1' })).toBeTruthy()
+    press('Play again')
+    await settle()
+    expect(screen.getByText('Your best: 1:02', { exact: false })).toBeTruthy()
   })
 
   it('play again goes back to the armory with the new balance', WHOLE_ROUND, async () => {
     const harness = await open()
     await startRound(harness)
     press(`head ${String(rightAnswer(0))}`)
-    await harness.scheduler.advance(60_000)
+    await beatTheClockAndStop(harness)
     press('Play again')
     await settle()
     expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('95')
@@ -205,7 +234,7 @@ describe('ZombieHorde: special rounds', () => {
     await harness.scheduler.advance(800)
     press('miss')
     expect(screen.getByRole('status', { name: 'Special rounds used up: back to standard rounds' })).toBeTruthy()
-    await harness.scheduler.advance(60_000)
+    await beatTheClockAndStop(harness)
     expect(harness.armory.rounds[0]?.rounds_used).toEqual({ armor_piercing: 2 })
   })
 
@@ -229,7 +258,7 @@ describe('ZombieHorde: recording the round', () => {
     press('Flag this moment (0 flagged)')
     fireEvent.keyDown(screen.getByRole('application', { name: 'Zombie horde' }), { key: 'm' })
     press(`head ${String(rightAnswer(0))}`)
-    await harness.scheduler.advance(60_000)
+    await beatTheClockAndStop(harness)
     expect(harness.replays).toHaveLength(1)
     const recording = harness.replays[0]
     expect(recording?.outcome).toBe('survived')

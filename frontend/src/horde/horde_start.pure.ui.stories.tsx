@@ -11,6 +11,7 @@ const meta = {
   args: {
     shop: <ArmoryShop armory={loaded(fakeArmory({ balance: 140 }).state())} choice={{ weaponId: 'starter_blaster', bulletId: 'standard_rounds' }} onChoose={fn()} onBuy={fn()} buying={null} bought={null} buyError={null} />,
     starting: false,
+    bestMs: 84_000,
     onHearInstructions: fn(),
     onStart: fn(),
     onOpenStudio: fn(),
@@ -23,6 +24,7 @@ type Story = StoryObj<typeof meta>
 
 export const Ready: Story = {
   play: async ({ args, canvasElement }) => {
+    await expect(within(canvasElement).getByText('Your best: 1:24', { exact: false })).toBeVisible()
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Start' }))
     await expect(args.onStart).toHaveBeenCalled()
   },

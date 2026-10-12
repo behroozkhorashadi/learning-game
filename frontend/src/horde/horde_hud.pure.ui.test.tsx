@@ -9,6 +9,8 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     question: '3 + 4 =',
     intro: false,
     secondsLeft: 42,
+    overtime: null,
+    onEndOvertime: vi.fn(),
     lives: 2,
     grenades: 1,
     shoves: 3,
@@ -39,6 +41,28 @@ describe('HordeHud', () => {
     expect(screen.getByRole('heading', { name: 'Question' }).textContent).toBe('3 + 4 =')
     expect(screen.getByRole('timer', { name: '42 seconds left' })).toBeTruthy()
     expect(screen.getByRole('img', { name: '2 lives left' })).toBeTruthy()
+  })
+
+  it('in overtime, counts up against the personal best and offers to stop and bank', () => {
+    const onEndOvertime = vi.fn()
+    render(<HordeHud {...props({ secondsLeft: 0, overtime: { lastedMs: 61_500, bestMs: 95_000, clockMs: 60_000 }, onEndOvertime })} />)
+    expect(screen.getByRole('timer', { name: 'Overtime: 1 minute 1 second survived' }).textContent).toContain('1:01')
+    expect(screen.getByRole('status', { name: 'Your best: 1 minute 35 seconds' })).toBeTruthy()
+    expect(screen.getByText('Overtime!', { exact: false })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Stop & bank points' }))
+    expect(onEndOvertime).toHaveBeenCalledTimes(1)
+  })
+
+  it('says so once the record is broken, after the overtime banner has gone', () => {
+    render(<HordeHud {...props({ secondsLeft: 0, overtime: { lastedMs: 96_000, bestMs: 95_000, clockMs: 60_000 } })} />)
+    expect(screen.getByRole('status', { name: 'New personal best!' }).textContent).toContain('New record!')
+    expect(screen.queryByText('Overtime!', { exact: false })).toBeNull()
+  })
+
+  it('with no record yet, just counts up', () => {
+    render(<HordeHud {...props({ secondsLeft: 0, overtime: { lastedMs: 62_000, bestMs: 0, clockMs: 60_000 } })} />)
+    expect(screen.getByText('The zombies speed up. How long can you last?')).toBeTruthy()
+    expect(screen.queryByRole('status', { name: /best/i })).toBeNull()
   })
 
   it('zaps a zombie from its answer button', () => {

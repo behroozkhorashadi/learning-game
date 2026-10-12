@@ -8,15 +8,18 @@ import { visibilityAt } from './horde_visibility.pure.lib.ts'
  * the state, so a round replays exactly from the same seed and inputs.
  *
  * A round: four zombies (one per roster slot) roam the field toward the
- * player for 60 seconds. One question shows at a time and each zombie carries
+ * player. One question shows at a time and each zombie carries
  * one of its four answers. Shooting the zombie with the right answer damages
  * it (a headshot most, a leg shot knocks it down to crawl) and solves the
  * question; the next question reshuffles the answers. Shooting a wrong one
  * makes it dodge and throw something back, which costs a life when it lands.
  * A zombie that reaches the player also costs a life. A defeated (or
  * departed) zombie is replaced from the back after a beat, so there are
- * always four answers to choose from. Surviving the clock wins; running out
- * of lives ends the round early.
+ * always four answers to choose from. Surviving the 60-second clock wins,
+ * and the round goes on into overtime: the zombies keep speeding up until
+ * they get through, so how long a round lasts is a record to beat. In
+ * overtime the player can stop and bank their points at any time. Running
+ * out of lives ends the round, before the clock or after it.
  *
  * Each step returns the events it caused (`state.events`), so the caller can
  * play sounds, record telemetry, and fetch the next question without diffing
@@ -24,6 +27,7 @@ import { visibilityAt } from './horde_visibility.pure.lib.ts'
  */
 
 export const ZOMBIE_COUNT = 4
+/** The clock to beat; after it, overtime. */
 export const ROUND_MS = 60_000
 export const STARTING_LIVES = 3
 /**
@@ -62,6 +66,12 @@ const RETARGET_MIN_MS = 2200
 const RETARGET_MAX_MS = 4200
 /** Walking speed grows by this fraction over the round. */
 const SPEED_RAMP = 0.2
+/**
+ * In overtime, walking speed grows by this fraction of the starting speed for
+ * every round-length (60s) past the clock, with no cap: even a perfect player
+ * is overrun within a few minutes (horde_balance.pure.lib.test.ts).
+ */
+const OVERTIME_RAMP = 1.5
 /** Each slot wanders mostly within its own share of the field's width (-1..1), so the answers don't pile up in the middle. */
 const SLOT_CENTRES = [-0.66, -0.22, 0.22, 0.66] as const
 const SLOT_SPREAD = 0.3
@@ -161,6 +171,7 @@ export interface HordeStats {
   readonly livesLost: number
 }
 
+/** `survived`: beat the clock and stopped in overtime. `overrun`: ran out of lives (before the clock or after it). */
 export type HordeOutcome = 'playing' | 'survived' | 'overrun'
 
 export type HordeEvent =
@@ -173,12 +184,16 @@ export type HordeEvent =
   | { readonly type: 'grenade'; readonly dud: boolean }
   | { readonly type: 'shoved'; readonly zombieId: string }
   | { readonly type: 'spawned'; readonly slot: number }
+  /** The clock ran out with lives left: overtime starts. */
+  | { readonly type: 'overtime' }
   | { readonly type: 'roundOver'; readonly outcome: 'survived' | 'overrun' }
 
 export interface HordeState {
   readonly elapsedMs: number
   readonly outcome: HordeOutcome
   readonly lives: number
+  /** The lives left when the clock was beaten; null until then (not in overtime yet). */
+  readonly livesAtClock: number | null
   readonly grenades: number
   /** Push-backs left this round. */
   readonly shoves: number
@@ -205,6 +220,7 @@ export interface HordeState {
 }
 
 export interface HordeConfig {
+  /** The clock to beat before overtime. */
   readonly durationMs: number
   /** How long a zombie takes to walk from the back to the player at the round's starting speed. */
   readonly travelMs: number
@@ -259,6 +275,11 @@ export function answerFor(state: HordeState, zombie: HordeZombie): HordeOption |
   return state.answers[zombie.slot] ?? null
 }
 
+/** Beat the clock: in overtime now, or was when the round ended. */
+export function inOvertime(state: HordeState): boolean {
+  return state.livesAtClock !== null
+}
+
 export function canShoot(state: HordeState): boolean {
   return state.outcome === 'playing' && state.elapsedMs >= state.readyAtMs
 }
@@ -303,6 +324,7 @@ export function createRound({ seed, lives, grenades, shoves, ammo, cover }: { re
     elapsedMs: 0,
     outcome: 'playing',
     lives,
+    livesAtClock: null,
     grenades,
     shoves,
     ammo,
@@ -367,7 +389,9 @@ export function setQuestion(state: HordeState, question: HordeQuestion): HordeSt
 
 function walkSpeed(state: HordeState, config: HordeConfig): number {
   const base = (SPAWN_DEPTH - CONTACT_DEPTH) / Math.max(config.travelMs, 1)
-  return base * (1 + SPEED_RAMP * Math.min(state.elapsedMs / Math.max(config.durationMs, 1), 1))
+  const duration = Math.max(config.durationMs, 1)
+  const overtime = Math.max(state.elapsedMs - duration, 0) / duration
+  return base * (1 + SPEED_RAMP * Math.min(state.elapsedMs / duration, 1) + OVERTIME_RAMP * overtime)
 }
 
 interface StepOutput {
@@ -549,13 +573,24 @@ function separate(zombies: readonly HordeZombie[], previous: readonly HordeZombi
   })
 }
 
-/** Ends the round if the clock ran out or the lives did. */
+/** Ends the round if the lives ran out, or starts overtime when the clock does. */
 function settle(state: HordeState, config: HordeConfig, events: HordeEvent[]): HordeState {
   if (state.outcome !== 'playing') return state
-  const outcome = state.lives <= 0 ? 'overrun' : state.elapsedMs >= config.durationMs ? 'survived' : 'playing'
-  if (outcome === 'playing') return state
-  events.push({ type: 'roundOver', outcome })
-  return { ...state, outcome, projectiles: [], events }
+  if (state.lives <= 0) {
+    events.push({ type: 'roundOver', outcome: 'overrun' })
+    return { ...state, outcome: 'overrun', projectiles: [], events }
+  }
+  if (state.livesAtClock === null && state.elapsedMs >= config.durationMs) {
+    events.push({ type: 'overtime' })
+    return { ...state, livesAtClock: state.lives, events }
+  }
+  return state
+}
+
+/** Stops in overtime with the lives left: the round is won and over. Ignored, returning the same state, before the clock is beaten or once the round is over. */
+export function endOvertime(state: HordeState): HordeState {
+  if (state.outcome !== 'playing' || !inOvertime(state)) return state
+  return { ...state, outcome: 'survived', projectiles: [], events: [{ type: 'roundOver', outcome: 'survived' }] }
 }
 
 /** Advances the round by `dtMs`: movement, hiding, throws landing, attacks, respawns, and the clock. */

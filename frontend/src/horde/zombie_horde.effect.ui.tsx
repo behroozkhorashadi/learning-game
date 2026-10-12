@@ -8,19 +8,19 @@ import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
 import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
 import { STARTER_LOADOUT, bestOwned, loadoutFor } from './horde_armory.pure.lib.ts'
-import { answerFor } from './horde_engine.pure.lib.ts'
+import { answerFor, inOvertime } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HordeHud } from './horde_hud.pure.ui.tsx'
 import { HordeResults } from './horde_results.pure.ui.tsx'
 import { secondsLeft } from './horde_scene_rules.pure.lib.ts'
-import { pointsBreakdown } from './horde_scoring.pure.lib.ts'
+import { isNewBest, pointsBreakdown } from './horde_scoring.pure.lib.ts'
 import { HORDE_INSTRUCTIONS, HordeStart } from './horde_start.pure.ui.tsx'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
 import { useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
 
 /**
  * Zombie Horde, the whole screen: the start screen with the armory (buy and
- * equip with the points earned), the 60-second round over the 3D view, and
+ * equip with the points earned), the round (60 seconds, then overtime) over the 3D view, and
  * the results with the points banked. The round's rules are the engine's
  * (horde_engine), its lifecycle the round hook's (use_horde_round); this
  * component owns the armory selection and lays the pieces out.
@@ -114,11 +114,12 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
           {round.error !== null && <ErrorBanner message={round.error} />}
           <HordeStart
             starting={phase === 'loading'}
+            bestMs={armoryData?.best_survived_ms ?? 0}
             onHearInstructions={() => {
               speakText(HORDE_INSTRUCTIONS)
             }}
             onStart={() => {
-              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0)
+              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0, armoryData?.best_survived_ms ?? 0)
             }}
             onOpenStudio={
               armoryData === null || artPrice === null
@@ -146,13 +147,17 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
       )
     }
 
-    if (phase === 'over' && state !== null) {
+    if (phase === 'over' && round.result !== null) {
+      const { result } = round
       return (
         <Page>
           <LiveRegion message={round.liveMessage} />
           <HordeResults
-            survived={state.outcome === 'survived'}
-            lines={pointsBreakdown(state.stats, state.outcome, state.lives)}
+            outcome={state?.outcome === 'survived' ? 'survived' : 'overrun'}
+            beatClock={result.livesAtClock !== null}
+            lastedMs={result.lastedMs}
+            newBest={isNewBest(result)}
+            lines={pointsBreakdown(result)}
             points={round.points}
             bank={round.bank}
             solved={round.solved}
@@ -227,6 +232,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             question={state.question?.text ?? null}
             intro={phase === 'intro'}
             secondsLeft={secondsLeft(state.elapsedMs, round.durationMs)}
+            overtime={inOvertime(state) ? { lastedMs: state.elapsedMs, bestMs: round.previousBestMs, clockMs: round.durationMs } : null}
+            onEndOvertime={round.endOvertime}
             lives={state.lives}
             grenades={state.grenades}
             shoves={state.shoves}

@@ -1,5 +1,6 @@
 """PRD §6, §11: deterministic under a fixed seed, facts are arithmetically true, and
-difficulty moves the right way on both axes: operand ceiling up, approach time down."""
+difficulty moves the right way on both axes: operand ceiling up, approach time down.
+The top levels, after ×/÷, solve for x."""
 
 from itertools import pairwise
 
@@ -20,6 +21,15 @@ def _true_fact(p: dict[str, object]) -> bool:
     return apply_operator(str_at(p, "operator"), int_at(p, "left"), int_at(p, "right")) == int_at(p, "answer")
 
 
+def _supplied(p: dict[str, object]) -> int:
+    """The value a kid picks: the answer, or the operand standing in for x."""
+    return int_at(p, str_at(p, "missing"))
+
+
+def _last_plain_level() -> int:
+    return max(tier.max_level for tier in TIERS if tier.missing == ("answer",))
+
+
 def test_generate_item_is_deterministic_under_fixed_seed() -> None:
     assert _game().generate_item(level=5, rng=SeededRng(42)) == _game().generate_item(level=5, rng=SeededRng(42))
 
@@ -35,6 +45,7 @@ def test_both_difficulty_axes_move_the_right_way() -> None:
             current.operand_max > previous.operand_max
             or current.approach_ms < previous.approach_ms
             or current.operations != previous.operations
+            or current.missing != previous.missing
         )
 
 
@@ -48,12 +59,12 @@ def test_generated_facts_are_arithmetically_true_and_subtraction_never_negative(
 
 
 def test_options_contain_the_answer_exactly_once_with_no_duplicates() -> None:
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 11, 12):
         for seed in range(20):
             p = _game().generate_item(level=level, rng=SeededRng(seed)).payload
             options = list_at(p, "options")
             assert len(options) == 4
-            assert options.count(p["answer"]) == 1
+            assert options.count(_supplied(p)) == 1
             assert len(options) == len(set(map(str, options))), f"duplicate options: {options}"
 
 
@@ -105,10 +116,16 @@ def test_practice_config_falls_back_on_empty_operations_and_produces_true_facts(
 
 
 def test_typical_level_for_age_is_below_the_operator_tier_until_its_min_age() -> None:
-    operator_tier = TIERS[-1]
+    operator_tier = next(tier for tier in TIERS if "×" in tier.operations)
     for age in range(operator_tier.min_age):
         assert "×" not in tier_for_level(_game().typical_level_for_age(age)).operations
-    assert _game().typical_level_for_age(operator_tier.min_age) == _game().metadata.max_level
+    assert _game().typical_level_for_age(operator_tier.min_age) == _last_plain_level()
+
+
+def test_solving_for_x_is_never_age_typical_only_earned() -> None:
+    for age in range(0, _game().metadata.max_age + 1):
+        assert tier_for_level(_game().typical_level_for_age(age)).missing == ("answer",)
+        assert tier_for_level(_game().starting_level_for_age(age)).missing == ("answer",)
 
 
 def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their_ceiling() -> None:
@@ -121,7 +138,7 @@ def test_starting_level_for_age_places_older_kids_further_along_but_not_at_their
 
 def test_promotion_into_the_operator_tier_ramps_in_multiplication_and_division_gently() -> None:
     first_level = next(tier.max_level for tier in TIERS if "×" in tier.operations)
-    last_level = TIERS[-1].max_level
+    last_level = _last_plain_level()
     assert last_level - first_level >= 2, "×/÷ needs several levels to ramp in over"
 
     def new_op_share(level: int) -> float:
@@ -130,3 +147,50 @@ def test_promotion_into_the_operator_tier_ramps_in_multiplication_and_division_g
 
     assert new_op_share(first_level) < 0.3
     assert new_op_share(last_level) > 0.4
+
+
+def test_the_levels_after_multiplication_solve_for_x() -> None:
+    assert _game().metadata.max_level == _last_plain_level() + 2
+    for level in range(1, _last_plain_level() + 1):
+        assert _game().generate_item(level=level, rng=SeededRng(level)).payload["missing"] == "answer"
+    for level in (_last_plain_level() + 1, _last_plain_level() + 2):
+        missing = {
+            str_at(_game().generate_item(level=level, rng=SeededRng(seed)).payload, "missing") for seed in range(40)
+        }
+        assert missing == {"left", "right"}
+
+
+def test_solving_for_x_starts_with_plus_and_minus_then_adds_times_and_divide() -> None:
+    def operators(level: int) -> set[str]:
+        return {
+            str_at(_game().generate_item(level=level, rng=SeededRng(seed)).payload, "operator") for seed in range(200)
+        }
+
+    assert operators(_last_plain_level() + 1) == {"+", "-"}
+    assert operators(_last_plain_level() + 2) == set(ALL_OPERATORS)
+
+
+def test_solve_for_x_items_are_true_with_x_a_whole_number() -> None:
+    for level in (11, 12):
+        for seed in range(100):
+            p = _game().generate_item(level=level, rng=SeededRng(seed)).payload
+            assert _true_fact(p)
+            assert _supplied(p) >= 0
+
+
+def test_the_repeat_key_tells_x_apart_from_the_plain_fact() -> None:
+    p = _game().generate_item(level=12, rng=SeededRng(3)).payload
+    assert _game().repeat_key(p) == f"{p['left']}{p['operator']}{p['right']}={p['answer']}|{p['missing']}"
+    assert _game().repeat_key({**p, "missing": "answer"}) == f"{p['left']}{p['operator']}{p['right']}={p['answer']}"
+
+
+def test_practice_at_a_solve_for_x_difficulty_solves_for_x() -> None:
+    for seed in range(20):
+        p = (
+            _game()
+            .generate_item_from_practice_config(difficulty=11, operations=["×"], focus_numbers={}, rng=SeededRng(seed))
+            .payload
+        )
+        assert p["operator"] == "×"
+        assert p["missing"] in ("left", "right")
+        assert list_at(p, "options").count(_supplied(p)) == 1

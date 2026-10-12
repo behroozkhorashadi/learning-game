@@ -1,14 +1,16 @@
 import type { ReactElement, ReactNode } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { formatTime } from './horde_scoring.pure.lib.ts'
 
 /**
  * Zombie Horde's start screen: what the game is, how to play (read aloud on
- * request), the armory (passed in as `shop`), and Start. Props only.
+ * request), the personal best to beat, the armory (passed in as `shop`), and
+ * Start. Props only.
  */
 
 export const HORDE_TITLE = 'Zombie Horde'
 export const HORDE_INSTRUCTIONS =
-  'A math question shows up and four zombies wander toward you, each carrying an answer. Shoot the zombie with the right answer! Headshots do the most damage, and leg shots knock zombies down. Shoot a wrong one and it dodges and throws something back at you. In a pinch, press the space bar to push the closest zombie all the way back (once a round). Hold them off for 60 seconds. Points you earn buy better blasters, rounds, and grenades.'
+  'A math question shows up and four zombies wander toward you, each carrying an answer. Shoot the zombie with the right answer! Headshots do the most damage, and leg shots knock zombies down. Shoot a wrong one and it dodges and throws something back at you. In a pinch, press the space bar to push the closest zombie all the way back (once a round). Hold them off for 60 seconds to win. Then comes overtime: the zombies get faster and faster, so see how long you can last and beat your best! Stop any time in overtime to bank your points. Points you earn buy better blasters, rounds, and grenades.'
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 const SPEAKER_ICON = [
@@ -20,6 +22,8 @@ export interface HordeStartProps {
   readonly shop: ReactNode
   /** Starting is held while the first question loads. */
   readonly starting: boolean
+  /** The longest round this profile has lasted; 0 before its first. */
+  readonly bestMs: number
   readonly onHearInstructions: () => void
   readonly onStart: () => void
   /** Opens the art studio, or null while it can't be opened (the armory hasn't loaded). */
@@ -27,7 +31,7 @@ export interface HordeStartProps {
   readonly onBack: () => void
 }
 
-export function HordeStart({ shop, starting, onHearInstructions, onStart, onOpenStudio, onBack }: HordeStartProps): ReactElement {
+export function HordeStart({ shop, starting, bestMs, onHearInstructions, onStart, onOpenStudio, onBack }: HordeStartProps): ReactElement {
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: 760, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
       <div style={{ position: 'absolute', top: 22, left: 22 }}>
@@ -36,13 +40,16 @@ export function HordeStart({ shop, starting, onHearInstructions, onStart, onOpen
       <div style={{ fontSize: 64, lineHeight: 1 }} aria-hidden="true">
         🧟
       </div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3', margin: '14px 0 8px' }}>60-second survival</div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3', margin: '14px 0 8px' }}>60 seconds, then overtime</div>
       <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 44, lineHeight: 1.04, color: '#2A2E37' }}>{HORDE_TITLE}</h1>
       <p style={{ margin: '12px auto 22px', fontSize: 17, lineHeight: '24px', color: '#8896AA', maxWidth: 560 }}>{HORDE_INSTRUCTIONS}</p>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28 }}>
         <DenButton label="Hear how to play" variant="softBlue" shape="pill" size="xl" iconOnly iconPaths={SPEAKER_ICON} onClick={onHearInstructions} />
         <DenButton label={starting ? 'Loading…' : 'Start'} variant="blue" shape="pill" size="xl" lipColor="#0037DB" iconPaths={PLAY_ICON} disabled={starting} onClick={onStart} />
       </div>
+      {bestMs > 0 && (
+        <p style={{ margin: '-12px 0 22px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#7F5305' }}>🏅 Your best: {formatTime(bestMs)}</p>
+      )}
       {shop}
       <div style={{ marginTop: 18, padding: '16px 18px', borderRadius: 20, background: '#F3ECFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left' }}>
         <div>

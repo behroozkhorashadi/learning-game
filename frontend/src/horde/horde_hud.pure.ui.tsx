@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { formatTime } from './horde_scoring.pure.lib.ts'
 import type { ArmedMode, FeedbackKind } from './use_horde_round.pure.hook.ts'
 
 /**
- * Everything drawn over the 3D view during a round: Back, the clock, lives,
+ * Everything drawn over the 3D view during a round: Back, the clock (counting
+ * down, then in overtime counting up against the personal best), lives,
  * grenades, push-backs, mute, the question, the answers as real buttons (the same
  * targets for keyboard and screen-reader players, independent of the
  * canvas), the crosshair, and the hit/hurt flashes. Props only.
@@ -14,11 +16,25 @@ export interface HudAnswer {
   readonly label: string
 }
 
+/** Past the clock: how long the round has lasted, and the record to beat (0 for none yet). */
+export interface HudOvertime {
+  readonly lastedMs: number
+  readonly bestMs: number
+  readonly clockMs: number
+}
+
+/** How long the "Overtime!" banner shows once the clock is beaten. */
+export const OVERTIME_BANNER_MS = 3000
+
 export interface HordeHudProps {
   readonly question: string | null
   /** The question fills the screen before the horde moves. */
   readonly intro: boolean
   readonly secondsLeft: number
+  /** Null until the clock is beaten. */
+  readonly overtime: HudOvertime | null
+  /** Stops in overtime and banks the round. */
+  readonly onEndOvertime: () => void
   readonly lives: number
   readonly grenades: number
   /** Push-backs left this round. */
@@ -62,9 +78,18 @@ const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, paddin
 
 const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C' }
 
-export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+function clockLabel(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const rest = `${String(seconds % 60)} second${seconds % 60 === 1 ? '' : 's'}`
+  return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
+}
+
+export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
+  const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
+  const banner = overtime !== null && overtime.lastedMs - overtime.clockMs < OVERTIME_BANNER_MS
   return (
     <>
       <div style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 200, pointerEvents: 'none' }}>
@@ -72,9 +97,25 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves
           <DenButton label="Back" variant="quiet" shape="pill" size="md" iconOnly boxSize={44} iconPaths={BACK_ICON} onClick={onBack} />
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
-            ⏱ {secondsLeft}s
-          </div>
+          {overtime === null ? (
+            <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
+              ⏱ {secondsLeft}s
+            </div>
+          ) : (
+            <>
+              <div role="timer" aria-label={`Overtime: ${clockLabel(overtime.lastedMs)} survived`} style={{ ...PILL, background: '#2A2E37', color: '#FFB020' }}>
+                🔥 {formatTime(overtime.lastedMs)}
+              </div>
+              {overtime.bestMs > 0 && (
+                <div role="status" aria-label={newRecord ? 'New personal best!' : `Your best: ${clockLabel(overtime.bestMs)}`} style={{ ...PILL, color: newRecord ? '#3F7A22' : '#5B6576' }}>
+                  🏅 {newRecord ? 'New record!' : `Best ${formatTime(overtime.bestMs)}`}
+                </div>
+              )}
+              <span style={{ pointerEvents: 'auto' }}>
+                <DenButton label="Stop & bank points" variant="blue" shape="pill" size="md" lipColor="#0037DB" onClick={onEndOvertime} />
+              </span>
+            </>
+          )}
           {ammo !== null && (
             <div role="status" aria-label={ammo > 0 ? `${String(ammo)} special rounds left` : 'Special rounds used up: back to standard rounds'} style={{ ...PILL, color: ammo > 0 ? '#7F5305' : '#98A2B3' }}>
               🔶 {ammo}
@@ -143,6 +184,13 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves
           }}
         >
           {question}
+        </div>
+      )}
+
+      {overtime !== null && banner && (
+        <div aria-hidden="true" style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 160, padding: '16px 28px', borderRadius: 24, background: 'rgba(42,46,55,0.92)', color: '#FFFFFF', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36, color: '#FFB020' }}>🔥 Overtime!</div>
+          <div style={{ fontSize: 17, fontWeight: 600, marginTop: 4 }}>{overtime.bestMs > 0 ? `The zombies speed up. Beat your best: ${formatTime(overtime.bestMs)}` : 'The zombies speed up. How long can you last?'}</div>
         </div>
       )}
 

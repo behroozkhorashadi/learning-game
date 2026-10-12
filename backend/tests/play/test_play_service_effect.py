@@ -180,5 +180,5 @@ def test_games_titles_and_rules_for_other_features(play: PlayHarness) -> None:
     assert play.service.game_title("nope") is None
     rules = play.service.game_rules("fact_fluency")
     assert rules is not None
-    assert (rules.supports_practice_config, rules.max_level) == (True, 10)
+    assert (rules.supports_practice_config, rules.max_level) == (True, 12)
     assert play.service.game_rules("nope") is None

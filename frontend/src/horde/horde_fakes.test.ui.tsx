@@ -63,6 +63,7 @@ export interface RoundReport {
   readonly points: number
   readonly grenades_used: number
   readonly rounds_used?: Readonly<Record<string, number>>
+  readonly survived_ms?: number
 }
 
 export interface FakeArmory {
@@ -78,12 +79,13 @@ export interface FakeArmory {
 }
 
 /** The armory server in memory: the same refusals as the backend (unknown, owned, locked, too expensive). */
-export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, artAvailable = true }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly artAvailable?: boolean } = {}): FakeArmory {
+export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, artAvailable = true, bestMs = 0 }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: number } = {}): FakeArmory {
   const art: ArtPieceRecord[] = []
   const artRequests: components['schemas']['ArtCreate'][] = []
   let points = balance
   let spent = 0
   let left = grenades
+  let best = bestMs
   const bought = new Set(owned)
   const rounds: RoundReport[] = []
   const shots = new Map<string, number>([['armor_piercing', ammo['armor_piercing'] ?? 0], ['explosive_rounds', ammo['explosive_rounds'] ?? 0]])
@@ -95,6 +97,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
     owned: CATALOG.filter((item) => !item.consumable && (item.price === 0 || bought.has(item.id))).map((item) => item.id),
     grenades: left,
     ammo: Object.fromEntries(shots),
+    best_survived_ms: best,
     catalog: CATALOG,
   })
   return {
@@ -130,6 +133,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
       rounds.push(round)
       points += round.points
       left = Math.max(0, left - round.grenades_used)
+      best = Math.max(best, round.survived_ms ?? 0)
       for (const [id, used] of Object.entries(round.rounds_used ?? {})) shots.set(id, Math.max(0, (shots.get(id) ?? 0) - used))
       return Promise.resolve(state())
     },

@@ -6,15 +6,19 @@ const meta = {
   title: 'app/horde/HordeResults',
   component: HordeResults,
   args: {
-    survived: true,
+    outcome: 'survived',
+    beatClock: true,
+    lastedMs: 74_000,
+    newBest: false,
     lines: [
       { label: 'Right answers', count: 11, points: 55 },
       { label: 'Zombies defeated', count: 5, points: 75 },
       { label: 'Headshots', count: 3, points: 15 },
-      { label: 'Survived the horde', count: 1, points: 50 },
-      { label: 'Lives left', count: 2, points: 20 },
+      { label: 'Held out 60 seconds', count: 1, points: 50 },
+      { label: 'Lives left at the clock', count: 2, points: 20 },
+      { label: 'Overtime seconds', count: 14, points: 28 },
     ],
-    points: 215,
+    points: 243,
     bank: { kind: 'saved', balance: 340 },
     solved: [
       { summary: '3 + 4 = 7', timeMs: 2100 },
@@ -39,9 +43,34 @@ export const Survived: Story = {
 }
 
 export const Overrun: Story = {
-  args: { survived: false, lines: [{ label: 'Right answers', count: 2, points: 10 }], points: 10, bank: { kind: 'saving' }, solved: [] },
+  args: { outcome: 'overrun', beatClock: false, lastedMs: 38_000, lines: [{ label: 'Right answers', count: 2, points: 10 }], points: 10, bank: { kind: 'saving' }, solved: [] },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('heading', { name: 'The horde got through!' })).toBeVisible()
+  },
+}
+
+export const NewBestInOvertime: Story = {
+  args: {
+    outcome: 'overrun',
+    lastedMs: 112_000,
+    newBest: true,
+    lines: [
+      { label: 'Right answers', count: 18, points: 180 },
+      { label: 'Held out 60 seconds', count: 1, points: 50 },
+      { label: 'Lives left at the clock', count: 3, points: 30 },
+      { label: 'Overtime seconds', count: 52, points: 104 },
+      { label: 'New personal best', count: 1, points: 100 },
+    ],
+    points: 464,
+    solved: [
+      { summary: 'x + 4 = 9, so x = 5', timeMs: 3100 },
+      { summary: '20 ÷ x = 5, so x = 4', timeMs: 4200 },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('heading', { name: 'You lasted 1:52!' })).toBeVisible()
+    await expect(canvas.getByText('New personal best: 1:52!', { exact: false })).toBeVisible()
   },
 }
 

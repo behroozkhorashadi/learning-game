@@ -22,13 +22,15 @@ export const OPERATIONS = [
 export const FOCUS_NUMBER_OPTIONS: readonly number[] = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export const MIN_DIFFICULTY = 1
-export const MAX_DIFFICULTY = 10
+/** The server's top Fact Fluency level: 11 and 12 solve for x. */
+export const MAX_DIFFICULTY = 12
 
 export function difficultyLabel(value: number): string {
   if (value <= 2) return 'Warm-up'
   if (value <= 4) return 'Building confidence'
   if (value <= 7) return 'Steady challenge'
-  return 'Advanced'
+  if (value <= 10) return 'Advanced'
+  return 'Solve for x'
 }
 
 export interface SettingsDraft {

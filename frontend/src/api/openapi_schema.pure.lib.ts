@@ -800,8 +800,8 @@ export interface components {
         };
         /**
          * ArmoryRoundCreate
-         * @description A finished Zombie Horde round: the points it scored, the grenades it threw, and
-         *     the special rounds it fired (by bullet item id).
+         * @description A finished Zombie Horde round: the points it scored, the grenades it threw, the
+         *     special rounds it fired (by bullet item id), and how long it lasted.
          */
         readonly ArmoryRoundCreate: {
             /** Grenades Used */
@@ -812,6 +812,11 @@ export interface components {
             readonly rounds_used?: {
                 readonly [key: string]: number;
             };
+            /**
+             * Survived Ms
+             * @default 0
+             */
+            readonly survived_ms: number;
         };
         /**
          * ArmoryState
@@ -824,6 +829,8 @@ export interface components {
             };
             /** Balance */
             readonly balance: number;
+            /** Best Survived Ms */
+            readonly best_survived_ms: number;
             /** Catalog */
             readonly catalog: readonly components["schemas"]["ArmoryItem"][];
             /** Earned */

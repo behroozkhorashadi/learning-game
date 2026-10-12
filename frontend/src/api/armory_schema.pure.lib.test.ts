@@ -9,6 +9,7 @@ const STATE = {
   owned: ['starter_blaster'],
   grenades: 1,
   ammo: { armor_piercing: 0 },
+  best_survived_ms: 0,
   catalog: [{ id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades.', price: 80, quantity: 3, consumable: true, requires: null }],
 }
 

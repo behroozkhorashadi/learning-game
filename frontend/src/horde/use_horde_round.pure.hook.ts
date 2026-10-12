@@ -13,6 +13,8 @@ import {
   shoot as shootEngine,
   shove as shoveEngine,
   closestZombie,
+  endOvertime as endOvertimeEngine,
+  inOvertime,
   throwGrenade as throwEngine,
   tick,
   type HordeConfig,
@@ -24,7 +26,7 @@ import {
 import { CAMERA_POSITION, COVER } from './horde_field.pure.lib.ts'
 import { HORDE_GAME_ID, hordeQuestion } from './horde_question.pure.lib.ts'
 import { RECORDING_VERSION, finished, startRecording, withFlag, withFrame, withGrenade, withQuestion, withShot, type Recording, type ShotDetail } from './horde_recording.pure.lib.ts'
-import { roundPoints } from './horde_scoring.pure.lib.ts'
+import { formatTime, isNewBest, roundPoints, roundResult, type RoundResult } from './horde_scoring.pure.lib.ts'
 
 /** The question fills the screen for a beat before the horde moves. */
 export const INTRO_MS = 1500
@@ -59,8 +61,8 @@ export interface HordeRoundDeps {
   readonly nextItem: (query: { readonly profileId: number; readonly gameId: string; readonly sessionId: string }) => Promise<ItemRecord>
   /** POST /api/attempts. A failure is reported, never interrupts play. */
   readonly recordAttempt: (attempt: AttemptBody) => Promise<unknown>
-  /** Banks a finished round into the armory; resolves to the new balance. */
-  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>> }) => Promise<{ readonly balance: number }>
+  /** Banks a finished round (and how long it lasted, toward the personal best) into the armory; resolves to the new balance. */
+  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>>; readonly survived_ms: number }) => Promise<{ readonly balance: number }>
   readonly scheduler: ArenaScheduler
   readonly audio: ArenaAudio
   /** This round's four characters, one per slot. */
@@ -89,11 +91,16 @@ export interface HordeRound {
   readonly armed: ArmedMode
   readonly audioMuted: boolean
   readonly solved: readonly SolvedFact[]
+  /** The finished round, for the end screen; null until it's over. */
+  readonly result: RoundResult | null
   readonly points: number
   readonly bank: BankState
+  /** The clock to beat before overtime. */
   readonly durationMs: number
-  /** Starts a round with this loadout, the grenades owned, and the loadout's special rounds owned (0 for standard rounds). */
-  readonly start: (loadout: Loadout, grenades: number, ammo: number) => void
+  /** The profile's longest round before this one (0 before its first): the record to beat. */
+  readonly previousBestMs: number
+  /** Starts a round with this loadout, the grenades owned, the loadout's special rounds owned (0 for standard rounds), and the profile's personal best. */
+  readonly start: (loadout: Loadout, grenades: number, ammo: number, previousBestMs: number) => void
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
   /** A shot at a zombie (or at nothing: null). */
@@ -107,6 +114,8 @@ export interface HordeRound {
   readonly toggleGrenade: () => void
   /** Pushes the closest zombie all the way back, whatever its answer (space bar). */
   readonly pushBack: () => void
+  /** Stops in overtime and banks the round. */
+  readonly endOvertime: () => void
   readonly throwGrenade: (at: { readonly x: number; readonly depth: number }) => void
   readonly toggleMute: () => void
   readonly sceneFailed: (error: unknown) => void
@@ -130,12 +139,14 @@ interface Live {
   /** This round's recording; null when there's no round, or once it's been saved. */
   recording: Recording | null
   aim: { readonly x: number; readonly y: number } | null
+  previousBestMs: number
 }
 
 /**
  * Zombie Horde's round lifecycle: start (with the chosen loadout) → the first
- * question loads → intro → 60 seconds of play → over, with the round's points
- * banked into the armory. The only caller of the engine; the scene renders
+ * question loads → intro → 60 seconds of play → overtime, until the horde
+ * gets through or the player stops → over, with the round's points (and how
+ * long it lasted, toward the personal best) banked into the armory. The only caller of the engine; the scene renders
  * and reports shots, the HUD reports button presses.
  *
  * Questions come from the server one at a time, the next one always fetched
@@ -160,6 +171,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [solved, setSolved] = useState<readonly SolvedFact[]>([])
   const [bank, setBank] = useState<BankState>({ kind: 'idle' })
   const [flags, setFlags] = useState(0)
+  const [previousBestMs, setPreviousBestMs] = useState(0)
 
   const live = useRef<Live>({
     mounted: true,
@@ -176,6 +188,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     bulletId: '',
     recording: null,
     aim: null,
+    previousBestMs: 0,
   })
   const timers = useRef(new Set<Cancel>())
 
@@ -266,12 +279,14 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     setArmed('shot')
     // A question they tried and didn't get counts as a miss; one nobody shot at says nothing.
     if (final.question !== null && final.questionWrongShots > 0) record(final.question.id, false, final.elapsedMs - final.questionStartedMs, final.questionWrongShots)
-    const points = roundPoints(final.stats, final.outcome, final.lives)
-    setLiveMessage(final.outcome === 'survived' ? `You held off the horde! ${String(points)} points.` : `The horde got through. ${String(points)} points.`)
+    const result = roundResult(final, ROUND_MS, live.current.previousBestMs)
+    const points = roundPoints(result)
+    const lasted = isNewBest(result) ? ` New personal best: ${formatTime(final.elapsedMs)}!` : ''
+    setLiveMessage(`${final.outcome === 'survived' ? 'You held off the horde!' : 'The horde got through.'}${lasted} ${String(points)} points.`)
     const sessionId = live.current.sessionId
     setBank({ kind: 'saving' })
     const bullet = live.current.bulletId
-    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {} }).then(
+    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {}, survived_ms: Math.round(final.elapsedMs) }).then(
       ({ balance }) => {
         if (live.current.mounted && live.current.sessionId === sessionId) setBank({ kind: 'saved', balance })
       },
@@ -325,6 +340,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
           flash('shove')
           setLiveMessage('Pushed back!')
           break
+        case 'overtime':
+          setLiveMessage(`${String(ROUND_MS / 1000)} seconds! Overtime: the zombies speed up. Stop any time to bank your points.`)
+          break
         case 'roundOver':
           finish(next)
           break
@@ -336,6 +354,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
 
   /** Makes `next` the round's state and reacts to its events; `recorded` when the caller has already recorded it. */
   function commit(next: HordeState, recorded = false): void {
+    const best = live.current.previousBestMs
+    const before = live.current.state?.elapsedMs ?? 0
+    if (best > 0 && next.outcome === 'playing' && before <= best && next.elapsedMs > best) setLiveMessage('New personal best!')
     live.current.state = next
     if (!recorded && live.current.recording !== null) live.current.recording = withFrame(live.current.recording, next, live.current.aim)
     setStateValue(next)
@@ -387,7 +408,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     else audio.stopMusic()
   }, [audio, phase])
 
-  function start(chosen: Loadout, grenades: number, ammo: number): void {
+  function start(chosen: Loadout, grenades: number, ammo: number, best: number): void {
     // A real user gesture: create/resume the audio context here, well before the first shot.
     audio.preloadWeapon()
     audio.preloadMusic()
@@ -397,7 +418,8 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     for (const cancel of timers.current) cancel()
     timers.current.clear()
     leave()
-    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id, recording: null })
+    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id, recording: null, previousBestMs: best })
+    setPreviousBestMs(best)
     setFlags(0)
     setCharacters(roster)
     setLoadout(chosen)
@@ -449,8 +471,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     )
   }
 
-  const round = state
-  const finalPoints = round === null || round.outcome === 'playing' ? 0 : roundPoints(round.stats, round.outcome, round.lives)
+  const result = state === null || state.outcome === 'playing' ? null : roundResult(state, ROUND_MS, previousBestMs)
 
   return {
     phase,
@@ -464,9 +485,11 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     armed,
     audioMuted,
     solved,
-    points: finalPoints,
+    result,
+    points: result === null ? 0 : roundPoints(result),
     bank,
     durationMs: ROUND_MS,
+    previousBestMs,
     start,
     flags,
     reset: () => {
@@ -497,6 +520,11 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       const recording = live.current.recording
       if (recording !== null) live.current.recording = withShot(recording, current, next, { zombieId: closest.id, zone: 'body' }, { aim: null, blockedBy: null, via: 'button' }, 'shove', live.current.aim)
       if (next !== current) commit(next, true)
+    },
+    endOvertime: () => {
+      const current = live.current.state
+      if (live.current.phase !== 'playing' || current === null || !inOvertime(current)) return
+      commit(endOvertimeEngine(current))
     },
     trackAim: (aim) => {
       live.current.aim = aim

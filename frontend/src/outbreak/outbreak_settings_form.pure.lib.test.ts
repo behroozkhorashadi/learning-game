@@ -32,6 +32,6 @@ describe('outbreak settings form', () => {
   })
 
   it('names the difficulty bands', () => {
-    expect([1, 3, 6, 9].map(difficultyLabel)).toEqual(['Warm-up', 'Building confidence', 'Steady challenge', 'Advanced'])
+    expect([1, 3, 6, 9, 11].map(difficultyLabel)).toEqual(['Warm-up', 'Building confidence', 'Steady challenge', 'Advanced', 'Solve for x'])
   })
 })

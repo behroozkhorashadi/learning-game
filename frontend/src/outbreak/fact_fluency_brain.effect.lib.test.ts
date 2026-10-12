@@ -19,6 +19,12 @@ describe('factQuestion', () => {
     })
   })
 
+  it('reads a solve-for-x item, with x as the right option', () => {
+    const question = factQuestion({ ...ITEM, level: 12, payload: { left: 6, operator: '×', right: 4, answer: 24, missing: 'left', options: [5, 6, 7, 4], approach_ms: 4500 } })
+    expect([question.text, question.summary]).toEqual(['If x × 4 = 24, x =', 'x × 4 = 24, so x = 6'])
+    expect(question.options.map((option) => option.correct)).toEqual([false, true, false, false])
+  })
+
   it("refuses a payload that isn't a fact question", () => {
     expect(() => factQuestion({ ...ITEM, payload: { left: 3 } })).toThrow("isn't a fact-fluency question")
   })

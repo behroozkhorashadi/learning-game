@@ -7,6 +7,8 @@ import {
   answerFor,
   canShoot,
   createRound,
+  endOvertime,
+  inOvertime,
   isTargetable,
   setQuestion,
   shoot,
@@ -363,10 +365,49 @@ describe('reaching the player', () => {
 })
 
 describe('the round ending', () => {
-  it('survives when the clock runs out', () => {
-    const state = run({ ...round(4), elapsedMs: ROUND_MS - 20 }, 40)
-    expect(state.outcome).toBe('survived')
-    expect(tick(state, 16, CONFIG).elapsedMs).toBe(state.elapsedMs)
+  it('beating the clock starts overtime, keeping the lives left at that moment', () => {
+    const before = { ...round(4), lives: 2, elapsedMs: ROUND_MS - 10 }
+    expect(inOvertime(before)).toBe(false)
+    const state = tick(before, 16, CONFIG)
+    expect(state.outcome).toBe('playing')
+    expect(state.livesAtClock).toBe(2)
+    expect(state.events).toContainEqual({ type: 'overtime' })
+    const later = tick(state, 16, CONFIG)
+    expect(later.elapsedMs).toBe(state.elapsedMs + 16)
+    expect(later.events).not.toContainEqual({ type: 'overtime' })
+  })
+
+  it('in overtime, the zombies keep speeding up', () => {
+    const walked = (elapsedMs: number): number => {
+      const start = { ...round(4, OPEN_FIELD), elapsedMs, livesAtClock: elapsedMs >= ROUND_MS ? 3 : null }
+      const zombie = start.zombies[0]
+      const after = tick(start, 16, OPEN_FIELD).zombies[0]
+      if (zombie === undefined || after === undefined) throw new Error('no zombie')
+      return zombie.depth - after.depth
+    }
+    expect(walked(ROUND_MS + 30_000)).toBeGreaterThan(walked(ROUND_MS) * 1.5)
+    expect(walked(ROUND_MS + 90_000)).toBeGreaterThan(walked(ROUND_MS + 30_000) * 1.5)
+  })
+
+  it('stopping in overtime wins the round', () => {
+    const overtime = tick({ ...round(4), elapsedMs: ROUND_MS - 10 }, 16, CONFIG)
+    const stopped = endOvertime(overtime)
+    expect(stopped.outcome).toBe('survived')
+    expect(stopped.events).toEqual([{ type: 'roundOver', outcome: 'survived' }])
+    expect(tick(stopped, 16, CONFIG).elapsedMs).toBe(stopped.elapsedMs)
+  })
+
+  it("can't stop before the clock is beaten", () => {
+    const state = round(4)
+    expect(endOvertime(state)).toBe(state)
+  })
+
+  it('running out of lives in overtime is overrun, but the clock was still beaten', () => {
+    const overtime = tick({ ...round(4, OPEN_FIELD), elapsedMs: ROUND_MS - 10 }, 16, OPEN_FIELD)
+    const state = tick({ ...overtime, lives: 1, projectiles: [{ id: 'p', fromX: 0, fromDepth: 5, launchedAtMs: 0, landsAtMs: overtime.elapsedMs }] }, 16, OPEN_FIELD)
+    expect(state.outcome).toBe('overrun')
+    expect(inOvertime(state)).toBe(true)
+    expect(state.livesAtClock).toBe(3)
   })
 
   it('is overrun when the last life goes', () => {

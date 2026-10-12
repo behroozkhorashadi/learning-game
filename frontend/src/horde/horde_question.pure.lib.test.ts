@@ -18,9 +18,17 @@ describe('hordeQuestion', () => {
     })
   })
 
+  it('reads a solve-for-x item: the zombie carrying x is the right one', () => {
+    const item = { ...hordeItem(0, 4500), level: 11, payload: { left: 9, operator: '-', right: 4, answer: 5, missing: 'right', options: [3, 4, 5, 6], approach_ms: 4500 } }
+    const question = hordeQuestion(item)
+    expect([question.text, question.summary]).toEqual(['If 9 - x = 5, x =', '9 - x = 5, so x = 4'])
+    expect(question.options.filter((option) => option.correct)).toEqual([{ label: '4', correct: true }])
+  })
+
   it('walks a little faster at higher levels, whatever the item says about its pace', () => {
     expect(travelMsFor({ ...hordeItem(0, 9000), level: 1 })).toBe(54_000)
     expect(travelMsFor({ ...hordeItem(0, 4500), level: 10 })).toBe(45_000)
+    expect(travelMsFor({ ...hordeItem(0, 4500), level: 12 })).toBe(45_000)
     expect(travelMsFor({ ...hordeItem(0, 4500), level: 99 })).toBe(45_000)
   })
 

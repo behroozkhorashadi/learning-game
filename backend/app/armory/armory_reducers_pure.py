@@ -138,6 +138,7 @@ def summarize(profile_id: int, entries: Sequence[ArmoryEntry]) -> ArmoryState:
         owned=owned,
         grenades=max(STARTING_GRENADES + bought_grenades - used_grenades, 0),
         ammo=ammo,
+        best_survived_ms=max((e.quantity for e in entries if e.kind == "survived"), default=0),
         catalog=list(CATALOG),
     )
 
@@ -173,6 +174,17 @@ def round_entries(profile_id: int, round_result: ArmoryRoundCreate, *, now: date
         for item_id, used in sorted(round_result.rounds_used.items())
         if used > 0
     )
+    if round_result.survived_ms > 0:
+        entries.append(
+            ArmoryEntry(
+                profile_id=profile_id,
+                kind="survived",
+                item_id=None,
+                points=0,
+                quantity=round_result.survived_ms,
+                created_at=now,
+            )
+        )
     return tuple(entries)
 
 
@@ -187,6 +199,7 @@ def clamped_round(state: ArmoryState, round_result: ArmoryRoundCreate) -> Armory
             for item_id, used in round_result.rounds_used.items()
             if item_id in state.ammo
         },
+        survived_ms=round_result.survived_ms,
     )
 
 

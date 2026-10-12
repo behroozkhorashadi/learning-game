@@ -37,6 +37,12 @@ def test_refusals_map_to_status_codes(client: httpx.Client) -> None:
     assert client.post(f"{ARMORY}/purchases", json={"item_id": "starter_blaster"}).status_code == 409
     assert client.get("/api/profiles/9/armory").status_code == 404
     assert client.post(f"{ARMORY}/rounds", json={"points": -5, "grenades_used": 0}).status_code == 422
+    assert client.post(f"{ARMORY}/rounds", json={"points": 0, "grenades_used": 0, "survived_ms": -1}).status_code == 422
+
+
+def test_a_long_overtime_round_banks_and_sets_the_personal_best(client: httpx.Client) -> None:
+    banked = client.post(f"{ARMORY}/rounds", json={"points": 2400, "grenades_used": 0, "survived_ms": 184_000})
+    assert (banked.status_code, banked.json()["balance"], banked.json()["best_survived_ms"]) == (200, 2400, 184_000)
 
 
 def test_buying_rounds_and_using_them(client: httpx.Client) -> None:

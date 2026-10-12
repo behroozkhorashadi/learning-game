@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { AttemptBody } from '@app/api/practice_schema.pure.lib.ts'
 import type { ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
+import { factPayloadSchema, factSummary, factText, factValue } from './fact_payload.pure.lib.ts'
 import type { ArenaQuestion, ZombieArenaBrain } from './zombie_arena_state.pure.lib.ts'
 
 /**
@@ -14,25 +15,20 @@ export const FACT_FLUENCY_GAME_ID = 'fact_fluency'
 const SESSION_LENGTH = 10
 const STARTING_LIVES = 3
 
-const factPayloadSchema = z.object({
-  left: z.number(),
-  operator: z.string(),
-  right: z.number(),
-  answer: z.number(),
-  options: z.array(z.number()).length(4),
-  approach_ms: z.number().positive(),
-})
+/** The arena has exactly one lane per option. */
+const arenaPayloadSchema = factPayloadSchema.extend({ options: z.array(z.number()).length(4) })
 
-/** Reads a fact-fluency item into the arena's question. Throws on a payload that isn't one. */
+/** Reads a fact-fluency item (a plain fact, or solving for x) into the arena's question. Throws on a payload that isn't one. */
 export function factQuestion(item: ItemRecord): ArenaQuestion {
-  const parsed = factPayloadSchema.safeParse(item.payload)
+  const parsed = arenaPayloadSchema.safeParse(item.payload)
   if (!parsed.success) throw new Error(`Item ${item.item_id} isn't a fact-fluency question: ${parsed.error.message}`)
-  const { left, operator, right, answer, options, approach_ms } = parsed.data
+  const fact = parsed.data
+  const value = factValue(fact)
   return {
-    approachMs: approach_ms,
-    options: options.map((value, i) => ({ id: `${item.item_id}-${String(i)}`, label: String(value), correct: value === answer })),
-    text: `${String(left)} ${operator} ${String(right)} =`,
-    summary: `${String(left)} ${operator} ${String(right)} = ${String(answer)}`,
+    approachMs: fact.approach_ms,
+    options: fact.options.map((option, i) => ({ id: `${item.item_id}-${String(i)}`, label: String(option), correct: option === value })),
+    text: factText(fact),
+    summary: factSummary(fact),
   }
 }
 

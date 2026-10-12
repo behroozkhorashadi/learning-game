@@ -16,11 +16,13 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
 ArmoryItemKind = Literal["weapon", "bullet", "grenade", "art"]
-ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used"]
+ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used", "survived"]
 
-# A generous ceiling on one round's points: a round is 60 seconds, so anything past
-# this is a bug or a tampered request, not good play.
-MAX_ROUND_POINTS = 2000
+# A generous ceiling on one round: a round is 60 seconds plus overtime, where the
+# zombies keep speeding up until they get through, so it can't last much past a few
+# minutes. Anything past these is a bug or a tampered request, not good play.
+MAX_ROUND_POINTS = 10_000
+MAX_ROUND_MS = 30 * 60 * 1000
 MAX_ROUND_GRENADES = 50
 MAX_ROUND_SHOTS = 500
 
@@ -59,18 +61,21 @@ class ArmoryState(BaseModel):
     grenades: int
     ammo: dict[str, int]
     """Special rounds left, by bullet item id. Standard rounds never run out."""
+    best_survived_ms: int
+    """The longest a round of this profile's has lasted: its personal best."""
     catalog: list[ArmoryItem]
 
 
 class ArmoryRoundCreate(BaseModel):
-    """A finished Zombie Horde round: the points it scored, the grenades it threw, and
-    the special rounds it fired (by bullet item id)."""
+    """A finished Zombie Horde round: the points it scored, the grenades it threw, the
+    special rounds it fired (by bullet item id), and how long it lasted."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     points: int = Field(ge=0, le=MAX_ROUND_POINTS)
     grenades_used: int = Field(ge=0, le=MAX_ROUND_GRENADES)
     rounds_used: dict[ItemId, Annotated[int, Field(ge=0, le=MAX_ROUND_SHOTS)]] = Field(default_factory=dict[str, int])
+    survived_ms: int = Field(default=0, ge=0, le=MAX_ROUND_MS)
 
 
 class ArmoryPurchaseCreate(BaseModel):
@@ -81,7 +86,7 @@ class ArmoryPurchaseCreate(BaseModel):
 
 class ArmoryEntry(BaseModel):
     """One ledger row. `points` is what was earned or the price paid; `quantity` is
-    the grenades a purchase added or a round used."""
+    the grenades a purchase added or a round used, or how long a round lasted (ms)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

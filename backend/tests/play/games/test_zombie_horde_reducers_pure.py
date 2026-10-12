@@ -1,6 +1,7 @@
 """Zombie Horde reuses Fact Fluency's facts and tiers under its own game id."""
 
 from app.play.games.arithmetic_reducers_pure import apply_operator
+from app.play.games.fact_fluency_reducers_pure import FactFluencyGame
 from app.play.games.zombie_horde_reducers_pure import ZombieHordeGame
 from tests.play.play_fakes import SeededRng, int_at, list_at, str_at
 
@@ -18,8 +19,14 @@ def test_items_are_true_facts_with_four_options_including_the_answer() -> None:
         assert apply_operator(str_at(payload, "operator"), int_at(payload, "left"), int_at(payload, "right")) == answer
         options = list_at(payload, "options")
         assert len(options) == 4
-        assert answer in options
+        assert int_at(payload, str_at(payload, "missing")) in options
 
 
 def test_supports_practice_config_like_fact_fluency() -> None:
     assert ZombieHordeGame().supports_practice_config()
+
+
+def test_climbs_as_high_as_fact_fluency_into_solving_for_x() -> None:
+    assert ZombieHordeGame().metadata.max_level == FactFluencyGame().metadata.max_level
+    top = ZombieHordeGame().generate_item(level=ZombieHordeGame().metadata.max_level, rng=SeededRng(5)).payload
+    assert top["missing"] in ("left", "right")

@@ -25,6 +25,7 @@ export const armoryStateSchema = z
     owned: z.array(z.string()).readonly(),
     grenades: z.number().int(),
     ammo: z.record(z.string(), z.number().int()).readonly(),
+    best_survived_ms: z.number().int(),
     catalog: z.array(armoryItemSchema).readonly(),
   })
   .readonly() satisfies z.ZodType<components['schemas']['ArmoryState']>

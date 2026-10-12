@@ -6,10 +6,13 @@ afterEach(cleanup)
 
 function props(overrides: Partial<HordeResultsProps> = {}): HordeResultsProps {
   return {
-    survived: true,
+    outcome: 'survived',
+    beatClock: true,
+    lastedMs: 72_000,
+    newBest: false,
     lines: [
       { label: 'Right answers', count: 4, points: 20 },
-      { label: 'Survived the horde', count: 1, points: 50 },
+      { label: 'Held out 60 seconds', count: 1, points: 50 },
     ],
     points: 70,
     bank: { kind: 'saved', balance: 170 },
@@ -30,8 +33,19 @@ describe('HordeResults', () => {
     expect(screen.getByText('3 + 4 = 7')).toBeTruthy()
   })
 
+  it('says how long a round lasted when the horde got through in overtime, and celebrates a new best', () => {
+    render(<HordeResults {...props({ outcome: 'overrun', lastedMs: 95_400, newBest: true })} />)
+    expect(screen.getByRole('heading', { name: 'You lasted 1:35!' })).toBeTruthy()
+    expect(screen.getByText('New personal best: 1:35!', { exact: false })).toBeTruthy()
+  })
+
+  it('no new best, no celebration', () => {
+    render(<HordeResults {...props()} />)
+    expect(screen.queryByText('New personal best', { exact: false })).toBeNull()
+  })
+
   it('says when the horde got through, and when saving is in flight or failed', () => {
-    render(<HordeResults {...props({ survived: false, bank: { kind: 'saving' } })} />)
+    render(<HordeResults {...props({ outcome: 'overrun', beatClock: false, lastedMs: 41_000, bank: { kind: 'saving' } })} />)
     expect(screen.getByRole('heading', { name: 'The horde got through!' })).toBeTruthy()
     expect(screen.getByText('Saving your points…')).toBeTruthy()
     cleanup()

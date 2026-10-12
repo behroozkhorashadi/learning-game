@@ -24,7 +24,7 @@ describe('OutbreakSettingsView', () => {
 
   it('names the difficulty band', () => {
     renderView({ draft: { ...draftFrom(null), custom: true, difficulty: 2 } })
-    expect(screen.getByText('Difficulty — Warm-up (2/10)')).toBeTruthy()
+    expect(screen.getByText('Difficulty — Warm-up (2/12)')).toBeTruthy()
   })
 
   it('shows an error, and Saving… while it saves', () => {

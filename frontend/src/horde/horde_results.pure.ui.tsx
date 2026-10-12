@@ -1,16 +1,21 @@
 import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import type { PointsLine } from './horde_scoring.pure.lib.ts'
+import { formatTime, type PointsLine } from './horde_scoring.pure.lib.ts'
 import type { BankState, SolvedFact } from './use_horde_round.pure.hook.ts'
 
 /**
- * The end of a round: whether the horde was held off, the points line by
- * line, whether they were banked (and the new balance), and the facts solved.
- * Props only.
+ * The end of a round: how it ended and how long it lasted (and whether that's
+ * a new personal best), the points line by line, whether they were banked
+ * (and the new balance), and the facts solved. Props only.
  */
 
 export interface HordeResultsProps {
-  readonly survived: boolean
+  /** `survived`: stopped in overtime. `overrun`: the horde got through, before the clock or after it. */
+  readonly outcome: 'survived' | 'overrun'
+  /** Beat the clock (so any overrun came in overtime). */
+  readonly beatClock: boolean
+  readonly lastedMs: number
+  readonly newBest: boolean
   readonly lines: readonly PointsLine[]
   readonly points: number
   readonly bank: BankState
@@ -43,14 +48,22 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected bank state: ${JSON.stringify(value)}`)
 }
 
-export function HordeResults({ survived, lines, points, bank, solved, onPlayAgain, onBack }: HordeResultsProps): ReactElement {
+function headline(outcome: HordeResultsProps['outcome'], beatClock: boolean, lastedMs: number): { readonly icon: string; readonly title: string; readonly subtitle: string } {
+  if (outcome === 'survived') return { icon: '🏆', title: 'You held off the horde!', subtitle: `You lasted ${formatTime(lastedMs)} and banked your points. Nice shooting.` }
+  if (beatClock) return { icon: '🔥', title: `You lasted ${formatTime(lastedMs)}!`, subtitle: 'You beat the clock, and the horde only got through in overtime.' }
+  return { icon: '🧟', title: 'The horde got through!', subtitle: 'Every right answer still counts. Give it another go?' }
+}
+
+export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, points, bank, solved, onPlayAgain, onBack }: HordeResultsProps): ReactElement {
+  const { icon, title, subtitle } = headline(outcome, beatClock, lastedMs)
   return (
     <div style={{ width: '100%', maxWidth: 560, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
       <div style={{ fontSize: 56, lineHeight: 1 }} aria-hidden="true">
-        {survived ? '🏆' : '🧟'}
+        {icon}
       </div>
-      <h1 style={{ margin: '14px 0 6px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, color: '#2A2E37' }}>{survived ? 'You held off the horde!' : 'The horde got through!'}</h1>
-      <p style={{ margin: '0 0 18px', color: '#8896AA', fontSize: 16 }}>{survived ? 'Sixty seconds of sharp math. Nice shooting.' : 'Every right answer still counts. Give it another go?'}</p>
+      <h1 style={{ margin: '14px 0 6px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, color: '#2A2E37' }}>{title}</h1>
+      <p style={{ margin: '0 0 18px', color: '#8896AA', fontSize: 16 }}>{subtitle}</p>
+      {newBest && <p style={{ display: 'inline-block', margin: '0 0 18px', padding: '8px 16px', borderRadius: 9999, background: '#FFF1C7', color: '#7F5305', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18 }}>🏅 New personal best: {formatTime(lastedMs)}!</p>}
 
       <table aria-label="Points" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
         <tbody>

@@ -101,7 +101,7 @@
       },
       "ArmoryRoundCreate": {
         "additionalProperties": false,
-        "description": "A finished Zombie Horde round: the points it scored, the grenades it threw, and\nthe special rounds it fired (by bullet item id).",
+        "description": "A finished Zombie Horde round: the points it scored, the grenades it threw, the\nspecial rounds it fired (by bullet item id), and how long it lasted.",
         "properties": {
           "grenades_used": {
             "maximum": 50.0,
@@ -110,7 +110,7 @@
             "type": "integer"
           },
           "points": {
-            "maximum": 2000.0,
+            "maximum": 10000.0,
             "minimum": 0.0,
             "title": "Points",
             "type": "integer"
@@ -127,6 +127,13 @@
             },
             "title": "Rounds Used",
             "type": "object"
+          },
+          "survived_ms": {
+            "default": 0,
+            "maximum": 1800000.0,
+            "minimum": 0.0,
+            "title": "Survived Ms",
+            "type": "integer"
           }
         },
         "required": [
@@ -149,6 +156,10 @@
           },
           "balance": {
             "title": "Balance",
+            "type": "integer"
+          },
+          "best_survived_ms": {
+            "title": "Best Survived Ms",
             "type": "integer"
           },
           "catalog": {
@@ -190,6 +201,7 @@
           "owned",
           "grenades",
           "ammo",
+          "best_survived_ms",
           "catalog"
         ],
         "title": "ArmoryState",
