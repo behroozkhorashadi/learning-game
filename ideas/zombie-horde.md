@@ -241,3 +241,5 @@ zone), add it so Outbreak's behavior is unchanged and its tests still pass.
   here. The points balance and its storage should be shared by both games,
   so decide its storage once.
 - `ideas/post-game-stats.md`: the end screen is the natural place for stats.
+- `ideas/horde-overtime-and-scopes.md`: what comes after 60 seconds (up to
+  10 zombies, a longer hall, heavy ducking) and buyable 2×/3× scopes.
