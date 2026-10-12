@@ -241,6 +241,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             armed={round.armed}
             muted={round.audioMuted}
             answers={phase === 'playing' ? answers : []}
+            outOfRounds={round.outOfRounds}
             feedback={round.feedback}
             aimNdc={aimNdc}
             reducedMotion={reducedMotion}

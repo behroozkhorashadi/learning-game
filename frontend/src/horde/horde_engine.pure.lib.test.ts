@@ -549,6 +549,17 @@ describe('special rounds', () => {
     expect(state.zombies.find((z) => z.slot === slot)?.health).toBe(25)
     expect(state.stats.roundsUsed).toBe(1)
   })
+
+  it('say so once, on the shot that fires the last one', () => {
+    let state: HordeState = { ...round(4, OPEN_FIELD), ammo: 2 }
+    const slot = holding(state, true).slot
+    state = shootSlot(state, slot, 'body')
+    expect(state.events).not.toContainEqual({ type: 'outOfAmmo' })
+    state = shootSlot(state, slot, 'body')
+    expect(state.events).toContainEqual({ type: 'outOfAmmo' })
+    state = shootSlot(state, slot, 'body')
+    expect(state.events).not.toContainEqual({ type: 'outOfAmmo' })
+  })
 })
 
 describe('the right answer stays in sight', () => {

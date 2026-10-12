@@ -183,6 +183,8 @@ export type HordeEvent =
   | { readonly type: 'playerHit'; readonly cause: 'thrown' | 'contact' }
   | { readonly type: 'grenade'; readonly dud: boolean }
   | { readonly type: 'shoved'; readonly zombieId: string }
+  /** The last special round was just fired: shots hit with standard power from here on. */
+  | { readonly type: 'outOfAmmo' }
   | { readonly type: 'spawned'; readonly slot: number }
   /** The clock ran out with lives left: overtime starts. */
   | { readonly type: 'overtime' }
@@ -695,6 +697,7 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
     stats: { ...state.stats, shots: state.stats.shots + 1, roundsUsed: state.stats.roundsUsed + (special ? 1 : 0) },
     events,
   }
+  if (special && state.ammo === 1) events.push({ type: 'outOfAmmo' })
   const zombie = target === null ? undefined : state.zombies.find((z) => z.id === target.zombieId)
   const answer = zombie === undefined ? null : answerFor(state, zombie)
   if (target === null || zombie === undefined || answer === null) return fired

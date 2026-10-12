@@ -34,6 +34,8 @@ export const INTRO_MS = 1500
 export const NEXT_QUESTION_MS = 600
 /** How long a hit/wrong/hurt flash shows. */
 export const FEEDBACK_MS = 420
+/** How long the out-of-special-rounds banner stays up. */
+export const OUT_OF_ROUNDS_MS = 2500
 /** The longest frame step the engine takes, so a backgrounded tab doesn't teleport the horde. */
 const MAX_STEP_MS = 50
 
@@ -87,6 +89,8 @@ export interface HordeRound {
   readonly error: string | null
   readonly liveMessage: string
   readonly feedback: Feedback | null
+  /** The last special round was just fired; true for a moment so the HUD can say so. */
+  readonly outOfRounds: boolean
   readonly recoilSignal: number
   readonly armed: ArmedMode
   readonly audioMuted: boolean
@@ -165,6 +169,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [error, setError] = useState<string | null>(null)
   const [liveMessage, setLiveMessage] = useState('')
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [outOfRounds, setOutOfRounds] = useState(false)
   const [recoilSignal, setRecoilSignal] = useState(0)
   const [armed, setArmed] = useState<ArmedMode>('shot')
   const [audioMuted, setAudioMuted] = useState(() => audio.isMuted())
@@ -215,6 +220,13 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     })
     timers.current.add(cancel)
     live.current.cancelFeedback = cancel
+  }
+
+  function showOutOfRounds(): void {
+    setOutOfRounds(true)
+    later(OUT_OF_ROUNDS_MS, () => {
+      setOutOfRounds(false)
+    })
   }
 
   function fetchQuestion(sessionId: string): Promise<{ readonly item: ItemRecord; readonly question: HordeQuestion }> {
@@ -343,6 +355,10 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
         case 'overtime':
           setLiveMessage(`${String(ROUND_MS / 1000)} seconds! Overtime: the zombies speed up. Stop any time to bank your points.`)
           break
+        case 'outOfAmmo':
+          showOutOfRounds()
+          setLiveMessage('Out of special rounds: back to standard rounds.')
+          break
         case 'roundOver':
           finish(next)
           break
@@ -421,6 +437,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id, recording: null, previousBestMs: best })
     setPreviousBestMs(best)
     setFlags(0)
+    setOutOfRounds(false)
     setCharacters(roster)
     setLoadout(chosen)
     setStateValue(null)
@@ -481,6 +498,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     error,
     liveMessage,
     feedback,
+    outOfRounds,
     recoilSignal,
     armed,
     audioMuted,
@@ -499,6 +517,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       live.current.sessionId = ''
       live.current.state = null
       setStateValue(null)
+      setOutOfRounds(false)
       setPhase('ready')
     },
     shoot: (target, detail) => {

@@ -41,6 +41,8 @@ export interface HordeHudProps {
   readonly shoves: number
   /** Special rounds left, or null with standard rounds loaded (they never run out). */
   readonly ammo: number | null
+  /** The last special round was just fired: show it for a moment. */
+  readonly outOfRounds: boolean
   /** What the next click does. */
   readonly armed: ArmedMode
   readonly muted: boolean
@@ -76,6 +78,11 @@ const FLASH: Record<FeedbackKind, string> = {
 
 const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 9999, background: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' } as const
 
+/** A keyboard key drawn as a little keycap, so players see the shortcut without hovering. */
+const KEYCAP = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 4px', borderRadius: 4, border: '1px solid #98A2B3', borderBottomWidth: 2, background: '#FFFFFF', fontFamily: 'var(--font-body, sans-serif)', fontWeight: 700, fontSize: 11, color: '#475467' } as const
+
+const BANNER = { padding: '8px 16px', borderRadius: 9999, color: '#FFFFFF', fontWeight: 800, whiteSpace: 'nowrap' } as const
+
 const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C' }
 
 function clockLabel(ms: number): string {
@@ -85,7 +92,7 @@ function clockLabel(ms: number): string {
   return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
 }
 
-export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
   const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
@@ -129,11 +136,14 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
               type="button"
               aria-pressed={grenadeArmed}
               aria-label={`Grenade (${String(grenades)} left)${grenadeArmed ? ': armed, click the floor to throw' : ''}`}
+              aria-keyshortcuts="G"
+              title="Grenade (G)"
               disabled={grenades <= 0}
               onClick={onToggleGrenade}
               style={{ ...PILL, border: grenadeArmed ? '3px solid #FF9F1C' : '3px solid transparent', cursor: grenades > 0 ? 'pointer' : 'not-allowed', opacity: grenades > 0 ? 1 : 0.5 }}
             >
               💣 {grenades}
+              <kbd aria-hidden="true" style={KEYCAP}>G</kbd>
             </button>
           </span>
           <span style={{ pointerEvents: 'auto' }}>
@@ -194,11 +204,19 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
         </div>
       )}
 
-      {armed !== 'shot' && (
-        <div role="status" style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, padding: '8px 16px', borderRadius: 9999, background: ring, color: '#FFFFFF', fontWeight: 800, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          Grenade ready: click near the right zombie
-        </div>
-      )}
+      <div style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
+        {armed !== 'shot' && (
+          <div role="status" style={{ ...BANNER, background: ring }}>
+            Grenade ready: click near the right zombie (G to cancel)
+          </div>
+        )}
+        {outOfRounds && (
+          // Screen readers hear this from the round's live message; the banner is for eyes.
+          <div aria-hidden="true" style={{ ...BANNER, background: '#7F5305' }}>
+            🔶 Out of special rounds: back to standard
+          </div>
+        )}
+      </div>
 
       <div style={{ position: 'absolute', bottom: 12, left: 16, right: 16, zIndex: 200, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {answers.map((answer) => (

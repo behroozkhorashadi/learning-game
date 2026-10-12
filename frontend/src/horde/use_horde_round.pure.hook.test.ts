@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
 import { recordingAudio, virtualScheduler } from '@app/outbreak/arena_fakes.test.ui.tsx'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
-import { STARTER_LOADOUT } from './horde_armory.pure.lib.ts'
+import { STARTER_LOADOUT, loadoutFor } from './horde_armory.pure.lib.ts'
 import { hordeItem, rightAnswer } from './horde_fakes.test.ui.tsx'
 import { POINTS } from './horde_scoring.pure.lib.ts'
-import { INTRO_MS, NEXT_QUESTION_MS, useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
+import { INTRO_MS, NEXT_QUESTION_MS, OUT_OF_ROUNDS_MS, useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
 
 function deferred<T>(): { readonly promise: Promise<T>; readonly resolve: (v: T) => void; readonly reject: (e: Error) => void } {
   let resolve: (v: T) => void = () => undefined
@@ -203,5 +203,26 @@ describe('useHordeRound', () => {
     })
     expect(result.current.liveMessage).toContain('New personal best: 1:01!')
     expect(banked[0]?.points).toBe(POINTS.survived + 3 * POINTS.lifeLeft + POINTS.overtimeSecond + POINTS.personalBest)
+  })
+
+  it('shows the out-of-rounds banner for a moment when the last special round is fired', async () => {
+    const { deps, items, scheduler } = controlled()
+    const { result } = renderHook(() => useHordeRound(deps, 1))
+    act(() => {
+      result.current.start(loadoutFor('starter_blaster', 'armor_piercing', ['armor_piercing']), 0, 1, 0)
+    })
+    await act(async () => {
+      items[0]?.resolve(hordeItem(0, 60_000))
+    })
+    await scheduler.advance(INTRO_MS + 20)
+    expect(result.current.outOfRounds).toBe(false)
+    act(() => {
+      result.current.shoot(null, { aim: null, blockedBy: null, via: 'button' })
+    })
+    expect(result.current.state?.ammo).toBe(0)
+    expect(result.current.outOfRounds).toBe(true)
+    expect(result.current.liveMessage).toContain('Out of special rounds')
+    await scheduler.advance(OUT_OF_ROUNDS_MS + 20)
+    expect(result.current.outOfRounds).toBe(false)
   })
 })

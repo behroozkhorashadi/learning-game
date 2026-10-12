@@ -23,6 +23,7 @@ const meta = {
     grenades: 3,
     shoves: 3,
     ammo: null,
+    outOfRounds: false,
     armed: 'shot',
     muted: false,
     answers: [
@@ -61,6 +62,13 @@ export const GrenadeArmed: Story = {
   args: { armed: 'grenade' },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('status')).toHaveTextContent('Grenade ready')
+  },
+}
+
+export const OutOfRounds: Story = {
+  args: { ammo: 0, outOfRounds: true },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(/Out of special rounds/)).toBeVisible()
   },
 }
 

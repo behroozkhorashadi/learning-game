@@ -15,6 +15,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     grenades: 1,
     shoves: 3,
     ammo: null,
+    outOfRounds: false,
     armed: 'shot',
     muted: false,
     answers: [
@@ -80,6 +81,20 @@ describe('HordeHud', () => {
     rerender(<HordeHud {...props({ armed: 'grenade' })} />)
     expect(screen.getByRole('button', { name: /armed/ }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('status').textContent).toContain('Grenade ready')
+  })
+
+  it('shows that G arms the grenade', () => {
+    render(<HordeHud {...props()} />)
+    const grenade = screen.getByRole('button', { name: 'Grenade (1 left)' })
+    expect(grenade.getAttribute('aria-keyshortcuts')).toBe('G')
+    expect(grenade.textContent).toContain('G')
+  })
+
+  it('says when the special rounds run out', () => {
+    const { rerender } = render(<HordeHud {...props({ ammo: 1 })} />)
+    expect(screen.queryByText(/Out of special rounds/)).toBeNull()
+    rerender(<HordeHud {...props({ ammo: 0, outOfRounds: true })} />)
+    expect(screen.getByText(/Out of special rounds/)).toBeTruthy()
   })
 
   it('disables the grenade with none left', () => {
