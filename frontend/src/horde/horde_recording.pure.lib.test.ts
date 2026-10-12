@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { GRENADE, STARTER_LOADOUT, shotPower } from './horde_armory.pure.lib.ts'
 import { ROUND_MS, createRound, setQuestion, shoot, tick, type HordeConfig, type HordeQuestion, type HordeState } from './horde_engine.pure.lib.ts'
-import { COVER } from './horde_field.pure.lib.ts'
+import { CAMERA_POSITION, COVER } from './horde_field.pure.lib.ts'
 import { RECORDING_VERSION, SNAPSHOT_MS, finished, snapshotOf, startRecording, withFlag, withFrame, withQuestion, withShot, type Recording } from './horde_recording.pure.lib.ts'
-import { CAMERA_POSITION } from './horde_scene_rules.pure.lib.ts'
 
 const CONFIG: HordeConfig = { durationMs: ROUND_MS, travelMs: 30_000, power: shotPower(STARTER_LOADOUT), basePower: shotPower(STARTER_LOADOUT), cooldownMs: 700, grenade: GRENADE, cover: COVER }
 const QUESTION: HordeQuestion = { id: 'q', text: '3 + 4 =', summary: '3 + 4 = 7', options: ['7', '6', '8', '5'].map((label) => ({ label, correct: label === '7' })) }

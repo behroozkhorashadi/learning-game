@@ -1,6 +1,5 @@
 import type { HordeZombie } from './horde_engine.pure.lib.ts'
-import { worldPosition, type Cover } from './horde_field.pure.lib.ts'
-import { CAMERA_POSITION } from './horde_scene_rules.pure.lib.ts'
+import { CAMERA_POSITION, worldPosition, type Cover } from './horde_field.pure.lib.ts'
 
 /**
  * How much of a zombie the player can see past the cover: the lines from the
@@ -50,8 +49,13 @@ function blocked(point: Vec3, cover: readonly Cover[]): boolean {
 }
 
 export function visibilityOf(zombie: HordeZombie, cover: readonly Cover[]): Visibility {
-  const [x, , z] = worldPosition(zombie.x, zombie.depth)
   const lying = zombie.posture === 'downed' || zombie.posture === 'rising' || zombie.posture === 'dead'
+  return visibilityAt(zombie.x, zombie.depth, lying, cover)
+}
+
+/** How visible a zombie standing (or lying) at this field point would be. */
+export function visibilityAt(fieldX: number, depth: number, lying: boolean, cover: readonly Cover[]): Visibility {
+  const [x, , z] = worldPosition(fieldX, depth)
   const points: readonly Vec3[] = lying ? [-LYING_SPREAD, 0, LYING_SPREAD].map((dz): Vec3 => [x, LYING_HEIGHT, z + dz]) : STANDING_HEIGHTS.map((y): Vec3 => [x, y, z])
   const hidden = points.filter((point) => blocked(point, cover)).length
   return hidden === 0 ? 'visible' : hidden === points.length ? 'hidden' : 'partial'

@@ -9,6 +9,9 @@
  * nothing else needs to know the mapping.
  */
 
+/** Where the player's eye (the camera) is, in scene coordinates. */
+export const CAMERA_POSITION: readonly [number, number, number] = [0, 1.7, 2.2]
+
 /** Where a new zombie enters, at the back of the field. */
 export const SPAWN_DEPTH = 19
 /** A zombie this close has reached the player. */

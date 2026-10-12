@@ -195,8 +195,10 @@ export interface HordeHarness {
 }
 
 export interface HordeHarnessOptions {
-  /** The items' approach_ms; zombies cross the field in five times this. */
+  /** The items' approach_ms. */
   readonly approachMs?: number
+  /** How long a zombie takes to cross the field; by default far longer than a round, so nothing reaches the player unless a test wants it to. */
+  readonly travelMs?: number
   readonly armory?: FakeArmory
   readonly motion?: MotionPreference
   readonly Viewport?: ComponentType<HordeViewportProps>
@@ -206,7 +208,7 @@ export interface HordeHarnessOptions {
 }
 
 /** Zombie Horde bound over fakes: items cycle through FACTS, attempts are recorded, the roster is the first four characters, the seed is fixed. */
-export function hordeHarness({ approachMs = 60_000, armory = fakeArmory(), motion = NO_MOTION_PREFERENCE, Viewport = FakeHordeViewport, nextItemFails, scheduler: realScheduler }: HordeHarnessOptions = {}): HordeHarness {
+export function hordeHarness({ approachMs = 60_000, travelMs = 600_000, armory = fakeArmory(), motion = NO_MOTION_PREFERENCE, Viewport = FakeHordeViewport, nextItemFails, scheduler: realScheduler }: HordeHarnessOptions = {}): HordeHarness {
   const scheduler = virtualScheduler()
   const audio = recordingAudio()
   const attempts: AttemptBody[] = []
@@ -232,6 +234,7 @@ export function hordeHarness({ approachMs = 60_000, armory = fakeArmory(), motio
       return Promise.resolve()
     },
     nowIso: () => '2026-10-11T12:00:00.000Z',
+    travelMsFor: () => travelMs,
     Viewport,
     ArtStudio: bindArtStudio({ camera: fakeCamera(), gallery: armory.gallery, createArt: armory.createArt }),
     motion,

@@ -185,7 +185,11 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
           }}
           onKeyDown={(event) => {
             if (event.key === 'g' || event.key === 'G') round.toggleGrenade()
-            else if (event.key === 'f' || event.key === 'F') round.toggleShove()
+            else if (event.key === ' ') {
+              // Space would otherwise scroll or press a focused button.
+              event.preventDefault()
+              round.pushBack()
+            }
             else if (event.key === 'm' || event.key === 'M') round.flag()
           }}
           style={{ position: 'relative', flex: 1, overflow: 'hidden', cursor: aimNdc === null ? 'crosshair' : 'none', outline: 'none', animation: round.feedback?.kind === 'hurt' && !reducedMotion ? 'screenShake 600ms ease-out' : 'none' }}
@@ -231,7 +235,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             reducedMotion={reducedMotion}
             onBack={onBack}
             onToggleGrenade={round.toggleGrenade}
-            onToggleShove={round.toggleShove}
+            onPushBack={round.pushBack}
             onToggleMute={round.toggleMute}
             onZap={(zombieId) => {
               round.shoot({ zombieId, zone: 'body' }, { aim: null, blockedBy: null, via: 'button' })

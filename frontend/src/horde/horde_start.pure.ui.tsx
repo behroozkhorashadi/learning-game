@@ -8,7 +8,7 @@ import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 
 export const HORDE_TITLE = 'Zombie Horde'
 export const HORDE_INSTRUCTIONS =
-  'A math question shows up and four zombies wander toward you, each carrying an answer. Shoot the zombie with the right answer! Headshots do the most damage, and leg shots knock zombies down. Shoot a wrong one and it dodges and throws something back at you. Hold them off for 60 seconds. Points you earn buy better blasters, rounds, and grenades.'
+  'A math question shows up and four zombies wander toward you, each carrying an answer. Shoot the zombie with the right answer! Headshots do the most damage, and leg shots knock zombies down. Shoot a wrong one and it dodges and throws something back at you. In a pinch, press the space bar to push the closest zombie all the way back (once a round). Hold them off for 60 seconds. Points you earn buy better blasters, rounds, and grenades.'
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 const SPEAKER_ICON = [

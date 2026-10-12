@@ -14,6 +14,7 @@ import { preloadZombieModels } from '@app/zombies/zombie_character_3d.pure.ui.ts
 import { pickSessionRoster } from '@app/zombies/zombie_roster.pure.lib.ts'
 import { ZOMBIE_COUNT } from './horde_engine.pure.lib.ts'
 import { bindArtStudio } from './art_studio.effect.ui.tsx'
+import { travelMsFor } from './horde_question.pure.lib.ts'
 import { HordeViewport } from './horde_viewport.pure.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
 
@@ -50,6 +51,7 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
     },
     saveReplay: (profileId, recording) => replays.save(profileId, { outcome: recording.outcome ?? 'left', duration_ms: recording.durationMs, flags: recording.flags, recording }),
     nowIso: () => new Date().toISOString(),
+    travelMsFor,
     Viewport: HordeViewport,
     ArtStudio: bindArtStudio({
       camera: bindProfileCamera({

@@ -18,14 +18,15 @@ describe('hordeQuestion', () => {
     })
   })
 
-  it("sets the crossing time from the item's pace", () => {
-    expect(travelMsFor(hordeItem(0, 9000))).toBe(54_000)
+  it('walks a little faster at higher levels, whatever the item says about its pace', () => {
+    expect(travelMsFor({ ...hordeItem(0, 9000), level: 1 })).toBe(54_000)
+    expect(travelMsFor({ ...hordeItem(0, 4500), level: 10 })).toBe(45_000)
+    expect(travelMsFor({ ...hordeItem(0, 4500), level: 99 })).toBe(45_000)
   })
 
   it("throws on a payload that isn't a fact", () => {
     const item = { ...hordeItem(0, 9000), payload: { word: 'cat' } }
     expect(() => hordeQuestion(item)).toThrow("Item horde-0 isn't an arithmetic fact")
-    expect(() => travelMsFor(item)).toThrow("isn't an arithmetic fact")
   })
 
   it('asks the server for the horde game', () => {

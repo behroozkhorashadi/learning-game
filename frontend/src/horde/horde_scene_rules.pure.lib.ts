@@ -72,8 +72,7 @@ export function zoneAlongBody(point: Vec3, head: Vec3, hips: Vec3): ShotZone {
   return 'body'
 }
 
-/** Where the camera sits; thrown objects fly toward a point just in front of it. */
-export const CAMERA_POSITION: Vec3 = [0, 1.7, 2.2]
+/** Thrown objects fly toward a point just in front of the camera. */
 const THROW_TARGET: Vec3 = [0.25, 1.35, 1.3]
 const THROW_HEIGHT = 1.6
 const THROW_ARC = 2.2

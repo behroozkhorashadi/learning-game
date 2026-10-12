@@ -39,6 +39,13 @@ Added after the first playtest (2026-10-11):
 - Art Studio (300 points): selfie → AI art in one of four styles (+ an idea), kept in a per-profile gallery.
   Points are charged only once the art is made; it needs the OpenAI key the profile photo remix uses.
 
+Balance pass from replayed playtests (2026-10-11):
+- Walking speed no longer follows the server's level (that made levels 9-10 unwinnable even
+  with perfect aim): 54s to cross at level 1, 45s at the top; the speed-up over a round is 20%.
+- Push-back: the space bar (or ✋) sends the closest zombie all the way to the back, once a round.
+  More than one made the round unlosable. horde_balance.pure.lib.test.ts simulates rounds and
+  pins this: answering every 6s survives ~95%, every 20s loses.
+
 Still to do:
 - Real fall, crawl, get-up, crouch, and sidestep clips (Meshy or Mixamo); the
   roles exist and today borrow `Dead` (played backwards to get up) and `Running`.

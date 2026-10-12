@@ -3,8 +3,7 @@ import type { ReactElement } from 'react'
 import { expect, waitFor, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { HordeEnvironment } from './horde_environment.pure.ui.tsx'
-import { COVER } from './horde_field.pure.lib.ts'
-import { CAMERA_POSITION } from './horde_scene_rules.pure.lib.ts'
+import { CAMERA_POSITION, COVER } from './horde_field.pure.lib.ts'
 
 function Stage(): ReactElement {
   return (

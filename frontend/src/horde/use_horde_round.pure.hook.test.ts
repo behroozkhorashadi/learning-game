@@ -42,6 +42,7 @@ function controlled() {
     reportError: () => undefined,
     saveReplay: () => Promise.resolve(),
     nowIso: () => '2026-10-11T12:00:00.000Z',
+    travelMsFor: () => 600_000,
   }
   return { deps, items, banks, scheduler }
 }

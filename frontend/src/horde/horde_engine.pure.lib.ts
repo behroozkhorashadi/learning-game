@@ -1,5 +1,6 @@
 import { ZOMBIE_MAX_HEALTH, type GrenadeStats, type ShotPower, type ShotZone } from './horde_armory.pure.lib.ts'
 import { CONTACT_DEPTH, SPAWN_DEPTH, ZOMBIE_RADIUS, clampX, coverAt, coverInFront, maxAbsX, type Cover } from './horde_field.pure.lib.ts'
+import { visibilityAt } from './horde_visibility.pure.lib.ts'
 
 /**
  * Zombie Horde's rules, as pure state-in/state-out steps: no React, no
@@ -25,10 +26,12 @@ import { CONTACT_DEPTH, SPAWN_DEPTH, ZOMBIE_RADIUS, clampX, coverAt, coverInFron
 export const ZOMBIE_COUNT = 4
 export const ROUND_MS = 60_000
 export const STARTING_LIVES = 3
-/** Push-backs per round: a limited way out when a zombie with a wrong answer gets close. */
-export const SHOVES_PER_ROUND = 3
-/** How far a push-back knocks a zombie toward the back. */
-const SHOVE_DISTANCE = 4
+/**
+ * Push-backs per round: a way out when a zombie with a wrong answer gets
+ * close. Each one sends a zombie all the way back, which is worth about a whole
+ * crossing, so more than one makes the round unlosable (horde_balance.pure.lib.test.ts).
+ */
+export const SHOVES_PER_ROUND = 1
 /** How far a right hit that doesn't defeat a zombie knocks it back. */
 const HIT_KNOCKBACK = 0.6
 
@@ -58,7 +61,7 @@ const HIDE_RETRY_MS = 1500
 const RETARGET_MIN_MS = 2200
 const RETARGET_MAX_MS = 4200
 /** Walking speed grows by this fraction over the round. */
-const SPEED_RAMP = 0.35
+const SPEED_RAMP = 0.2
 /** Each slot wanders mostly within its own share of the field's width (-1..1), so the answers don't pile up in the middle. */
 const SLOT_CENTRES = [-0.66, -0.22, 0.22, 0.66] as const
 const SLOT_SPREAD = 0.3
@@ -376,6 +379,31 @@ interface StepOutput {
   respawn: boolean
 }
 
+/** Spacing of the spots tried when the right-answer zombie looks for somewhere it can be seen. */
+const SIGHT_STEP = 0.25
+const SIGHT_MARGIN = 0.5
+const SIGHT_AHEAD = 1.5
+
+/**
+ * The nearest x at this depth where a zombie can be seen in full and isn't
+ * inside cover, or null if there's none. The zombie with the right answer
+ * heads for it whenever it's fully out of sight: behind tall cover, or walking
+ * down the "shadow" tall cover casts away from the camera. (Partly hidden, by
+ * low cover, is fine: its head is still a target.)
+ */
+function nearestVisibleX(x: number, depth: number, cover: readonly Cover[]): number | null {
+  const limit = maxAbsX(depth)
+  let best: number | null = null
+  // Clear of the shadow's edge, which moves as the zombie walks: visible a little to each side, and a step ahead.
+  const clearlyVisible = (at: number): boolean =>
+    [at - SIGHT_MARGIN, at, at + SIGHT_MARGIN].every((sx) => visibilityAt(sx, depth, false, cover) === 'visible' && visibilityAt(sx, depth - SIGHT_AHEAD, false, cover) === 'visible')
+  for (let candidate = -limit; candidate <= limit; candidate += SIGHT_STEP) {
+    if (coverAt(candidate, depth, ZOMBIE_RADIUS, cover) !== null || !clearlyVisible(candidate)) continue
+    if (best === null || Math.abs(candidate - x) < Math.abs(best - x)) best = candidate
+  }
+  return best
+}
+
 /** How close a zombie's centre may pass beside cover: tighter than its full radius, so a zombie that's alongside cover can still walk on. */
 const SIDE_MARGIN = ZOMBIE_RADIUS * 0.5
 
@@ -406,7 +434,10 @@ function advance(zombie: HordeZombie, now: number, dt: number, speed: number, rn
     if (shelter !== null) hideReadyAtMs = now + HIDE_RETRY_MS
   }
 
-  const steer = Math.max(-1, Math.min(1, (targetX - x) / 1.5))
+  // The right answer must stay shootable: fully out of sight, it hurries out to where the player can see it.
+  const outOfSight = holdsRightAnswer && visibilityAt(x, depth, false, cover) === 'hidden'
+  if (outOfSight) targetX = nearestVisibleX(x, depth, cover) ?? targetX
+  const steer = outOfSight ? Math.sign(targetX - x) * 1.5 : Math.max(-1, Math.min(1, (targetX - x) / 1.5))
   let vx = steer * LATERAL_SPEED
   let vDepth = speed
   const nextDepth = depth - vDepth * dt
@@ -698,7 +729,7 @@ export function throwGrenade(state: HordeState, at: { readonly x: number; readon
 }
 
 /**
- * Knocks a zombie well back, whatever answer it carries: no damage, no
+ * Knocks a zombie all the way to the back of the field, whatever answer it carries: no damage, no
  * dodge, no penalty, but only SHOVES_PER_ROUND times a round. Uses the
  * weapon like a shot (it has to be ready, then cools down). Ignored, returning
  * the same state, with no push-backs left, while cooling down, or at a
@@ -710,7 +741,9 @@ export function shove(state: HordeState, zombieId: string, config: HordeConfig):
   if (zombie === undefined || !isTargetable(zombie)) return state
   const now = state.elapsedMs
   const grounded = zombie.posture === 'downed' || zombie.posture === 'rising'
-  const pushed = pushedBack(grounded ? zombie : { ...zombie, posture: 'staggered', postureUntilMs: now + STAGGER_MS }, SHOVE_DISTANCE, config.cover)
+  const reeling = grounded ? zombie : { ...zombie, posture: 'staggered' as const, postureUntilMs: now + STAGGER_MS }
+  // Flung straight back to the spawn line, over the cover rather than stopping at it.
+  const pushed = { ...reeling, depth: Math.max(zombie.depth, SPAWN_DEPTH), x: clampX(zombie.x, SPAWN_DEPTH) }
   return {
     ...state,
     shoves: state.shoves - 1,
@@ -719,4 +752,13 @@ export function shove(state: HordeState, zombieId: string, config: HordeConfig):
     stats: { ...state.stats, shoves: state.stats.shoves + 1 },
     events: [{ type: 'shot' }, { type: 'shoved', zombieId }],
   }
+}
+
+/** The zombie nearest the player that can be pushed back, if any: what the push-back button (space) aims at. */
+export function closestZombie(state: HordeState): HordeZombie | null {
+  let closest: HordeZombie | null = null
+  for (const zombie of state.zombies) {
+    if (isTargetable(zombie) && (closest === null || zombie.depth < closest.depth)) closest = zombie
+  }
+  return closest
 }

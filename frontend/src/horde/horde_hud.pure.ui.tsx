@@ -34,7 +34,8 @@ export interface HordeHudProps {
   readonly reducedMotion: boolean
   readonly onBack: () => void
   readonly onToggleGrenade: () => void
-  readonly onToggleShove: () => void
+  /** Pushes the closest zombie back (also the space bar). */
+  readonly onPushBack: () => void
   readonly onToggleMute: () => void
   /** Zaps a zombie's body from the answer buttons. */
   readonly onZap: (zombieId: string) => void
@@ -59,11 +60,10 @@ const FLASH: Record<FeedbackKind, string> = {
 
 const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 9999, background: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' } as const
 
-const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C', shove: '#3D8BFF' }
+const ARMED_COLOR: Record<ArmedMode, string> = { shot: '#FFFFFF', grenade: '#FF9F1C' }
 
-export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onToggleShove, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves, ammo, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
-  const shoveArmed = armed === 'shove'
   const ring = ARMED_COLOR[armed]
   return (
     <>
@@ -98,11 +98,11 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves
           <span style={{ pointerEvents: 'auto' }}>
             <button
               type="button"
-              aria-pressed={shoveArmed}
-              aria-label={`Push back (${String(shoves)} left)${shoveArmed ? ': armed, click a zombie to push it back' : ''}`}
+              aria-label={`Push back the closest zombie (${String(shoves)} left)`}
+              title="Push back the closest zombie (space)"
               disabled={shoves <= 0}
-              onClick={onToggleShove}
-              style={{ ...PILL, border: shoveArmed ? '3px solid #3D8BFF' : '3px solid transparent', cursor: shoves > 0 ? 'pointer' : 'not-allowed', opacity: shoves > 0 ? 1 : 0.5 }}
+              onClick={onPushBack}
+              style={{ ...PILL, border: 0, cursor: shoves > 0 ? 'pointer' : 'not-allowed', opacity: shoves > 0 ? 1 : 0.5 }}
             >
               ✋ {shoves}
             </button>
@@ -148,7 +148,7 @@ export function HordeHud({ question, intro, secondsLeft, lives, grenades, shoves
 
       {armed !== 'shot' && (
         <div role="status" style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, padding: '8px 16px', borderRadius: 9999, background: ring, color: '#FFFFFF', fontWeight: 800, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          {grenadeArmed ? 'Grenade ready: click near the right zombie' : 'Push back ready: click any zombie'}
+          Grenade ready: click near the right zombie
         </div>
       )}
 

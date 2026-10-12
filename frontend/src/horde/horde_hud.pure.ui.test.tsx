@@ -24,7 +24,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     reducedMotion: false,
     onBack: vi.fn(),
     onToggleGrenade: vi.fn(),
-    onToggleShove: vi.fn(),
+    onPushBack: vi.fn(),
     onToggleMute: vi.fn(),
     onZap: vi.fn(),
     flags: 0,
@@ -78,19 +78,14 @@ describe('HordeHud', () => {
     expect(container.querySelector('[data-feedback-kind="hurt"]')).toBeTruthy()
   })
 
-  it('arms a push-back, and says so', () => {
-    const onToggleShove = vi.fn()
-    const { rerender } = render(<HordeHud {...props({ onToggleShove })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Push back (3 left)' }))
-    expect(onToggleShove).toHaveBeenCalledTimes(1)
-    rerender(<HordeHud {...props({ armed: 'shove', shoves: 2 })} />)
-    expect(screen.getByRole('button', { name: /Push back \(2 left\): armed/ }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('status').textContent).toContain('Push back ready')
-  })
-
-  it('disables the push-back with none left', () => {
+  it('pushes back the closest zombie in one press, and disables it with none left', () => {
+    const onPushBack = vi.fn()
+    render(<HordeHud {...props({ onPushBack, shoves: 1 })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Push back the closest zombie (1 left)' }))
+    expect(onPushBack).toHaveBeenCalledTimes(1)
+    cleanup()
     render(<HordeHud {...props({ shoves: 0 })} />)
-    expect(screen.getByRole('button', { name: 'Push back (0 left)' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Push back the closest zombie (0 left)' }).hasAttribute('disabled')).toBe(true)
   })
 
   it('flags a moment for the recording', () => {

@@ -122,18 +122,15 @@ describe('ZombieHorde: a round', () => {
     expect(screen.queryByText('armed')).toBeNull()
   })
 
-  it('a push-back knocks a wrong zombie away with no penalty, three times a round', async () => {
-    const harness = await open()
+  it('space pushes back the closest zombie, with no penalty, once a round', async () => {
+    const harness = await open({ travelMs: 20_000 })
     await startRound(harness)
-    press('Push back (3 left)')
-    press(`body ${String(wrongAnswer(0))}`)
-    await harness.scheduler.advance(2500)
+    await harness.scheduler.advance(8000)
+    fireEvent.keyDown(screen.getByRole('application', { name: 'Zombie horde' }), { key: ' ' })
+    expect(screen.getByRole('button', { name: 'Push back the closest zombie (0 left)' })).toBeTruthy()
     expect(screen.getByRole('img', { name: '3 lives left' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Push back (2 left)' }).getAttribute('aria-pressed')).toBe('false')
     expect(question()).toBe('3 + 4 =')
-    // F arms it from the keyboard too.
-    fireEvent.keyDown(screen.getByRole('application', { name: 'Zombie horde' }), { key: 'f' })
-    expect(screen.getByRole('button', { name: /Push back \(2 left\): armed/ })).toBeTruthy()
+    expect(harness.audio.count('playShot')).toBe(1)
   })
 
   it('G arms a grenade from the keyboard', async () => {

@@ -12,6 +12,7 @@ import {
   SHOVES_PER_ROUND,
   shoot as shootEngine,
   shove as shoveEngine,
+  closestZombie,
   throwGrenade as throwEngine,
   tick,
   type HordeConfig,
@@ -20,10 +21,9 @@ import {
   type HordeState,
   type ShotTarget,
 } from './horde_engine.pure.lib.ts'
-import { COVER } from './horde_field.pure.lib.ts'
-import { HORDE_GAME_ID, hordeQuestion, travelMsFor } from './horde_question.pure.lib.ts'
+import { CAMERA_POSITION, COVER } from './horde_field.pure.lib.ts'
+import { HORDE_GAME_ID, hordeQuestion } from './horde_question.pure.lib.ts'
 import { RECORDING_VERSION, finished, startRecording, withFlag, withFrame, withGrenade, withQuestion, withShot, type Recording, type ShotDetail } from './horde_recording.pure.lib.ts'
-import { CAMERA_POSITION } from './horde_scene_rules.pure.lib.ts'
 import { roundPoints } from './horde_scoring.pure.lib.ts'
 
 /** The question fills the screen for a beat before the horde moves. */
@@ -39,8 +39,8 @@ export type HordePhase = 'ready' | 'loading' | 'intro' | 'playing' | 'over'
 
 export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'dud' | 'shove'
 
-/** What the next click does: a normal shot, a grenade, or a push-back. */
-export type ArmedMode = 'shot' | 'grenade' | 'shove'
+/** What the next click does: a normal shot or a grenade. */
+export type ArmedMode = 'shot' | 'grenade'
 
 export interface Feedback {
   readonly kind: FeedbackKind
@@ -73,6 +73,8 @@ export interface HordeRoundDeps {
   readonly saveReplay: (profileId: number, recording: Recording) => Promise<unknown>
   /** The current time as ISO-8601, for the recording's start time. */
   readonly nowIso: () => string
+  /** How long a zombie takes to cross the field for this item. In the app, horde_question's `travelMsFor`. */
+  readonly travelMsFor: (item: ItemRecord) => number
 }
 
 export interface HordeRound {
@@ -94,7 +96,7 @@ export interface HordeRound {
   readonly start: (loadout: Loadout, grenades: number, ammo: number) => void
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
-  /** A shot at a zombie (or at nothing: null). With a push-back armed, a zombie is pushed back instead. */
+  /** A shot at a zombie (or at nothing: null). */
   readonly shoot: (target: ShotTarget | null, detail: ShotDetail) => void
   /** Where the player is aiming, for the recording (no re-render). */
   readonly trackAim: (aim: { readonly x: number; readonly y: number } | null) => void
@@ -103,8 +105,8 @@ export interface HordeRound {
   /** Flags marked so far this round. */
   readonly flags: number
   readonly toggleGrenade: () => void
-  /** Arms (or disarms) a push-back: the next zombie shot is knocked back instead, whatever its answer. */
-  readonly toggleShove: () => void
+  /** Pushes the closest zombie all the way back, whatever its answer (space bar). */
+  readonly pushBack: () => void
   readonly throwGrenade: (at: { readonly x: number; readonly depth: number }) => void
   readonly toggleMute: () => void
   readonly sceneFailed: (error: unknown) => void
@@ -144,7 +146,7 @@ interface Live {
  * loop are cancelled on unmount, and results for a superseded round are dropped.
  */
 export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRound {
-  const { nextItem, recordAttempt, bankRound, scheduler, audio, pickRoster, createSessionId, newSeed, reportError, saveReplay, nowIso } = deps
+  const { nextItem, recordAttempt, bankRound, scheduler, audio, pickRoster, createSessionId, newSeed, reportError, saveReplay, nowIso, travelMsFor } = deps
   const [phase, setPhaseState] = useState<HordePhase>('ready')
   const [state, setStateValue] = useState<HordeState | null>(null)
   const [characters, setCharacters] = useState<readonly CharacterDefinition[]>([])
@@ -321,7 +323,6 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
         }
         case 'shoved':
           flash('shove')
-          setArmed('shot')
           setLiveMessage('Pushed back!')
           break
         case 'roundOver':
@@ -481,12 +482,20 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       const current = live.current.state
       const config = live.current.config
       if (live.current.phase !== 'playing' || current === null || config === null) return
-      // A push-back needs a zombie: a miss leaves it armed.
-      if (armed === 'shove' && target === null) return
-      const mode = armed === 'shove' ? 'shove' : 'shot'
-      const next = target !== null && mode === 'shove' ? shoveEngine(current, target.zombieId, config) : shootEngine(current, target, config)
+      const next = shootEngine(current, target, config)
       const recording = live.current.recording
-      if (recording !== null) live.current.recording = withShot(recording, current, next, target, detail, mode, live.current.aim)
+      if (recording !== null) live.current.recording = withShot(recording, current, next, target, detail, 'shot', live.current.aim)
+      if (next !== current) commit(next, true)
+    },
+    pushBack: () => {
+      const current = live.current.state
+      const config = live.current.config
+      if (live.current.phase !== 'playing' || current === null || config === null) return
+      const closest = closestZombie(current)
+      if (closest === null) return
+      const next = shoveEngine(current, closest.id, config)
+      const recording = live.current.recording
+      if (recording !== null) live.current.recording = withShot(recording, current, next, { zombieId: closest.id, zone: 'body' }, { aim: null, blockedBy: null, via: 'button' }, 'shove', live.current.aim)
       if (next !== current) commit(next, true)
     },
     trackAim: (aim) => {
@@ -505,11 +514,6 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       const current = live.current.state
       if (live.current.phase !== 'playing' || current === null || current.grenades <= 0) return
       setArmed((mode) => (mode === 'grenade' ? 'shot' : 'grenade'))
-    },
-    toggleShove: () => {
-      const current = live.current.state
-      if (live.current.phase !== 'playing' || current === null || current.shoves <= 0) return
-      setArmed((mode) => (mode === 'shove' ? 'shot' : 'shove'))
     },
     throwGrenade: (at) => {
       const current = live.current.state

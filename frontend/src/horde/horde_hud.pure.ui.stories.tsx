@@ -34,7 +34,7 @@ const meta = {
     reducedMotion: false,
     onBack: fn(),
     onToggleGrenade: fn(),
-    onToggleShove: fn(),
+    onPushBack: fn(),
     onToggleMute: fn(),
     onZap: fn(),
     flags: 1,
@@ -59,13 +59,6 @@ export const GrenadeArmed: Story = {
   args: { armed: 'grenade' },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('status')).toHaveTextContent('Grenade ready')
-  },
-}
-
-export const PushBackArmed: Story = {
-  args: { armed: 'shove', shoves: 2 },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('status')).toHaveTextContent('Push back ready')
   },
 }
 

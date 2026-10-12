@@ -11,6 +11,7 @@ import {
   setQuestion,
   shoot,
   shove,
+  closestZombie,
   throwGrenade,
   tick,
   type HordeConfig,
@@ -19,6 +20,7 @@ import {
   type HordeZombie,
 } from './horde_engine.pure.lib.ts'
 import { CONTACT_DEPTH, COVER, SPAWN_DEPTH, maxAbsX, type Cover } from './horde_field.pure.lib.ts'
+import { visibilityOf } from './horde_visibility.pure.lib.ts'
 
 const CONFIG: HordeConfig = {
   durationMs: ROUND_MS,
@@ -174,7 +176,7 @@ describe('movement', () => {
     const early = (open.zombies[0]?.depth ?? 0) - (run(open, 1000, OPEN_FIELD).zombies[0]?.depth ?? 0)
     const late = { ...open, elapsedMs: 50_000 }
     const lateStep = (late.zombies[0]?.depth ?? 0) - (run(late, 1000, OPEN_FIELD).zombies[0]?.depth ?? 0)
-    expect(lateStep).toBeGreaterThan(early * 1.2)
+    expect(lateStep).toBeGreaterThan(early * 1.1)
   })
 })
 
@@ -254,12 +256,12 @@ describe('shooting the right zombie', () => {
 })
 
 describe('pushing a zombie back', () => {
-  it('knocks any zombie well back, with no damage and no penalty, a limited number of times', () => {
+  it('sends any zombie all the way to the back, with no damage and no penalty, once a round', () => {
     const state = round(4, OPEN_FIELD)
     const wrong = holding(state, false)
     const after = shove(state, wrong.id, OPEN_FIELD)
     const pushed = after.zombies.find((z) => z.id === wrong.id)
-    expect(pushed?.depth).toBeCloseTo(Math.min(wrong.depth + 4, SPAWN_DEPTH + 1.5), 5)
+    expect(pushed?.depth).toBeGreaterThanOrEqual(SPAWN_DEPTH)
     expect(pushed).toMatchObject({ health: 100, posture: 'staggered' })
     expect(after.shoves).toBe(2)
     expect(after.lives).toBe(3)
@@ -267,19 +269,22 @@ describe('pushing a zombie back', () => {
     expect(eventTypes(after)).toEqual(['shot', 'shoved'])
     // Cools down like a shot, and runs out.
     expect(shove(after, wrong.id, OPEN_FIELD)).toBe(after)
-    let rest = after
-    for (let i = 0; i < 2; i++) rest = shove(run(rest, 800, OPEN_FIELD), wrong.id, OPEN_FIELD)
-    expect(rest.shoves).toBe(0)
-    expect(shove(run(rest, 800, OPEN_FIELD), wrong.id, OPEN_FIELD).shoves).toBe(0)
+    const none = { ...run(after, 800, OPEN_FIELD), shoves: 0 }
+    expect(shove(none, wrong.id, OPEN_FIELD)).toBe(none)
   })
 
-  it('stops short of cover behind the zombie', () => {
+  it('flies over cover on the way back', () => {
     const box: Cover = { id: 'wall', kind: 'lockers', x: 0, depth: 10, halfWidth: 1, halfDepth: 0.4, height: 2.3 }
     const config: HordeConfig = { ...CONFIG, cover: [box] }
     const state = withZombie(round(4, config), 0, { x: 0, depth: 8 })
-    const after = shove(state, state.zombies[0]?.id ?? '', config)
-    expect(after.zombies[0]?.depth).toBeLessThan(box.depth - box.halfDepth)
-    expect(after.zombies[0]?.depth).toBeGreaterThan(8)
+    expect(shove(state, state.zombies[0]?.id ?? '', config).zombies[0]?.depth).toBeGreaterThanOrEqual(SPAWN_DEPTH)
+  })
+
+  it('picks the closest zombie that can be pushed', () => {
+    let state = withZombie(withZombie(round(4, OPEN_FIELD), 2, { depth: 3 }), 1, { depth: 2, posture: 'dead', postureUntilMs: 1e9 })
+    expect(closestZombie(state)?.slot).toBe(2)
+    state = { ...state, zombies: state.zombies.map((z) => ({ ...z, posture: 'gone' as const })) }
+    expect(closestZombie(state)).toBeNull()
   })
 })
 
@@ -502,5 +507,26 @@ describe('special rounds', () => {
     state = shootSlot(state, slot, 'body', config)
     expect(state.zombies.find((z) => z.slot === slot)?.health).toBe(25)
     expect(state.stats.roundsUsed).toBe(1)
+  })
+})
+
+describe('the right answer stays in sight', () => {
+  it('the zombie with the right answer is never fully out of sight for long while it walks', () => {
+    let worst = 0
+    for (let seed = 0; seed < 30; seed++) {
+      let state = round(seed)
+      let hiddenSince: number | null = null
+      let holder = ''
+      for (let i = 0; i < 3500 && state.outcome === 'playing'; i++) {
+        state = tick(state, 16, CONFIG)
+        const right = state.zombies.find((z) => answerFor(state, z)?.correct === true)
+        const hidden = right !== undefined && right.posture === 'advancing' && visibilityOf(right, COVER) === 'hidden'
+        if (!hidden || right.id !== holder) hiddenSince = hidden ? state.elapsedMs : null
+        holder = right?.id ?? ''
+        if (hiddenSince !== null) worst = Math.max(worst, state.elapsedMs - hiddenSince)
+      }
+    }
+    // A new question can land on a zombie deep in a shadow; it takes a couple of seconds to step out.
+    expect(worst).toBeLessThan(3500)
   })
 })

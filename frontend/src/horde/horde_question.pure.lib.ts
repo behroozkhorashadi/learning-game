@@ -6,14 +6,22 @@ import type { HordeQuestion } from './horde_engine.pure.lib.ts'
  * Reads a Zombie Horde item (the backend's `zombie_horde` game: Fact
  * Fluency's arithmetic facts under their own id) into the engine's question.
  *
- * `approach_ms` is the server's pace for this kid's level (shorter is harder).
- * Here it sets how long a zombie takes to cross the whole field.
+ * The item's level sets how long a zombie takes to cross the field (`travelMsFor`).
  */
 
 export const HORDE_GAME_ID = 'zombie_horde'
 
-/** A zombie crosses the field in this many times the item's approach time: 9s at level 1 becomes 54s. */
-const TRAVEL_FACTOR = 6
+/**
+ * How long a zombie takes to cross the field, by the item's level: 54s at
+ * level 1 down to 45s at level 10. Deliberately not the item's `approach_ms`
+ * (Equation Outbreak's pace, which halves from level 1 to 10): a zombie takes
+ * several right answers to defeat, so tying speed to the level made the top
+ * levels unwinnable even with perfect aim (see horde_balance.pure.lib.test.ts).
+ * The level makes the math harder; the walk barely changes.
+ */
+const SLOWEST_TRAVEL_MS = 54_000
+const FASTEST_TRAVEL_MS = 45_000
+const TOP_LEVEL = 10
 
 const factPayloadSchema = z.object({
   left: z.number(),
@@ -37,9 +45,8 @@ export function hordeQuestion(item: ItemRecord): HordeQuestion {
   }
 }
 
-/** How long a zombie takes to cross the field, from the item's pace. Throws like `hordeQuestion`. */
+/** How long a zombie takes to cross the field at this item's level. */
 export function travelMsFor(item: ItemRecord): number {
-  const parsed = factPayloadSchema.safeParse(item.payload)
-  if (!parsed.success) throw new Error(`Item ${item.item_id} isn't an arithmetic fact: ${parsed.error.message}`)
-  return parsed.data.approach_ms * TRAVEL_FACTOR
+  const progress = Math.min(Math.max((item.level - 1) / (TOP_LEVEL - 1), 0), 1)
+  return Math.round(SLOWEST_TRAVEL_MS - (SLOWEST_TRAVEL_MS - FASTEST_TRAVEL_MS) * progress)
 }
