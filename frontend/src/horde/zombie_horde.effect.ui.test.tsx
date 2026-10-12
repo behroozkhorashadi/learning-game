@@ -59,6 +59,17 @@ describe('ZombieHorde: the start screen', () => {
     expect(within(screen.getByRole('list', { name: 'Blasters' })).getAllByText('Equipped')).toHaveLength(1)
   })
 
+  it('says so on the card when grenades are bought, with the new count', async () => {
+    await open({ armory: fakeArmory({ balance: 200, grenades: 1 }) })
+    const grenades = within(screen.getByRole('list', { name: 'Grenades' }))
+    expect(grenades.queryByRole('status')).toBeNull()
+    press('Buy Grenade Pack for 80 points')
+    await settle()
+    expect(grenades.getByRole('status').textContent).toContain('Bought 3 grenades!')
+    expect(grenades.getByText('You have 4')).toBeTruthy()
+    expect(screen.getByRole('status', { name: 'Grenades' }).textContent).toContain('4')
+  })
+
   it("can't buy what it can't afford", async () => {
     const harness = await open({ armory: fakeArmory({ balance: 10 }) })
     press('Buy Grenade Pack for 80 points')

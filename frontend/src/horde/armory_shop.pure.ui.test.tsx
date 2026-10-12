@@ -9,7 +9,7 @@ afterEach(cleanup)
 const STARTER = { weaponId: 'starter_blaster', bulletId: 'standard_rounds' }
 
 function props(overrides: Partial<ArmoryShopProps> = {}): ArmoryShopProps {
-  return { armory: loaded(fakeArmory({ balance: 260 }).state()), choice: STARTER, onChoose: vi.fn(), onBuy: vi.fn(), buying: null, buyError: null, ...overrides }
+  return { armory: loaded(fakeArmory({ balance: 260 }).state()), choice: STARTER, onChoose: vi.fn(), onBuy: vi.fn(), buying: null, bought: null, buyError: null, ...overrides }
 }
 
 describe('ArmoryShop', () => {
@@ -28,6 +28,20 @@ describe('ArmoryShop', () => {
     render(<ArmoryShop {...props({ onBuy })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Buy Rapid Blaster for 250 points' }))
     expect(onBuy).toHaveBeenCalledWith('rapid_blaster')
+  })
+
+  it('says what was just bought on its card, and how many grenades there are', () => {
+    render(<ArmoryShop {...props({ bought: 'grenade_pack', armory: loaded(fakeArmory({ balance: 260, grenades: 4 }).state()) })} />)
+    const grenades = within(screen.getByRole('list', { name: 'Grenades' }))
+    expect(grenades.getByRole('status').textContent).toBe('✓ Bought 3 grenades!')
+    expect(grenades.getByText('You have 4')).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Rounds' })).queryByRole('status')).toBeNull()
+    cleanup()
+    render(<ArmoryShop {...props({ bought: 'armor_piercing' })} />)
+    expect(within(screen.getByRole('list', { name: 'Rounds' })).getByRole('status').textContent).toBe('✓ Bought 25 rounds!')
+    cleanup()
+    render(<ArmoryShop {...props({ bought: 'rapid_blaster', armory: loaded(fakeArmory({ balance: 10, owned: ['rapid_blaster'] }).state()) })} />)
+    expect(within(screen.getByRole('list', { name: 'Blasters' })).getByRole('status').textContent).toBe('✓ Bought! Equip it to use it.')
   })
 
   it("doesn't buy what it can't afford, or while another purchase is in flight", () => {

@@ -9,7 +9,7 @@ const meta = {
   title: 'app/horde/HordeStart',
   component: HordeStart,
   args: {
-    shop: <ArmoryShop armory={loaded(fakeArmory({ balance: 140 }).state())} choice={{ weaponId: 'starter_blaster', bulletId: 'standard_rounds' }} onChoose={fn()} onBuy={fn()} buying={null} buyError={null} />,
+    shop: <ArmoryShop armory={loaded(fakeArmory({ balance: 140 }).state())} choice={{ weaponId: 'starter_blaster', bulletId: 'standard_rounds' }} onChoose={fn()} onBuy={fn()} buying={null} bought={null} buyError={null} />,
     starting: false,
     onHearInstructions: fn(),
     onStart: fn(),

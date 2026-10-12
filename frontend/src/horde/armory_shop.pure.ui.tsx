@@ -23,6 +23,8 @@ export interface ArmoryShopProps {
   readonly onBuy: (itemId: string) => void
   /** The item a purchase is in flight for, if any. */
   readonly buying: string | null
+  /** The item the last purchase bought, to say so on its card; null until something is bought. */
+  readonly bought: string | null
   readonly buyError: string | null
 }
 
@@ -40,13 +42,21 @@ function effectLine(item: ArmoryItemRecord, choice: LoadoutChoice, owned: readon
   return reload === undefined ? hits : `Reload ${(reload / 1000).toFixed(2)}s · ${hits}`
 }
 
+/** What a kid just got, said right on the card they bought it from. */
+function boughtLine(item: ArmoryItemRecord): string {
+  if (item.kind === 'grenade') return `Bought ${plural(item.quantity, 'grenade')}!`
+  if (item.kind === 'bullet' && item.consumable) return `Bought ${plural(item.quantity, 'round')}!`
+  return `Bought! ${item.kind === 'bullet' ? 'Load' : 'Equip'} it to use it.`
+}
+
 /** Weapons and standard rounds once owned, plus any special rounds with some left: what a loadout may use. */
 export function usableGear(armory: ArmoryStateRecord): readonly string[] {
   return [...armory.owned, ...Object.entries(armory.ammo).flatMap(([id, left]) => (left > 0 ? [id] : []))]
 }
 
-function ItemCard({ item, armory, choice, onChoose, onBuy, buying }: { readonly item: ArmoryItemRecord; readonly armory: ArmoryStateRecord; readonly choice: LoadoutChoice; readonly onChoose: (choice: LoadoutChoice) => void; readonly onBuy: (itemId: string) => void; readonly buying: string | null }): ReactElement {
+function ItemCard({ item, armory, choice, onChoose, onBuy, buying, bought }: { readonly item: ArmoryItemRecord; readonly armory: ArmoryStateRecord; readonly choice: LoadoutChoice; readonly onChoose: (choice: LoadoutChoice) => void; readonly onBuy: (itemId: string) => void; readonly buying: string | null; readonly bought: string | null }): ReactElement {
   const rounds = item.kind === 'bullet' && item.consumable ? (armory.ammo[item.id] ?? 0) : null
+  const grenades = item.kind === 'grenade' ? armory.grenades : null
   const usable = rounds === null ? !item.consumable && armory.owned.includes(item.id) : rounds > 0
   const equipped = (item.kind === 'weapon' && choice.weaponId === item.id) || (item.kind === 'bullet' && choice.bulletId === item.id)
   const locked = item.requires !== null && !armory.owned.includes(item.requires)
@@ -97,9 +107,15 @@ function ItemCard({ item, armory, choice, onChoose, onBuy, buying }: { readonly 
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' }}>
           {item.name}
           {rounds !== null && <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 700, color: rounds > 0 ? '#7F5305' : '#98A2B3' }}>{rounds > 0 ? `${String(rounds)} left` : 'none left'}</span>}
+          {grenades !== null && <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 700, color: grenades > 0 ? '#0037DB' : '#98A2B3' }}>{grenades > 0 ? `You have ${String(grenades)}` : 'none yet'}</span>}
         </div>
         <div style={{ fontSize: 13, color: '#5B6576', marginTop: 2 }}>{item.description}</div>
         <div style={{ fontSize: 12, color: '#8896AA', marginTop: 4 }}>{effectLine(item, choice, usableGear(armory))}</div>
+        {bought === item.id && (
+          <div role="status" style={{ display: 'inline-block', marginTop: 6, padding: '3px 10px', borderRadius: 9999, background: '#EEF8E8', color: '#3F7A22', fontSize: 13, fontWeight: 800 }}>
+            ✓ {boughtLine(item)}
+          </div>
+        )}
       </div>
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
         {loadButton()}
@@ -115,7 +131,7 @@ const SECTIONS = [
   { kind: 'grenade', title: 'Grenades' },
 ] as const
 
-export function ArmoryShop({ armory, choice, onChoose, onBuy, buying, buyError }: ArmoryShopProps): ReactElement {
+export function ArmoryShop({ armory, choice, onChoose, onBuy, buying, bought, buyError }: ArmoryShopProps): ReactElement {
   if (armory.kind === 'loading') return <p style={{ color: '#8896AA' }}>Opening the armory…</p>
   if (armory.kind === 'failed') {
     return (
@@ -150,7 +166,7 @@ export function ArmoryShop({ armory, choice, onChoose, onBuy, buying, buyError }
             {data.catalog
               .filter((item) => item.kind === section.kind)
               .map((item) => (
-                <ItemCard key={item.id} item={item} armory={data} choice={choice} onChoose={onChoose} onBuy={onBuy} buying={buying} />
+                <ItemCard key={item.id} item={item} armory={data} choice={choice} onChoose={onChoose} onBuy={onBuy} buying={buying} bought={bought} />
               ))}
           </ul>
         </div>

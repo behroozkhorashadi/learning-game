@@ -530,3 +530,49 @@ describe('the right answer stays in sight', () => {
     expect(worst).toBeLessThan(3500)
   })
 })
+
+describe('zombies never walk into each other', () => {
+  it('two zombies on the wrong sides of each other untangle instead of shuffling into each other', () => {
+    // Slot 0 belongs on the left and slot 1 right of it; start them swapped, each heading past the other.
+    let state = withZombie(withZombie(round(4, OPEN_FIELD), 0, { x: -2.5, depth: 15, targetX: -4.5, retargetAtMs: 1e9, hideReadyAtMs: 1e9 }), 1, { x: -3.5, depth: 15, targetX: -1.5, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
+    let together = 0
+    for (let i = 0; i < 300; i++) {
+      state = tick(state, 16, OPEN_FIELD)
+      const [a, b] = state.zombies
+      if (a !== undefined && b !== undefined && Math.abs(a.x - b.x) < 1.2 && Math.abs(a.depth - b.depth) < 1.2) together += 16
+    }
+    expect(together).toBeLessThan(2000)
+  })
+
+  it('no two walking zombies stay close and facing each other (walking into each other) for more than a second', () => {
+    const facing = (from: HordeZombie, to: HordeZombie): boolean => Math.abs(from.heading) > 0.3 && Math.sign(from.heading) === Math.sign(to.x - from.x)
+    let worst = 0
+    for (let seed = 0; seed < 30; seed++) {
+      let state = round(seed)
+      const since = new Map<string, number>()
+      for (let i = 0; i < 3500 && state.outcome === 'playing'; i++) {
+        state = tick(state, 16, CONFIG)
+        const walking = state.zombies.filter((z) => z.posture === 'advancing')
+        const touching = new Set<string>()
+        for (const a of walking) {
+          for (const b of walking) {
+            if (a.slot < b.slot && Math.abs(a.x - b.x) < 1.2 && Math.abs(a.depth - b.depth) < 1.2 && facing(a, b) && facing(b, a)) touching.add(`${a.id}-${b.id}`)
+          }
+        }
+        for (const key of since.keys()) if (!touching.has(key)) since.delete(key)
+        for (const key of touching) {
+          const start = since.get(key) ?? state.elapsedMs
+          since.set(key, start)
+          worst = Math.max(worst, state.elapsedMs - start)
+        }
+      }
+    }
+    expect(worst).toBeLessThan(1000)
+  })
+
+  it('a walking zombie faces the way it moves', () => {
+    let state = withZombie(round(4, OPEN_FIELD), 0, { x: 0, depth: 12, targetX: 3, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
+    state = run(state, 300, OPEN_FIELD)
+    expect(state.zombies[0]?.heading).toBeGreaterThan(0.3)
+  })
+})

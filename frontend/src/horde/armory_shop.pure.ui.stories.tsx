@@ -20,6 +20,7 @@ const meta = {
     onChoose: fn(),
     onBuy: fn(),
     buying: null,
+    bought: null,
     buyError: null,
   },
 } satisfies Meta<typeof ArmoryShop>
@@ -34,6 +35,15 @@ export const BuyAndEquip: Story = {
     await expect(args.onBuy).toHaveBeenCalledWith('armor_piercing')
     await userEvent.click(canvas.getByRole('button', { name: 'Equip Starter Blaster' }))
     await expect(args.onChoose).toHaveBeenCalledWith({ weaponId: 'starter_blaster', bulletId: 'standard_rounds' })
+  },
+}
+
+export const JustBoughtGrenades: Story = {
+  args: { bought: 'grenade_pack', armory: loaded(fakeArmory({ balance: 240, grenades: 5 }).state()) },
+  play: async ({ canvasElement }) => {
+    const grenades = within(within(canvasElement).getByRole('list', { name: 'Grenades' }))
+    await expect(grenades.getByRole('status')).toHaveTextContent('Bought 3 grenades!')
+    await expect(grenades.getByText('You have 5')).toBeVisible()
   },
 }
 

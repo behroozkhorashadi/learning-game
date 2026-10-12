@@ -516,8 +516,16 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected posture: ${String(value)}`)
 }
 
-/** Walking zombies that crowd each other sidestep apart, so their answers stay readable. Never into cover. */
-function separate(zombies: readonly HordeZombie[], dt: number, cover: readonly Cover[]): readonly HordeZombie[] {
+/**
+ * Walking zombies that crowd each other sidestep apart, so their answers stay
+ * readable, never into cover. One heading for a spot on the far side of its
+ * neighbour gives that up and picks a spot on its own side: otherwise the two
+ * would keep walking into each other while the push held them apart.
+ *
+ * Every walking zombie then faces the way it actually moved this step, not the
+ * way it was trying to go.
+ */
+function separate(zombies: readonly HordeZombie[], previous: readonly HordeZombie[], now: number, dt: number, cover: readonly Cover[]): readonly HordeZombie[] {
   return zombies.map((zombie) => {
     if (zombie.posture !== 'advancing') return zombie
     let push = 0
@@ -526,9 +534,18 @@ function separate(zombies: readonly HordeZombie[], dt: number, cover: readonly C
       const dx = zombie.x - other.x
       if (Math.abs(dx) < PERSONAL_SPACE && Math.abs(zombie.depth - other.depth) < PERSONAL_SPACE) push += dx === 0 ? (zombie.slot < other.slot ? -1 : 1) : Math.sign(dx)
     }
-    if (push === 0) return zombie
-    const x = clampX(zombie.x + Math.sign(push) * SEPARATION_SPEED * dt, zombie.depth)
-    return coverAt(x, zombie.depth, ZOMBIE_RADIUS, cover) === null ? { ...zombie, x } : zombie
+    let moved = zombie
+    if (push !== 0) {
+      const side = Math.sign(push)
+      const x = clampX(zombie.x + side * SEPARATION_SPEED * dt, zombie.depth)
+      moved = coverAt(x, zombie.depth, ZOMBIE_RADIUS, cover) === null ? { ...zombie, x } : zombie
+      if (Math.sign(moved.targetX - moved.x) === -side) moved = { ...moved, targetX: clampX(moved.x + side * PERSONAL_SPACE, moved.depth), retargetAtMs: now + RETARGET_MIN_MS }
+    }
+    const before = previous.find((z) => z.id === zombie.id)
+    if (before === undefined) return moved
+    const dx = moved.x - before.x
+    const forward = before.depth - moved.depth
+    return Math.abs(dx) + Math.abs(forward) < 1e-6 ? moved : { ...moved, heading: Math.atan2(dx, forward) }
   })
 }
 
@@ -571,7 +588,7 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
     }
     return out.zombie
   })
-  const zombies = separate(stepped, dtMs, config.cover)
+  const zombies = separate(stepped, state.zombies, now, dtMs, config.cover)
 
   for (const projectile of state.projectiles) {
     if (now >= projectile.landsAtMs) {

@@ -60,6 +60,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const armoryQuery = useReloadableQuery(loadArmory)
     const [chosen, setChosen] = useState<LoadoutChoice | null>(null)
     const [buying, setBuying] = useState<string | null>(null)
+    const [bought, setBought] = useState<string | null>(null)
     const [buyError, setBuyError] = useState<string | null>(null)
     const [aimNdc, setAimNdc] = useState<{ readonly x: number; readonly y: number } | null>(null)
     const [inStudio, setInStudio] = useState(false)
@@ -73,9 +74,11 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
     async function buy(itemId: string): Promise<void> {
       setBuying(itemId)
+      setBought(null)
       setBuyError(null)
       try {
         await armory.purchase(profileId, itemId)
+        setBought(itemId)
         armoryQuery.reload()
       } catch (err) {
         setBuyError(errorMessage(err))
@@ -134,6 +137,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
                   void buy(itemId)
                 }}
                 buying={buying}
+                bought={bought}
                 buyError={buyError}
               />
             }
