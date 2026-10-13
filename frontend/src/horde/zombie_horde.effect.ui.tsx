@@ -161,6 +161,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             points={round.points}
             bank={round.bank}
             solved={round.solved}
+            missed={round.missed}
             onPlayAgain={() => {
               armoryQuery.reload()
               round.reset()
@@ -201,6 +202,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
               round.pushBack()
             }
             else if (event.key === 'm' || event.key === 'M') round.flag()
+            else if (event.key === '?') round.dontKnow()
           }}
           style={{ position: 'relative', flex: 1, overflow: 'hidden', cursor: aimNdc === null ? 'crosshair' : 'none', outline: 'none', animation: round.feedback?.kind === 'hurt' && !reducedMotion ? 'screenShake 600ms ease-out' : 'none' }}
         >
@@ -232,7 +234,9 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             onReloadStart={deps.audio.playReload}
           />
           <HordeHud
-            question={state.question?.text ?? null}
+            question={state.question === null ? null : state.questionRevealed ? state.question.summary : state.question.text}
+            revealed={state.questionRevealed}
+            onDontKnow={phase === 'playing' && state.question !== null && !state.questionRevealed ? round.dontKnow : null}
             intro={phase === 'intro'}
             secondsLeft={secondsLeft(state.elapsedMs, round.durationMs)}
             overtime={inOvertime(state) ? { lastedMs: state.elapsedMs, bestMs: round.previousBestMs, clockMs: round.durationMs } : null}
@@ -240,6 +244,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             lives={state.lives}
             grenades={state.grenades}
             shoves={state.shoves}
+            shoveEarned={round.shoveEarned}
             ammo={round.loadout !== null && round.loadout.bullet.id !== STARTER_LOADOUT.bullet.id ? state.ammo : null}
             outOfRounds={round.outOfRounds}
             armed={round.armed}

@@ -151,6 +151,40 @@ describe('ZombieHorde: a round', () => {
     expect(harness.audio.count('playShot')).toBe(1)
   })
 
+  it("I don't know shows the answer and records a miss; zapping it then moves on without recording it again", async () => {
+    const harness = await open()
+    await startRound(harness)
+    press("I don't know")
+    expect(question()).toBe(`3 + 4 = ${String(rightAnswer(0))}`)
+    expect(harness.attempts).toHaveLength(1)
+    expect(harness.attempts[0]).toMatchObject({ telemetry: { correct: false } })
+    // Only the right zombie still carries an answer.
+    expect(screen.queryByRole('button', { name: `Zap the zombie carrying ${String(wrongAnswer(0))}` })).toBeNull()
+    expect(screen.queryByRole('button', { name: "I don't know" })).toBeNull()
+    press(`Zap the zombie carrying ${String(rightAnswer(0))}`)
+    expect(harness.attempts).toHaveLength(1)
+    await harness.scheduler.advance(NEXT_QUESTION_MS + 50)
+    expect(question()).toBe('3 + 6 =')
+    expect(screen.getByRole('button', { name: "I don't know" })).toBeTruthy()
+  })
+
+  it('? asks for the answer from the keyboard', async () => {
+    const harness = await open()
+    await startRound(harness)
+    fireEvent.keyDown(screen.getByRole('application', { name: 'Zombie horde' }), { key: '?' })
+    expect(harness.attempts[0]).toMatchObject({ telemetry: { correct: false } })
+  })
+
+  it('every third right answer earns a push-back', async () => {
+    const harness = await open()
+    await startRound(harness)
+    for (let i = 0; i < 3; i++) {
+      press(`Zap the zombie carrying ${String(rightAnswer(i))}`)
+      await harness.scheduler.advance(NEXT_QUESTION_MS + 150)
+    }
+    expect(screen.getByRole('button', { name: 'Push back the closest zombie (2 left)' })).toBeTruthy()
+  })
+
   it('G arms a grenade from the keyboard', async () => {
     const harness = await open()
     await startRound(harness)

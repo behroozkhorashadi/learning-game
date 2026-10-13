@@ -6,7 +6,7 @@ import type { ArmedMode, FeedbackKind } from './use_horde_round.pure.hook.ts'
 /**
  * Everything drawn over the 3D view during a round: Back, the clock (counting
  * down, then in overtime counting up against the personal best), lives,
- * grenades, push-backs, mute, the question, the answers as real buttons (the same
+ * grenades, push-backs, mute, the question (and "I don't know"), the answers as real buttons (the same
  * targets for keyboard and screen-reader players, independent of the
  * canvas), the crosshair, and the hit/hurt flashes. Props only.
  */
@@ -27,7 +27,12 @@ export interface HudOvertime {
 export const OVERTIME_BANNER_MS = 3000
 
 export interface HordeHudProps {
+  /** The question, or the whole fact once its answer is revealed. */
   readonly question: string | null
+  /** The answer is showing ("I don't know" was pressed). */
+  readonly revealed: boolean
+  /** Shows the answer; null hides the button (between questions, once revealed, during the intro). */
+  readonly onDontKnow: (() => void) | null
   /** The question fills the screen before the horde moves. */
   readonly intro: boolean
   readonly secondsLeft: number
@@ -39,6 +44,8 @@ export interface HordeHudProps {
   readonly grenades: number
   /** Push-backs left this round. */
   readonly shoves: number
+  /** A push-back was just earned: show it for a moment. */
+  readonly shoveEarned: boolean
   /** Special rounds left, or null with standard rounds loaded (they never run out). */
   readonly ammo: number | null
   /** The last special round was just fired: show it for a moment. */
@@ -92,7 +99,7 @@ function clockLabel(ms: number): string {
   return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
 }
 
-export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, shoveEarned, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
   const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
@@ -183,12 +190,13 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
             zIndex: 150,
             padding: '14px 24px',
             borderRadius: 20,
-            background: '#FFFFFF',
+            background: revealed ? '#EAF6E2' : '#FFFFFF',
+            border: revealed ? '3px solid #3F7A22' : '3px solid transparent',
             boxShadow: '0 10px 24px -12px rgba(0,13,51,0.35)',
             fontFamily: 'var(--font-display)',
             fontWeight: 800,
             fontSize: 34,
-            color: '#2A2E37',
+            color: revealed ? '#3F7A22' : '#2A2E37',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
           }}
@@ -205,6 +213,25 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
       )}
 
       <div style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
+        {onDontKnow !== null && (
+          <span style={{ pointerEvents: 'auto' }}>
+            <button type="button" aria-label="I don't know" aria-keyshortcuts="?" title="Show me the answer (?)" onClick={onDontKnow} style={{ ...PILL, height: 36, border: 0, cursor: 'pointer', fontSize: 15 }}>
+              🤔 I don&apos;t know
+              <kbd aria-hidden="true" style={KEYCAP}>?</kbd>
+            </button>
+          </span>
+        )}
+        {revealed && (
+          // Screen readers hear the answer from the round's live message; the banner is for eyes.
+          <div aria-hidden="true" style={{ ...BANNER, background: '#3F7A22' }}>
+            Now you know! Zap the zombie with the answer
+          </div>
+        )}
+        {shoveEarned && (
+          <div aria-hidden="true" style={{ ...BANNER, background: '#3D8BFF' }}>
+            ✋ +1 push-back for 3 right answers!
+          </div>
+        )}
         {armed !== 'shot' && (
           <div role="status" style={{ ...BANNER, background: ring }}>
             Grenade ready: click near the right zombie (G to cancel)

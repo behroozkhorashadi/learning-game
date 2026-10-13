@@ -1,12 +1,12 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
+import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
 import { recordingAudio, virtualScheduler } from '@app/outbreak/arena_fakes.test.ui.tsx'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import { STARTER_LOADOUT, loadoutFor } from './horde_armory.pure.lib.ts'
 import { hordeItem, rightAnswer } from './horde_fakes.test.ui.tsx'
 import { POINTS } from './horde_scoring.pure.lib.ts'
-import { INTRO_MS, NEXT_QUESTION_MS, OUT_OF_ROUNDS_MS, useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
+import { INTRO_MS, NEXT_QUESTION_MS, OUT_OF_ROUNDS_MS, SHOVE_EARNED_MS, useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
 
 function deferred<T>(): { readonly promise: Promise<T>; readonly resolve: (v: T) => void; readonly reject: (e: Error) => void } {
   let resolve: (v: T) => void = () => undefined
@@ -23,6 +23,7 @@ function controlled() {
   const items: ReturnType<typeof deferred<ItemRecord>>[] = []
   const banks: ReturnType<typeof deferred<{ readonly balance: number }>>[] = []
   const banked: Parameters<HordeRoundDeps['bankRound']>[1][] = []
+  const attempts: AttemptBody[] = []
   const scheduler = virtualScheduler()
   const deps: HordeRoundDeps = {
     nextItem: () => {
@@ -30,7 +31,10 @@ function controlled() {
       items.push(d)
       return d.promise
     },
-    recordAttempt: () => Promise.resolve(),
+    recordAttempt: (attempt) => {
+      attempts.push(attempt)
+      return Promise.resolve()
+    },
     bankRound: (_profileId, round) => {
       banked.push(round)
       const d = deferred<{ readonly balance: number }>()
@@ -47,7 +51,7 @@ function controlled() {
     nowIso: () => '2026-10-11T12:00:00.000Z',
     travelMsFor: () => 600_000,
   }
-  return { deps, items, banks, banked, scheduler }
+  return { deps, items, banks, banked, attempts, scheduler }
 }
 
 describe('useHordeRound', () => {
@@ -224,5 +228,76 @@ describe('useHordeRound', () => {
     expect(result.current.liveMessage).toContain('Out of special rounds')
     await scheduler.advance(OUT_OF_ROUNDS_MS + 20)
     expect(result.current.outOfRounds).toBe(false)
+  })
+
+  it("I don't know: shows the answer, records a miss right away, and lists the fact to practice", async () => {
+    const { deps, items, attempts, scheduler } = controlled()
+    const { result } = renderHook(() => useHordeRound(deps, 1))
+    act(() => {
+      result.current.start(STARTER_LOADOUT, 1, 0, 0)
+    })
+    await act(async () => {
+      items[0]?.resolve(hordeItem(0, 60_000))
+    })
+    await act(async () => {
+      items[1]?.resolve(hordeItem(1, 60_000))
+    })
+    await scheduler.advance(INTRO_MS + 20)
+    act(() => {
+      result.current.dontKnow()
+    })
+    expect(result.current.state?.questionRevealed).toBe(true)
+    expect(result.current.liveMessage).toBe(`The answer is 3 + 4 = ${String(rightAnswer(0))}. Zap that zombie to keep going.`)
+    expect(attempts).toHaveLength(1)
+    expect(attempts[0]?.telemetry.correct).toBe(false)
+    const state = result.current.state
+    const right = state?.zombies.find((z) => state.answers[z.slot]?.correct === true)
+    act(() => {
+      result.current.shoot({ zombieId: right?.id ?? '', zone: 'body' }, { aim: null, blockedBy: null, via: 'button' })
+    })
+    // Solving it now moves on, without recording it again or counting it as solved.
+    expect(attempts).toHaveLength(1)
+    expect(result.current.solved).toEqual([])
+    expect(result.current.missed.map((fact) => fact.summary)).toEqual([`3 + 4 = ${String(rightAnswer(0))}`])
+    await scheduler.advance(NEXT_QUESTION_MS + 20)
+    expect(result.current.state?.question?.text).toBe('3 + 6 =')
+    expect(result.current.state?.questionRevealed).toBe(false)
+  })
+
+  it('shows the earned-a-push-back banner for a moment after every third right answer', async () => {
+    const { deps, items, attempts, scheduler } = controlled()
+    const { result } = renderHook(() => useHordeRound(deps, 1))
+    act(() => {
+      result.current.start(STARTER_LOADOUT, 1, 0, 0)
+    })
+    // Every question asked for arrives straight away.
+    async function answerItems(): Promise<void> {
+      await act(async () => {
+        items.forEach((item, i) => {
+          item.resolve(hordeItem(i, 60_000))
+        })
+      })
+    }
+    await answerItems()
+    await answerItems()
+    await scheduler.advance(INTRO_MS + 20)
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) {
+        expect(result.current.shoveEarned).toBe(false)
+        await scheduler.advance(NEXT_QUESTION_MS + 120)
+        await answerItems()
+      }
+      const state = result.current.state
+      const right = state?.zombies.find((z) => state.answers[z.slot]?.correct === true)
+      act(() => {
+        result.current.shoot({ zombieId: right?.id ?? '', zone: 'body' }, { aim: null, blockedBy: null, via: 'button' })
+      })
+    }
+    expect(attempts.map((attempt) => attempt.telemetry.correct)).toEqual([true, true, true])
+    expect(result.current.state?.shoves).toBe(2)
+    expect(result.current.shoveEarned).toBe(true)
+    expect(result.current.liveMessage).toContain('You earned a push-back!')
+    await scheduler.advance(SHOVE_EARNED_MS + 20)
+    expect(result.current.shoveEarned).toBe(false)
   })
 })

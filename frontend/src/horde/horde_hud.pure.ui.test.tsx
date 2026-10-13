@@ -7,6 +7,8 @@ afterEach(cleanup)
 function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
   return {
     question: '3 + 4 =',
+    revealed: false,
+    onDontKnow: vi.fn(),
     intro: false,
     secondsLeft: 42,
     overtime: null,
@@ -14,6 +16,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     lives: 2,
     grenades: 1,
     shoves: 3,
+    shoveEarned: false,
     ammo: null,
     outOfRounds: false,
     armed: 'shot',
@@ -132,5 +135,26 @@ describe('HordeHud', () => {
     render(<HordeHud {...props({ onFlag, flags: 2 })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Flag this moment (2 flagged)' }))
     expect(onFlag).toHaveBeenCalledTimes(1)
+  })
+
+  it("I don't know asks for the answer, and is hidden when there's nothing to ask", () => {
+    const onDontKnow = vi.fn()
+    render(<HordeHud {...props({ onDontKnow })} />)
+    fireEvent.click(screen.getByRole('button', { name: "I don't know" }))
+    expect(onDontKnow).toHaveBeenCalledTimes(1)
+    cleanup()
+    render(<HordeHud {...props({ onDontKnow: null })} />)
+    expect(screen.queryByRole('button', { name: "I don't know" })).toBeNull()
+  })
+
+  it('shows the whole fact once the answer is revealed', () => {
+    render(<HordeHud {...props({ question: '3 + 4 = 7', revealed: true, onDontKnow: null })} />)
+    expect(screen.getByRole('heading', { name: 'Question' }).textContent).toBe('3 + 4 = 7')
+    expect(screen.getByText('Now you know! Zap the zombie with the answer')).toBeTruthy()
+  })
+
+  it('says so for a moment when a push-back is earned', () => {
+    render(<HordeHud {...props({ shoveEarned: true })} />)
+    expect(screen.getByText('✋ +1 push-back for 3 right answers!')).toBeTruthy()
   })
 })

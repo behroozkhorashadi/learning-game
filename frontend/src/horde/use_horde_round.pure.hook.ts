@@ -12,6 +12,7 @@ import {
   SHOVES_PER_ROUND,
   shoot as shootEngine,
   shove as shoveEngine,
+  reveal as revealEngine,
   closestZombie,
   endOvertime as endOvertimeEngine,
   inOvertime,
@@ -36,6 +37,8 @@ export const NEXT_QUESTION_MS = 600
 export const FEEDBACK_MS = 420
 /** How long the out-of-special-rounds banner stays up. */
 export const OUT_OF_ROUNDS_MS = 2500
+/** How long the earned-a-push-back banner stays up. */
+export const SHOVE_EARNED_MS = 2000
 /** The longest frame step the engine takes, so a backgrounded tab doesn't teleport the horde. */
 const MAX_STEP_MS = 50
 
@@ -95,6 +98,10 @@ export interface HordeRound {
   readonly armed: ArmedMode
   readonly audioMuted: boolean
   readonly solved: readonly SolvedFact[]
+  /** Facts answered with "I don't know", for the end screen's practice list. */
+  readonly missed: readonly SolvedFact[]
+  /** Another push-back was just earned; true for a moment so the HUD can say so. */
+  readonly shoveEarned: boolean
   /** The finished round, for the end screen; null until it's over. */
   readonly result: RoundResult | null
   readonly points: number
@@ -118,6 +125,8 @@ export interface HordeRound {
   readonly toggleGrenade: () => void
   /** Pushes the closest zombie all the way back, whatever its answer (space bar). */
   readonly pushBack: () => void
+  /** "I don't know": shows the answer, and records the question as a miss. */
+  readonly dontKnow: () => void
   /** Stops in overtime and banks the round. */
   readonly endOvertime: () => void
   readonly throwGrenade: (at: { readonly x: number; readonly depth: number }) => void
@@ -155,8 +164,9 @@ interface Live {
  *
  * Questions come from the server one at a time, the next one always fetched
  * ahead. Each solved question is recorded as an attempt (`hints_used` is the
- * wrong shots it took), so the server's adaptive loop sees this game like any
- * other. Every transition happens where its cause happens (a shot, a tick, a
+ * wrong shots it took), and one answered with "I don't know" as a miss the
+ * moment the answer shows, so the server's adaptive loop sees this game like
+ * any other and eases off when the questions get too hard. Every transition happens where its cause happens (a shot, a tick, a
  * timer, a fetch), never in an effect watching state; timers and the frame
  * loop are cancelled on unmount, and results for a superseded round are dropped.
  */
@@ -174,6 +184,8 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [armed, setArmed] = useState<ArmedMode>('shot')
   const [audioMuted, setAudioMuted] = useState(() => audio.isMuted())
   const [solved, setSolved] = useState<readonly SolvedFact[]>([])
+  const [missed, setMissed] = useState<readonly SolvedFact[]>([])
+  const [shoveEarned, setShoveEarned] = useState(false)
   const [bank, setBank] = useState<BankState>({ kind: 'idle' })
   const [flags, setFlags] = useState(0)
   const [previousBestMs, setPreviousBestMs] = useState(0)
@@ -226,6 +238,13 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     setOutOfRounds(true)
     later(OUT_OF_ROUNDS_MS, () => {
       setOutOfRounds(false)
+    })
+  }
+
+  function showShoveEarned(): void {
+    setShoveEarned(true)
+    later(SHOVE_EARNED_MS, () => {
+      setShoveEarned(false)
     })
   }
 
@@ -289,8 +308,8 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     saveRecording(final, final.outcome)
     setPhase('over')
     setArmed('shot')
-    // A question they tried and didn't get counts as a miss; one nobody shot at says nothing.
-    if (final.question !== null && final.questionWrongShots > 0) record(final.question.id, false, final.elapsedMs - final.questionStartedMs, final.questionWrongShots)
+    // A question they tried and didn't get counts as a miss; one nobody shot at says nothing. A revealed one was recorded when it was revealed.
+    if (final.question !== null && !final.questionRevealed && final.questionWrongShots > 0) record(final.question.id, false, final.elapsedMs - final.questionStartedMs, final.questionWrongShots)
     const result = roundResult(final, ROUND_MS, live.current.previousBestMs)
     const points = roundPoints(result)
     const lasted = isNewBest(result) ? ` New personal best: ${formatTime(final.elapsedMs)}!` : ''
@@ -320,9 +339,13 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
           flash('correct')
           break
         case 'solved':
-          record(event.questionId, true, event.timeMs, event.wrongShots)
-          setSolved((previous) => [...previous, { summary: event.summary, timeMs: event.timeMs }])
-          setLiveMessage(`Correct! ${event.summary}`)
+          if (event.revealed) {
+            setLiveMessage(`Got it: ${event.summary}`)
+          } else {
+            record(event.questionId, true, event.timeMs, event.wrongShots)
+            setSolved((previous) => [...previous, { summary: event.summary, timeMs: event.timeMs }])
+            setLiveMessage(`Correct! ${event.summary}`)
+          }
           later(NEXT_QUESTION_MS, () => {
             if (live.current.phase === 'playing') showNextQuestion(live.current.sessionId)
           })
@@ -351,6 +374,15 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
         case 'shoved':
           flash('shove')
           setLiveMessage('Pushed back!')
+          break
+        case 'shoveEarned':
+          showShoveEarned()
+          setLiveMessage((previous) => `${previous} You earned a push-back!`)
+          break
+        case 'revealed':
+          record(event.questionId, false, event.timeMs, event.wrongShots)
+          setMissed((previous) => [...previous, { summary: event.summary, timeMs: event.timeMs }])
+          setLiveMessage(`The answer is ${event.summary}. Zap that zombie to keep going.`)
           break
         case 'overtime':
           setLiveMessage(`${String(ROUND_MS / 1000)} seconds! Overtime: the zombies speed up. Stop any time to bank your points.`)
@@ -438,10 +470,12 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     setPreviousBestMs(best)
     setFlags(0)
     setOutOfRounds(false)
+    setShoveEarned(false)
     setCharacters(roster)
     setLoadout(chosen)
     setStateValue(null)
     setSolved([])
+    setMissed([])
     setBank({ kind: 'idle' })
     setError(null)
     setArmed('shot')
@@ -503,6 +537,8 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     armed,
     audioMuted,
     solved,
+    missed,
+    shoveEarned,
     result,
     points: result === null ? 0 : roundPoints(result),
     bank,
@@ -518,6 +554,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       live.current.state = null
       setStateValue(null)
       setOutOfRounds(false)
+      setShoveEarned(false)
       setPhase('ready')
     },
     shoot: (target, detail) => {
@@ -539,6 +576,12 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       const recording = live.current.recording
       if (recording !== null) live.current.recording = withShot(recording, current, next, { zombieId: closest.id, zone: 'body' }, { aim: null, blockedBy: null, via: 'button' }, 'shove', live.current.aim)
       if (next !== current) commit(next, true)
+    },
+    dontKnow: () => {
+      const current = live.current.state
+      if (live.current.phase !== 'playing' || current === null) return
+      const next = revealEngine(current)
+      if (next !== current) commit(next)
     },
     endOvertime: () => {
       const current = live.current.state

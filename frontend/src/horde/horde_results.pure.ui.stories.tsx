@@ -25,6 +25,7 @@ const meta = {
       { summary: '8 − 3 = 5', timeMs: 3300 },
       { summary: '6 + 6 = 12', timeMs: 1900 },
     ],
+    missed: [],
     onPlayAgain: fn(),
     onBack: fn(),
   },
@@ -78,5 +79,19 @@ export const SaveFailed: Story = {
   args: { bank: { kind: 'failed', message: 'POST /api/profiles/1/armory/rounds failed with HTTP 500' } },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('alert')).toHaveTextContent('HTTP 500')
+  },
+}
+
+export const FactsToPractice: Story = {
+  args: {
+    missed: [
+      { summary: '7 × 8 = 56', timeMs: 6000 },
+      { summary: '9 × 6 = 54', timeMs: 4100 },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('heading', { name: 'Facts to practice' })).toBeVisible()
+    await expect(canvas.getByRole('list', { name: 'Facts to practice' })).toHaveTextContent('7 × 8 = 56')
   },
 }

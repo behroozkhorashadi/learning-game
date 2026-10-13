@@ -6,7 +6,8 @@ import type { BankState, SolvedFact } from './use_horde_round.pure.hook.ts'
 /**
  * The end of a round: how it ended and how long it lasted (and whether that's
  * a new personal best), the points line by line, whether they were banked
- * (and the new balance), and the facts solved. Props only.
+ * (and the new balance), the facts solved, and the ones to practice
+ * (answered with "I don't know"). Props only.
  */
 
 export interface HordeResultsProps {
@@ -20,6 +21,8 @@ export interface HordeResultsProps {
   readonly points: number
   readonly bank: BankState
   readonly solved: readonly SolvedFact[]
+  /** Answered with "I don't know". */
+  readonly missed: readonly SolvedFact[]
   /** Back to the start screen and the armory. */
   readonly onPlayAgain: () => void
   readonly onBack: () => void
@@ -54,7 +57,7 @@ function headline(outcome: HordeResultsProps['outcome'], beatClock: boolean, las
   return { icon: '🧟', title: 'The horde got through!', subtitle: 'Every right answer still counts. Give it another go?' }
 }
 
-export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, points, bank, solved, onPlayAgain, onBack }: HordeResultsProps): ReactElement {
+export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, points, bank, solved, missed, onPlayAgain, onBack }: HordeResultsProps): ReactElement {
   const { icon, title, subtitle } = headline(outcome, beatClock, lastedMs)
   return (
     <div style={{ width: '100%', maxWidth: 560, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
@@ -94,6 +97,19 @@ export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, poi
             </li>
           ))}
         </ul>
+      )}
+
+      {missed.length > 0 && (
+        <>
+          <h2 style={{ margin: '16px 0 0', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#5B6576' }}>Facts to practice</h2>
+          <ul aria-label="Facts to practice" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', padding: 0, margin: '10px 0 16px' }}>
+            {missed.map((fact, i) => (
+              <li key={`${fact.summary}-${String(i)}`} style={{ listStyle: 'none', height: 34, display: 'inline-flex', alignItems: 'center', padding: '0 12px', borderRadius: 9999, background: '#FFF1C7', border: '1px solid #F1D68A', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, color: '#7F5305' }}>
+                {fact.summary}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 20 }}>
