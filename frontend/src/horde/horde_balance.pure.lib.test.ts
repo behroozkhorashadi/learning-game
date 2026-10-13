@@ -8,7 +8,7 @@ import { travelMsFor } from './horde_question.pure.lib.ts'
 /**
  * Is a round winnable, and not too winnable? A simulated player with perfect
  * aim answers every `answerMs`, headshots the right zombie, and uses its
- * push-backs (the one it starts with and the ones it earns) on a wrong zombie
+ * push-backs (the one it starts with and the ones it earns before overtime) on a wrong zombie
  * about to reach it. Over 40 seeds, at the
  * fastest walk (the top level) and the slowest (level 1). Beating the clock
  * wins; overtime then has to end, even for a perfect player.
@@ -88,9 +88,8 @@ describe('Zombie Horde balance', () => {
     expect(winRate(TOP, 20_000)).toBeLessThanOrEqual(0.25)
   })
 
-  // Earned push-backs (one every SOLVES_PER_SHOVE answers, up to MAX_SHOVES held) let a perfect player stall a little longer: about 4:20 at most.
-  it('overtime always ends: even a perfect, quick player (an answer every 2s) is overrun within 5 minutes', { timeout: 60_000 }, () => {
-    expect(longest(FIRST, 2000)).toBeLessThan(5 * 60_000)
+  it('overtime always ends: even a perfect, quick player (an answer every 2s) is overrun within 4 minutes', { timeout: 60_000 }, () => {
+    expect(longest(FIRST, 2000)).toBeLessThan(4 * 60_000)
   })
 
   it('in overtime, quicker math sets a longer record', { timeout: 60_000 }, () => {

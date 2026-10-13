@@ -680,6 +680,16 @@ describe('earning push-backs', () => {
     expect(eventTypes(after)).toContain('shoveEarned')
   })
 
+  it('stops in overtime', () => {
+    let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 0, shoves: 0, ammo: 0, cover: [] }), QUESTION)
+    state = solveOnce(solveOnce(state))
+    state = { ...state, livesAtClock: 3 }
+    const third = shoot(state, { zombieId: holding(state, true).id, zone: 'body' }, OPEN_FIELD)
+    expect(third.stats.solved).toBe(3)
+    expect(third.shoves).toBe(0)
+    expect(eventTypes(third)).not.toContain('shoveEarned')
+  })
+
   it(`holds at most ${String(MAX_SHOVES)}`, () => {
     let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 0, shoves: MAX_SHOVES, ammo: 0, cover: [] }), QUESTION)
     state = solveOnce(solveOnce(state))

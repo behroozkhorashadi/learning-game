@@ -12,7 +12,7 @@ import { visibilityAt } from './horde_visibility.pure.lib.ts'
  * one of its four answers. Shooting the zombie with the right answer damages
  * it (a headshot most, a leg shot knocks it down to crawl) and solves the
  * question; the next question reshuffles the answers. Every third question
- * solved earns another push-back (up to three held). A player who doesn't know the answer can
+ * solved before the clock earns another push-back (up to three held). A player who doesn't know the answer can
  * say so: the answer shows, the other zombies drop theirs, and solving it
  * then earns nothing (the server records it as a miss). Shooting a wrong one
  * makes it dodge and throw something back, which costs a life when it lands.
@@ -40,9 +40,9 @@ export const STARTING_LIVES = 3
  * (horde_balance.pure.lib.test.ts); more are earned with right answers.
  */
 export const SHOVES_PER_ROUND = 1
-/** Every this many questions solved (without "I don't know") earns another push-back. */
+/** Every this many questions solved (without "I don't know") earns another push-back, until overtime: earning there would let a quick player stall it (horde_balance.pure.lib.test.ts). */
 export const SOLVES_PER_SHOVE = 3
-/** The most push-backs held at once: an unbounded stockpile lets a quick player stall overtime (horde_balance.pure.lib.test.ts). */
+/** The most push-backs held at once. */
 export const MAX_SHOVES = 3
 /** How far a right hit that doesn't defeat a zombie knocks it back. */
 const HIT_KNOCKBACK = 0.6
@@ -711,8 +711,8 @@ function damaged(zombie: HordeZombie, amount: number, zone: ShotZone, now: numbe
 /**
  * Clears `state`'s question from `next`, the step that solved it. A question
  * solved without "I don't know" counts toward points, and every
- * SOLVES_PER_SHOVE of them earns a push-back (up to MAX_SHOVES held); a
- * revealed one earns nothing.
+ * SOLVES_PER_SHOVE of them before overtime earns a push-back (up to
+ * MAX_SHOVES held); a revealed one earns nothing.
  */
 function solvedQuestion(state: HordeState, next: HordeState, events: HordeEvent[]): HordeState {
   const question = state.question
@@ -722,7 +722,7 @@ function solvedQuestion(state: HordeState, next: HordeState, events: HordeEvent[
   const cleared: HordeState = { ...next, question: null, answers: [], questionRevealed: false }
   if (revealed) return cleared
   const solved = next.stats.solved + 1
-  const earned = solved % SOLVES_PER_SHOVE === 0 && next.shoves < MAX_SHOVES
+  const earned = solved % SOLVES_PER_SHOVE === 0 && next.shoves < MAX_SHOVES && !inOvertime(state)
   if (earned) events.push({ type: 'shoveEarned' })
   return { ...cleared, shoves: next.shoves + (earned ? 1 : 0), stats: { ...next.stats, solved } }
 }
