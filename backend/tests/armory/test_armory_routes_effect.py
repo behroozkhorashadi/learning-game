@@ -55,3 +55,12 @@ def test_buying_rounds_and_using_them(client: httpx.Client) -> None:
         f"{ARMORY}/rounds", json={"points": 0, "grenades_used": 0, "rounds_used": {"armor_piercing": 10}}
     )
     assert used.json()["ammo"]["armor_piercing"] == 15
+
+
+def test_buying_gems_and_using_their_charges(client: httpx.Client) -> None:
+    client.post(f"{ARMORY}/rounds", json={"points": 140, "grenades_used": 0})
+    client.post(f"{ARMORY}/purchases", json={"item_id": "reflect_gem"})
+    bought = client.post(f"{ARMORY}/purchases", json={"item_id": "reflect_gem"}).json()
+    assert (bought["gems"]["reflect_gem"], bought["balance"]) == (4, 20)
+    used = client.post(f"{ARMORY}/rounds", json={"points": 0, "grenades_used": 0, "gems_used": {"reflect_gem": 3}})
+    assert used.json()["gems"]["reflect_gem"] == 1

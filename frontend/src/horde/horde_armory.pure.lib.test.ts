@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BULLETS, STARTER_LOADOUT, WEAPONS, bestOwned, hitsToDefeat, loadoutFor, shotPower } from './horde_armory.pure.lib.ts'
+import { BULLETS, NO_ARMOR, STARTER_LOADOUT, STEEL_SUIT, THORNS_DAMAGE, WEAPONS, armorFrom, bestOwned, gemsUsedByItem, hitsToDefeat, loadoutFor, roundArmorFrom, shotPower, skinFor } from './horde_armory.pure.lib.ts'
 
 const STARTER = ['starter_blaster', 'standard_rounds']
 
@@ -53,5 +53,28 @@ describe('horde armory', () => {
   it('falls back to the starter for anything not owned or unknown', () => {
     expect(loadoutFor('mega_blaster', 'laser_beams', STARTER)).toEqual(STARTER_LOADOUT)
     expect(bestOwned([])).toEqual({ weaponId: 'starter_blaster', bulletId: 'standard_rounds' })
+  })
+
+  it('wears every gem charge owned, by kind, ignoring gems it does not know', () => {
+    expect(armorFrom({})).toEqual(NO_ARMOR)
+    expect(armorFrom({ reflect_gem: 4, block_gem: 0, mega_gem: 2, laser_gem: 9 })).toEqual({ reflect: 4, block: 0, mega: 2, heal: 0 })
+  })
+
+  it('wears thorns only once Thorns Plating is owned, with every gem charge', () => {
+    expect(roundArmorFrom({ heal_gem: 2 }, STARTER)).toEqual({ charges: { ...NO_ARMOR, heal: 2 }, thornsDamage: 0 })
+    expect(roundArmorFrom({}, [...STARTER, 'thorns_plating']).thornsDamage).toBe(THORNS_DAMAGE)
+  })
+
+  it('wears the chosen skin if owned, else the fanciest owned, else steel', () => {
+    expect(skinFor(null, STARTER)).toBe(STEEL_SUIT)
+    expect(skinFor(null, ['steel_suit', 'jungle_camo', 'gold_suit']).id).toBe('gold_suit')
+    expect(skinFor('jungle_camo', ['steel_suit', 'jungle_camo', 'gold_suit']).id).toBe('jungle_camo')
+    expect(skinFor('gold_suit', ['steel_suit', 'jungle_camo']).id).toBe('jungle_camo')
+    expect(STEEL_SUIT.tint).toBeNull()
+  })
+
+  it('reports the charges a round used by gem item id, leaving out the unused', () => {
+    expect(gemsUsedByItem(NO_ARMOR)).toEqual({})
+    expect(gemsUsedByItem({ reflect: 3, block: 0, mega: 1, heal: 0 })).toEqual({ reflect_gem: 3, mega_gem: 1 })
   })
 })

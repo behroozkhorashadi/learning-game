@@ -767,8 +767,9 @@ export interface components {
         /**
          * ArmoryItem
          * @description One thing the armory sells. `price` 0 means every profile starts owning it.
-         *     A `consumable` (a grenade pack, a pack of special rounds) can be bought again
-         *     and again and adds `quantity` grenades or rounds, which get used up in play; a
+         *     A `consumable` (a grenade pack, a pack of special rounds, an armor gem) can be
+         *     bought again and again and adds `quantity` grenades, rounds, or gem charges (one
+         *     charge reflects one throw or blocks one hit), which get used up in play; a
          *     weapon is bought once. `requires` names an item that must be owned first (the
          *     next weapon tier needs the one before it).
          */
@@ -783,7 +784,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            readonly kind: "weapon" | "bullet" | "grenade" | "art";
+            readonly kind: "weapon" | "bullet" | "grenade" | "gem" | "upgrade" | "skin" | "art";
             /** Name */
             readonly name: string;
             /** Price */
@@ -801,9 +802,14 @@ export interface components {
         /**
          * ArmoryRoundCreate
          * @description A finished Zombie Horde round: the points it scored, the grenades it threw, the
-         *     special rounds it fired (by bullet item id), and how long it lasted.
+         *     special rounds it fired (by bullet item id), the armor gem charges it used (by gem
+         *     item id), and how long it lasted.
          */
         readonly ArmoryRoundCreate: {
+            /** Gems Used */
+            readonly gems_used?: {
+                readonly [key: string]: number;
+            };
             /** Grenades Used */
             readonly grenades_used: number;
             /** Points */
@@ -835,6 +841,10 @@ export interface components {
             readonly catalog: readonly components["schemas"]["ArmoryItem"][];
             /** Earned */
             readonly earned: number;
+            /** Gems */
+            readonly gems: {
+                readonly [key: string]: number;
+            };
             /** Grenades */
             readonly grenades: number;
             /** Owned */

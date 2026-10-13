@@ -46,13 +46,21 @@ describe('horde scene rules', () => {
   })
 
   it('lobs a thrown object from the thrower to just in front of the camera', () => {
-    const projectile = { id: 'p', fromX: 2, fromDepth: 10, launchedAtMs: 0, landsAtMs: 1000 }
+    const projectile = { id: 'p', fromX: 2, fromDepth: 10, launchedAtMs: 0, landsAtMs: 1000, throwerId: 'z0', reflected: false }
     const [sx, , sz] = projectilePosition(projectile, 0)
     expect([sx, sz]).toEqual([2, -10])
     const middle = projectilePosition(projectile, 500)
     const end = projectilePosition(projectile, 1000)
     expect(middle[1]).toBeGreaterThan(end[1])
     expect(end[2]).toBeGreaterThan(0)
+  })
+
+  it('a reflected throw flies the same lob backwards, from in front of the camera to its thrower', () => {
+    const thrown = { id: 'p', fromX: 2, fromDepth: 10, launchedAtMs: 0, landsAtMs: 1000, throwerId: 'z0', reflected: false }
+    const reflected = { ...thrown, reflected: true }
+    expect(projectilePosition(reflected, 0)).toEqual(projectilePosition(thrown, 1000))
+    expect(projectilePosition(reflected, 300)).toEqual(projectilePosition(thrown, 700))
+    expect(projectilePosition(reflected, 1000)).toEqual(projectilePosition(thrown, 0))
   })
 
   it('a blast grows and fades', () => {

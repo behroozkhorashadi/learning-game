@@ -12,6 +12,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     overtime: null,
     onEndOvertime: vi.fn(),
     lives: 2,
+    armor: { reflect: 0, block: 0, mega: 0, heal: 0 },
     grenades: 1,
     shoves: 3,
     ammo: null,
@@ -32,6 +33,8 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     onZap: vi.fn(),
     flags: 0,
     onFlag: vi.fn(),
+    streak: 0,
+    armorColor: '#5CA8E6',
     ...overrides,
   }
 }
@@ -125,6 +128,45 @@ describe('HordeHud', () => {
     cleanup()
     render(<HordeHud {...props({ shoves: 0 })} />)
     expect(screen.getByRole('button', { name: 'Push back the closest zombie (0 left)' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('shows half a heart after a blocked hit', () => {
+    render(<HordeHud {...props({ lives: 2.5 })} />)
+    expect(screen.getByRole('img', { name: '2 and a half lives left' }).textContent).toBe('❤️❤️💔')
+    cleanup()
+    render(<HordeHud {...props({ lives: 0.5 })} />)
+    expect(screen.getByRole('img', { name: 'Half a life left' }).textContent).toBe('💔')
+    cleanup()
+    render(<HordeHud {...props({ lives: 1 })} />)
+    expect(screen.getByRole('img', { name: '1 life left' })).toBeTruthy()
+  })
+
+  it('shows the armor gem charges left, and none for a gem that has run out', () => {
+    render(<HordeHud {...props({ armor: { reflect: 3, block: 0, mega: 1, heal: 0 } })} />)
+    expect(screen.getByRole('status', { name: '3 reflects left: throws bounce back' }).textContent).toContain('3')
+    expect(screen.getByRole('status', { name: '1 mega charge left: reflects or blocks' })).toBeTruthy()
+    expect(screen.queryByRole('status', { name: /blocks? left/ })).toBeNull()
+  })
+
+  it('shows the heals left and the streak toward the next one', () => {
+    render(<HordeHud {...props({ armor: { reflect: 0, block: 0, mega: 0, heal: 2 }, streak: 3 })} />)
+    expect(screen.getByRole('status', { name: '2 heals left: 5 right answers in a row win back half a heart' })).toBeTruthy()
+    const meter = screen.getByRole('meter', { name: 'Right answers in a row' })
+    expect([meter.getAttribute('aria-valuenow'), meter.textContent]).toEqual(['3', '3/5'])
+  })
+
+  it('a reflect or block flashes in the worn skin’s colour; a heal flashes green', () => {
+    const { container, rerender } = render(<HordeHud {...props({ armorColor: '#FFB020', feedback: { kind: 'reflect', id: 1 } })} />)
+    expect(container.querySelector<HTMLElement>('[data-feedback-kind="reflect"]')?.style.background).toMatch(/#FFB020|255, 176, 32/i)
+    rerender(<HordeHud {...props({ armorColor: '#FFB020', feedback: { kind: 'heal', id: 2 } })} />)
+    expect(container.querySelector('[data-feedback-kind="heal"]')).toBeTruthy()
+  })
+
+  it('flashes a reflect and a block', () => {
+    const { container, rerender } = render(<HordeHud {...props({ feedback: { kind: 'reflect', id: 1 } })} />)
+    expect(container.querySelector('[data-feedback-kind="reflect"]')).toBeTruthy()
+    rerender(<HordeHud {...props({ feedback: { kind: 'block', id: 2 } })} />)
+    expect(container.querySelector('[data-feedback-kind="block"]')).toBeTruthy()
   })
 
   it('flags a moment for the recording', () => {

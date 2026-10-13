@@ -34,7 +34,7 @@ function Stage({ onShot, onZombieReady, weapon = STARTER_BLASTER, impacts = [], 
         zombies={ZOMBIES}
         answers={['42', '36', '48', '49']}
         characters={ZOMBIE_CHARACTER_REGISTRY.slice(0, 4)}
-        projectiles={[{ id: 'p1', fromX: -3, fromDepth: 12, launchedAtMs: 0, landsAtMs: 1100 }]}
+        projectiles={[{ id: 'p1', fromX: -3, fromDepth: 12, launchedAtMs: 0, landsAtMs: 1100, throwerId: 'z0', reflected: false }]}
         blasts={[{ id: 'b1', x: 2, depth: 13, atMs: 200, dud: false }]}
         impacts={impacts}
         impactStyle={impactStyle}
@@ -42,6 +42,7 @@ function Stage({ onShot, onZombieReady, weapon = STARTER_BLASTER, impacts = [], 
         cover={COVER}
         shadows
         weapon={weapon}
+        armTint={null}
         weaponPhase="readyFirstShot"
         cockingUntilMs={null}
         cockingMs={700}

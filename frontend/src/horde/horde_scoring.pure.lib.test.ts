@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ROUND_MS, type HordeStats } from './horde_engine.pure.lib.ts'
-import { POINTS, formatTime, isNewBest, pointsBreakdown, roundPoints, type RoundResult } from './horde_scoring.pure.lib.ts'
+import { POINTS, armorSaved, formatTime, heartsLabel, isNewBest, pointsBreakdown, roundPoints, type RoundResult } from './horde_scoring.pure.lib.ts'
 
-const STATS: HordeStats = { shots: 20, correctHits: 12, wrongHits: 3, kills: 5, headshots: 3, legShots: 2, grenadesUsed: 0, shoves: 1, roundsUsed: 0, solved: 12, livesLost: 1 }
+const STATS: HordeStats = { shots: 20, correctHits: 12, wrongHits: 3, kills: 5, headshots: 3, legShots: 2, grenadesUsed: 0, shoves: 1, roundsUsed: 0, solved: 12, livesLost: 1, gemsUsed: { reflect: 0, block: 0, mega: 0, heal: 0 }, reflects: 0, blocks: 0 }
 
 /** Stopped right at the clock with 2 lives, no record to beat. */
 const AT_CLOCK: RoundResult = { stats: STATS, livesAtClock: 2, lastedMs: ROUND_MS, clockMs: ROUND_MS, previousBestMs: 0 }
@@ -38,6 +38,18 @@ describe('horde scoring', () => {
   it('wrong answers never cost points, and an empty round is worth nothing', () => {
     expect(roundPoints({ ...AT_CLOCK, stats: { ...STATS, wrongHits: 99 } })).toBe(roundPoints(AT_CLOCK))
     expect(pointsBreakdown({ ...AT_CLOCK, stats: { ...STATS, solved: 0, kills: 0, headshots: 0 }, livesAtClock: null, lastedMs: 9000 })).toEqual([])
+  })
+
+  it('counts the hearts the armor saved: a whole one per reflect, half per block and per heal', () => {
+    expect(armorSaved(STATS)).toEqual({ reflected: 0, blocked: 0, healed: 0, hearts: 0 })
+    const armored = { ...STATS, reflects: 2, blocks: 1, gemsUsed: { reflect: 1, block: 0, mega: 2, heal: 1 } }
+    expect(armorSaved(armored)).toEqual({ reflected: 2, blocked: 1, healed: 1, hearts: 3 })
+    // The armor never earns points: a life saved is its own reward.
+    expect(roundPoints({ ...AT_CLOCK, stats: armored })).toBe(roundPoints(AT_CLOCK))
+  })
+
+  it('says hearts the way a kid reads them', () => {
+    expect([0.5, 1, 1.5, 2, 3.5].map(heartsLabel)).toEqual(['half a heart', '1 heart', '1½ hearts', '2 hearts', '3½ hearts'])
   })
 
   it('shows a round length as minutes and seconds', () => {

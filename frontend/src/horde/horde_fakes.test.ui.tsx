@@ -57,12 +57,22 @@ export const CATALOG: readonly ArmoryItemRecord[] = [
   { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: '25 rounds. Every shot hits harder and blows up where it lands.', price: 120, quantity: 25, consumable: true, requires: null },
   { id: 'art_studio', kind: 'art', name: 'Art Studio', description: 'Snap a selfie and turn it into a one-of-a-kind piece of art for your gallery.', price: 300, quantity: 1, consumable: true, requires: null },
   { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. A grenade only goes off near the zombie with the right answer.', price: 80, quantity: 3, consumable: true, requires: null },
+  { id: 'reflect_gem', kind: 'gem', name: 'Reflect Gem', description: 'Snaps onto your armor. Bounces 2 thrown things back at the zombie that threw them.', price: 60, quantity: 2, consumable: true, requires: null },
+  { id: 'block_gem', kind: 'gem', name: 'Block Gem', description: 'Snaps onto your armor. Twice, a zombie that reaches you only does half a heart, then flies back.', price: 80, quantity: 2, consumable: true, requires: null },
+  { id: 'mega_gem', kind: 'gem', name: 'Mega Gem', description: 'Does both, twice: reflects a throw or blocks a hit, whichever comes first.', price: 150, quantity: 2, consumable: true, requires: null },
+  { id: 'heal_gem', kind: 'gem', name: 'Heal Gem', description: 'Snaps onto your armor. Twice, 5 right answers in a row win back half a heart.', price: 100, quantity: 2, consumable: true, requires: null },
+  { id: 'thorns_plating', kind: 'upgrade', name: 'Thorns Plating', description: 'Spikes on your armor. Every zombie you block gets hurt too. Yours for good.', price: 250, quantity: 1, consumable: false, requires: null },
+  { id: 'steel_suit', kind: 'skin', name: 'Steel Suit', description: 'Your trusty armor.', price: 0, quantity: 1, consumable: false, requires: null },
+  { id: 'jungle_camo', kind: 'skin', name: 'Jungle Camo', description: 'Green and sneaky. Just for looks.', price: 100, quantity: 1, consumable: false, requires: null },
+  { id: 'galaxy_suit', kind: 'skin', name: 'Galaxy Suit', description: 'Deep purple with a starry glow. Just for looks.', price: 200, quantity: 1, consumable: false, requires: null },
+  { id: 'gold_suit', kind: 'skin', name: 'Gold Suit', description: 'Shiny gold, for true zombie champions. Just for looks.', price: 400, quantity: 1, consumable: false, requires: null },
 ]
 
 export interface RoundReport {
   readonly points: number
   readonly grenades_used: number
   readonly rounds_used?: Readonly<Record<string, number>>
+  readonly gems_used?: Readonly<Record<string, number>>
   readonly survived_ms?: number
 }
 
@@ -79,7 +89,7 @@ export interface FakeArmory {
 }
 
 /** The armory server in memory: the same refusals as the backend (unknown, owned, locked, too expensive). */
-export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, artAvailable = true, bestMs = 0 }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: number } = {}): FakeArmory {
+export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, gems = {}, artAvailable = true, bestMs = 0 }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly gems?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: number } = {}): FakeArmory {
   const art: ArtPieceRecord[] = []
   const artRequests: components['schemas']['ArtCreate'][] = []
   let points = balance
@@ -89,6 +99,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
   const bought = new Set(owned)
   const rounds: RoundReport[] = []
   const shots = new Map<string, number>([['armor_piercing', ammo['armor_piercing'] ?? 0], ['explosive_rounds', ammo['explosive_rounds'] ?? 0]])
+  const charges = new Map<string, number>(CATALOG.filter((item) => item.kind === 'gem').map((item) => [item.id, gems[item.id] ?? 0]))
   const state = (): ArmoryStateRecord => ({
     profile_id: 1,
     balance: points - spent,
@@ -97,6 +108,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
     owned: CATALOG.filter((item) => !item.consumable && (item.price === 0 || bought.has(item.id))).map((item) => item.id),
     grenades: left,
     ammo: Object.fromEntries(shots),
+    gems: Object.fromEntries(charges),
     best_survived_ms: best,
     catalog: CATALOG,
   })
@@ -113,6 +125,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
       if (item.price > now.balance) return Promise.reject(new Error(`'${itemId}' costs ${String(item.price)} points; the balance is ${String(now.balance)}`))
       spent += item.price
       if (item.kind === 'grenade') left += item.quantity
+      else if (item.kind === 'gem') charges.set(item.id, (charges.get(item.id) ?? 0) + item.quantity)
       else if (item.consumable) shots.set(item.id, (shots.get(item.id) ?? 0) + item.quantity)
       else bought.add(item.id)
       return Promise.resolve(state())
@@ -135,16 +148,18 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
       left = Math.max(0, left - round.grenades_used)
       best = Math.max(best, round.survived_ms ?? 0)
       for (const [id, used] of Object.entries(round.rounds_used ?? {})) shots.set(id, Math.max(0, (shots.get(id) ?? 0) - used))
+      for (const [id, used] of Object.entries(round.gems_used ?? {})) charges.set(id, Math.max(0, (charges.get(id) ?? 0) - used))
       return Promise.resolve(state())
     },
   }
 }
 
 /** The 3D view as buttons: `head 7`, `body 7`, `leg 7`, and `grenade at 7` per zombie with an answer, plus `miss` and `floor grenade`. Names the blaster in hand and each hit effect showing. */
-export function FakeHordeViewport({ zombies, answers, grenadeArmed, weapon, impacts, impactStyle, onShot, onGrenade }: HordeViewportProps): ReactElement {
+export function FakeHordeViewport({ zombies, answers, grenadeArmed, weapon, armTint, impacts, impactStyle, onShot, onGrenade }: HordeViewportProps): ReactElement {
   return (
     <div>
       <span>{`holding the ${weapon.displayName}`}</span>
+      <span>{armTint === null ? 'plain arms' : `arms tinted ${armTint.color}`}</span>
       {impacts.map((impact) => (
         <span key={impact.id}>{`${impact.special ? impactStyle : 'spark'} hit`}</span>
       ))}

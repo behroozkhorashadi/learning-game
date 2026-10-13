@@ -1,12 +1,14 @@
 import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import type { Armor, GemKind } from './horde_armory.pure.lib.ts'
+import { HEAL_STREAK } from './horde_engine.pure.lib.ts'
 import { formatTime } from './horde_scoring.pure.lib.ts'
 import type { ArmedMode, FeedbackKind } from './use_horde_round.pure.hook.ts'
 
 /**
  * Everything drawn over the 3D view during a round: Back, the clock (counting
- * down, then in overtime counting up against the personal best), lives,
- * grenades, push-backs, mute, the question, the answers as real buttons (the same
+ * down, then in overtime counting up against the personal best), lives
+ * (whole and half hearts), armor gem charges, grenades, push-backs, mute, the question, the answers as real buttons (the same
  * targets for keyboard and screen-reader players, independent of the
  * canvas), the crosshair, and the hit/hurt flashes. Props only.
  */
@@ -35,7 +37,14 @@ export interface HordeHudProps {
   readonly overtime: HudOvertime | null
   /** Stops in overtime and banks the round. */
   readonly onEndOvertime: () => void
+  /** Whole or half (after a blocked zombie). */
   readonly lives: number
+  /** Armor gem charges left; a gem with none left isn't shown. */
+  readonly armor: Armor
+  /** Right answers in a row, toward the next heal. */
+  readonly streak: number
+  /** The worn skin's colour: gem flashes glow in it. */
+  readonly armorColor: string
   readonly grenades: number
   /** Push-backs left this round. */
   readonly shoves: number
@@ -74,6 +83,33 @@ const FLASH: Record<FeedbackKind, string> = {
   dud: 'radial-gradient(ellipse at center, transparent 58%, rgba(156,163,175,0.55) 100%)',
   hurt: 'radial-gradient(ellipse at center, transparent 40%, rgba(205,42,32,0.65) 100%)',
   shove: 'radial-gradient(ellipse at center, transparent 58%, rgba(61,139,255,0.55) 100%)',
+  // Reflect and block glow in the worn skin's colour (`gemFlash`); these are the fallbacks.
+  reflect: 'radial-gradient(ellipse at center, transparent 50%, rgba(92,225,230,0.65) 100%)',
+  block: 'radial-gradient(ellipse at center, transparent 45%, rgba(124,92,255,0.6) 100%)',
+  heal: 'radial-gradient(ellipse at center, transparent 50%, rgba(91,204,45,0.6) 100%)',
+}
+
+/** A gem's flash, in the skin's colour. */
+function flashFor(kind: FeedbackKind, armorColor: string): string {
+  if (kind === 'reflect') return `radial-gradient(ellipse at center, transparent 50%, color-mix(in srgb, ${armorColor} 70%, transparent) 100%)`
+  if (kind === 'block') return `radial-gradient(ellipse at center, transparent 42%, color-mix(in srgb, ${armorColor} 70%, transparent) 100%)`
+  return FLASH[kind]
+}
+
+const GEM_PILLS: readonly { readonly kind: GemKind; readonly icon: string; readonly color: string; readonly label: (n: number) => string }[] = [
+  { kind: 'reflect', icon: '🪞', color: '#1C7FD6', label: (n) => `${String(n)} reflect${n === 1 ? '' : 's'} left: throws bounce back` },
+  { kind: 'block', icon: '🛡️', color: '#5B3FD6', label: (n) => `${String(n)} block${n === 1 ? '' : 's'} left: a zombie that gets through only takes half a heart` },
+  { kind: 'mega', icon: '💎', color: '#B4247E', label: (n) => `${String(n)} mega charge${n === 1 ? '' : 's'} left: reflects or blocks` },
+  { kind: 'heal', icon: '💚', color: '#3F7A22', label: (n) => `${String(n)} heal${n === 1 ? '' : 's'} left: ${String(HEAL_STREAK)} right answers in a row win back half a heart` },
+]
+
+/** Lives as a screen reader hears them: "3 lives left", "2 and a half lives left", "Half a life left". */
+export function livesLabel(lives: number): string {
+  const whole = Math.floor(Math.max(lives, 0))
+  const half = lives - whole >= 0.5
+  if (whole === 0 && half) return 'Half a life left'
+  if (half) return `${String(whole)} and a half lives left`
+  return `${String(whole)} ${whole === 1 ? 'life' : 'lives'} left`
 }
 
 const PILL = { display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 9999, background: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#2A2E37' } as const
@@ -92,7 +128,7 @@ function clockLabel(ms: number): string {
   return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
 }
 
-export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, armor, streak, armorColor, grenades, shoves, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
   const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
@@ -128,8 +164,21 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
               🔶 {ammo}
             </div>
           )}
-          <div role="img" aria-label={`${String(lives)} lives left`} style={{ fontSize: 22 }}>
-            {'❤️'.repeat(Math.max(lives, 0))}
+          {GEM_PILLS.map((gem) =>
+            armor[gem.kind] > 0 ? (
+              <div key={gem.kind} role="status" aria-label={gem.label(armor[gem.kind])} title={gem.label(armor[gem.kind])} style={{ ...PILL, color: gem.color }}>
+                {gem.icon} {armor[gem.kind]}
+                {gem.kind === 'heal' && (
+                  <span role="meter" aria-label="Right answers in a row" aria-valuemin={0} aria-valuemax={HEAL_STREAK} aria-valuenow={Math.min(streak, HEAL_STREAK)} style={{ fontSize: 12, color: '#5B6576' }}>
+                    {Math.min(streak, HEAL_STREAK)}/{HEAL_STREAK}
+                  </span>
+                )}
+              </div>
+            ) : null,
+          )}
+          <div role="img" aria-label={livesLabel(lives)} style={{ fontSize: 22 }}>
+            {'❤️'.repeat(Math.floor(Math.max(lives, 0)))}
+            {lives - Math.floor(Math.max(lives, 0)) >= 0.5 ? '💔' : ''}
           </div>
           <span style={{ pointerEvents: 'auto' }}>
             <button
@@ -240,7 +289,7 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
           aria-hidden="true"
           data-feedback-kind={feedback.kind}
           className="answer-feedback-vignette"
-          style={{ position: 'absolute', inset: 0, zIndex: 205, pointerEvents: 'none', background: FLASH[feedback.kind], animation: reducedMotion ? 'none' : 'vignettePulse 420ms ease-out' }}
+          style={{ position: 'absolute', inset: 0, zIndex: 205, pointerEvents: 'none', background: flashFor(feedback.kind, armorColor), animation: reducedMotion ? 'none' : 'vignettePulse 420ms ease-out' }}
         />
       )}
 

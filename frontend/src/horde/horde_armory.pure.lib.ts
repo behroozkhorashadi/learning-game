@@ -58,6 +58,97 @@ export const BULLETS: readonly BulletStats[] = [
 
 export const GRENADE: GrenadeStats = { radius: 2.6, damage: 100 }
 
+/**
+ * What one armor gem charge does: bounces a thrown thing back at its thrower
+ * (`reflect`); makes a zombie that reaches the player cost half a heart
+ * instead of a whole one and flings it back (`block`); either, whichever comes
+ * first (`mega`); or wins back half a heart after a streak of right answers
+ * (`heal`).
+ */
+export type GemKind = 'reflect' | 'block' | 'mega' | 'heal'
+
+/** Gem charges worn into a round, by kind. Charges of the same kind stack. */
+export type Armor = Readonly<Record<GemKind, number>>
+
+export const NO_ARMOR: Armor = { reflect: 0, block: 0, mega: 0, heal: 0 }
+
+export interface GemStats {
+  readonly id: string
+  readonly kind: GemKind
+}
+
+export const GEMS: readonly GemStats[] = [
+  { id: 'reflect_gem', kind: 'reflect' },
+  { id: 'block_gem', kind: 'block' },
+  { id: 'mega_gem', kind: 'mega' },
+  { id: 'heal_gem', kind: 'heal' },
+]
+
+export function gemById(id: string): GemStats | null {
+  return GEMS.find((gem) => gem.id === id) ?? null
+}
+
+/** The armor for a round from the gem charges owned, by gem item id. Ids this file doesn't know are left out. */
+export function armorFrom(charges: Readonly<Record<string, number>>): Armor {
+  return GEMS.reduce<Armor>((armor, gem) => ({ ...armor, [gem.kind]: armor[gem.kind] + Math.max(charges[gem.id] ?? 0, 0) }), NO_ARMOR)
+}
+
+/** Thorns Plating, an armor upgrade bought once: every blocked zombie takes this much damage too (never enough to defeat it). */
+export const THORNS_PLATING_ID = 'thorns_plating'
+export const THORNS_DAMAGE = 25
+
+/** What a round wears: the gem charges owned, and the thorns' damage (0 without Thorns Plating). */
+export interface RoundArmor {
+  readonly charges: Armor
+  readonly thornsDamage: number
+}
+
+export const NO_ROUND_ARMOR: RoundArmor = { charges: NO_ARMOR, thornsDamage: 0 }
+
+/** The armor for a round from what the armory says is owned: gem charges by item id, and the upgrades owned. */
+export function roundArmorFrom(charges: Readonly<Record<string, number>>, owned: readonly string[]): RoundArmor {
+  return { charges: armorFrom(charges), thornsDamage: owned.includes(THORNS_PLATING_ID) ? THORNS_DAMAGE : 0 }
+}
+
+/** How a skin tints the first-person arms: the same shape as a blaster finish's tint. */
+export interface ArmTint {
+  readonly color: string
+  readonly amount: number
+  readonly glow: number
+}
+
+/** An armor skin: looks only. It tints the arms, and colours the flash when a gem goes off. */
+export interface SkinStats {
+  readonly id: string
+  /** Null leaves the arms as modelled. */
+  readonly tint: ArmTint | null
+  readonly color: string
+}
+
+export const STEEL_SUIT: SkinStats = { id: 'steel_suit', tint: null, color: '#5CA8E6' }
+
+export const SKINS: readonly SkinStats[] = [
+  STEEL_SUIT,
+  { id: 'jungle_camo', tint: { color: '#3F7A22', amount: 0.55, glow: 0 }, color: '#5BCC2D' },
+  { id: 'galaxy_suit', tint: { color: '#5B3FD6', amount: 0.55, glow: 0.35 }, color: '#9D57FA' },
+  { id: 'gold_suit', tint: { color: '#D4A017', amount: 0.6, glow: 0.3 }, color: '#FFB020' },
+]
+
+export function skinById(id: string): SkinStats | null {
+  return SKINS.find((skin) => skin.id === id) ?? null
+}
+
+/** The skin worn: the chosen one if it's owned, else the fanciest owned (later in the catalog), else steel. */
+export function skinFor(chosenId: string | null, owned: readonly string[]): SkinStats {
+  const chosen = chosenId !== null && owned.includes(chosenId) ? skinById(chosenId) : null
+  return chosen ?? [...SKINS].reverse().find((skin) => owned.includes(skin.id)) ?? STEEL_SUIT
+}
+
+/** The charges a round used, by gem item id, for banking it; kinds it didn't use are left out. */
+export function gemsUsedByItem(used: Armor): Readonly<Record<string, number>> {
+  return Object.fromEntries(GEMS.flatMap((gem) => (used[gem.kind] > 0 ? [[gem.id, used[gem.kind]]] : [])))
+}
+
 export interface Loadout {
   readonly weapon: WeaponStats
   readonly bullet: BulletStats

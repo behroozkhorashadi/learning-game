@@ -16,7 +16,7 @@
       },
       "ArmoryItem": {
         "additionalProperties": false,
-        "description": "One thing the armory sells. `price` 0 means every profile starts owning it.\nA `consumable` (a grenade pack, a pack of special rounds) can be bought again\nand again and adds `quantity` grenades or rounds, which get used up in play; a\nweapon is bought once. `requires` names an item that must be owned first (the\nnext weapon tier needs the one before it).",
+        "description": "One thing the armory sells. `price` 0 means every profile starts owning it.\nA `consumable` (a grenade pack, a pack of special rounds, an armor gem) can be\nbought again and again and adds `quantity` grenades, rounds, or gem charges (one\ncharge reflects one throw or blocks one hit), which get used up in play; a\nweapon is bought once. `requires` names an item that must be owned first (the\nnext weapon tier needs the one before it).",
         "properties": {
           "consumable": {
             "title": "Consumable",
@@ -37,6 +37,9 @@
               "weapon",
               "bullet",
               "grenade",
+              "gem",
+              "upgrade",
+              "skin",
               "art"
             ],
             "title": "Kind",
@@ -101,8 +104,21 @@
       },
       "ArmoryRoundCreate": {
         "additionalProperties": false,
-        "description": "A finished Zombie Horde round: the points it scored, the grenades it threw, the\nspecial rounds it fired (by bullet item id), and how long it lasted.",
+        "description": "A finished Zombie Horde round: the points it scored, the grenades it threw, the\nspecial rounds it fired (by bullet item id), the armor gem charges it used (by gem\nitem id), and how long it lasted.",
         "properties": {
+          "gems_used": {
+            "additionalProperties": {
+              "maximum": 50.0,
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 64,
+              "minLength": 1
+            },
+            "title": "Gems Used",
+            "type": "object"
+          },
           "grenades_used": {
             "maximum": 50.0,
             "minimum": 0.0,
@@ -173,6 +189,13 @@
             "title": "Earned",
             "type": "integer"
           },
+          "gems": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Gems",
+            "type": "object"
+          },
           "grenades": {
             "title": "Grenades",
             "type": "integer"
@@ -201,6 +224,7 @@
           "owned",
           "grenades",
           "ammo",
+          "gems",
           "best_survived_ms",
           "catalog"
         ],

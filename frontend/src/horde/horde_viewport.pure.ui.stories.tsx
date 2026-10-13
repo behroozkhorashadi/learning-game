@@ -30,6 +30,7 @@ const meta = {
     cover: COVER,
     shadows: true,
     weapon: STARTER_BLASTER,
+    armTint: null,
     weaponPhase: 'readyFirstShot',
     cockingUntilMs: null,
     cockingMs: 700,

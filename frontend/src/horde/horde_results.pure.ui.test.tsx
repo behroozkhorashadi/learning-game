@@ -17,6 +17,7 @@ function props(overrides: Partial<HordeResultsProps> = {}): HordeResultsProps {
     points: 70,
     bank: { kind: 'saved', balance: 170 },
     solved: [{ summary: '3 + 4 = 7', timeMs: 2000 }],
+    armor: { reflected: 0, blocked: 0, healed: 0, hearts: 0 },
     onPlayAgain: vi.fn(),
     onBack: vi.fn(),
     ...overrides,
@@ -51,6 +52,14 @@ describe('HordeResults', () => {
     cleanup()
     render(<HordeResults {...props({ bank: { kind: 'failed', message: 'offline' } })} />)
     expect(screen.getByRole('alert').textContent).toContain('offline')
+  })
+
+  it('says what the armor saved, and nothing when it did nothing', () => {
+    render(<HordeResults {...props({ armor: { reflected: 2, blocked: 1, healed: 0, hearts: 2.5 } })} />)
+    expect(screen.getByText(/Your armor saved 2½ hearts!/).textContent).toContain('(2 throws reflected, 1 zombie blocked)')
+    cleanup()
+    render(<HordeResults {...props()} />)
+    expect(screen.queryByText(/Your armor saved/)).toBeNull()
   })
 
   it('plays again or goes back', () => {

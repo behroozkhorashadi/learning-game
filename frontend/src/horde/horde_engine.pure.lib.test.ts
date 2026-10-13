@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { GRENADE, STARTER_LOADOUT, shotPower } from './horde_armory.pure.lib.ts'
+import { GRENADE, STARTER_LOADOUT, shotPower, type Armor } from './horde_armory.pure.lib.ts'
 import {
   FLIGHT_MS,
+  HEALED_LIVES,
+  HEAL_STREAK,
   IMPACT_MS,
   ROUND_MS,
   ZOMBIE_COUNT,
@@ -32,6 +34,7 @@ const CONFIG: HordeConfig = {
   basePower: shotPower(STARTER_LOADOUT),
   cooldownMs: 700,
   grenade: GRENADE,
+  thornsDamage: 0,
   cover: COVER,
 }
 const OPEN_FIELD: HordeConfig = { ...CONFIG, cover: [] }
@@ -405,14 +408,14 @@ describe('the round ending', () => {
 
   it('running out of lives in overtime is overrun, but the clock was still beaten', () => {
     const overtime = tick({ ...round(4, OPEN_FIELD), elapsedMs: ROUND_MS - 10 }, 16, OPEN_FIELD)
-    const state = tick({ ...overtime, lives: 1, projectiles: [{ id: 'p', fromX: 0, fromDepth: 5, launchedAtMs: 0, landsAtMs: overtime.elapsedMs }] }, 16, OPEN_FIELD)
+    const state = tick({ ...overtime, lives: 1, projectiles: [{ id: 'p', fromX: 0, fromDepth: 5, launchedAtMs: 0, landsAtMs: overtime.elapsedMs, throwerId: 'z0', reflected: false }] }, 16, OPEN_FIELD)
     expect(state.outcome).toBe('overrun')
     expect(inOvertime(state)).toBe(true)
     expect(state.livesAtClock).toBe(3)
   })
 
   it('is overrun when the last life goes', () => {
-    let state: HordeState = { ...round(4, OPEN_FIELD), lives: 1, projectiles: [{ id: 'p', fromX: 0, fromDepth: 5, launchedAtMs: 0, landsAtMs: 10 }] }
+    let state: HordeState = { ...round(4, OPEN_FIELD), lives: 1, projectiles: [{ id: 'p', fromX: 0, fromDepth: 5, launchedAtMs: 0, landsAtMs: 10, throwerId: 'z0', reflected: false }] }
     state = tick(state, 16, OPEN_FIELD)
     expect(state.outcome).toBe('overrun')
     expect(state.lives).toBe(0)
@@ -649,5 +652,181 @@ describe('zombies never walk into each other', () => {
     let state = withZombie(round(4, OPEN_FIELD), 0, { x: 0, depth: 12, targetX: 3, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
     state = run(state, 300, OPEN_FIELD)
     expect(state.zombies[0]?.heading).toBeGreaterThan(0.3)
+  })
+})
+
+describe('armor gems', () => {
+  const NONE: Armor = { reflect: 0, block: 0, mega: 0, heal: 0 }
+
+  /** A round with this armor, and zombie 0's throw about to land: the next tick lands it. */
+  function incoming(armor: Armor): HordeState {
+    const state = withZombie({ ...round(4, OPEN_FIELD), armor }, 0, { x: 2, depth: 10, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
+    const thrower = state.zombies[0]?.id ?? ''
+    return { ...state, projectiles: [{ id: 'p', throwerId: thrower, fromX: 2, fromDepth: 10, launchedAtMs: 0, landsAtMs: 10, reflected: false }] }
+  }
+
+  /** Ticks until zombie 0, about to reach the player, strikes (blocked or not). */
+  function strike(armor: Armor, lives = 3): HordeState {
+    let state = withZombie({ ...round(4, OPEN_FIELD), armor, lives }, 0, { depth: CONTACT_DEPTH + 0.01, x: 0, targetX: 0, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
+    for (let i = 0; i < 200; i++) {
+      state = tick(state, 16, OPEN_FIELD)
+      if (state.events.some((e) => e.type === 'blocked' || e.type === 'playerHit')) return state
+    }
+    throw new Error('the zombie never struck')
+  }
+
+  it('a round starts with no armor unless it is given some', () => {
+    expect(createRound({ seed: 1, lives: 3, grenades: 0, shoves: 0, ammo: 0, cover: [] }).armor).toEqual(NONE)
+    expect(createRound({ seed: 1, lives: 3, grenades: 0, shoves: 0, ammo: 0, armor: { reflect: 4, block: 0, mega: 2, heal: 0 }, cover: [] }).armor).toEqual({ reflect: 4, block: 0, mega: 2, heal: 0 })
+  })
+
+  it('a reflect charge bounces a throw back instead of costing a life', () => {
+    const state = tick(incoming({ reflect: 2, block: 0, mega: 0, heal: 0 }), 16, OPEN_FIELD)
+    expect(state.lives).toBe(3)
+    expect(state.armor).toEqual({ reflect: 1, block: 0, mega: 0, heal: 0 })
+    expect(state.stats.gemsUsed).toEqual({ reflect: 1, block: 0, mega: 0, heal: 0 })
+    expect(state.events).toContainEqual({ type: 'reflected', projectileId: 'p', gem: 'reflect' })
+    expect(state.projectiles).toEqual([expect.objectContaining({ id: 'p', reflected: true, launchedAtMs: state.elapsedMs })])
+  })
+
+  it('the reflected throw makes its thrower reel and knocks it back, without hurting it', () => {
+    let state = tick(incoming({ reflect: 1, block: 0, mega: 0, heal: 0 }), 16, OPEN_FIELD)
+    const before = state.zombies[0]
+    let bounced = false
+    for (let i = 0; i < 100 && !bounced; i++) {
+      state = tick(state, 16, OPEN_FIELD)
+      bounced = state.events.some((e) => e.type === 'bounced' && e.zombieId === before?.id)
+    }
+    expect(bounced).toBe(true)
+    expect(state.projectiles).toEqual([])
+    expect(state.zombies[0]?.posture).toBe('staggered')
+    expect(state.zombies[0]?.health).toBe(before?.health)
+    expect(state.zombies[0]?.depth ?? 0).toBeGreaterThan(before?.depth ?? 0)
+    expect(state.lives).toBe(3)
+  })
+
+  it('a reflected throw never cancels the throw its thrower is winding up next', () => {
+    const reflected = tick(incoming({ reflect: 1, block: 0, mega: 0, heal: 0 }), 16, OPEN_FIELD)
+    let state = withZombie(reflected, 0, { posture: 'throwing', postureUntilMs: reflected.elapsedMs + 2000 })
+    const before = state.zombies[0]
+    state = run(state, 800, OPEN_FIELD)
+    expect(state.zombies[0]?.posture).toBe('throwing')
+    expect(state.zombies[0]?.depth ?? 0).toBeGreaterThan(before?.depth ?? 0)
+  })
+
+  it('a reflected throw whose thrower is gone just disappears', () => {
+    const reflected = tick(incoming({ reflect: 1, block: 0, mega: 0, heal: 0 }), 16, OPEN_FIELD)
+    const state = run(withZombie(reflected, 0, { posture: 'dead', postureUntilMs: 1e9 }), 800, OPEN_FIELD)
+    expect(state.projectiles).toEqual([])
+    expect(state.lives).toBe(3)
+  })
+
+  it('a block charge does not stop a throw', () => {
+    const state = tick(incoming({ reflect: 0, block: 2, mega: 0, heal: 0 }), 16, OPEN_FIELD)
+    expect(state.lives).toBe(2)
+    expect(state.armor).toEqual({ reflect: 0, block: 2, mega: 0, heal: 0 })
+  })
+
+  it('a block charge makes a zombie that gets through cost half a heart, and flings it back like a push-back', () => {
+    const state = strike({ reflect: 0, block: 1, mega: 0, heal: 0 })
+    expect(state.lives).toBe(2.5)
+    expect(state.stats.livesLost).toBe(0.5)
+    expect(state.armor).toEqual(NONE)
+    expect(state.stats.gemsUsed).toEqual({ reflect: 0, block: 1, mega: 0, heal: 0 })
+    expect(state.events).toContainEqual({ type: 'blocked', zombieId: state.zombies[0]?.id, gem: 'block' })
+    expect(state.events.some((e) => e.type === 'playerHit')).toBe(false)
+    expect(state.zombies[0]?.posture).toBe('staggered')
+    expect(state.zombies[0]?.depth).toBeGreaterThanOrEqual(SPAWN_DEPTH)
+  })
+
+  it('a reflect charge does not block a zombie that gets through', () => {
+    const state = strike({ reflect: 2, block: 0, mega: 0, heal: 0 })
+    expect(state.lives).toBe(2)
+    expect(state.armor.reflect).toBe(2)
+  })
+
+  it('a mega charge does either, and is used only once the gem made for the job runs out', () => {
+    expect(tick(incoming({ reflect: 1, block: 0, mega: 2, heal: 0 }), 16, OPEN_FIELD).armor).toEqual({ reflect: 0, block: 0, mega: 2, heal: 0 })
+    const megaReflect = tick(incoming({ reflect: 0, block: 0, mega: 2, heal: 0 }), 16, OPEN_FIELD)
+    expect(megaReflect.events).toContainEqual({ type: 'reflected', projectileId: 'p', gem: 'mega' })
+    expect(megaReflect.armor.mega).toBe(1)
+    const megaBlock = strike({ reflect: 0, block: 0, mega: 1, heal: 0 })
+    expect(megaBlock.events).toContainEqual(expect.objectContaining({ type: 'blocked', gem: 'mega' }))
+    expect(megaBlock.lives).toBe(2.5)
+  })
+
+  it('with half a heart left, the next unguarded hit ends the round', () => {
+    const state = tick({ ...incoming(NONE), lives: 0.5 }, 16, OPEN_FIELD)
+    expect(state.lives).toBe(0)
+    expect(state.outcome).toBe('overrun')
+  })
+
+  it('a blocked hit on the last half heart ends the round too', () => {
+    expect(strike({ reflect: 0, block: 1, mega: 0, heal: 0 }, 0.5).outcome).toBe('overrun')
+  })
+
+  it('counts every reflect and block, whichever gem did it', () => {
+    expect(tick(incoming({ reflect: 0, block: 0, mega: 1, heal: 0 }), 16, OPEN_FIELD).stats.reflects).toBe(1)
+    expect(strike({ reflect: 0, block: 1, mega: 0, heal: 0 }).stats.blocks).toBe(1)
+  })
+
+  it('with Thorns Plating, a blocked zombie is hurt too, but never defeated', () => {
+    const thorny: HordeConfig = { ...OPEN_FIELD, thornsDamage: 25 }
+    const blockedWith = (health: number): HordeZombie | undefined => {
+      let state = withZombie({ ...round(4, thorny), armor: { reflect: 0, block: 1, mega: 0, heal: 0 } }, 0, { health, depth: CONTACT_DEPTH + 0.01, x: 0, targetX: 0, retargetAtMs: 1e9, hideReadyAtMs: 1e9 })
+      for (let i = 0; i < 200 && !state.events.some((e) => e.type === 'blocked'); i++) state = tick(state, 16, thorny)
+      return state.zombies[0]
+    }
+    expect(blockedWith(100)?.health).toBe(75)
+    expect(blockedWith(10)).toMatchObject({ health: 1, posture: 'staggered' })
+    // Without thorns, a block doesn't hurt.
+    expect(strike({ reflect: 0, block: 1, mega: 0, heal: 0 }).zombies[0]?.health).toBe(100)
+  })
+})
+
+describe('heal gems', () => {
+  /** Shoots the zombie with the right answer, then asks the question again. */
+  function solve(state: HordeState): HordeState {
+    const ready = { ...state, elapsedMs: Math.max(state.elapsedMs, state.readyAtMs) }
+    return setQuestion(shoot(ready, { zombieId: holding(ready, true).id, zone: 'leg' }, OPEN_FIELD), QUESTION)
+  }
+
+  function streakOf(n: number, start: HordeState): HordeState {
+    let state = start
+    for (let i = 0; i < n; i++) state = solve(state)
+    return state
+  }
+
+  const healing = (lives: number, heal = 1): HordeState => ({ ...round(4, OPEN_FIELD), lives, armor: { reflect: 0, block: 0, mega: 0, heal } })
+
+  it(`${String(HEAL_STREAK)} right answers in a row win back half a heart, using a charge, and start the streak over`, () => {
+    const four = streakOf(HEAL_STREAK - 1, healing(2))
+    expect([four.lives, four.streak]).toEqual([2, HEAL_STREAK - 1])
+    const healed = solve(four)
+    expect(healed.lives).toBe(2 + HEALED_LIVES)
+    expect(healed.streak).toBe(0)
+    expect(healed.armor.heal).toBe(0)
+    expect(healed.stats.gemsUsed.heal).toBe(1)
+    expect(shoot({ ...four, elapsedMs: four.readyAtMs }, { zombieId: holding(four, true).id, zone: 'leg' }, OPEN_FIELD).events).toContainEqual({ type: 'healed' })
+  })
+
+  it('a wrong answer starts the streak over', () => {
+    const three = streakOf(3, healing(2))
+    const ready = { ...three, elapsedMs: three.readyAtMs }
+    const wrong = shoot(ready, { zombieId: holding(ready, false).id, zone: 'body' }, OPEN_FIELD)
+    expect(wrong.streak).toBe(0)
+    expect(streakOf(2, wrong).lives).toBe(2)
+  })
+
+  it('never heals past the lives the round started with, and keeps the charge for later', () => {
+    const full = streakOf(HEAL_STREAK, healing(3))
+    expect([full.lives, full.armor.heal]).toEqual([3, 1])
+    // Hurt later, the very next right answer heals: the streak kept counting.
+    const healed = solve({ ...full, lives: 2.5 })
+    expect([healed.lives, healed.armor.heal]).toEqual([3, 0])
+  })
+
+  it('does nothing without a heal charge', () => {
+    expect(streakOf(HEAL_STREAK, healing(2, 0)).lives).toBe(2)
   })
 })

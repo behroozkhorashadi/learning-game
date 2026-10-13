@@ -10,7 +10,7 @@ import { unitBoxGeometry, unitSphereGeometry, unitTorusGeometry } from '@app/sci
 import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
 import { ZombieCharacter3D } from '@app/zombies/zombie_character_3d.pure.ui.tsx'
 import type { WeaponPhase } from '@app/zombies/zombie_wave_engine.pure.lib.ts'
-import { GRENADE, type ImpactStyle } from './horde_armory.pure.lib.ts'
+import { GRENADE, type ArmTint, type ImpactStyle } from './horde_armory.pure.lib.ts'
 import { isTargetable, type Blast, type HordeZombie, type Impact, type Projectile } from './horde_engine.pure.lib.ts'
 import { HordeEnvironment } from './horde_environment.pure.ui.tsx'
 import { CAMERA_POSITION, fieldPoint, worldPosition, type Cover } from './horde_field.pure.lib.ts'
@@ -47,6 +47,8 @@ export interface HordeSceneProps {
   readonly cover: readonly Cover[]
   readonly shadows: boolean
   readonly weapon: WeaponDefinition
+  /** The worn armor skin's tint over the arms; null for none. */
+  readonly armTint: ArmTint | null
   readonly weaponPhase: WeaponPhase
   readonly cockingUntilMs: number | null
   readonly cockingMs: number
@@ -105,7 +107,8 @@ function ThrownObject({ projectile, elapsedMs }: { readonly projectile: Projecti
   return (
     <mesh position={position} rotation={[spin, spin * 0.7, 0]} scale={0.28} castShadow raycast={() => null}>
       <primitive object={unitBoxGeometry} attach="geometry" />
-      <meshStandardMaterial color="#7FBF3F" emissive="#2F5F10" />
+      {/* Reflected off the player's armor: it glows the armor's blue on the way back. */}
+      <meshStandardMaterial color={projectile.reflected ? '#5CE1E6' : '#7FBF3F'} emissive={projectile.reflected ? '#1C7FD6' : '#2F5F10'} />
     </mesh>
   )
 }
@@ -215,6 +218,7 @@ export function HordeScene({
   cover,
   shadows,
   weapon,
+  armTint,
   weaponPhase,
   cockingUntilMs,
   cockingMs,
@@ -264,6 +268,7 @@ export function HordeScene({
 
       <EquationBlaster
         weapon={weapon}
+        armTint={armTint}
         weaponPhase={weaponPhase}
         cockingUntilMs={cockingUntilMs}
         elapsedMs={elapsedMs}

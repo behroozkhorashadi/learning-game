@@ -22,6 +22,8 @@ const meta = {
     buying: null,
     bought: null,
     buyError: null,
+    skinId: 'steel_suit',
+    onWear: fn(),
   },
 } satisfies Meta<typeof ArmoryShop>
 
@@ -44,6 +46,17 @@ export const JustBoughtGrenades: Story = {
     const grenades = within(within(canvasElement).getByRole('list', { name: 'Grenades' }))
     await expect(grenades.getByRole('status')).toHaveTextContent('Bought 3 grenades!')
     await expect(grenades.getByText('You have 5')).toBeVisible()
+  },
+}
+
+export const ArmorGems: Story = {
+  args: { bought: 'reflect_gem', armory: loaded(fakeArmory({ balance: 200, gems: { reflect_gem: 4, mega_gem: 2 } }).state()) },
+  play: async ({ args, canvasElement }) => {
+    const gems = within(within(canvasElement).getByRole('list', { name: 'Armor gems' }))
+    await expect(gems.getByRole('status')).toHaveTextContent("It's on your armor")
+    await expect(gems.getByText('4 charges on your armor')).toBeVisible()
+    await userEvent.click(gems.getByRole('button', { name: 'Buy Block Gem for 80 points' }))
+    await expect(args.onBuy).toHaveBeenCalledWith('block_gem')
   },
 }
 

@@ -22,7 +22,7 @@ from tests.armory.armory_fakes import NOW, earned
 def test_a_new_profile_owns_the_free_items_and_one_grenade() -> None:
     state = summarize(1, ())
     assert (state.balance, state.earned, state.spent) == (0, 0, 0)
-    assert state.owned == ["starter_blaster", "standard_rounds"]
+    assert state.owned == ["starter_blaster", "standard_rounds", "steel_suit"]
     assert state.grenades == STARTING_GRENADES
     assert state.best_survived_ms == 0
     assert state.catalog == list(CATALOG)
@@ -119,3 +119,40 @@ def test_a_round_can_only_use_rounds_and_grenades_it_had() -> None:
 def test_standard_rounds_never_run_out() -> None:
     assert "standard_rounds" in summarize(1, ()).owned
     assert "standard_rounds" not in summarize(1, ()).ammo
+
+
+def test_a_new_profile_has_no_gem_charges() -> None:
+    assert summarize(1, ()).gems == {"reflect_gem": 0, "block_gem": 0, "mega_gem": 0, "heal_gem": 0}
+
+
+def test_gems_stack_their_charges_and_get_used_up() -> None:
+    entries = [earned(500)]
+    for item_id in ("reflect_gem", "reflect_gem", "mega_gem"):
+        entries.append(purchase_entry(summarize(1, entries), item_id, now=NOW))
+    state = summarize(1, entries)
+    assert state.gems == {"reflect_gem": 4, "block_gem": 0, "mega_gem": 2, "heal_gem": 0}
+    assert not {"reflect_gem", "mega_gem"} & set(state.owned)
+    used = ArmoryRoundCreate(points=0, grenades_used=0, gems_used={"reflect_gem": 3, "mega_gem": 1})
+    entries.extend(round_entries(1, used, now=NOW))
+    assert summarize(1, entries).gems == {"reflect_gem": 1, "block_gem": 0, "mega_gem": 1, "heal_gem": 0}
+
+
+def test_a_round_can_only_use_gem_charges_it_had() -> None:
+    state = summarize(1, (earned(100), purchase_entry(summarize(1, (earned(100),)), "block_gem", now=NOW)))
+    clamped = clamped_round(
+        state, ArmoryRoundCreate(points=0, grenades_used=0, gems_used={"block_gem": 9, "mega_gem": 1, "laser": 3})
+    )
+    assert clamped.gems_used == {"block_gem": 2, "mega_gem": 0}
+
+
+def test_skins_and_thorns_are_bought_once_and_kept() -> None:
+    entries = [earned(500)]
+    for item_id in ("jungle_camo", "thorns_plating"):
+        entries.append(purchase_entry(summarize(1, entries), item_id, now=NOW))
+    state = summarize(1, entries)
+    assert {"steel_suit", "jungle_camo", "thorns_plating"} <= set(state.owned)
+    assert state.balance == 150
+    with pytest.raises(AlreadyOwnedError):
+        purchase_entry(state, "jungle_camo", now=NOW)
+    with pytest.raises(AlreadyOwnedError):
+        purchase_entry(state, "thorns_plating", now=NOW)

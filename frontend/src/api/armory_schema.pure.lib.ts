@@ -6,7 +6,7 @@ import type { components } from './openapi_schema.pure.lib.ts'
 export const armoryItemSchema = z
   .object({
     id: z.string(),
-    kind: z.enum(['weapon', 'bullet', 'grenade', 'art']),
+    kind: z.enum(['weapon', 'bullet', 'grenade', 'gem', 'upgrade', 'skin', 'art']),
     name: z.string(),
     description: z.string(),
     price: z.number().int(),
@@ -25,6 +25,7 @@ export const armoryStateSchema = z
     owned: z.array(z.string()).readonly(),
     grenades: z.number().int(),
     ammo: z.record(z.string(), z.number().int()).readonly(),
+    gems: z.record(z.string(), z.number().int()).readonly(),
     best_survived_ms: z.number().int(),
     catalog: z.array(armoryItemSchema).readonly(),
   })

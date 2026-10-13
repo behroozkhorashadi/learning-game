@@ -20,6 +20,7 @@ const meta = {
     overtime: null,
     onEndOvertime: fn(),
     lives: 2,
+    armor: { reflect: 0, block: 0, mega: 0, heal: 0 },
     grenades: 3,
     shoves: 3,
     ammo: null,
@@ -42,6 +43,8 @@ const meta = {
     onZap: fn(),
     flags: 1,
     onFlag: fn(),
+    streak: 0,
+    armorColor: '#5CA8E6',
   },
 } satisfies Meta<typeof HordeHud>
 
@@ -82,7 +85,20 @@ export const Intro: Story = {
 export const Hurt: Story = {
   args: { feedback: { kind: 'hurt', id: 1 }, lives: 1, secondsLeft: 8 },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('img', { name: '1 lives left' })).toBeVisible()
+    await expect(within(canvasElement).getByRole('img', { name: '1 life left' })).toBeVisible()
+  },
+}
+
+/** Gems on the armor, and half a heart gone to a blocked zombie. */
+export const Armored: Story = {
+  args: { armor: { reflect: 3, block: 1, mega: 2, heal: 2 }, streak: 3, lives: 2.5, armorColor: '#FFB020', feedback: { kind: 'block', id: 1 } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('img', { name: '2 and a half lives left' })).toHaveTextContent('❤️❤️💔')
+    await expect(canvas.getByRole('status', { name: '3 reflects left: throws bounce back' })).toBeVisible()
+    await expect(canvas.getByRole('status', { name: '1 block left: a zombie that gets through only takes half a heart' })).toBeVisible()
+    await expect(canvas.getByRole('status', { name: '2 mega charges left: reflects or blocks' })).toBeVisible()
+    await expect(canvas.getByRole('meter', { name: 'Right answers in a row' })).toHaveTextContent('3/5')
   },
 }
 

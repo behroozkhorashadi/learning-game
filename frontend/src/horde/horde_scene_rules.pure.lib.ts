@@ -77,10 +77,11 @@ const THROW_TARGET: Vec3 = [0.25, 1.35, 1.3]
 const THROW_HEIGHT = 1.6
 const THROW_ARC = 2.2
 
-/** A thrown object's position at `nowMs`: a lob from the thrower's hand to just in front of the camera. */
+/** A thrown object's position at `nowMs`: a lob from the thrower's hand to just in front of the camera, or (reflected off the player's armor) the same lob back. */
 export function projectilePosition(projectile: Projectile, nowMs: number): Vec3 {
   const span = Math.max(projectile.landsAtMs - projectile.launchedAtMs, 1)
-  const t = Math.min(Math.max((nowMs - projectile.launchedAtMs) / span, 0), 1)
+  const flown = Math.min(Math.max((nowMs - projectile.launchedAtMs) / span, 0), 1)
+  const t = projectile.reflected ? 1 - flown : flown
   const [fx, , fz] = worldPosition(projectile.fromX, projectile.fromDepth)
   return [fx + (THROW_TARGET[0] - fx) * t, THROW_HEIGHT + (THROW_TARGET[1] - THROW_HEIGHT) * t + THROW_ARC * 4 * t * (1 - t), fz + (THROW_TARGET[2] - fz) * t]
 }

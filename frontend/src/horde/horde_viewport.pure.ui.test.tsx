@@ -38,6 +38,7 @@ describe('HordeViewport', () => {
         cover={[]}
         shadows={false}
         weapon={STARTER_BLASTER}
+        armTint={null}
         weaponPhase="readyFirstShot"
         cockingUntilMs={null}
         cockingMs={700}

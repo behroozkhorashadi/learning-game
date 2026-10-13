@@ -1,4 +1,4 @@
-import { ZOMBIE_MAX_HEALTH, type GrenadeStats, type ShotPower, type ShotZone } from './horde_armory.pure.lib.ts'
+import { NO_ARMOR, ZOMBIE_MAX_HEALTH, type Armor, type GemKind, type GrenadeStats, type ShotPower, type ShotZone } from './horde_armory.pure.lib.ts'
 import { CONTACT_DEPTH, SPAWN_DEPTH, ZOMBIE_RADIUS, clampX, coverAt, coverInFront, maxAbsX, type Cover } from './horde_field.pure.lib.ts'
 import { visibilityAt } from './horde_visibility.pure.lib.ts'
 
@@ -13,7 +13,12 @@ import { visibilityAt } from './horde_visibility.pure.lib.ts'
  * it (a headshot most, a leg shot knocks it down to crawl) and solves the
  * question; the next question reshuffles the answers. Shooting a wrong one
  * makes it dodge and throw something back, which costs a life when it lands.
- * A zombie that reaches the player also costs a life. A defeated (or
+ * A zombie that reaches the player also costs a life. Armor gems soften both:
+ * a reflect charge bounces a throw back at its thrower (it reels, but takes no
+ * damage: only the math defeats a zombie), and a block charge makes a zombie
+ * that gets through cost half a heart and flings it back (with Thorns Plating,
+ * hurting it too, though never defeating it). A heal charge wins back half a
+ * heart after HEAL_STREAK right answers in a row. A defeated (or
  * departed) zombie is replaced from the back after a beat, so there are
  * always four answers to choose from. Surviving the 60-second clock wins,
  * and the round goes on into overtime: the zombies keep speeding up until
@@ -78,6 +83,16 @@ const SLOT_SPREAD = 0.3
 /** Two walking zombies closer than this sidestep apart. */
 const PERSONAL_SPACE = 1.1
 const SEPARATION_SPEED = 0.0015
+/** How long a reflected throw takes to fly back to its thrower. */
+export const REFLECT_FLIGHT_MS = 700
+/** How far a reflected throw knocks its thrower back. */
+const REFLECT_KNOCKBACK = 1.5
+/** The lives a blocked zombie costs: half a heart. */
+export const BLOCKED_DAMAGE = 0.5
+/** Right answers in a row that use a heal charge, if one's left and a heart is missing. */
+export const HEAL_STREAK = 5
+/** The lives a heal charge wins back. */
+export const HEALED_LIVES = 0.5
 /** How long a grenade blast stays in the state for the scene to draw. */
 export const BLAST_MS = 900
 /** How long a hit's impact stays in the state for the scene to draw. */
@@ -143,10 +158,15 @@ export interface HordeQuestion {
 
 export interface Projectile {
   readonly id: string
+  /** The zombie that threw it, which a reflected throw flies back to. */
+  readonly throwerId: string
+  /** Where the thrower was: where it flies from, or (reflected) back to. */
   readonly fromX: number
   readonly fromDepth: number
   readonly launchedAtMs: number
   readonly landsAtMs: number
+  /** Bounced off the player's armor, flying back at its thrower. */
+  readonly reflected: boolean
 }
 
 export interface Blast {
@@ -181,7 +201,14 @@ export interface HordeStats {
   /** Special rounds fired (see `HordeState.ammo`). */
   readonly roundsUsed: number
   readonly solved: number
+  /** Whole lives, or half (a blocked zombie). */
   readonly livesLost: number
+  /** Armor gem charges used, by kind. */
+  readonly gemsUsed: Armor
+  /** Throws bounced back by the armor, with any gem. */
+  readonly reflects: number
+  /** Zombies blocked by the armor, with any gem. */
+  readonly blocks: number
 }
 
 /** `survived`: beat the clock and stopped in overtime. `overrun`: ran out of lives (before the clock or after it). */
@@ -194,6 +221,14 @@ export type HordeEvent =
   | { readonly type: 'dodged'; readonly zombieId: string }
   | { readonly type: 'thrown'; readonly projectileId: string }
   | { readonly type: 'playerHit'; readonly cause: 'thrown' | 'contact' }
+  /** A throw bounced off the player's armor, using a charge of `gem`. */
+  | { readonly type: 'reflected'; readonly projectileId: string; readonly gem: GemKind }
+  /** A reflected throw hit its thrower. */
+  | { readonly type: 'bounced'; readonly zombieId: string }
+  /** A zombie that got through was blocked, using a charge of `gem`: half a heart lost, and it flew back. */
+  | { readonly type: 'blocked'; readonly zombieId: string; readonly gem: GemKind }
+  /** HEAL_STREAK right answers in a row used a heal charge: half a heart back. */
+  | { readonly type: 'healed' }
   | { readonly type: 'grenade'; readonly dud: boolean }
   | { readonly type: 'shoved'; readonly zombieId: string }
   /** The last special round was just fired: shots hit with standard power from here on. */
@@ -206,7 +241,12 @@ export type HordeEvent =
 export interface HordeState {
   readonly elapsedMs: number
   readonly outcome: HordeOutcome
+  /** Whole or half (after a blocked zombie). */
   readonly lives: number
+  /** The lives the round started with: a heal never goes past them. */
+  readonly maxLives: number
+  /** Right answers in a row, since the last wrong shot (or the last heal). */
+  readonly streak: number
   /** The lives left when the clock was beaten; null until then (not in overtime yet). */
   readonly livesAtClock: number | null
   readonly grenades: number
@@ -214,6 +254,8 @@ export interface HordeState {
   readonly shoves: number
   /** Special rounds loaded: each shot uses one and hits with `config.power`; at 0, shots hit with `config.basePower`. */
   readonly ammo: number
+  /** Armor gem charges left. */
+  readonly armor: Armor
   /** The random stream's position. */
   readonly seed: number
   /** For ids: zombies, projectiles, blasts, impacts. */
@@ -247,6 +289,8 @@ export interface HordeConfig {
   readonly cooldownMs: number
   readonly grenade: GrenadeStats
   readonly cover: readonly Cover[]
+  /** What a blocked zombie takes from Thorns Plating; 0 without it. */
+  readonly thornsDamage: number
 }
 
 export interface ShotTarget {
@@ -254,7 +298,7 @@ export interface ShotTarget {
   readonly zone: ShotZone
 }
 
-const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, roundsUsed: 0, solved: 0, livesLost: 0 }
+const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, roundsUsed: 0, solved: 0, livesLost: 0, gemsUsed: NO_ARMOR, reflects: 0, blocks: 0 }
 
 /** A deterministic stream over a 32-bit seed (mulberry32). Local to one step, so the step stays pure. */
 interface Rng {
@@ -331,8 +375,8 @@ function spawnZombie(slot: number, id: number, nowMs: number, depth: number, rng
   }
 }
 
-/** A fresh round: four zombies spread across the back of the field, the clock at zero, no question yet. */
-export function createRound({ seed, lives, grenades, shoves, ammo, cover }: { readonly seed: number; readonly lives: number; readonly grenades: number; readonly shoves: number; readonly ammo: number; readonly cover: readonly Cover[] }): HordeState {
+/** A fresh round: four zombies spread across the back of the field, the clock at zero, no question yet. Without `armor`, no gems. */
+export function createRound({ seed, lives, grenades, shoves, ammo, armor = NO_ARMOR, cover }: { readonly seed: number; readonly lives: number; readonly grenades: number; readonly shoves: number; readonly ammo: number; readonly armor?: Armor; readonly cover: readonly Cover[] }): HordeState {
   const rng = rngFrom(seed)
   // Staggered depths, so they don't arrive as one line.
   const zombies = Array.from({ length: ZOMBIE_COUNT }, (_, slot) => spawnZombie(slot, slot, 0, SPAWN_DEPTH - slot * 1.6 - between(rng, 0, 1), rng, cover))
@@ -340,10 +384,13 @@ export function createRound({ seed, lives, grenades, shoves, ammo, cover }: { re
     elapsedMs: 0,
     outcome: 'playing',
     lives,
+    maxLives: lives,
+    streak: 0,
     livesAtClock: null,
     grenades,
     shoves,
     ammo,
+    armor,
     seed: rng.seed(),
     nextId: ZOMBIE_COUNT,
     zombies,
@@ -620,16 +667,39 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
   let nextId = state.nextId
   let lives = state.lives
   let livesLost = 0
+  let armor = state.armor
+  let gemsUsed = state.stats.gemsUsed
+  let reflects = 0
+  let blocks = 0
   const projectiles: Projectile[] = []
+  /** Uses a charge for `job`, if one's left, and says which gem it came from. */
+  const guard = (job: 'reflect' | 'block'): GemKind | null => {
+    const gem = gemFor(armor, job)
+    if (gem !== null) {
+      armor = { ...armor, [gem]: armor[gem] - 1 }
+      gemsUsed = { ...gemsUsed, [gem]: gemsUsed[gem] + 1 }
+    }
+    return gem
+  }
 
   const stepped = state.zombies.map((zombie) => {
     const out = stepZombie(zombie, now, dtMs, speed, rng, config.cover, state.question !== null && state.answers[zombie.slot]?.correct === true)
     if (out.throwFrom !== null) {
       const id = `p${String(nextId++)}`
-      projectiles.push({ id, fromX: out.throwFrom.x, fromDepth: out.throwFrom.depth, launchedAtMs: now, landsAtMs: now + FLIGHT_MS })
+      projectiles.push({ id, throwerId: zombie.id, fromX: out.throwFrom.x, fromDepth: out.throwFrom.depth, launchedAtMs: now, landsAtMs: now + FLIGHT_MS, reflected: false })
       events.push({ type: 'thrown', projectileId: id })
     }
     if (out.struck) {
+      const gem = guard('block')
+      if (gem !== null) {
+        lives -= BLOCKED_DAMAGE
+        livesLost += BLOCKED_DAMAGE
+        blocks += 1
+        events.push({ type: 'blocked', zombieId: zombie.id, gem })
+        // Thorns hurt it, but only the math defeats a zombie.
+        const health = config.thornsDamage > 0 ? Math.max(zombie.health - config.thornsDamage, 1) : zombie.health
+        return flungBack({ ...zombie, health }, now)
+      }
       lives -= 1
       livesLost += 1
       events.push({ type: 'playerHit', cause: 'contact' })
@@ -640,15 +710,33 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
     }
     return out.zombie
   })
-  const zombies = separate(stepped, state.zombies, now, dtMs, config.cover)
+  let zombies = separate(stepped, state.zombies, now, dtMs, config.cover)
 
   for (const projectile of state.projectiles) {
-    if (now >= projectile.landsAtMs) {
-      lives -= 1
-      livesLost += 1
-      events.push({ type: 'playerHit', cause: 'thrown' })
-    } else {
+    if (now < projectile.landsAtMs) {
       projectiles.push(projectile)
+    } else if (projectile.reflected) {
+      // Back where it came from: the thrower reels, if it's still there to be hit.
+      const thrower = zombies.find((z) => z.id === projectile.throwerId)
+      if (thrower !== undefined && isTargetable(thrower)) {
+        const hit = bouncedInto(thrower, now, config.cover)
+        zombies = zombies.map((z) => (z.id === thrower.id ? hit : z))
+        events.push({ type: 'bounced', zombieId: thrower.id })
+      }
+    } else {
+      const gem = guard('reflect')
+      if (gem === null) {
+        lives -= 1
+        livesLost += 1
+        events.push({ type: 'playerHit', cause: 'thrown' })
+      } else {
+        // Straight back at the thrower, wherever it is now.
+        const thrower = zombies.find((z) => z.id === projectile.throwerId)
+        const at = thrower !== undefined && isTargetable(thrower) ? { fromX: thrower.x, fromDepth: thrower.depth } : {}
+        projectiles.push({ ...projectile, ...at, launchedAtMs: now, landsAtMs: now + REFLECT_FLIGHT_MS, reflected: true })
+        reflects += 1
+        events.push({ type: 'reflected', projectileId: projectile.id, gem })
+      }
     }
   }
 
@@ -658,14 +746,53 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
     seed: rng.seed(),
     nextId,
     lives: Math.max(lives, 0),
+    armor,
     zombies,
     projectiles,
     blasts: state.blasts.filter((blast) => now - blast.atMs < BLAST_MS),
     impacts: state.impacts.filter((impact) => now - impact.atMs < IMPACT_MS),
-    stats: livesLost === 0 ? state.stats : { ...state.stats, livesLost: state.stats.livesLost + livesLost },
+    stats: livesLost === 0 && gemsUsed === state.stats.gemsUsed ? state.stats : { ...state.stats, livesLost: state.stats.livesLost + livesLost, gemsUsed, reflects: state.stats.reflects + reflects, blocks: state.stats.blocks + blocks },
     events,
   }
   return settle(next, config, events)
+}
+
+/** One more right answer in a row; at HEAL_STREAK, a heal charge (if one's left and a heart is missing) wins back half a heart and starts the streak over. */
+function solvedInARow(state: HordeState): HordeState {
+  const streak = state.streak + 1
+  if (streak < HEAL_STREAK || state.armor.heal <= 0 || state.lives >= state.maxLives) return { ...state, streak }
+  return {
+    ...state,
+    streak: 0,
+    lives: Math.min(state.lives + HEALED_LIVES, state.maxLives),
+    armor: { ...state.armor, heal: state.armor.heal - 1 },
+    stats: { ...state.stats, gemsUsed: { ...state.stats.gemsUsed, heal: state.stats.gemsUsed.heal + 1 } },
+    events: [...state.events, { type: 'healed' }],
+  }
+}
+
+/** The gem a charge for `job` comes from: the one made for it first, so mega charges last for whichever comes next. Null with neither left. */
+function gemFor(armor: Armor, job: 'reflect' | 'block'): GemKind | null {
+  if (armor[job] > 0) return job
+  if (armor.mega > 0) return 'mega'
+  return null
+}
+
+/** Flung all the way back to the spawn line, reeling (unless it's down), over any cover rather than stopping at it: a push-back, or a blocked attack. */
+function flungBack(zombie: HordeZombie, now: number): HordeZombie {
+  const grounded = zombie.posture === 'downed' || zombie.posture === 'rising'
+  const reeling = grounded ? zombie : { ...zombie, posture: 'staggered' as const, postureUntilMs: now + STAGGER_MS }
+  return { ...reeling, depth: Math.max(zombie.depth, SPAWN_DEPTH), x: clampX(zombie.x, SPAWN_DEPTH) }
+}
+
+/**
+ * Hit by its own reflected throw: knocked back, without damage. It reels too,
+ * unless it's down or already winding up another throw: a reflect guards one
+ * throw, so it never cancels the next.
+ */
+function bouncedInto(zombie: HordeZombie, now: number, cover: readonly Cover[]): HordeZombie {
+  const keepsPosture = zombie.posture === 'downed' || zombie.posture === 'rising' || zombie.posture === 'dodging' || zombie.posture === 'throwing'
+  return pushedBack(keepsPosture ? zombie : { ...zombie, posture: 'staggered', postureUntilMs: now + STAGGER_MS }, REFLECT_KNOCKBACK, cover)
 }
 
 /** Knocks a zombie back toward the far end, stopping short of any cover in the way. */
@@ -723,7 +850,7 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
     const stats = { ...fired.stats, wrongHits: fired.stats.wrongHits + 1 }
     const busy = zombie.posture === 'dodging' || zombie.posture === 'throwing'
     const grounded = zombie.posture === 'downed' || zombie.posture === 'rising'
-    if (busy) return { ...fired, stats, questionWrongShots: state.questionWrongShots + 1 }
+    if (busy) return { ...fired, stats, streak: 0, questionWrongShots: state.questionWrongShots + 1 }
     if (grounded) {
       // Too low to dodge: it throws from the ground straight away.
       const id = `p${String(state.nextId)}`
@@ -731,9 +858,10 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
       return {
         ...fired,
         stats,
+        streak: 0,
         nextId: state.nextId + 1,
         questionWrongShots: state.questionWrongShots + 1,
-        projectiles: [...state.projectiles, { id, fromX: zombie.x, fromDepth: zombie.depth, launchedAtMs: now, landsAtMs: now + FLIGHT_MS }],
+        projectiles: [...state.projectiles, { id, throwerId: zombie.id, fromX: zombie.x, fromDepth: zombie.depth, launchedAtMs: now, landsAtMs: now + FLIGHT_MS, reflected: false }],
       }
     }
     const dodging: HordeZombie = {
@@ -743,7 +871,7 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
       // Dodge toward open floor.
       dodgeDirection: zombie.x > maxAbsX(zombie.depth) * 0.5 ? -1 : zombie.x < -maxAbsX(zombie.depth) * 0.5 ? 1 : zombie.dodgeDirection,
     }
-    return { ...fired, stats, questionWrongShots: state.questionWrongShots + 1, zombies: state.zombies.map((z) => (z.id === zombie.id ? dodging : z)) }
+    return { ...fired, stats, streak: 0, questionWrongShots: state.questionWrongShots + 1, zombies: state.zombies.map((z) => (z.id === zombie.id ? dodging : z)) }
   }
 
   const damage = damaged(zombie, power[target.zone], target.zone, now)
@@ -753,7 +881,7 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
   const solved = solvedEvent(state)
   if (solved !== null) events.push(solved)
   const impact: Impact = { id: `i${String(state.nextId)}`, x: zombie.x, depth: zombie.depth, zone: target.zone, atMs: now, special }
-  return {
+  return solvedInARow({
     ...fired,
     nextId: state.nextId + 1,
     impacts: [...state.impacts, impact],
@@ -768,7 +896,7 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
       legShots: fired.stats.legShots + (target.zone === 'leg' ? 1 : 0),
       solved: fired.stats.solved + 1,
     },
-  }
+  })
 }
 
 /**
@@ -799,7 +927,7 @@ export function throwGrenade(state: HordeState, at: { readonly x: number; readon
   })
   const solved = solvedEvent(state)
   if (solved !== null) events.push(solved)
-  return { ...spent, zombies, question: null, answers: [], stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + kills, solved: spent.stats.solved + 1 } }
+  return solvedInARow({ ...spent, zombies, question: null, answers: [], stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + kills, solved: spent.stats.solved + 1 } })
 }
 
 /**
@@ -814,10 +942,7 @@ export function shove(state: HordeState, zombieId: string, config: HordeConfig):
   const zombie = state.zombies.find((z) => z.id === zombieId)
   if (zombie === undefined || !isTargetable(zombie)) return state
   const now = state.elapsedMs
-  const grounded = zombie.posture === 'downed' || zombie.posture === 'rising'
-  const reeling = grounded ? zombie : { ...zombie, posture: 'staggered' as const, postureUntilMs: now + STAGGER_MS }
-  // Flung straight back to the spawn line, over the cover rather than stopping at it.
-  const pushed = { ...reeling, depth: Math.max(zombie.depth, SPAWN_DEPTH), x: clampX(zombie.x, SPAWN_DEPTH) }
+  const pushed = flungBack(zombie, now)
   return {
     ...state,
     shoves: state.shoves - 1,

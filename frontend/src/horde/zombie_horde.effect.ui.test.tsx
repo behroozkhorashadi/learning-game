@@ -222,6 +222,78 @@ describe('ZombieHorde: the end of a round', () => {
   })
 })
 
+describe('ZombieHorde: armor gems', () => {
+  it('buys gems that stack, and wears every charge into the round', async () => {
+    const harness = await open({ armory: fakeArmory({ balance: 300 }) })
+    press('Buy Reflect Gem for 60 points')
+    await settle()
+    press('Buy Reflect Gem for 60 points')
+    await settle()
+    press('Buy Mega Gem for 150 points')
+    await settle()
+    expect(harness.armory.state().gems).toEqual({ reflect_gem: 4, block_gem: 0, mega_gem: 2, heal_gem: 0 })
+    expect(within(screen.getByRole('list', { name: 'Armor gems' })).getByText('4 charges on your armor')).toBeTruthy()
+    await startRound(harness)
+    expect(screen.getByRole('status', { name: '4 reflects left: throws bounce back' })).toBeTruthy()
+    expect(screen.getByRole('status', { name: '2 mega charges left: reflects or blocks' })).toBeTruthy()
+    expect(screen.queryByRole('status', { name: /blocks? left/ })).toBeNull()
+  })
+
+  it('a reflect charge bounces back a wrong answer’s throw, and the round reports the charge it used', async () => {
+    const harness = await open({ armory: fakeArmory({ gems: { reflect_gem: 1 } }) })
+    await startRound(harness)
+    press(`body ${String(wrongAnswer(0))}`)
+    await harness.scheduler.advance(2500)
+    expect(screen.getByRole('img', { name: '3 lives left' })).toBeTruthy()
+    expect(screen.getByText(/Reflected! Your armor bounced it back. That was your last armor gem./)).toBeTruthy()
+    expect(screen.queryByRole('status', { name: /reflects? left/ })).toBeNull()
+    for (let i = 0; i < 3; i++) {
+      press(`body ${String(wrongAnswer(0))}`)
+      await harness.scheduler.advance(2500)
+    }
+    expect(screen.getByRole('heading', { name: 'The horde got through!' })).toBeTruthy()
+    expect(harness.armory.rounds[0]?.gems_used).toEqual({ reflect_gem: 1 })
+    expect(screen.getByText(/Your armor saved 1 heart!/)).toBeTruthy()
+    expect(harness.armory.state().gems.reflect_gem).toBe(0)
+  })
+})
+
+describe('ZombieHorde: armor upgrades and skins', () => {
+  it('buys a skin, wears it into the round, and the arms show it', async () => {
+    const harness = await open({ armory: fakeArmory({ balance: 150 }) })
+    press('Buy Jungle Camo for 100 points')
+    await settle()
+    expect(harness.armory.state().owned).toContain('jungle_camo')
+    // A new skin is worn straight away: it's the fanciest owned.
+    expect(within(screen.getByRole('list', { name: 'Armor skins' })).getAllByText('Wearing')).toHaveLength(1)
+    press('Wear Steel Suit')
+    await startRound(harness)
+    expect(screen.getByText('plain arms')).toBeTruthy()
+    press('Back')
+  })
+
+  it('wears the fanciest skin owned by default', async () => {
+    const harness = await open({ armory: fakeArmory({ owned: ['gold_suit'] }) })
+    await startRound(harness)
+    expect(screen.getByText('arms tinted #D4A017')).toBeTruthy()
+  })
+
+  it('a heal charge wins back half a heart after 5 right answers in a row', async () => {
+    const harness = await open({ armory: fakeArmory({ gems: { heal_gem: 1 } }) })
+    await startRound(harness)
+    press(`body ${String(wrongAnswer(0))}`)
+    await harness.scheduler.advance(2500)
+    expect(screen.getByRole('img', { name: '2 lives left' })).toBeTruthy()
+    for (let i = 0; i < 5; i++) {
+      await harness.scheduler.advance(800)
+      press(`head ${String(rightAnswer(i))}`)
+      await harness.scheduler.advance(NEXT_QUESTION_MS + 50)
+    }
+    expect(screen.getByRole('img', { name: '2 and a half lives left' })).toBeTruthy()
+    expect(screen.getByText(/Healed! Your streak won back half a heart./)).toBeTruthy()
+  })
+})
+
 describe('ZombieHorde: special rounds', () => {
   it('loads the best rounds it has, counts them down, and reports what it used', WHOLE_ROUND, async () => {
     const harness = await open({ armory: fakeArmory({ ammo: { armor_piercing: 2 } }) })

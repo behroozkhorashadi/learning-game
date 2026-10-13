@@ -25,6 +25,7 @@ const meta = {
       { summary: '8 − 3 = 5', timeMs: 3300 },
       { summary: '6 + 6 = 12', timeMs: 1900 },
     ],
+    armor: { reflected: 2, blocked: 1, healed: 0, hearts: 2.5 },
     onPlayAgain: fn(),
     onBack: fn(),
   },

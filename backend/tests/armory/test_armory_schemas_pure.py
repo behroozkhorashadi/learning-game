@@ -16,6 +16,8 @@ def test_a_round_accepts_points_up_to_the_ceiling() -> None:
         {"points": 10, "grenades_used": -1},
         {"points": 10, "grenades_used": 0, "bonus": 5},
         {"points": 10, "grenades_used": 0, "rounds_used": {"armor_piercing": -1}},
+        {"points": 10, "grenades_used": 0, "gems_used": {"reflect_gem": -1}},
+        {"points": 10, "grenades_used": 0, "gems_used": {"reflect_gem": 51}},
     ],
 )
 def test_a_round_rejects_impossible_bodies(body: dict[str, object]) -> None:
@@ -30,3 +32,7 @@ def test_a_purchase_needs_an_item_id() -> None:
 
 def test_rounds_used_is_optional() -> None:
     assert ArmoryRoundCreate.model_validate({"points": 1, "grenades_used": 0}).rounds_used == {}
+
+
+def test_gems_used_is_optional() -> None:
+    assert ArmoryRoundCreate.model_validate({"points": 1, "grenades_used": 0}).gems_used == {}

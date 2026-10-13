@@ -77,6 +77,29 @@ export function roundPoints(result: RoundResult): number {
   return pointsBreakdown(result).reduce((sum, line) => sum + line.points, 0)
 }
 
+/** What the armor did for a round: throws reflected, zombies blocked, and heals, and the hearts that came to. */
+export interface ArmorSaved {
+  readonly reflected: number
+  readonly blocked: number
+  readonly healed: number
+  /** A reflect saves a whole heart; a block saves half (it still costs half); a heal wins half back. */
+  readonly hearts: number
+}
+
+export function armorSaved(stats: HordeStats): ArmorSaved {
+  const healed = stats.gemsUsed.heal
+  return { reflected: stats.reflects, blocked: stats.blocks, healed, hearts: stats.reflects + (stats.blocks + healed) / 2 }
+}
+
+/** Hearts as a kid reads them: "half a heart", "1 heart", "2½ hearts". */
+export function heartsLabel(hearts: number): string {
+  const whole = Math.floor(hearts)
+  const half = hearts - whole >= 0.5
+  if (whole === 0) return half ? 'half a heart' : '0 hearts'
+  if (whole === 1 && !half) return '1 heart'
+  return `${String(whole)}${half ? '½' : ''} hearts`
+}
+
 /** A round's length as the clock shows it: "0:45", "1:05". */
 export function formatTime(ms: number): string {
   const seconds = Math.max(Math.floor(ms / 1000), 0)

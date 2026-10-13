@@ -19,7 +19,7 @@ function question(n: number): HordeQuestion {
 
 /** How long a round lasts (ms), playing on into overtime when `overtime`; capped at 20 minutes. */
 function lasts(travelMs: number, answerMs: number, seed: number, overtime: boolean): number {
-  const config: HordeConfig = { durationMs: ROUND_MS, travelMs, power: shotPower(STARTER_LOADOUT), basePower: shotPower(STARTER_LOADOUT), cooldownMs: 700, grenade: GRENADE, cover: COVER }
+  const config: HordeConfig = { durationMs: ROUND_MS, travelMs, power: shotPower(STARTER_LOADOUT), basePower: shotPower(STARTER_LOADOUT), cooldownMs: 700, grenade: GRENADE, cover: COVER, thornsDamage: 0 }
   let state: HordeState = setQuestion(createRound({ seed, lives: STARTING_LIVES, grenades: 0, shoves: SHOVES_PER_ROUND, ammo: 0, cover: COVER }), question(0))
   let asked = 0
   let askedAt = 0

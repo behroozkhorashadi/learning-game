@@ -64,6 +64,8 @@ export interface EquationBlasterProps {
   readonly onReloadStart: () => void
   /** Dev-only live pose override from the weapon tuning panel; DEFAULT_WEAPON_VIEW otherwise. */
   readonly weaponView?: WeaponViewConfig | undefined
+  /** An armor skin's tint over both arms (Zombie Horde); none leaves them as modelled. */
+  readonly armTint?: Tint
   /** Dev-only: hide an arm while calibrating the weapon body. */
   readonly hideRightArm?: boolean
   readonly hideLeftArm?: boolean
@@ -187,6 +189,7 @@ export function EquationBlaster({
   reducedMotion,
   onReloadStart,
   weaponView,
+  armTint = null,
   hideRightArm = false,
   hideLeftArm = false,
 }: EquationBlasterProps): ReactElement {
@@ -302,7 +305,7 @@ export function EquationBlaster({
                         console.warn('[EquationBlaster] Right-arm GLB failed to load — rendering without it.')
                       }}
                     >
-                      <ClonedGltf url={RIGHT_ARM_URL} />
+                      <ClonedGltf url={RIGHT_ARM_URL} tint={armTint} />
                     </AsyncBoundary>
                   </group>
                 </group>
@@ -318,7 +321,7 @@ export function EquationBlaster({
                         console.warn('[EquationBlaster] Left-arm GLB failed to load — rendering without it.')
                       }}
                     >
-                      <ClonedGltf url={LEFT_ARM_URL} />
+                      <ClonedGltf url={LEFT_ARM_URL} tint={armTint} />
                     </AsyncBoundary>
                   </group>
                 </group>

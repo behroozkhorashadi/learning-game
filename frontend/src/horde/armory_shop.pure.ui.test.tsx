@@ -9,7 +9,7 @@ afterEach(cleanup)
 const STARTER = { weaponId: 'starter_blaster', bulletId: 'standard_rounds' }
 
 function props(overrides: Partial<ArmoryShopProps> = {}): ArmoryShopProps {
-  return { armory: loaded(fakeArmory({ balance: 260 }).state()), choice: STARTER, onChoose: vi.fn(), onBuy: vi.fn(), buying: null, bought: null, buyError: null, ...overrides }
+  return { armory: loaded(fakeArmory({ balance: 260 }).state()), choice: STARTER, onChoose: vi.fn(), onBuy: vi.fn(), buying: null, bought: null, buyError: null, skinId: 'steel_suit', onWear: vi.fn(), ...overrides }
 }
 
 describe('ArmoryShop', () => {
@@ -65,6 +65,53 @@ describe('ArmoryShop', () => {
     expect(screen.getByRole('button', { name: 'Buy Armor-Piercing Rounds for 60 points' })).toBeTruthy()
     // None left: nothing to load, only to buy.
     expect(screen.queryByRole('button', { name: 'Load Explosive Rounds' })).toBeNull()
+  })
+
+  it('sells armor gems, says what each does, and how many charges are on the armor', () => {
+    const onBuy = vi.fn()
+    render(<ArmoryShop {...props({ onBuy, armory: loaded(fakeArmory({ balance: 260, gems: { reflect_gem: 4 } }).state()) })} />)
+    const gems = within(screen.getByRole('list', { name: 'Armor gems' }))
+    expect(gems.getByText('Reflects 2 throws. Gems stack: two give 4.')).toBeTruthy()
+    expect(gems.getByText('Blocks 2 zombies: half a heart instead of a whole one, and it flies back.')).toBeTruthy()
+    expect(gems.getByText('2 charges, each a reflect or a block, whichever you need first.')).toBeTruthy()
+    expect(gems.getByText('4 charges on your armor')).toBeTruthy()
+    expect(gems.getAllByText('none yet')).toHaveLength(3)
+    // Gems stack: one already on the armor can be bought again.
+    fireEvent.click(gems.getByRole('button', { name: 'Buy Reflect Gem for 60 points' }))
+    expect(onBuy).toHaveBeenCalledWith('reflect_gem')
+    expect(gems.queryByRole('button', { name: /^(Equip|Load)/ })).toBeNull()
+  })
+
+  it('sells Thorns Plating once, then it is always on', () => {
+    const onBuy = vi.fn()
+    render(<ArmoryShop {...props({ onBuy, armory: loaded(fakeArmory({ balance: 300 }).state()) })} />)
+    const upgrades = within(screen.getByRole('list', { name: 'Armor upgrades' }))
+    expect(upgrades.getByText('Blocked zombies take 25 damage. You still need the math to finish them.')).toBeTruthy()
+    fireEvent.click(upgrades.getByRole('button', { name: 'Buy Thorns Plating for 250 points' }))
+    expect(onBuy).toHaveBeenCalledWith('thorns_plating')
+    cleanup()
+    render(<ArmoryShop {...props({ armory: loaded(fakeArmory({ owned: ['thorns_plating'] }).state()) })} />)
+    const owned = within(screen.getByRole('list', { name: 'Armor upgrades' }))
+    expect(owned.getByText('Always on')).toBeTruthy()
+    expect(owned.queryByRole('button')).toBeNull()
+  })
+
+  it('wears an owned skin, and sells the rest once each', () => {
+    const onWear = vi.fn()
+    const onBuy = vi.fn()
+    render(<ArmoryShop {...props({ onWear, onBuy, skinId: 'steel_suit', armory: loaded(fakeArmory({ balance: 150, owned: ['jungle_camo'] }).state()) })} />)
+    const skins = within(screen.getByRole('list', { name: 'Armor skins' }))
+    expect(skins.getByText('Wearing')).toBeTruthy()
+    fireEvent.click(skins.getByRole('button', { name: 'Wear Jungle Camo' }))
+    expect(onWear).toHaveBeenCalledWith('jungle_camo')
+    fireEvent.click(skins.getByRole('button', { name: 'Buy Galaxy Suit for 200 points' }))
+    expect(onBuy).not.toHaveBeenCalled()
+    expect(skins.queryByRole('button', { name: /Buy (Steel Suit|Jungle Camo)/ })).toBeNull()
+  })
+
+  it('says a gem just bought is on the armor', () => {
+    render(<ArmoryShop {...props({ bought: 'block_gem', armory: loaded(fakeArmory({ balance: 260, gems: { block_gem: 2 } }).state()) })} />)
+    expect(within(screen.getByRole('list', { name: 'Armor gems' })).getByRole('status').textContent).toBe("✓ Bought! It's on your armor for the next round.")
   })
 
   it('shows loading, a failed load, and a refused purchase', () => {

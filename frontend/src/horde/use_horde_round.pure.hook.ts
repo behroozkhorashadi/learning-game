@@ -3,7 +3,7 @@ import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.
 import type { ArenaAudio, ArenaScheduler, Cancel } from '@app/outbreak/zombie_arena_state.pure.lib.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import type { CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
-import { GRENADE, STARTER_LOADOUT, shotPower, type Loadout } from './horde_armory.pure.lib.ts'
+import { GRENADE, NO_ROUND_ARMOR, STARTER_LOADOUT, gemsUsedByItem, shotPower, type Armor, type Loadout, type RoundArmor } from './horde_armory.pure.lib.ts'
 import {
   ROUND_MS,
   STARTING_LIVES,
@@ -41,7 +41,7 @@ const MAX_STEP_MS = 50
 
 export type HordePhase = 'ready' | 'loading' | 'intro' | 'playing' | 'over'
 
-export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'dud' | 'shove'
+export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'dud' | 'shove' | 'reflect' | 'block' | 'heal'
 
 /** What the next click does: a normal shot or a grenade. */
 export type ArmedMode = 'shot' | 'grenade'
@@ -64,7 +64,7 @@ export interface HordeRoundDeps {
   /** POST /api/attempts. A failure is reported, never interrupts play. */
   readonly recordAttempt: (attempt: AttemptBody) => Promise<unknown>
   /** Banks a finished round (and how long it lasted, toward the personal best) into the armory; resolves to the new balance. */
-  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>>; readonly survived_ms: number }) => Promise<{ readonly balance: number }>
+  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>>; readonly gems_used: Readonly<Record<string, number>>; readonly survived_ms: number }) => Promise<{ readonly balance: number }>
   readonly scheduler: ArenaScheduler
   readonly audio: ArenaAudio
   /** This round's four characters, one per slot. */
@@ -103,8 +103,8 @@ export interface HordeRound {
   readonly durationMs: number
   /** The profile's longest round before this one (0 before its first): the record to beat. */
   readonly previousBestMs: number
-  /** Starts a round with this loadout, the grenades owned, the loadout's special rounds owned (0 for standard rounds), and the profile's personal best. */
-  readonly start: (loadout: Loadout, grenades: number, ammo: number, previousBestMs: number) => void
+  /** Starts a round with this loadout, the grenades owned, the loadout's special rounds owned (0 for standard rounds), the profile's personal best, and the armor worn (gem charges and thorns; none when left out). */
+  readonly start: (loadout: Loadout, grenades: number, ammo: number, previousBestMs: number, armor?: RoundArmor) => void
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
   /** A shot at a zombie (or at nothing: null). */
@@ -298,7 +298,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     const sessionId = live.current.sessionId
     setBank({ kind: 'saving' })
     const bullet = live.current.bulletId
-    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {}, survived_ms: Math.round(final.elapsedMs) }).then(
+    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {}, gems_used: gemsUsedByItem(final.stats.gemsUsed), survived_ms: Math.round(final.elapsedMs) }).then(
       ({ balance }) => {
         if (live.current.mounted && live.current.sessionId === sessionId) setBank({ kind: 'saved', balance })
       },
@@ -337,6 +337,22 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
           audio.playZombieAttack()
           flash('hurt')
           setLiveMessage(event.cause === 'thrown' ? 'Ouch! You got hit.' : 'A zombie got through!')
+          break
+        case 'reflected':
+          flash('reflect')
+          setLiveMessage(armorMessage('Reflected! Your armor bounced it back.', next.armor))
+          break
+        case 'bounced':
+          audio.playZombieHit()
+          break
+        case 'blocked':
+          audio.playZombieAttack()
+          flash('block')
+          setLiveMessage(armorMessage((live.current.config?.thornsDamage ?? 0) > 0 ? 'Blocked! Your thorns hurt it, it only took half a heart, and it flew back.' : 'Blocked! Only half a heart, and the zombie flew back.', next.armor))
+          break
+        case 'healed':
+          flash('heal')
+          setLiveMessage(armorMessage('Healed! Your streak won back half a heart.', next.armor))
           break
         case 'grenade':
           flash(event.dud ? 'dud' : 'boom')
@@ -424,7 +440,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     else audio.stopMusic()
   }, [audio, phase])
 
-  function start(chosen: Loadout, grenades: number, ammo: number, best: number): void {
+  function start(chosen: Loadout, grenades: number, ammo: number, best: number, armor: RoundArmor = NO_ROUND_ARMOR): void {
     // A real user gesture: create/resume the audio context here, well before the first shot.
     audio.preloadWeapon()
     audio.preloadMusic()
@@ -449,12 +465,12 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     fetchQuestion(sessionId).then(
       ({ item, question }) => {
         if (!live.current.mounted || live.current.sessionId !== sessionId) return
-        const config: HordeConfig = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER }
+        const config: HordeConfig = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER, thornsDamage: armor.thornsDamage }
         live.current.config = config
         live.current.upcoming = fetchQuestion(sessionId)
         live.current.upcoming.catch(() => undefined)
         const seed = newSeed()
-        const first = setQuestion(createRound({ seed, lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, ammo: chosen.bullet.id === STARTER_LOADOUT.bullet.id ? 0 : ammo, cover: COVER }), question)
+        const first = setQuestion(createRound({ seed, lives: STARTING_LIVES, grenades, shoves: SHOVES_PER_ROUND, ammo: chosen.bullet.id === STARTER_LOADOUT.bullet.id ? 0 : ammo, armor: armor.charges, cover: COVER }), question)
         live.current.recording = withQuestion(
           startRecording({
             version: RECORDING_VERSION,
@@ -579,6 +595,11 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       setError(`The 3D scene couldn't load: ${errorMessage(err)}`)
     },
   }
+}
+
+/** What a gem just did, and a heads-up once the armor has no charges left. */
+function armorMessage(did: string, left: Armor): string {
+  return left.reflect + left.block + left.mega + left.heal === 0 ? `${did} That was your last armor gem.` : did
 }
 
 function assertNever(value: never): never {

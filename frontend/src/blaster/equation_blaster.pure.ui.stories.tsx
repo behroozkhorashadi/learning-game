@@ -16,7 +16,7 @@ async function sceneReady(canvasElement: HTMLElement): Promise<void> {
 }
 
 /** The first-person blaster on its own, with a Fire button that bumps the recoil signal. */
-function Stage({ onReloadStart, weapon = STARTER_BLASTER }: { readonly onReloadStart: () => void; readonly weapon?: WeaponDefinition }): ReactElement {
+function Stage({ onReloadStart, weapon = STARTER_BLASTER, armTint = null }: { readonly onReloadStart: () => void; readonly weapon?: WeaponDefinition; readonly armTint?: { readonly color: string; readonly amount: number; readonly glow: number } | null }): ReactElement {
   const [shots, setShots] = useState(0)
   return (
     <div>
@@ -32,6 +32,7 @@ function Stage({ onReloadStart, weapon = STARTER_BLASTER }: { readonly onReloadS
       <SceneStoryFrame>
         <EquationBlaster
           weapon={weapon}
+          armTint={armTint}
           weaponPhase="readyFirstShot"
           cockingUntilMs={null}
           elapsedMs={0}
@@ -66,3 +67,6 @@ export const Rapid: Story = { args: { weapon: RAPID_BLASTER }, play: fireOnce }
 
 /** The Mega Blaster: glowing rings, gold power cores, a big pink flash. */
 export const Mega: Story = { args: { weapon: MEGA_BLASTER }, play: fireOnce }
+
+/** Zombie Horde's Gold Suit armor skin: both arms tinted gold, with a soft glow. */
+export const GoldArmorArms: Story = { args: { armTint: { color: '#D4A017', amount: 0.6, glow: 0.3 } }, play: fireOnce }

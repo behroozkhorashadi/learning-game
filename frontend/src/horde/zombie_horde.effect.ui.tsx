@@ -7,13 +7,13 @@ import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts'
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
 import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
-import { STARTER_LOADOUT, bestOwned, loadoutFor } from './horde_armory.pure.lib.ts'
+import { STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom, skinFor } from './horde_armory.pure.lib.ts'
 import { answerFor, inOvertime } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HordeHud } from './horde_hud.pure.ui.tsx'
 import { HordeResults } from './horde_results.pure.ui.tsx'
 import { secondsLeft } from './horde_scene_rules.pure.lib.ts'
-import { isNewBest, pointsBreakdown } from './horde_scoring.pure.lib.ts'
+import { armorSaved, isNewBest, pointsBreakdown } from './horde_scoring.pure.lib.ts'
 import { HORDE_INSTRUCTIONS, HordeStart } from './horde_start.pure.ui.tsx'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
 import { useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
@@ -59,6 +59,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const loadArmory = useMemo(() => () => armory.load(profileId), [profileId])
     const armoryQuery = useReloadableQuery(loadArmory)
     const [chosen, setChosen] = useState<LoadoutChoice | null>(null)
+    const [chosenSkin, setChosenSkin] = useState<string | null>(null)
     const [buying, setBuying] = useState<string | null>(null)
     const [bought, setBought] = useState<string | null>(null)
     const [buyError, setBuyError] = useState<string | null>(null)
@@ -71,6 +72,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     // Until a kid picks, the best gear they have is equipped; special rounds that ran out drop back to standard.
     const best = bestOwned(usable)
     const choice = chosen === null ? best : { weaponId: chosen.weaponId, bulletId: usable.includes(chosen.bulletId) ? chosen.bulletId : best.bulletId }
+    // Looks only: the arms in the round, and the colour the gems flash in.
+    const skin = skinFor(chosenSkin, usable)
 
     async function buy(itemId: string): Promise<void> {
       setBuying(itemId)
@@ -119,7 +122,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
               speakText(HORDE_INSTRUCTIONS)
             }}
             onStart={() => {
-              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0, armoryData?.best_survived_ms ?? 0)
+              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0, armoryData?.best_survived_ms ?? 0, roundArmorFrom(armoryData?.gems ?? {}, usable))
             }}
             onOpenStudio={
               armoryData === null || artPrice === null
@@ -140,6 +143,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
                 buying={buying}
                 bought={bought}
                 buyError={buyError}
+                skinId={skin.id}
+                onWear={setChosenSkin}
               />
             }
           />
@@ -161,6 +166,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             points={round.points}
             bank={round.bank}
             solved={round.solved}
+            armor={armorSaved(result.stats)}
             onPlayAgain={() => {
               armoryQuery.reload()
               round.reset()
@@ -218,6 +224,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             cover={COVER}
             shadows={!reducedMotion}
             weapon={weapon}
+            armTint={skin.tint}
             weaponPhase={weaponCooling ? 'cocking' : 'readyFirstShot'}
             cockingUntilMs={weaponCooling ? state.readyAtMs : null}
             cockingMs={round.loadout?.weapon.cooldownMs ?? weapon.cockingMs}
@@ -238,6 +245,9 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             overtime={inOvertime(state) ? { lastedMs: state.elapsedMs, bestMs: round.previousBestMs, clockMs: round.durationMs } : null}
             onEndOvertime={round.endOvertime}
             lives={state.lives}
+            armor={state.armor}
+            streak={state.streak}
+            armorColor={skin.color}
             grenades={state.grenades}
             shoves={state.shoves}
             ammo={round.loadout !== null && round.loadout.bullet.id !== STARTER_LOADOUT.bullet.id ? state.ammo : null}

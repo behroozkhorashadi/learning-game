@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
-import { formatTime, type PointsLine } from './horde_scoring.pure.lib.ts'
+import { formatTime, heartsLabel, type ArmorSaved, type PointsLine } from './horde_scoring.pure.lib.ts'
 import type { BankState, SolvedFact } from './use_horde_round.pure.hook.ts'
 
 /**
  * The end of a round: how it ended and how long it lasted (and whether that's
  * a new personal best), the points line by line, whether they were banked
- * (and the new balance), and the facts solved. Props only.
+ * (and the new balance), what the armor saved, and the facts solved. Props only.
  */
 
 export interface HordeResultsProps {
@@ -20,6 +20,8 @@ export interface HordeResultsProps {
   readonly points: number
   readonly bank: BankState
   readonly solved: readonly SolvedFact[]
+  /** What the armor did this round; nothing shows when it did nothing. */
+  readonly armor: ArmorSaved
   /** Back to the start screen and the armory. */
   readonly onPlayAgain: () => void
   readonly onBack: () => void
@@ -44,6 +46,16 @@ function bankLine(bank: BankState): ReactElement | null {
   }
 }
 
+/** "2 throws reflected, 1 zombie blocked, 1 heal", leaving out what didn't happen. */
+function armorDetail({ reflected, blocked, healed }: ArmorSaved): string {
+  const parts = [
+    reflected > 0 ? `${String(reflected)} throw${reflected === 1 ? '' : 's'} reflected` : null,
+    blocked > 0 ? `${String(blocked)} zombie${blocked === 1 ? '' : 's'} blocked` : null,
+    healed > 0 ? `${String(healed)} heal${healed === 1 ? '' : 's'}` : null,
+  ]
+  return parts.filter((part) => part !== null).join(', ')
+}
+
 function assertNever(value: never): never {
   throw new Error(`Unexpected bank state: ${JSON.stringify(value)}`)
 }
@@ -54,7 +66,7 @@ function headline(outcome: HordeResultsProps['outcome'], beatClock: boolean, las
   return { icon: '🧟', title: 'The horde got through!', subtitle: 'Every right answer still counts. Give it another go?' }
 }
 
-export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, points, bank, solved, onPlayAgain, onBack }: HordeResultsProps): ReactElement {
+export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, points, bank, solved, armor, onPlayAgain, onBack }: HordeResultsProps): ReactElement {
   const { icon, title, subtitle } = headline(outcome, beatClock, lastedMs)
   return (
     <div style={{ width: '100%', maxWidth: 560, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
@@ -85,6 +97,12 @@ export function HordeResults({ outcome, beatClock, lastedMs, newBest, lines, poi
       </table>
 
       {bankLine(bank)}
+
+      {armor.hearts > 0 && (
+        <p style={{ margin: '12px auto 0', padding: '10px 16px', borderRadius: 16, background: '#EEEAFE', color: '#3B2A99', fontWeight: 700 }}>
+          🛡️ Your armor saved {heartsLabel(armor.hearts)}! <span style={{ fontWeight: 600, color: '#5B4FB0' }}>({armorDetail(armor)})</span>
+        </p>
+      )}
 
       {solved.length > 0 && (
         <ul aria-label="Facts you solved" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', padding: 0, margin: '16px 0' }}>
