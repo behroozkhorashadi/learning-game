@@ -803,9 +803,15 @@ export interface components {
          * ArmoryRoundCreate
          * @description A finished Zombie Horde round: the points it scored, the grenades it threw, the
          *     special rounds it fired (by bullet item id), the armor gem charges it used (by gem
-         *     item id), and how long it lasted.
+         *     item id), how long it lasted, and on which difficulty.
          */
         readonly ArmoryRoundCreate: {
+            /**
+             * Difficulty
+             * @default medium
+             * @enum {string}
+             */
+            readonly difficulty: "easy" | "medium" | "hard";
             /** Gems Used */
             readonly gems_used?: {
                 readonly [key: string]: number;
@@ -835,8 +841,7 @@ export interface components {
             };
             /** Balance */
             readonly balance: number;
-            /** Best Survived Ms */
-            readonly best_survived_ms: number;
+            readonly best_survived_ms: components["schemas"]["BestSurvived"];
             /** Catalog */
             readonly catalog: readonly components["schemas"]["ArmoryItem"][];
             /** Earned */
@@ -964,6 +969,18 @@ export interface components {
             readonly key: string;
             /** Name */
             readonly name: string;
+        };
+        /**
+         * BestSurvived
+         * @description The longest round (ms) on each difficulty; 0 before the first.
+         */
+        readonly BestSurvived: {
+            /** Easy */
+            readonly easy: number;
+            /** Hard */
+            readonly hard: number;
+            /** Medium */
+            readonly medium: number;
         };
         /** ClientErrorReport */
         readonly ClientErrorReport: {

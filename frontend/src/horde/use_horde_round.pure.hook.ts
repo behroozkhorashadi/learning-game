@@ -24,6 +24,7 @@ import {
   type HordeState,
   type ShotTarget,
 } from './horde_engine.pure.lib.ts'
+import { MEDIUM, type DifficultyStats } from './horde_difficulty.pure.lib.ts'
 import { CAMERA_POSITION, COVER } from './horde_field.pure.lib.ts'
 import { HORDE_GAME_ID, hordeQuestion } from './horde_question.pure.lib.ts'
 import { RECORDING_VERSION, finished, startRecording, withFlag, withFrame, withGrenade, withQuestion, withShot, type Recording, type ShotDetail } from './horde_recording.pure.lib.ts'
@@ -44,7 +45,7 @@ const MAX_STEP_MS = 50
 
 export type HordePhase = 'ready' | 'loading' | 'intro' | 'playing' | 'over'
 
-export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'dud' | 'shove' | 'reflect' | 'block' | 'heal'
+export type FeedbackKind = 'correct' | 'wrong' | 'hurt' | 'boom' | 'shove' | 'reflect' | 'block' | 'heal'
 
 /** What the next click does: a normal shot or a grenade. */
 export type ArmedMode = 'shot' | 'grenade'
@@ -66,8 +67,8 @@ export interface HordeRoundDeps {
   readonly nextItem: (query: { readonly profileId: number; readonly gameId: string; readonly sessionId: string }) => Promise<ItemRecord>
   /** POST /api/attempts. A failure is reported, never interrupts play. */
   readonly recordAttempt: (attempt: AttemptBody) => Promise<unknown>
-  /** Banks a finished round (and how long it lasted, toward the personal best) into the armory; resolves to the new balance. */
-  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>>; readonly gems_used: Readonly<Record<string, number>>; readonly survived_ms: number }) => Promise<{ readonly balance: number }>
+  /** Banks a finished round (and how long it lasted, toward the difficulty's personal best) into the armory; resolves to the new balance. */
+  readonly bankRound: (profileId: number, round: { readonly points: number; readonly grenades_used: number; readonly rounds_used: Readonly<Record<string, number>>; readonly gems_used: Readonly<Record<string, number>>; readonly survived_ms: number; readonly difficulty: DifficultyStats['id'] }) => Promise<{ readonly balance: number }>
   readonly scheduler: ArenaScheduler
   readonly audio: ArenaAudio
   /** This round's four characters, one per slot. */
@@ -108,10 +109,12 @@ export interface HordeRound {
   readonly bank: BankState
   /** The clock to beat before overtime. */
   readonly durationMs: number
-  /** The profile's longest round before this one (0 before its first): the record to beat. */
+  /** The profile's longest round on this difficulty before this one (0 before its first): the record to beat. */
   readonly previousBestMs: number
-  /** Starts a round with this loadout, the grenades owned, the loadout's special rounds owned (0 for standard rounds), the profile's personal best, and the armor worn (gem charges and thorns; none when left out). */
-  readonly start: (loadout: Loadout, grenades: number, ammo: number, previousBestMs: number, armor?: RoundArmor) => void
+  /** The difficulty the round is played on. */
+  readonly difficulty: DifficultyStats
+  /** Starts a round with this loadout, the grenades owned, the loadout's special rounds owned (0 for standard rounds), the profile's personal best on this difficulty, the armor worn (gem charges and thorns; none when left out), and the difficulty (medium when left out). */
+  readonly start: (loadout: Loadout, grenades: number, ammo: number, previousBestMs: number, armor?: RoundArmor, difficulty?: DifficultyStats) => void
   /** Back to the start screen (the shop and loadout). */
   readonly reset: () => void
   /** A shot at a zombie (or at nothing: null). */
@@ -153,6 +156,7 @@ interface Live {
   recording: Recording | null
   aim: { readonly x: number; readonly y: number } | null
   previousBestMs: number
+  difficulty: DifficultyStats
 }
 
 /**
@@ -189,6 +193,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [bank, setBank] = useState<BankState>({ kind: 'idle' })
   const [flags, setFlags] = useState(0)
   const [previousBestMs, setPreviousBestMs] = useState(0)
+  const [difficulty, setDifficulty] = useState<DifficultyStats>(MEDIUM)
 
   const live = useRef<Live>({
     mounted: true,
@@ -206,6 +211,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     recording: null,
     aim: null,
     previousBestMs: 0,
+    difficulty: MEDIUM,
   })
   const timers = useRef(new Set<Cancel>())
 
@@ -310,14 +316,14 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     setArmed('shot')
     // A question they tried and didn't get counts as a miss; one nobody shot at says nothing. A revealed one was recorded when it was revealed.
     if (final.question !== null && !final.questionRevealed && final.questionWrongShots > 0) record(final.question.id, false, final.elapsedMs - final.questionStartedMs, final.questionWrongShots)
-    const result = roundResult(final, ROUND_MS, live.current.previousBestMs)
+    const result = roundResult(final, ROUND_MS, live.current.previousBestMs, live.current.difficulty.pointsScale)
     const points = roundPoints(result)
     const lasted = isNewBest(result) ? ` New personal best: ${formatTime(final.elapsedMs)}!` : ''
     setLiveMessage(`${final.outcome === 'survived' ? 'You held off the horde!' : 'The horde got through.'}${lasted} ${String(points)} points.`)
     const sessionId = live.current.sessionId
     setBank({ kind: 'saving' })
     const bullet = live.current.bulletId
-    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {}, gems_used: gemsUsedByItem(final.stats.gemsUsed), survived_ms: Math.round(final.elapsedMs) }).then(
+    bankRound(profileId, { points, grenades_used: final.stats.grenadesUsed, rounds_used: final.stats.roundsUsed > 0 ? { [bullet]: final.stats.roundsUsed } : {}, gems_used: gemsUsedByItem(final.stats.gemsUsed), survived_ms: Math.round(final.elapsedMs), difficulty: live.current.difficulty.id }).then(
       ({ balance }) => {
         if (live.current.mounted && live.current.sessionId === sessionId) setBank({ kind: 'saved', balance })
       },
@@ -378,9 +384,10 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
           setLiveMessage(armorMessage('Healed! Your streak won back half a heart.', next.armor))
           break
         case 'grenade':
-          flash(event.dud ? 'dud' : 'boom')
+          flash('boom')
           setArmed('shot')
-          if (event.dud) setLiveMessage('The grenade fizzled: it only works near the right answer.')
+          // A defeat says so when the question is solved; otherwise, say what the blast did.
+          if (!event.defeated) setLiveMessage(event.knockedDown > 0 ? `Boom! Knocked down ${event.knockedDown === 1 ? 'a zombie' : `${String(event.knockedDown)} zombies`}.` : 'Boom! The blast missed every zombie.')
           break
         case 'spawned': {
           const character = live.current.characters[event.slot]
@@ -472,7 +479,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     else audio.stopMusic()
   }, [audio, phase])
 
-  function start(chosen: Loadout, grenades: number, ammo: number, best: number, armor: RoundArmor = NO_ROUND_ARMOR): void {
+  function start(chosen: Loadout, grenades: number, ammo: number, best: number, armor: RoundArmor = NO_ROUND_ARMOR, level: DifficultyStats = MEDIUM): void {
     // A real user gesture: create/resume the audio context here, well before the first shot.
     audio.preloadWeapon()
     audio.preloadMusic()
@@ -482,8 +489,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     for (const cancel of timers.current) cancel()
     timers.current.clear()
     leave()
-    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id, recording: null, previousBestMs: best })
+    Object.assign(live.current, { sessionId, state: null, config: null, items: new Map(), upcoming: null, lastFrameMs: null, characters: roster, bulletId: chosen.bullet.id, recording: null, previousBestMs: best, difficulty: level })
     setPreviousBestMs(best)
+    setDifficulty(level)
     setFlags(0)
     setOutOfRounds(false)
     setShoveEarned(false)
@@ -499,7 +507,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     fetchQuestion(sessionId).then(
       ({ item, question }) => {
         if (!live.current.mounted || live.current.sessionId !== sessionId) return
-        const config: HordeConfig = { durationMs: ROUND_MS, travelMs: travelMsFor(item), power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER, thornsDamage: armor.thornsDamage }
+        const config: HordeConfig = { durationMs: ROUND_MS, travelMs: travelMsFor(item) * level.travelScale, power: shotPower(chosen), basePower: shotPower({ ...chosen, bullet: STARTER_LOADOUT.bullet }), cooldownMs: chosen.weapon.cooldownMs, grenade: GRENADE, cover: COVER, thornsDamage: armor.thornsDamage }
         live.current.config = config
         live.current.upcoming = fetchQuestion(sessionId)
         live.current.upcoming.catch(() => undefined)
@@ -538,7 +546,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     )
   }
 
-  const result = state === null || state.outcome === 'playing' ? null : roundResult(state, ROUND_MS, previousBestMs)
+  const result = state === null || state.outcome === 'playing' ? null : roundResult(state, ROUND_MS, previousBestMs, difficulty.pointsScale)
 
   return {
     phase,
@@ -560,6 +568,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     bank,
     durationMs: ROUND_MS,
     previousBestMs,
+    difficulty,
     start,
     flags,
     reset: () => {

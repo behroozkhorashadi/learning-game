@@ -6,10 +6,10 @@ import type { HordeState, HordeStats } from './horde_engine.pure.lib.ts'
  * plus a little per life left at that moment. Overtime earns a little per
  * second survived, and lasting longer than the profile ever has (its personal
  * best) earns a bonus. A wrong answer never takes points away: losing a life
- * is its cost.
+ * is its cost. The difficulty scales every line (horde_difficulty).
  *
- * Tuned so a good round is worth about 200 points, which puts every armory
- * item a handful of rounds away.
+ * Tuned so a good round is worth about 200 points before that scaling, which
+ * puts every armory item a handful of rounds away.
  */
 
 export const POINTS = {
@@ -31,8 +31,10 @@ export interface RoundResult {
   readonly lastedMs: number
   /** The clock to beat. */
   readonly clockMs: number
-  /** The profile's longest round before this one; 0 before its first. */
+  /** The profile's longest round on this difficulty before this one; 0 before its first. */
   readonly previousBestMs: number
+  /** The difficulty's points multiplier. */
+  readonly pointsScale: number
 }
 
 export interface PointsLine {
@@ -41,8 +43,8 @@ export interface PointsLine {
   readonly points: number
 }
 
-export function roundResult(state: HordeState, clockMs: number, previousBestMs: number): RoundResult {
-  return { stats: state.stats, livesAtClock: state.livesAtClock, lastedMs: state.elapsedMs, clockMs, previousBestMs }
+export function roundResult(state: HordeState, clockMs: number, previousBestMs: number, pointsScale: number): RoundResult {
+  return { stats: state.stats, livesAtClock: state.livesAtClock, lastedMs: state.elapsedMs, clockMs, previousBestMs, pointsScale }
 }
 
 /** Lasted longer than any round before. A first round sets the record without beating one. */
@@ -55,7 +57,7 @@ export function overtimeSeconds(lastedMs: number, clockMs: number): number {
   return Math.max(Math.floor((lastedMs - clockMs) / 1000), 0)
 }
 
-/** The round's points, line by line, for the end screen. Lines worth nothing are left out. */
+/** The round's points, line by line (scaled by the difficulty), for the end screen. Lines worth nothing are left out. */
 export function pointsBreakdown(result: RoundResult): readonly PointsLine[] {
   const { stats, livesAtClock } = result
   const beatClock = livesAtClock !== null
@@ -70,7 +72,7 @@ export function pointsBreakdown(result: RoundResult): readonly PointsLine[] {
     { label: 'Overtime seconds', count: overtime, points: overtime * POINTS.overtimeSecond },
     { label: 'New personal best', count: best ? 1 : 0, points: best ? POINTS.personalBest : 0 },
   ]
-  return lines.filter((line) => line.points > 0)
+  return lines.map((line) => ({ ...line, points: Math.round(line.points * result.pointsScale) })).filter((line) => line.points > 0)
 }
 
 export function roundPoints(result: RoundResult): number {

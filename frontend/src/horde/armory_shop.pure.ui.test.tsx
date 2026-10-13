@@ -47,10 +47,10 @@ describe('ArmoryShop', () => {
   it("doesn't buy what it can't afford, or while another purchase is in flight", () => {
     const onBuy = vi.fn()
     render(<ArmoryShop {...props({ onBuy, armory: loaded(fakeArmory({ balance: 10 }).state()) })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Buy Grenade Pack for 80 points' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Buy Grenade Pack for 150 points' }))
     cleanup()
     render(<ArmoryShop {...props({ onBuy, buying: 'armor_piercing' })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Buy Grenade Pack for 80 points' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Buy Grenade Pack for 150 points' }))
     expect(onBuy).not.toHaveBeenCalled()
   })
 

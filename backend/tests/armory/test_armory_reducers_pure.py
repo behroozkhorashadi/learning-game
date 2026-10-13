@@ -15,7 +15,7 @@ from app.armory.armory_reducers_pure import (
     round_entries,
     summarize,
 )
-from app.armory.armory_schemas_pure import ArmoryRoundCreate
+from app.armory.armory_schemas_pure import ArmoryEntry, ArmoryRoundCreate, BestSurvived
 from tests.armory.armory_fakes import NOW, earned
 
 
@@ -24,7 +24,7 @@ def test_a_new_profile_owns_the_free_items_and_one_grenade() -> None:
     assert (state.balance, state.earned, state.spent) == (0, 0, 0)
     assert state.owned == ["starter_blaster", "standard_rounds", "steel_suit"]
     assert state.grenades == STARTING_GRENADES
-    assert state.best_survived_ms == 0
+    assert state.best_survived_ms == BestSurvived(easy=0, medium=0, hard=0)
     assert state.catalog == list(CATALOG)
 
 
@@ -48,12 +48,30 @@ def test_the_personal_best_is_the_longest_round_and_costs_no_points() -> None:
         ArmoryRoundCreate(points=40, grenades_used=0, survived_ms=21_000),
     )
     state = summarize(1, tuple(entry for r in rounds for entry in round_entries(1, r, now=NOW)))
-    assert (state.best_survived_ms, state.balance) == (95_500, 440)
+    assert (state.best_survived_ms.medium, state.balance) == (95_500, 440)
+
+
+def test_each_difficulty_keeps_its_own_personal_best() -> None:
+    rounds = (
+        ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=120_000, difficulty="easy"),
+        ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=80_000),
+        ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=65_000, difficulty="hard"),
+        ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=40_000, difficulty="hard"),
+    )
+    state = summarize(1, tuple(entry for r in rounds for entry in round_entries(1, r, now=NOW)))
+    assert state.best_survived_ms == BestSurvived(easy=120_000, medium=80_000, hard=65_000)
+
+
+def test_a_round_from_before_difficulties_counts_as_medium() -> None:
+    legacy = ArmoryEntry(profile_id=1, kind="survived", item_id=None, points=0, quantity=90_000, created_at=NOW)
+    assert summarize(1, (legacy,)).best_survived_ms == BestSurvived(easy=0, medium=90_000, hard=0)
 
 
 def test_a_round_keeps_how_long_it_lasted_through_clamping() -> None:
-    clamped = clamped_round(summarize(1, ()), ArmoryRoundCreate(points=0, grenades_used=9, survived_ms=70_000))
-    assert (clamped.grenades_used, clamped.survived_ms) == (STARTING_GRENADES, 70_000)
+    clamped = clamped_round(
+        summarize(1, ()), ArmoryRoundCreate(points=0, grenades_used=9, survived_ms=70_000, difficulty="hard")
+    )
+    assert (clamped.grenades_used, clamped.survived_ms, clamped.difficulty) == (STARTING_GRENADES, 70_000, "hard")
 
 
 def test_an_empty_round_adds_nothing() -> None:
@@ -69,7 +87,7 @@ def test_buying_spends_points_and_owns_the_item() -> None:
 
 
 def test_grenade_packs_stack_and_are_never_owned() -> None:
-    entries = [earned(200)]
+    entries = [earned(340)]
     for _ in range(2):
         entries.append(purchase_entry(summarize(1, entries), "grenade_pack", now=NOW))
     state = summarize(1, entries)

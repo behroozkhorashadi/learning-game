@@ -14,7 +14,14 @@ from app.armory.armory_ports_pure import (
     NotSoldHereError,
     UnknownItemError,
 )
-from app.armory.armory_schemas_pure import ArmoryEntry, ArmoryItem, ArmoryRoundCreate, ArmoryState
+from app.armory.armory_schemas_pure import (
+    ArmoryEntry,
+    ArmoryItem,
+    ArmoryRoundCreate,
+    ArmoryState,
+    BestSurvived,
+    Difficulty,
+)
 
 # Bought by making a piece of art in the art studio (art_studio_service_effect.py).
 ART_ITEM_ID = "art_studio"
@@ -87,8 +94,8 @@ CATALOG: tuple[ArmoryItem, ...] = (
         id="grenade_pack",
         kind="grenade",
         name="Grenade Pack",
-        description="Three grenades. A grenade only goes off near the zombie with the right answer.",
-        price=80,
+        description="Three grenades. Defeats the zombie with the right answer and knocks down every zombie near it.",
+        price=150,
         quantity=3,
         consumable=True,
         requires=None,
@@ -226,7 +233,11 @@ def summarize(profile_id: int, entries: Sequence[ArmoryEntry]) -> ArmoryState:
         grenades=max(STARTING_GRENADES + bought_grenades - used_grenades, 0),
         ammo=ammo,
         gems=gems,
-        best_survived_ms=max((e.quantity for e in entries if e.kind == "survived"), default=0),
+        best_survived_ms=BestSurvived(
+            easy=_best_survived(entries, "easy"),
+            medium=_best_survived(entries, "medium"),
+            hard=_best_survived(entries, "hard"),
+        ),
         catalog=list(CATALOG),
     )
 
@@ -272,7 +283,7 @@ def round_entries(profile_id: int, round_result: ArmoryRoundCreate, *, now: date
             ArmoryEntry(
                 profile_id=profile_id,
                 kind="survived",
-                item_id=None,
+                item_id=round_result.difficulty,
                 points=0,
                 quantity=round_result.survived_ms,
                 created_at=now,
@@ -298,6 +309,7 @@ def clamped_round(state: ArmoryState, round_result: ArmoryRoundCreate) -> Armory
             if item_id in state.gems
         },
         survived_ms=round_result.survived_ms,
+        difficulty=round_result.difficulty,
     )
 
 
@@ -337,6 +349,14 @@ def _left(entries: Sequence[ArmoryEntry], item_id: str, *, used_kind: str) -> in
     bought = sum(e.quantity for e in entries if e.kind == "purchased" and e.item_id == item_id)
     used = sum(e.quantity for e in entries if e.kind == used_kind and e.item_id == item_id)
     return max(bought - used, 0)
+
+
+def _best_survived(entries: Sequence[ArmoryEntry], difficulty: Difficulty) -> int:
+    """The longest round on `difficulty`. Rounds from before difficulties (no item id) were medium."""
+    return max(
+        (e.quantity for e in entries if e.kind == "survived" and (e.item_id or "medium") == difficulty),
+        default=0,
+    )
 
 
 def _is_grenade(item_id: str | None) -> bool:

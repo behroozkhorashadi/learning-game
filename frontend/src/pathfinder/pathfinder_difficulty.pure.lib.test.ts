@@ -60,7 +60,8 @@ describe('assessDifficulty', () => {
     expect(withReuse.metrics.smartSearchCost).toBe(solveResult.nodesExplored)
   })
 
-  it('a full, wide-open board at the 50x50 size ceiling is not automatically legendary', () => {
+  // Solving a 2,500-dot board takes about a second alone, and several under a loaded full run.
+  it('a full, wide-open board at the 50x50 size ceiling is not automatically legendary', { timeout: 30_000 }, () => {
     // The regression this guards against: the first version of this engine
     // weighted raw size so heavily that a huge-but-trivial board (a
     // straightforward sweep solves it with no backtracking at all) scored

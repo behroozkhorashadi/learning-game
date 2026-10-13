@@ -5,7 +5,7 @@ import { POINTS, armorSaved, formatTime, heartsLabel, isNewBest, pointsBreakdown
 const STATS: HordeStats = { shots: 20, correctHits: 12, wrongHits: 3, kills: 5, headshots: 3, legShots: 2, grenadesUsed: 0, shoves: 1, roundsUsed: 0, solved: 12, revealed: 0, livesLost: 1, gemsUsed: { reflect: 0, block: 0, mega: 0, heal: 0 }, reflects: 0, blocks: 0 }
 
 /** Stopped right at the clock with 2 lives, no record to beat. */
-const AT_CLOCK: RoundResult = { stats: STATS, livesAtClock: 2, lastedMs: ROUND_MS, clockMs: ROUND_MS, previousBestMs: 0 }
+const AT_CLOCK: RoundResult = { stats: STATS, livesAtClock: 2, lastedMs: ROUND_MS, clockMs: ROUND_MS, previousBestMs: 0, pointsScale: 1 }
 
 describe('horde scoring', () => {
   it('a good round that beats the clock is worth about 200 points', () => {
@@ -33,6 +33,15 @@ describe('horde scoring', () => {
     expect(pointsBreakdown(longer)).toContainEqual({ label: 'New personal best', count: 1, points: POINTS.personalBest })
     expect(isNewBest({ ...longer, previousBestMs: 0 })).toBe(false)
     expect(isNewBest({ ...longer, previousBestMs: 95_000 })).toBe(false)
+  })
+
+  it('the difficulty scales every line, so a harder round earns less', () => {
+    const hard = { ...AT_CLOCK, pointsScale: 0.3 }
+    expect(pointsBreakdown(hard)).toContainEqual({ label: 'Right answers', count: 12, points: 36 })
+    expect(pointsBreakdown(hard)).toContainEqual({ label: 'Held out 60 seconds', count: 1, points: 15 })
+    expect(roundPoints(hard)).toBeLessThan(roundPoints(AT_CLOCK) / 3 + 3)
+    // One headshot at a twentieth is a quarter of a point: rounded away, so the line is left out.
+    expect(pointsBreakdown({ ...AT_CLOCK, stats: { ...STATS, headshots: 1 }, pointsScale: 0.05 }).map((line) => line.label)).not.toContain('Headshots')
   })
 
   it('wrong answers never cost points, and an empty round is worth nothing', () => {

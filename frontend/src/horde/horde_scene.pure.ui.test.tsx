@@ -107,7 +107,7 @@ describe('HordeScene', () => {
 
   it('draws a collider for every piece of cover, and thrown objects and blasts', async () => {
     const renderer = await ReactThreeTestRenderer.create(
-      <HordeScene {...props({ projectiles: [{ id: 'p1', fromX: 0, fromDepth: 8, launchedAtMs: 0, landsAtMs: 1000, throwerId: 'z0', reflected: false }], blasts: [{ id: 'b1', x: 0, depth: 6, atMs: 0, dud: false }], elapsedMs: 300 })} />,
+      <HordeScene {...props({ projectiles: [{ id: 'p1', fromX: 0, fromDepth: 8, launchedAtMs: 0, landsAtMs: 1000, throwerId: 'z0', reflected: false }], blasts: [{ id: 'b1', x: 0, depth: 6, atMs: 0 }], elapsedMs: 300 })} />,
     )
     for (const piece of COVER) expect(renderer.scene.instance.getObjectByName(`collider-${piece.id}`)).toBeTruthy()
     expect(renderer.scene.instance.getObjectByName('floor')).toBeTruthy()

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { GRENADE, STARTER_LOADOUT, shotPower } from './horde_armory.pure.lib.ts'
 import { ROUND_MS, SHOVES_PER_ROUND, STARTING_LIVES, answerFor, createRound, inOvertime, setQuestion, shoot, shove, tick, type HordeConfig, type HordeQuestion, type HordeState } from './horde_engine.pure.lib.ts'
+import { EASY, HARD } from './horde_difficulty.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { hordeItem } from './horde_fakes.test.ui.tsx'
 import { travelMsFor } from './horde_question.pure.lib.ts'
@@ -10,7 +11,8 @@ import { travelMsFor } from './horde_question.pure.lib.ts'
  * aim answers every `answerMs`, headshots the right zombie, and uses its
  * push-backs (the one it starts with and the ones it earns before overtime) on a wrong zombie
  * about to reach it. Over 40 seeds, at the
- * fastest walk (the top level) and the slowest (level 1). Beating the clock
+ * fastest walk (the top level) and the slowest (level 1), on medium, with
+ * checks that hard and easy stay fair (horde_difficulty). Beating the clock
  * wins; overtime then has to end, even for a perfect player.
  */
 
@@ -86,6 +88,18 @@ describe('Zombie Horde balance', () => {
 
   it('barely answering (every 20s) loses: the math is what holds the horde back', { timeout: 30_000 }, () => {
     expect(winRate(TOP, 20_000)).toBeLessThanOrEqual(0.25)
+  })
+
+  it('hard is harder but still fair: a steady player almost always survives the top level, a slow one less often than on medium', { timeout: 30_000 }, () => {
+    const hard = TOP * HARD.travelScale
+    expect(winRate(hard, 6000)).toBeGreaterThanOrEqual(0.9)
+    expect(winRate(hard, 10_000)).toBeLessThanOrEqual(0.8)
+    expect(winRate(hard, 10_000)).toBeGreaterThanOrEqual(0.4)
+  })
+
+  it('easy is gentler, but barely answering still loses', { timeout: 30_000 }, () => {
+    expect(winRate(TOP * EASY.travelScale, 10_000)).toBeGreaterThanOrEqual(0.95)
+    expect(winRate(TOP * EASY.travelScale, 20_000)).toBeLessThanOrEqual(0.35)
   })
 
   it('overtime always ends: even a perfect, quick player (an answer every 2s) is overrun within 4 minutes', { timeout: 60_000 }, () => {

@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
 import { recordingAudio, virtualScheduler } from '@app/outbreak/arena_fakes.test.ui.tsx'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
-import { STARTER_LOADOUT, loadoutFor } from './horde_armory.pure.lib.ts'
+import { NO_ROUND_ARMOR, STARTER_LOADOUT, loadoutFor } from './horde_armory.pure.lib.ts'
+import { EASY } from './horde_difficulty.pure.lib.ts'
 import { hordeItem, rightAnswer } from './horde_fakes.test.ui.tsx'
 import { POINTS } from './horde_scoring.pure.lib.ts'
 import { INTRO_MS, NEXT_QUESTION_MS, OUT_OF_ROUNDS_MS, SHOVE_EARNED_MS, useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
@@ -187,7 +188,25 @@ describe('useHordeRound', () => {
     expect(result.current.result?.livesAtClock).toBe(3)
     expect(banked).toHaveLength(1)
     expect(banked[0]?.survived_ms).toBeGreaterThanOrEqual(60_000)
-    expect(banked[0]?.points).toBe(POINTS.survived + 3 * POINTS.lifeLeft)
+    // Medium: every line at 0.6.
+    expect(banked[0]).toMatchObject({ points: Math.round(POINTS.survived * 0.6) + Math.round(3 * POINTS.lifeLeft * 0.6), difficulty: 'medium' })
+  })
+
+  it('plays and banks on the chosen difficulty: a slower walk on easy, at full points', { timeout: 30_000 }, async () => {
+    const { deps, items, banked, scheduler } = controlled()
+    const { result } = renderHook(() => useHordeRound(deps, 1))
+    act(() => {
+      result.current.start(STARTER_LOADOUT, 1, 0, 0, NO_ROUND_ARMOR, EASY)
+    })
+    await act(async () => {
+      items[0]?.resolve(hordeItem(0, 600_000))
+    })
+    expect(result.current.difficulty).toBe(EASY)
+    await scheduler.advance(INTRO_MS + 60_100)
+    act(() => {
+      result.current.endOvertime()
+    })
+    expect(banked[0]).toMatchObject({ points: POINTS.survived + 3 * POINTS.lifeLeft, difficulty: 'easy' })
   })
 
   it('announces a new personal best the moment it is passed, and scores the bonus', { timeout: 30_000 }, async () => {
@@ -206,7 +225,7 @@ describe('useHordeRound', () => {
       result.current.endOvertime()
     })
     expect(result.current.liveMessage).toContain('New personal best: 1:01!')
-    expect(banked[0]?.points).toBe(POINTS.survived + 3 * POINTS.lifeLeft + POINTS.overtimeSecond + POINTS.personalBest)
+    expect(banked[0]?.points).toBe([POINTS.survived, 3 * POINTS.lifeLeft, POINTS.overtimeSecond, POINTS.personalBest].reduce((sum, points) => sum + Math.round(points * 0.6), 0))
   })
 
   it('shows the out-of-rounds banner for a moment when the last special round is fired', async () => {

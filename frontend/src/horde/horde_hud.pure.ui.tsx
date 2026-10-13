@@ -86,7 +86,6 @@ const FLASH: Record<FeedbackKind, string> = {
   correct: 'radial-gradient(ellipse at center, transparent 58%, rgba(34,197,94,0.6) 100%)',
   boom: 'radial-gradient(ellipse at center, transparent 50%, rgba(255,159,28,0.6) 100%)',
   wrong: 'radial-gradient(ellipse at center, transparent 58%, rgba(245,158,11,0.55) 100%)',
-  dud: 'radial-gradient(ellipse at center, transparent 58%, rgba(156,163,175,0.55) 100%)',
   hurt: 'radial-gradient(ellipse at center, transparent 40%, rgba(205,42,32,0.65) 100%)',
   shove: 'radial-gradient(ellipse at center, transparent 58%, rgba(61,139,255,0.55) 100%)',
   // Reflect and block glow in the worn skin's colour (`gemFlash`); these are the fallbacks.
@@ -280,7 +279,7 @@ export function HordeHud({ question, revealedAnswer, onDontKnow, intro, secondsL
         )}
         {armed !== 'shot' && (
           <div role="status" style={{ ...BANNER, background: ring }}>
-            Grenade ready: click near the right zombie (G to cancel)
+            Grenade ready: it takes out the right zombie and knocks down the rest nearby (G to cancel)
           </div>
         )}
         {outOfRounds && (

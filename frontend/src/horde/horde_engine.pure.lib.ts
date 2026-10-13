@@ -16,6 +16,9 @@ import { visibilityAt } from './horde_visibility.pure.lib.ts'
  * say so: the answer shows, the other zombies drop theirs, and solving it
  * then earns nothing (the server records it as a miss). Shooting a wrong one
  * makes it dodge and throw something back, which costs a life when it lands.
+ * A grenade defeats the zombie with the right answer if it's in reach (and
+ * solves the question), and knocks down every other zombie it reaches, so it
+ * can also be thrown just to buy time.
  * A zombie that reaches the player also costs a life. Armor gems soften both:
  * a reflect charge bounces a throw back at its thrower (it reels, but takes no
  * damage: only the math defeats a zombie), and a block charge makes a zombie
@@ -101,6 +104,8 @@ export const BLOCKED_DAMAGE = 0.5
 export const HEAL_STREAK = 5
 /** The lives a heal charge wins back. */
 export const HEALED_LIVES = 0.5
+/** How far a grenade blast knocks back the zombies it knocks down. */
+const BLAST_KNOCKBACK = 1
 /** How long a grenade blast stays in the state for the scene to draw. */
 export const BLAST_MS = 900
 /** How long a hit's impact stays in the state for the scene to draw. */
@@ -117,7 +122,7 @@ export type Posture =
   | 'dodging'
   /** Winding up to throw something back. */
   | 'throwing'
-  /** Knocked down by a leg shot, crawling slowly. */
+  /** Knocked down by a leg shot or a grenade, crawling slowly. */
   | 'downed'
   /** Getting back up after being downed. */
   | 'rising'
@@ -182,8 +187,6 @@ export interface Blast {
   readonly x: number
   readonly depth: number
   readonly atMs: number
-  /** No zombie with the right answer was in reach, so it did nothing. */
-  readonly dud: boolean
 }
 
 /** Where a right-answer hit landed, for the scene's hit effect. */
@@ -243,7 +246,8 @@ export type HordeEvent =
   | { readonly type: 'blocked'; readonly zombieId: string; readonly gem: GemKind }
   /** HEAL_STREAK right answers in a row used a heal charge: half a heart back. */
   | { readonly type: 'healed' }
-  | { readonly type: 'grenade'; readonly dud: boolean }
+  /** A grenade went off: whether it defeated the zombie with the right answer, and how many others it knocked down. */
+  | { readonly type: 'grenade'; readonly defeated: boolean; readonly knockedDown: number }
   | { readonly type: 'shoved'; readonly zombieId: string }
   /** Another SOLVES_PER_SHOVE questions solved: one more push-back. */
   | { readonly type: 'shoveEarned' }
@@ -957,32 +961,32 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
 }
 
 /**
- * Throws a grenade at a field point. It only goes off if the zombie with the
- * right answer is within reach, so it can't stand in for the math: then it
- * damages every zombie it reaches and solves the question. Otherwise it's a
- * dud. Either way the grenade is spent. Ignored without grenades, between
- * questions, or once the round is over.
+ * Throws a grenade at a field point. If the zombie with the right answer is
+ * in reach, it's defeated and the question is solved. Every other zombie in
+ * reach is knocked down (no damage: only the math defeats a zombie) and
+ * knocked back a little, crawling until it gets up again. So a grenade also
+ * buys time when the right zombie is far away, or between questions. Ignored
+ * without grenades or once the round is over.
  */
 export function throwGrenade(state: HordeState, at: { readonly x: number; readonly depth: number }, config: HordeConfig): HordeState {
-  if (state.outcome !== 'playing' || state.grenades <= 0 || state.question === null) return state
+  if (state.outcome !== 'playing' || state.grenades <= 0) return state
   const now = state.elapsedMs
   const inReach = (zombie: HordeZombie): boolean => isTargetable(zombie) && Math.hypot(zombie.x - at.x, zombie.depth - at.depth) <= config.grenade.radius
-  const live = state.zombies.filter(inReach).map((zombie) => zombie.slot)
-  const dud = !live.some((slot) => state.answers[slot]?.correct === true)
-  const blast: Blast = { id: `b${String(state.nextId)}`, x: at.x, depth: at.depth, atMs: now, dud }
-  const events: HordeEvent[] = [{ type: 'grenade', dud }]
-  const spent: HordeState = { ...state, nextId: state.nextId + 1, grenades: state.grenades - 1, blasts: [...state.blasts, blast], stats: { ...state.stats, grenadesUsed: state.stats.grenadesUsed + 1 }, events }
-  if (dud) return spent
-
-  let kills = 0
+  const isRight = (zombie: HordeZombie): boolean => state.question !== null && answerFor(state, zombie)?.correct === true
+  const target = state.zombies.find((zombie) => inReach(zombie) && isRight(zombie))
+  const knockedDown = state.zombies.filter((zombie) => inReach(zombie) && zombie !== target)
+  const blast: Blast = { id: `b${String(state.nextId)}`, x: at.x, depth: at.depth, atMs: now }
+  const events: HordeEvent[] = [{ type: 'grenade', defeated: target !== undefined, knockedDown: knockedDown.length }]
   const zombies = state.zombies.map((zombie) => {
-    if (!inReach(zombie)) return zombie
-    const hit = damaged(zombie, config.grenade.damage, 'body', now)
-    if (hit.posture === 'dead') kills += 1
-    events.push({ type: 'hit', zombieId: zombie.id, zone: 'body', killed: hit.posture === 'dead' })
-    return hit
+    if (zombie === target) {
+      events.push({ type: 'hit', zombieId: zombie.id, zone: 'body', killed: true })
+      return damaged(zombie, zombie.health, 'body', now)
+    }
+    return knockedDown.includes(zombie) ? pushedBack({ ...zombie, posture: 'downed', postureUntilMs: now + DOWNED_MS }, BLAST_KNOCKBACK, config.cover) : zombie
   })
-  return streakAfter(state, solvedQuestion(state, { ...spent, zombies, stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + kills } }, events))
+  const spent: HordeState = { ...state, nextId: state.nextId + 1, grenades: state.grenades - 1, blasts: [...state.blasts, blast], zombies, stats: { ...state.stats, grenadesUsed: state.stats.grenadesUsed + 1 }, events }
+  if (target === undefined) return spent
+  return streakAfter(state, solvedQuestion(state, { ...spent, stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + 1 } }, events))
 }
 
 /**

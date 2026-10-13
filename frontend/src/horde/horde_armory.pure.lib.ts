@@ -34,9 +34,8 @@ export interface BulletStats {
 }
 
 export interface GrenadeStats {
-  /** Field units from the blast centre that the blast reaches. */
+  /** Field units from the blast centre that the blast reaches: it defeats the right zombie there and knocks down the rest. */
   readonly radius: number
-  readonly damage: number
 }
 
 export const ZOMBIE_MAX_HEALTH = 100
@@ -56,7 +55,7 @@ export const BULLETS: readonly BulletStats[] = [
   { id: 'explosive_rounds', power: { head: 75, body: 45, leg: 35 }, impact: 'explosion' },
 ]
 
-export const GRENADE: GrenadeStats = { radius: 2.6, damage: 100 }
+export const GRENADE: GrenadeStats = { radius: 3.2 }
 
 /**
  * What one armor gem charge does: bounces a thrown thing back at its thrower

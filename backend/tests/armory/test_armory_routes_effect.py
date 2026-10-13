@@ -42,7 +42,19 @@ def test_refusals_map_to_status_codes(client: httpx.Client) -> None:
 
 def test_a_long_overtime_round_banks_and_sets_the_personal_best(client: httpx.Client) -> None:
     banked = client.post(f"{ARMORY}/rounds", json={"points": 2400, "grenades_used": 0, "survived_ms": 184_000})
-    assert (banked.status_code, banked.json()["balance"], banked.json()["best_survived_ms"]) == (200, 2400, 184_000)
+    assert (banked.status_code, banked.json()["balance"]) == (200, 2400)
+    assert banked.json()["best_survived_ms"] == {"easy": 0, "medium": 184_000, "hard": 0}
+
+
+def test_a_hard_round_sets_the_hard_personal_best(client: httpx.Client) -> None:
+    banked = client.post(
+        f"{ARMORY}/rounds", json={"points": 30, "grenades_used": 0, "survived_ms": 75_000, "difficulty": "hard"}
+    )
+    assert banked.json()["best_survived_ms"] == {"easy": 0, "medium": 0, "hard": 75_000}
+    assert (
+        client.post(f"{ARMORY}/rounds", json={"points": 0, "grenades_used": 0, "difficulty": "nightmare"}).status_code
+        == 422
+    )
 
 
 def test_buying_rounds_and_using_them(client: httpx.Client) -> None:

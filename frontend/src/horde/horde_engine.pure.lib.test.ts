@@ -427,7 +427,7 @@ describe('the round ending', () => {
 })
 
 describe('grenades', () => {
-  it('a blast that reaches the right zombie damages everything in reach and solves the question', () => {
+  it('defeats the right zombie in reach, solves the question, and knocks down the rest without hurting them', () => {
     let state = round(4, OPEN_FIELD)
     const right = holding(state, true)
     const wrong = holding(state, false)
@@ -435,30 +435,50 @@ describe('grenades', () => {
     const after = throwGrenade(state, { x: 0.5, depth: 8 }, OPEN_FIELD)
     expect(after.grenades).toBe(1)
     expect(after.zombies.find((z) => z.slot === right.slot)?.posture).toBe('dead')
-    expect(after.zombies.find((z) => z.slot === wrong.slot)?.posture).toBe('dead')
+    const knocked = after.zombies.find((z) => z.slot === wrong.slot)
+    expect(knocked?.posture).toBe('downed')
+    expect(knocked?.health).toBe(100)
+    expect(knocked?.depth).toBeGreaterThan(8)
     expect(after.question).toBeNull()
-    expect(after.events[0]).toEqual({ type: 'grenade', dud: false })
-    expect(after.stats).toMatchObject({ kills: 2, solved: 1, grenadesUsed: 1 })
+    expect(after.events[0]).toEqual({ type: 'grenade', defeated: true, knockedDown: 1 })
+    expect(after.stats).toMatchObject({ kills: 1, solved: 1, grenadesUsed: 1 })
   })
 
-  it('is a dud away from the right zombie, so it cannot replace the math', () => {
+  it('away from the right zombie, only knocks down the ones in reach: it buys time but cannot replace the math', () => {
     let state = round(4, OPEN_FIELD)
     const right = holding(state, true)
     const wrong = holding(state, false)
     state = withZombie(withZombie(state, right.slot, { x: -5, depth: 15 }), wrong.slot, { x: 1, depth: 8 })
     const after = throwGrenade(state, { x: 1, depth: 8 }, OPEN_FIELD)
-    expect(after.events[0]).toEqual({ type: 'grenade', dud: true })
-    expect(after.zombies.find((z) => z.slot === wrong.slot)?.health).toBe(100)
+    expect(after.events[0]).toEqual({ type: 'grenade', defeated: false, knockedDown: 1 })
+    expect(after.zombies.find((z) => z.slot === wrong.slot)).toMatchObject({ posture: 'downed', health: 100 })
+    expect(after.zombies.find((z) => z.slot === right.slot)?.posture).not.toBe('downed')
     expect(after.question).toBe(QUESTION)
+    expect(after.stats).toMatchObject({ kills: 0, solved: 0, grenadesUsed: 1 })
     expect(after.grenades).toBe(1)
     expect(after.blasts).toHaveLength(1)
   })
 
-  it('does nothing without grenades or between questions', () => {
+  it('a knocked-down zombie crawls, then gets back up', () => {
+    let state = round(4, OPEN_FIELD)
+    const wrong = holding(state, false)
+    state = withZombie(state, wrong.slot, { x: 1, depth: 8 })
+    const knocked = throwGrenade(state, { x: 1, depth: 8 }, OPEN_FIELD)
+    const later = run(knocked, 5000, OPEN_FIELD)
+    const zombie = later.zombies.find((z) => z.slot === wrong.slot)
+    expect(zombie?.posture === 'rising' || zombie?.posture === 'advancing').toBe(true)
+  })
+
+  it('does nothing without grenades; between questions it still knocks zombies down', () => {
     const none = { ...round(4), grenades: 0 }
     expect(throwGrenade(none, { x: 0, depth: 8 }, CONFIG)).toBe(none)
     const between = createRound({ seed: 4, lives: 3, grenades: 2, shoves: 3, ammo: 0, cover: [] })
-    expect(throwGrenade(between, { x: 0, depth: 8 }, CONFIG)).toBe(between)
+    const target = between.zombies[0]
+    if (target === undefined) throw new Error('no zombie')
+    const after = throwGrenade(between, { x: target.x, depth: target.depth }, OPEN_FIELD)
+    expect(after.grenades).toBe(1)
+    expect(after.zombies[0]?.posture).toBe('downed')
+    expect(after.events[0]).toMatchObject({ type: 'grenade', defeated: false })
   })
 })
 

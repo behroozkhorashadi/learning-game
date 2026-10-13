@@ -104,8 +104,18 @@
       },
       "ArmoryRoundCreate": {
         "additionalProperties": false,
-        "description": "A finished Zombie Horde round: the points it scored, the grenades it threw, the\nspecial rounds it fired (by bullet item id), the armor gem charges it used (by gem\nitem id), and how long it lasted.",
+        "description": "A finished Zombie Horde round: the points it scored, the grenades it threw, the\nspecial rounds it fired (by bullet item id), the armor gem charges it used (by gem\nitem id), how long it lasted, and on which difficulty.",
         "properties": {
+          "difficulty": {
+            "default": "medium",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty",
+            "type": "string"
+          },
           "gems_used": {
             "additionalProperties": {
               "maximum": 50.0,
@@ -175,8 +185,7 @@
             "type": "integer"
           },
           "best_survived_ms": {
-            "title": "Best Survived Ms",
-            "type": "integer"
+            "$ref": "#/components/schemas/BestSurvived"
           },
           "catalog": {
             "items": {
@@ -489,6 +498,34 @@
           "earned"
         ],
         "title": "BadgeStatus",
+        "type": "object"
+      },
+      "BestSurvived": {
+        "additionalProperties": false,
+        "description": "The longest round (ms) on each difficulty; 0 before the first.",
+        "properties": {
+          "easy": {
+            "minimum": 0.0,
+            "title": "Easy",
+            "type": "integer"
+          },
+          "hard": {
+            "minimum": 0.0,
+            "title": "Hard",
+            "type": "integer"
+          },
+          "medium": {
+            "minimum": 0.0,
+            "title": "Medium",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "easy",
+          "medium",
+          "hard"
+        ],
+        "title": "BestSurvived",
         "type": "object"
       },
       "ClientErrorReport": {

@@ -70,7 +70,7 @@ describe('ZombieHorde: the start screen', () => {
     await open({ armory: fakeArmory({ balance: 200, grenades: 1 }) })
     const grenades = within(screen.getByRole('list', { name: 'Grenades' }))
     expect(grenades.queryByRole('status')).toBeNull()
-    press('Buy Grenade Pack for 80 points')
+    press('Buy Grenade Pack for 150 points')
     await settle()
     expect(grenades.getByRole('status').textContent).toContain('Bought 3 grenades!')
     expect(grenades.getByText('You have 4')).toBeTruthy()
@@ -78,8 +78,8 @@ describe('ZombieHorde: the start screen', () => {
   })
 
   it("can't buy what it can't afford", async () => {
-    const harness = await open({ armory: fakeArmory({ balance: 10 }) })
-    press('Buy Grenade Pack for 80 points')
+    const harness = await open({ armory: fakeArmory({ balance: 100 }) })
+    press('Buy Grenade Pack for 150 points')
     await settle()
     expect(harness.armory.state().grenades).toBe(1)
   })
@@ -207,12 +207,12 @@ describe('ZombieHorde: the end of a round', () => {
     press('Stop & bank points')
     await settle()
     expect(screen.getByRole('heading', { name: 'You held off the horde!' })).toBeTruthy()
-    // 1 right answer (10) + 1 headshot (5) + beat the clock (50) + 3 lives (30)
+    // On medium, every line at 0.6: 1 right answer (6) + 1 headshot (3) + beat the clock (30) + 3 lives (18)
     expect(harness.armory.rounds).toHaveLength(1)
-    expect(harness.armory.rounds[0]).toMatchObject({ points: 95, grenades_used: 0, rounds_used: {} })
+    expect(harness.armory.rounds[0]).toMatchObject({ points: 57, grenades_used: 0, rounds_used: {}, difficulty: 'medium' })
     expect(harness.armory.rounds[0]?.survived_ms).toBeGreaterThanOrEqual(60_000)
-    expect(harness.armory.state().best_survived_ms).toBe(harness.armory.rounds[0]?.survived_ms)
-    expect(screen.getByRole('status').textContent).toContain('You now have 95 points')
+    expect(harness.armory.state().best_survived_ms.medium).toBe(harness.armory.rounds[0]?.survived_ms)
+    expect(screen.getByRole('status').textContent).toContain('You now have 57 points')
     expect(within(screen.getByRole('list', { name: 'Facts you solved' })).getByText('3 + 4 = 7')).toBeTruthy()
     expect(harness.audio.count('stopMusic')).toBeGreaterThan(0)
   })
@@ -232,8 +232,8 @@ describe('ZombieHorde: the end of a round', () => {
   })
 
   it('beating the personal best says so and earns the bonus, and play again shows the new best', WHOLE_ROUND, async () => {
-    const harness = await open({ armory: fakeArmory({ bestMs: 61_000 }) })
-    expect(screen.getByText('Your best: 1:01', { exact: false })).toBeTruthy()
+    const harness = await open({ armory: fakeArmory({ bestMs: { medium: 61_000 } }) })
+    expect(screen.getByText('Your best on Medium: 1:01', { exact: false })).toBeTruthy()
     await startRound(harness)
     await harness.scheduler.advance(62_000)
     expect(screen.getByRole('status', { name: 'New personal best!' })).toBeTruthy()
@@ -243,7 +243,22 @@ describe('ZombieHorde: the end of a round', () => {
     expect(screen.getByRole('rowheader', { name: 'New personal best × 1' })).toBeTruthy()
     press('Play again')
     await settle()
-    expect(screen.getByText('Your best: 1:02', { exact: false })).toBeTruthy()
+    expect(screen.getByText('Your best on Medium: 1:02', { exact: false })).toBeTruthy()
+  })
+
+  it('each difficulty keeps its own best, and a hard round walks faster, earns less, and banks as hard', WHOLE_ROUND, async () => {
+    const harness = await open({ armory: fakeArmory({ bestMs: { medium: 61_000 } }) })
+    press('Hard')
+    expect(screen.getByRole('button', { name: /^Hard/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByText(/Your best on/)).toBeNull()
+    await startRound(harness)
+    press(`head ${String(rightAnswer(0))}`)
+    await beatTheClockAndStop(harness)
+    // On hard, every line at 0.3: 1 right answer (3) + 1 headshot (2) + beat the clock (15) + lives left
+    expect(harness.armory.rounds[0]).toMatchObject({ difficulty: 'hard' })
+    expect(harness.armory.rounds[0]?.points).toBeLessThan(30)
+    expect(harness.armory.state().best_survived_ms).toMatchObject({ medium: 61_000 })
+    expect(harness.armory.state().best_survived_ms.hard).toBeGreaterThanOrEqual(60_000)
   })
 
   it('play again goes back to the armory with the new balance', WHOLE_ROUND, async () => {
@@ -253,7 +268,7 @@ describe('ZombieHorde: the end of a round', () => {
     await beatTheClockAndStop(harness)
     press('Play again')
     await settle()
-    expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('95')
+    expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('57')
   })
 })
 

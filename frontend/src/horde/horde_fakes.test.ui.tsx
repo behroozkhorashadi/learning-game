@@ -8,6 +8,7 @@ import { NO_MOTION_PREFERENCE, recordingAudio, virtualScheduler, type VirtualSch
 import type { ArenaScheduler } from '@app/outbreak/zombie_arena_state.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import { bindArtStudio } from './art_studio.effect.ui.tsx'
+import type { Difficulty } from './horde_difficulty.pure.lib.ts'
 import type { Recording } from './horde_recording.pure.lib.ts'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
@@ -56,7 +57,7 @@ export const CATALOG: readonly ArmoryItemRecord[] = [
   { id: 'armor_piercing', kind: 'bullet', name: 'Armor-Piercing Rounds', description: '25 rounds. Body and leg shots hit much harder.', price: 60, quantity: 25, consumable: true, requires: null },
   { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: '25 rounds. Every shot hits harder and blows up where it lands.', price: 120, quantity: 25, consumable: true, requires: null },
   { id: 'art_studio', kind: 'art', name: 'Art Studio', description: 'Snap a selfie and turn it into a one-of-a-kind piece of art for your gallery.', price: 300, quantity: 1, consumable: true, requires: null },
-  { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. A grenade only goes off near the zombie with the right answer.', price: 80, quantity: 3, consumable: true, requires: null },
+  { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. Defeats the zombie with the right answer and knocks down every zombie near it.', price: 150, quantity: 3, consumable: true, requires: null },
   { id: 'reflect_gem', kind: 'gem', name: 'Reflect Gem', description: 'Snaps onto your armor. Bounces 2 thrown things back at the zombie that threw them.', price: 60, quantity: 2, consumable: true, requires: null },
   { id: 'block_gem', kind: 'gem', name: 'Block Gem', description: 'Snaps onto your armor. Twice, a zombie that reaches you only does half a heart, then flies back.', price: 80, quantity: 2, consumable: true, requires: null },
   { id: 'mega_gem', kind: 'gem', name: 'Mega Gem', description: 'Does both, twice: reflects a throw or blocks a hit, whichever comes first.', price: 150, quantity: 2, consumable: true, requires: null },
@@ -74,6 +75,7 @@ export interface RoundReport {
   readonly rounds_used?: Readonly<Record<string, number>>
   readonly gems_used?: Readonly<Record<string, number>>
   readonly survived_ms?: number
+  readonly difficulty?: Difficulty
 }
 
 export interface FakeArmory {
@@ -89,13 +91,13 @@ export interface FakeArmory {
 }
 
 /** The armory server in memory: the same refusals as the backend (unknown, owned, locked, too expensive). */
-export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, gems = {}, artAvailable = true, bestMs = 0 }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly gems?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: number } = {}): FakeArmory {
+export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, gems = {}, artAvailable = true, bestMs = {} }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly gems?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: Partial<Readonly<Record<Difficulty, number>>> } = {}): FakeArmory {
   const art: ArtPieceRecord[] = []
   const artRequests: components['schemas']['ArtCreate'][] = []
   let points = balance
   let spent = 0
   let left = grenades
-  let best = bestMs
+  const best: Record<Difficulty, number> = { easy: 0, medium: 0, hard: 0, ...bestMs }
   const bought = new Set(owned)
   const rounds: RoundReport[] = []
   const shots = new Map<string, number>([['armor_piercing', ammo['armor_piercing'] ?? 0], ['explosive_rounds', ammo['explosive_rounds'] ?? 0]])
@@ -109,7 +111,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, g
     grenades: left,
     ammo: Object.fromEntries(shots),
     gems: Object.fromEntries(charges),
-    best_survived_ms: best,
+    best_survived_ms: { ...best },
     catalog: CATALOG,
   })
   return {
@@ -146,7 +148,8 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, g
       rounds.push(round)
       points += round.points
       left = Math.max(0, left - round.grenades_used)
-      best = Math.max(best, round.survived_ms ?? 0)
+      const difficulty = round.difficulty ?? 'medium'
+      best[difficulty] = Math.max(best[difficulty], round.survived_ms ?? 0)
       for (const [id, used] of Object.entries(round.rounds_used ?? {})) shots.set(id, Math.max(0, (shots.get(id) ?? 0) - used))
       for (const [id, used] of Object.entries(round.gems_used ?? {})) charges.set(id, Math.max(0, (charges.get(id) ?? 0) - used))
       return Promise.resolve(state())

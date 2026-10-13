@@ -8,6 +8,7 @@ import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
 import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
 import { STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom, skinFor } from './horde_armory.pure.lib.ts'
+import { MEDIUM, difficultyById, type Difficulty } from './horde_difficulty.pure.lib.ts'
 import { answerFor, inOvertime } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HordeHud } from './horde_hud.pure.ui.tsx'
@@ -65,6 +66,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const [buyError, setBuyError] = useState<string | null>(null)
     const [aimNdc, setAimNdc] = useState<{ readonly x: number; readonly y: number } | null>(null)
     const [inStudio, setInStudio] = useState(false)
+    const [difficulty, setDifficulty] = useState<Difficulty>(MEDIUM.id)
 
     const armoryData = armoryQuery.state.kind === 'loaded' ? armoryQuery.state.data : null
     const usable = armoryData === null ? [] : usableGear(armoryData)
@@ -117,12 +119,14 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
           {round.error !== null && <ErrorBanner message={round.error} />}
           <HordeStart
             starting={phase === 'loading'}
-            bestMs={armoryData?.best_survived_ms ?? 0}
+            difficulty={difficulty}
+            onChooseDifficulty={setDifficulty}
+            bestMs={armoryData?.best_survived_ms ?? NO_BESTS}
             onHearInstructions={() => {
               speakText(HORDE_INSTRUCTIONS)
             }}
             onStart={() => {
-              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0, armoryData?.best_survived_ms ?? 0, roundArmorFrom(armoryData?.gems ?? {}, usable))
+              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0, armoryData?.best_survived_ms[difficulty] ?? 0, roundArmorFrom(armoryData?.gems ?? {}, usable), difficultyById(difficulty))
             }}
             onOpenStudio={
               armoryData === null || artPrice === null
@@ -280,6 +284,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
   return ZombieHorde
 }
+
+const NO_BESTS: Readonly<Record<Difficulty, number>> = { easy: 0, medium: 0, hard: 0 }
 
 function Page({ children }: { readonly children: ReactNode }): ReactElement {
   return <div style={{ minHeight: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '32px 16px 56px' }}>{children}</div>

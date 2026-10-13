@@ -11,7 +11,7 @@ const STATE = {
   grenades: 4,
   ammo: { armor_piercing: 0 },
   gems: { reflect_gem: 2 },
-  best_survived_ms: 0,
+  best_survived_ms: { easy: 0, medium: 0, hard: 0 },
   catalog: [{ id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades.', price: 80, quantity: 3, consumable: true, requires: null }],
 }
 
@@ -38,10 +38,10 @@ describe('bindArmoryApi', () => {
   it('posts a round and a purchase with their bodies', async () => {
     const http = fakeHttp(() => ok(STATE))
     const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
-    await api.recordRound(3, { points: 90, grenades_used: 1, survived_ms: 61_000 })
+    await api.recordRound(3, { points: 90, grenades_used: 1, survived_ms: 61_000, difficulty: 'hard' })
     await api.purchase(3, 'grenade_pack')
     expect(http.requests).toEqual([
-      { url: '/api/profiles/3/armory/rounds', method: 'POST', body: { points: 90, grenades_used: 1, survived_ms: 61_000 } },
+      { url: '/api/profiles/3/armory/rounds', method: 'POST', body: { points: 90, grenades_used: 1, survived_ms: 61_000, difficulty: 'hard' } },
       { url: '/api/profiles/3/armory/purchases', method: 'POST', body: { item_id: 'grenade_pack' } },
     ])
   })

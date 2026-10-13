@@ -64,7 +64,7 @@ describe('horde scene rules', () => {
   })
 
   it('a blast grows and fades', () => {
-    const blast = { id: 'b', x: 0, depth: 5, atMs: 100, dud: false }
+    const blast = { id: 'b', x: 0, depth: 5, atMs: 100 }
     expect(blastProgress(blast, 100)).toEqual({ grow: 0, fade: 1 })
     expect(blastProgress(blast, 10_000)).toEqual({ grow: 1, fade: 0 })
   })

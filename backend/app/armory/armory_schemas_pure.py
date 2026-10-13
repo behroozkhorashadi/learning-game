@@ -17,6 +17,9 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstrai
 
 ArmoryItemKind = Literal["weapon", "bullet", "grenade", "gem", "upgrade", "skin", "art"]
 ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used", "gems_used", "survived"]
+# How hard a round was played: how fast the horde comes, and how far its points go.
+# Each keeps its own personal best.
+Difficulty = Literal["easy", "medium", "hard"]
 
 # A generous ceiling on one round: a round is 60 seconds plus overtime, where the
 # zombies keep speeding up until they get through, so it can't last much past a few
@@ -50,6 +53,16 @@ class ArmoryItem(BaseModel):
     requires: ItemId | None
 
 
+class BestSurvived(BaseModel):
+    """The longest round (ms) on each difficulty; 0 before the first."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    easy: int = Field(ge=0)
+    medium: int = Field(ge=0)
+    hard: int = Field(ge=0)
+
+
 class ArmoryState(BaseModel):
     """Everything the armory screen and a round's loadout need, in one response."""
 
@@ -65,15 +78,15 @@ class ArmoryState(BaseModel):
     """Special rounds left, by bullet item id. Standard rounds never run out."""
     gems: dict[str, int]
     """Armor gem charges left, by gem item id. Every charge is worn into every round."""
-    best_survived_ms: int
-    """The longest a round of this profile's has lasted: its personal best."""
+    best_survived_ms: BestSurvived
+    """The longest a round of this profile's has lasted on each difficulty: its personal bests."""
     catalog: list[ArmoryItem]
 
 
 class ArmoryRoundCreate(BaseModel):
     """A finished Zombie Horde round: the points it scored, the grenades it threw, the
     special rounds it fired (by bullet item id), the armor gem charges it used (by gem
-    item id), and how long it lasted."""
+    item id), how long it lasted, and on which difficulty."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -84,6 +97,7 @@ class ArmoryRoundCreate(BaseModel):
         default_factory=dict[str, int]
     )
     survived_ms: int = Field(default=0, ge=0, le=MAX_ROUND_MS)
+    difficulty: Difficulty = "medium"
 
 
 class ArmoryPurchaseCreate(BaseModel):
@@ -95,7 +109,8 @@ class ArmoryPurchaseCreate(BaseModel):
 class ArmoryEntry(BaseModel):
     """One ledger row. `points` is what was earned or the price paid; `quantity` is
     the grenades, rounds, or gem charges a purchase added or a round used, or how long
-    a round lasted (ms)."""
+    a round lasted (ms). A `survived` row's `item_id` is the round's difficulty (none
+    before there were difficulties: those rounds were played at today's medium)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

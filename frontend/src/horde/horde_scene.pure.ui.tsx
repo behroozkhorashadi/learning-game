@@ -116,11 +116,11 @@ function ThrownObject({ projectile, elapsedMs }: { readonly projectile: Projecti
 function GrenadeBlast({ blast, elapsedMs, radius }: { readonly blast: Blast; readonly elapsedMs: number; readonly radius: number }): ReactElement {
   const [x, , z] = worldPosition(blast.x, blast.depth)
   const { grow, fade } = blastProgress(blast, elapsedMs)
-  const size = (blast.dud ? 0.8 : radius * 2) * (0.2 + 0.8 * grow)
+  const size = radius * 2 * (0.2 + 0.8 * grow)
   return (
     <mesh position={[x, 0.4, z]} scale={size} raycast={() => null}>
       <primitive object={unitSphereGeometry} attach="geometry" />
-      <meshBasicMaterial color={blast.dud ? '#9CA3AF' : '#FF9F1C'} transparent opacity={0.75 * fade} depthWrite={false} />
+      <meshBasicMaterial color="#FF9F1C" transparent opacity={0.75 * fade} depthWrite={false} />
     </mesh>
   )
 }
