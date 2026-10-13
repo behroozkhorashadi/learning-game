@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ROUND_MS, type HordeStats } from './horde_engine.pure.lib.ts'
 import { POINTS, armorSaved, formatTime, heartsLabel, isNewBest, pointsBreakdown, roundPoints, type RoundResult } from './horde_scoring.pure.lib.ts'
 
-const STATS: HordeStats = { shots: 20, correctHits: 12, wrongHits: 3, kills: 5, headshots: 3, legShots: 2, grenadesUsed: 0, shoves: 1, roundsUsed: 0, solved: 12, livesLost: 1, gemsUsed: { reflect: 0, block: 0, mega: 0, heal: 0 }, reflects: 0, blocks: 0 }
+const STATS: HordeStats = { shots: 20, correctHits: 12, wrongHits: 3, kills: 5, headshots: 3, legShots: 2, grenadesUsed: 0, shoves: 1, roundsUsed: 0, solved: 12, revealed: 0, livesLost: 1, gemsUsed: { reflect: 0, block: 0, mega: 0, heal: 0 }, reflects: 0, blocks: 0 }
 
 /** Stopped right at the clock with 2 lives, no record to beat. */
 const AT_CLOCK: RoundResult = { stats: STATS, livesAtClock: 2, lastedMs: ROUND_MS, clockMs: ROUND_MS, previousBestMs: 0 }

@@ -18,6 +18,7 @@ function props(overrides: Partial<HordeResultsProps> = {}): HordeResultsProps {
     bank: { kind: 'saved', balance: 170 },
     solved: [{ summary: '3 + 4 = 7', timeMs: 2000 }],
     armor: { reflected: 0, blocked: 0, healed: 0, hearts: 0 },
+    missed: [],
     onPlayAgain: vi.fn(),
     onBack: vi.fn(),
     ...overrides,
@@ -70,5 +71,13 @@ describe('HordeResults', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(onPlayAgain).toHaveBeenCalledTimes(1)
     expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('lists the facts answered with "I don\'t know" to practice, and nothing when there are none', () => {
+    render(<HordeResults {...props({ missed: [{ summary: '6 × 7 = 42', timeMs: 9000 }] })} />)
+    expect(screen.getByRole('list', { name: 'Facts to practice' }).textContent).toBe('6 × 7 = 42')
+    cleanup()
+    render(<HordeResults {...props()} />)
+    expect(screen.queryByRole('list', { name: 'Facts to practice' })).toBeNull()
   })
 })

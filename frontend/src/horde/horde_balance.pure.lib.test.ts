@@ -8,7 +8,8 @@ import { travelMsFor } from './horde_question.pure.lib.ts'
 /**
  * Is a round winnable, and not too winnable? A simulated player with perfect
  * aim answers every `answerMs`, headshots the right zombie, and uses its
- * push-backs on a wrong zombie about to reach it. Over 40 seeds, at the
+ * push-backs (the one it starts with and the ones it earns before overtime) on a wrong zombie
+ * about to reach it. Over 40 seeds, at the
  * fastest walk (the top level) and the slowest (level 1). Beating the clock
  * wins; overtime then has to end, even for a perfect player.
  */

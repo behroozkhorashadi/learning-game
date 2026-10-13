@@ -15,6 +15,8 @@ const meta = {
   ],
   args: {
     question: '7 × 6 =',
+    revealedAnswer: null,
+    onDontKnow: fn(),
     intro: false,
     secondsLeft: 37,
     overtime: null,
@@ -23,6 +25,7 @@ const meta = {
     armor: { reflect: 0, block: 0, mega: 0, heal: 0 },
     grenades: 3,
     shoves: 3,
+    shoveEarned: false,
     ammo: null,
     outOfRounds: false,
     armed: 'shot',
@@ -117,5 +120,33 @@ export const NewRecord: Story = {
   args: { question: 'If x × 4 = 24, x =', secondsLeft: 0, overtime: { lastedMs: 91_000, bestMs: 84_000, clockMs: 60_000 } },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('status', { name: 'New personal best!' })).toHaveTextContent('New record!')
+  },
+}
+
+export const AnswerRevealed: Story = {
+  args: { revealedAnswer: '7 × 6 = 42', answers: [{ zombieId: 'z1', label: '42' }] },
+  // Once the answer shows, there's nothing left to ask for.
+  render: (args) => <HordeHud {...args} onDontKnow={null} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('heading', { name: 'Question' })).toHaveTextContent('7 × 6 =')
+    await expect(canvas.getByRole('status', { name: 'The answer: 7 × 6 = 42' })).toBeVisible()
+    await expect(canvas.queryByRole('button', { name: "I don't know" })).toBeNull()
+  },
+}
+
+export const DontKnow: Story = {
+  play: async ({ args, canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: "I don't know" }))
+    await expect(args.onDontKnow).toHaveBeenCalledTimes(1)
+  },
+}
+
+export const PushBackEarned: Story = {
+  args: { shoves: 2, shoveEarned: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText('✋ +1 push-back for 3 right answers!')).toBeVisible()
+    await expect(canvas.getByRole('button', { name: 'Push back the closest zombie (2 left)' })).toBeEnabled()
   },
 }

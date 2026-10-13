@@ -11,7 +11,10 @@ import { visibilityAt } from './horde_visibility.pure.lib.ts'
  * player. One question shows at a time and each zombie carries
  * one of its four answers. Shooting the zombie with the right answer damages
  * it (a headshot most, a leg shot knocks it down to crawl) and solves the
- * question; the next question reshuffles the answers. Shooting a wrong one
+ * question; the next question reshuffles the answers. Every third question
+ * solved before the clock earns another push-back (up to three held). A player who doesn't know the answer can
+ * say so: the answer shows, the other zombies drop theirs, and solving it
+ * then earns nothing (the server records it as a miss). Shooting a wrong one
  * makes it dodge and throw something back, which costs a life when it lands.
  * A zombie that reaches the player also costs a life. Armor gems soften both:
  * a reflect charge bounces a throw back at its thrower (it reels, but takes no
@@ -36,11 +39,16 @@ export const ZOMBIE_COUNT = 4
 export const ROUND_MS = 60_000
 export const STARTING_LIVES = 3
 /**
- * Push-backs per round: a way out when a zombie with a wrong answer gets
- * close. Each one sends a zombie all the way back, which is worth about a whole
- * crossing, so more than one makes the round unlosable (horde_balance.pure.lib.test.ts).
+ * Push-backs a round starts with: a way out when a zombie with a wrong answer
+ * gets close. Each one sends a zombie all the way back, which is worth about a
+ * whole crossing, so handing out more up front makes the round unlosable
+ * (horde_balance.pure.lib.test.ts); more are earned with right answers.
  */
 export const SHOVES_PER_ROUND = 1
+/** Every this many questions solved (without "I don't know") earns another push-back, until overtime: earning there would let a quick player stall it (horde_balance.pure.lib.test.ts). */
+export const SOLVES_PER_SHOVE = 3
+/** The most push-backs held at once. */
+export const MAX_SHOVES = 3
 /** How far a right hit that doesn't defeat a zombie knocks it back. */
 const HIT_KNOCKBACK = 0.6
 
@@ -200,7 +208,10 @@ export interface HordeStats {
   readonly shoves: number
   /** Special rounds fired (see `HordeState.ammo`). */
   readonly roundsUsed: number
+  /** Solved without "I don't know": these earn points and push-backs. */
   readonly solved: number
+  /** Questions answered with "I don't know". */
+  readonly revealed: number
   /** Whole lives, or half (a blocked zombie). */
   readonly livesLost: number
   /** Armor gem charges used, by kind. */
@@ -217,7 +228,10 @@ export type HordeOutcome = 'playing' | 'survived' | 'overrun'
 export type HordeEvent =
   | { readonly type: 'shot' }
   | { readonly type: 'hit'; readonly zombieId: string; readonly zone: ShotZone; readonly killed: boolean }
-  | { readonly type: 'solved'; readonly questionId: string; readonly summary: string; readonly timeMs: number; readonly wrongShots: number }
+  /** `revealed`: the answer was shown first ("I don't know"), so it earns nothing and was already recorded as a miss. */
+  | { readonly type: 'solved'; readonly questionId: string; readonly summary: string; readonly timeMs: number; readonly wrongShots: number; readonly revealed: boolean }
+  /** "I don't know": the answer is showing; to the server this question is a miss. */
+  | { readonly type: 'revealed'; readonly questionId: string; readonly summary: string; readonly timeMs: number; readonly wrongShots: number }
   | { readonly type: 'dodged'; readonly zombieId: string }
   | { readonly type: 'thrown'; readonly projectileId: string }
   | { readonly type: 'playerHit'; readonly cause: 'thrown' | 'contact' }
@@ -231,6 +245,8 @@ export type HordeEvent =
   | { readonly type: 'healed' }
   | { readonly type: 'grenade'; readonly dud: boolean }
   | { readonly type: 'shoved'; readonly zombieId: string }
+  /** Another SOLVES_PER_SHOVE questions solved: one more push-back. */
+  | { readonly type: 'shoveEarned' }
   /** The last special round was just fired: shots hit with standard power from here on. */
   | { readonly type: 'outOfAmmo' }
   | { readonly type: 'spawned'; readonly slot: number }
@@ -265,6 +281,8 @@ export interface HordeState {
   readonly question: HordeQuestion | null
   readonly questionStartedMs: number
   readonly questionWrongShots: number
+  /** The player said "I don't know": the answer shows and only its zombie carries one. */
+  readonly questionRevealed: boolean
   /** The current question's answers by slot; empty between questions. */
   readonly answers: readonly HordeOption[]
   readonly projectiles: readonly Projectile[]
@@ -298,7 +316,7 @@ export interface ShotTarget {
   readonly zone: ShotZone
 }
 
-const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, roundsUsed: 0, solved: 0, livesLost: 0, gemsUsed: NO_ARMOR, reflects: 0, blocks: 0 }
+const EMPTY_STATS: HordeStats = { shots: 0, correctHits: 0, wrongHits: 0, kills: 0, headshots: 0, legShots: 0, grenadesUsed: 0, shoves: 0, roundsUsed: 0, solved: 0, revealed: 0, livesLost: 0, gemsUsed: NO_ARMOR, reflects: 0, blocks: 0 }
 
 /** A deterministic stream over a 32-bit seed (mulberry32). Local to one step, so the step stays pure. */
 interface Rng {
@@ -329,10 +347,11 @@ export function isTargetable(zombie: HordeZombie): boolean {
   return zombie.posture !== 'dead' && zombie.posture !== 'gone' && zombie.posture !== 'attacking'
 }
 
-/** The answer a zombie shows, or null when it shows none (between questions, or not targetable). */
+/** The answer a zombie shows, or null when it shows none (between questions, not targetable, or a wrong one once the answer is revealed). */
 export function answerFor(state: HordeState, zombie: HordeZombie): HordeOption | null {
   if (state.question === null || !isTargetable(zombie)) return null
-  return state.answers[zombie.slot] ?? null
+  const answer = state.answers[zombie.slot] ?? null
+  return state.questionRevealed && answer?.correct !== true ? null : answer
 }
 
 /** Beat the clock: in overtime now, or was when the round ended. */
@@ -397,6 +416,7 @@ export function createRound({ seed, lives, grenades, shoves, ammo, armor = NO_AR
     question: null,
     questionStartedMs: 0,
     questionWrongShots: 0,
+    questionRevealed: false,
     answers: [],
     projectiles: [],
     blasts: [],
@@ -448,7 +468,7 @@ export function setQuestion(state: HordeState, question: HordeQuestion): HordeSt
       answers[rightSlot] = other
     }
   }
-  return { ...state, seed: rng.seed(), question, answers, questionStartedMs: state.elapsedMs, questionWrongShots: 0, events: [] }
+  return { ...state, seed: rng.seed(), question, answers, questionStartedMs: state.elapsedMs, questionWrongShots: 0, questionRevealed: false, events: [] }
 }
 
 function walkSpeed(state: HordeState, config: HordeConfig): number {
@@ -757,6 +777,11 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
   return settle(next, config, events)
 }
 
+/** The heal streak after `solved`, the step that solved `state`'s question: one more, unless the answer was revealed ("I don't know"), which starts it over. */
+function streakAfter(state: HordeState, solved: HordeState): HordeState {
+  return state.questionRevealed ? { ...solved, streak: 0 } : solvedInARow(solved)
+}
+
 /** One more right answer in a row; at HEAL_STREAK, a heal charge (if one's left and a heart is missing) wins back half a heart and starts the streak over. */
 function solvedInARow(state: HordeState): HordeState {
   const streak = state.streak + 1
@@ -815,10 +840,40 @@ function damaged(zombie: HordeZombie, amount: number, zone: ShotZone, now: numbe
   return { ...zombie, health, posture: 'staggered', postureUntilMs: now + STAGGER_MS }
 }
 
-function solvedEvent(state: HordeState): HordeEvent | null {
+/**
+ * Clears `state`'s question from `next`, the step that solved it. A question
+ * solved without "I don't know" counts toward points, and every
+ * SOLVES_PER_SHOVE of them before overtime earns a push-back (up to
+ * MAX_SHOVES held); a revealed one earns nothing.
+ */
+function solvedQuestion(state: HordeState, next: HordeState, events: HordeEvent[]): HordeState {
   const question = state.question
-  if (question === null) return null
-  return { type: 'solved', questionId: question.id, summary: question.summary, timeMs: state.elapsedMs - state.questionStartedMs, wrongShots: state.questionWrongShots }
+  if (question === null) return next
+  const revealed = state.questionRevealed
+  events.push({ type: 'solved', questionId: question.id, summary: question.summary, timeMs: state.elapsedMs - state.questionStartedMs, wrongShots: state.questionWrongShots, revealed })
+  const cleared: HordeState = { ...next, question: null, answers: [], questionRevealed: false }
+  if (revealed) return cleared
+  const solved = next.stats.solved + 1
+  const earned = solved % SOLVES_PER_SHOVE === 0 && next.shoves < MAX_SHOVES && !inOvertime(state)
+  if (earned) events.push({ type: 'shoveEarned' })
+  return { ...cleared, shoves: next.shoves + (earned ? 1 : 0), stats: { ...next.stats, solved } }
+}
+
+/**
+ * "I don't know": shows the answer and takes it off every other zombie, so
+ * the only way on is to shoot the right one. The question is a miss from here
+ * (the `revealed` event), and solving it earns no points or push-back
+ * progress. Ignored between questions, once revealed, or once the round is over.
+ */
+export function reveal(state: HordeState): HordeState {
+  const question = state.question
+  if (state.outcome !== 'playing' || question === null || state.questionRevealed) return state
+  return {
+    ...state,
+    questionRevealed: true,
+    stats: { ...state.stats, revealed: state.stats.revealed + 1 },
+    events: [{ type: 'revealed', questionId: question.id, summary: question.summary, timeMs: state.elapsedMs - state.questionStartedMs, wrongShots: state.questionWrongShots }],
+  }
 }
 
 /**
@@ -878,25 +933,27 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
   const killed = damage.posture === 'dead'
   const hit = killed ? damage : pushedBack(damage, HIT_KNOCKBACK, config.cover)
   events.push({ type: 'hit', zombieId: zombie.id, zone: target.zone, killed })
-  const solved = solvedEvent(state)
-  if (solved !== null) events.push(solved)
   const impact: Impact = { id: `i${String(state.nextId)}`, x: zombie.x, depth: zombie.depth, zone: target.zone, atMs: now, special }
-  return solvedInARow({
-    ...fired,
-    nextId: state.nextId + 1,
-    impacts: [...state.impacts, impact],
-    zombies: state.zombies.map((z) => (z.id === zombie.id ? hit : z)),
-    question: null,
-    answers: [],
-    stats: {
-      ...fired.stats,
-      correctHits: fired.stats.correctHits + 1,
-      kills: fired.stats.kills + (killed ? 1 : 0),
-      headshots: fired.stats.headshots + (target.zone === 'head' ? 1 : 0),
-      legShots: fired.stats.legShots + (target.zone === 'leg' ? 1 : 0),
-      solved: fired.stats.solved + 1,
-    },
-  })
+  return streakAfter(
+    state,
+    solvedQuestion(
+      state,
+      {
+        ...fired,
+        nextId: state.nextId + 1,
+        impacts: [...state.impacts, impact],
+        zombies: state.zombies.map((z) => (z.id === zombie.id ? hit : z)),
+        stats: {
+          ...fired.stats,
+          correctHits: fired.stats.correctHits + 1,
+          kills: fired.stats.kills + (killed ? 1 : 0),
+          headshots: fired.stats.headshots + (target.zone === 'head' ? 1 : 0),
+          legShots: fired.stats.legShots + (target.zone === 'leg' ? 1 : 0),
+        },
+      },
+      events,
+    ),
+  )
 }
 
 /**
@@ -925,14 +982,13 @@ export function throwGrenade(state: HordeState, at: { readonly x: number; readon
     events.push({ type: 'hit', zombieId: zombie.id, zone: 'body', killed: hit.posture === 'dead' })
     return hit
   })
-  const solved = solvedEvent(state)
-  if (solved !== null) events.push(solved)
-  return solvedInARow({ ...spent, zombies, question: null, answers: [], stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + kills, solved: spent.stats.solved + 1 } })
+  return streakAfter(state, solvedQuestion(state, { ...spent, zombies, stats: { ...spent.stats, correctHits: spent.stats.correctHits + 1, kills: spent.stats.kills + kills } }, events))
 }
 
 /**
  * Knocks a zombie all the way to the back of the field, whatever answer it carries: no damage, no
- * dodge, no penalty, but only SHOVES_PER_ROUND times a round. Uses the
+ * dodge, no penalty, but only as many as the round started with and has
+ * earned (see SOLVES_PER_SHOVE). Uses the
  * weapon like a shot (it has to be ready, then cools down). Ignored, returning
  * the same state, with no push-backs left, while cooling down, or at a
  * zombie that can't be hit.

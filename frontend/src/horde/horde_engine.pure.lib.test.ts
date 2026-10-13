@@ -5,6 +5,7 @@ import {
   HEALED_LIVES,
   HEAL_STREAK,
   IMPACT_MS,
+  MAX_SHOVES,
   ROUND_MS,
   ZOMBIE_COUNT,
   answerFor,
@@ -13,6 +14,7 @@ import {
   endOvertime,
   inOvertime,
   isTargetable,
+  reveal,
   setQuestion,
   shoot,
   shove,
@@ -828,5 +830,100 @@ describe('heal gems', () => {
 
   it('does nothing without a heal charge', () => {
     expect(streakOf(HEAL_STREAK, healing(2, 0)).lives).toBe(2)
+  })
+
+  it("an answer shown with \"I don't know\" isn't a right answer: it starts the streak over", () => {
+    const four = streakOf(HEAL_STREAK - 1, healing(2))
+    const after = solve(reveal(four))
+    expect([after.streak, after.lives, after.armor.heal]).toEqual([0, 2, 1])
+  })
+})
+
+/** Shoots the right zombie, lets the weapon cool down, and asks the next question. */
+function solveOnce(state: HordeState): HordeState {
+  const solved = shoot(state, { zombieId: holding(state, true).id, zone: 'body' }, OPEN_FIELD)
+  return setQuestion(run(solved, 800, OPEN_FIELD), QUESTION)
+}
+
+describe('earning push-backs', () => {
+  it('every third question solved earns one more', () => {
+    let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 0, shoves: 1, ammo: 0, cover: [] }), QUESTION)
+    state = solveOnce(solveOnce(state))
+    expect(state.shoves).toBe(1)
+    const third = shoot(state, { zombieId: holding(state, true).id, zone: 'body' }, OPEN_FIELD)
+    expect(eventTypes(third)).toEqual(['shot', 'hit', 'solved', 'shoveEarned'])
+    expect(third.shoves).toBe(2)
+    expect(third.stats.solved).toBe(3)
+  })
+
+  it('a grenade that solves the question counts too', () => {
+    let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 1, shoves: 0, ammo: 0, cover: [] }), QUESTION)
+    state = solveOnce(solveOnce(state))
+    const right = holding(state, true)
+    const after = throwGrenade(state, { x: right.x, depth: right.depth }, OPEN_FIELD)
+    expect(after.shoves).toBe(1)
+    expect(eventTypes(after)).toContain('shoveEarned')
+  })
+
+  it('stops in overtime', () => {
+    let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 0, shoves: 0, ammo: 0, cover: [] }), QUESTION)
+    state = solveOnce(solveOnce(state))
+    state = { ...state, livesAtClock: 3 }
+    const third = shoot(state, { zombieId: holding(state, true).id, zone: 'body' }, OPEN_FIELD)
+    expect(third.stats.solved).toBe(3)
+    expect(third.shoves).toBe(0)
+    expect(eventTypes(third)).not.toContain('shoveEarned')
+  })
+
+  it(`holds at most ${String(MAX_SHOVES)}`, () => {
+    let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 0, shoves: MAX_SHOVES, ammo: 0, cover: [] }), QUESTION)
+    state = solveOnce(solveOnce(state))
+    const third = shoot(state, { zombieId: holding(state, true).id, zone: 'body' }, OPEN_FIELD)
+    expect(third.shoves).toBe(MAX_SHOVES)
+    expect(eventTypes(third)).not.toContain('shoveEarned')
+  })
+})
+
+describe("I don't know", () => {
+  it('shows the answer: only the right zombie keeps its answer, and the question is a miss', () => {
+    const state = run(round(4, OPEN_FIELD), 1500, OPEN_FIELD)
+    const after = reveal(state)
+    expect(after.questionRevealed).toBe(true)
+    expect(after.events).toEqual([{ type: 'revealed', questionId: 'q1', summary: '3 + 4 = 7', timeMs: state.elapsedMs, wrongShots: 0 }])
+    const shown = after.zombies.map((z) => answerFor(after, z)?.label ?? null).filter((label) => label !== null)
+    expect(shown).toEqual(['7'])
+    expect(after.stats.revealed).toBe(1)
+    // Once is enough.
+    expect(reveal(after)).toBe(after)
+  })
+
+  it('shooting a zombie whose answer was taken away does nothing', () => {
+    const state = reveal(round(4, OPEN_FIELD))
+    const wrong = state.zombies.find((z) => isTargetable(z) && state.answers[z.slot]?.correct === false)
+    const after = shoot(state, { zombieId: wrong?.id ?? '', zone: 'body' }, OPEN_FIELD)
+    expect(eventTypes(after)).toEqual(['shot'])
+    expect(after.lives).toBe(3)
+  })
+
+  it('solving it afterward moves on, but earns no points and no push-back progress', () => {
+    let state = setQuestion(createRound({ seed: 4, lives: 3, grenades: 0, shoves: 0, ammo: 0, cover: [] }), QUESTION)
+    state = solveOnce(solveOnce(state))
+    state = reveal(state)
+    const after = shoot(state, { zombieId: holding(state, true).id, zone: 'body' }, OPEN_FIELD)
+    expect(after.events).toContainEqual(expect.objectContaining({ type: 'solved', revealed: true }))
+    expect(eventTypes(after)).not.toContain('shoveEarned')
+    expect(after.question).toBeNull()
+    expect(after.questionRevealed).toBe(false)
+    expect(after.stats.solved).toBe(2)
+    expect(after.shoves).toBe(0)
+    // The next question is a fresh start.
+    expect(setQuestion(run(after, 800, OPEN_FIELD), QUESTION).questionRevealed).toBe(false)
+  })
+
+  it('does nothing between questions or once the round is over', () => {
+    const between: HordeState = { ...round(4), question: null, answers: [] }
+    expect(reveal(between)).toBe(between)
+    const over: HordeState = { ...round(4), outcome: 'overrun' }
+    expect(reveal(over)).toBe(over)
   })
 })

@@ -22,20 +22,20 @@ using outcomes to decide what to keep, retire, or build on next.
 
 The repo already has some of the right seams for this without any new
 infra:
-- `Variant` / `Rating` in the PRD's data model, and the `GameModule` contract
-  (`backend/app/games/base.py`) — the natural home for "new content for an
+- `Variant` / `Rating` in the PRD's data model (`backend/app/play/play_schemas_pure.py`), and the `GameModule` contract
+  (`backend/app/play/games/game_module_reducers_pure.py`) — the natural home for "new content for an
   existing game type."
 - Per-game side tables that already capture a generated/variant artifact —
   `RemixVersion` (Style Remix Lab), `TurnLine` (Tag-Team Story) — in
-  `backend/app/models/piece.py`.
+  `backend/app/pieces/pieces_schemas_pure.py`.
 - `RevisionPass` (`questions_asked` + `changed`) is effectively a working
   precedent for "system asks the kid questions, kid answers, output evolves"
   — the same shape the ideation-mode vision below needs.
-- The Den component library (`frontend/src/components/den/`: `DenJar`,
-  `DenTile`, `DenCard`, `DenTabs`, `DenButton`, `DenChip`, `DenFlipCard`) and
-  the existing games (`frontend/src/games/`: SyllableBuilder, PromptForge,
-  StyleRemixLab, TagTeamStory, ClueMaster) are the reusable building blocks
-  for "new game, same mechanics."
+- The Den component library (`frontend/src/den/`: `DenJar`, `DenTile`,
+  `DenCard`, `DenButton`, `DenChip`, `DenFlipCard`, …) and the existing games
+  (`frontend/src/syllable_builder/`, `prompt_forge/`, `style_remix/`,
+  `tag_team/`, `clue_master/`, …) are the reusable building blocks for "new
+  game, same mechanics."
 
 Constraint to keep in mind throughout: the PRD treats accounts as a
 non-goal, and the app already has a parent-verify / PIN-gated flow for
@@ -95,31 +95,11 @@ not live), or new card/UI element types with no existing Den equivalent.
 
 ## Kid-driven ideation & sharing (further future)
 
-A vision layered across the levels above, deliberately scoped as
-later-phase and not part of the initial build. This has since grown into
-its own dedicated idea —
-[`kid-game-creator-platform.md`](./kid-game-creator-platform.md) — which
-reframes it around coaching kids through the idea → build → feedback →
-iterate loop itself, not just letting them request variants. Treat that
-file as the source of truth for this direction; the summary below is kept
-for context on where it came from.
-
-- **Ideation mode**: instead of (or alongside) implicit feedback, let a kid
-  directly describe what they want ("I want a game that does X" / "take
-  this game and change Y") and go back and forth with an LLM that asks
-  clarifying questions — the same *ask → answer → refine* shape as
-  `RevisionPass`, aimed at defining a new variant instead of revising a
-  story. Initially this should only be able to produce Level 1 (and later
-  Level 2) outputs — bound what the ideation conversation is allowed to
-  produce to the primitives that already exist, rather than letting it
-  request arbitrary new mechanics.
-- **Sharing**: kids create a variant/twist on a game and share it with
-  other kids. This is the highest-risk piece of the whole idea — it implies
-  some notion of persistent identity/discovery that cuts directly against
-  the PRD's no-accounts stance, and it needs a moderation/safety gate before
-  one kid's generated content can reach another kid at all. Needs real
-  design work on identity and moderation before it's buildable, not just
-  engineering.
+Letting kids describe and refine their own variants or games, and share them,
+is its own idea: [`kid-game-creator-platform.md`](./kid-game-creator-platform.md)
+is the source of truth. The constraint that matters here: anything it builds
+should be limited to this file's Level 1 (later Level 2) outputs, not arbitrary
+new mechanics.
 
 ## Open design questions
 
@@ -140,8 +120,8 @@ when this idea gets picked up:
 Only build **Level 1** to start. Levels 2–3 and the ideation/sharing vision
 are documented direction, not a build spec — don't implement them yet.
 
-1. Read `backend/app/games/base.py` (the `GameModule` contract),
-   `backend/app/models/piece.py` (for the `RemixVersion`/`TurnLine`
+1. Read `backend/app/play/games/game_module_reducers_pure.py` (the `GameModule` contract),
+   `backend/app/pieces/pieces_schemas_pure.py` (for the `RemixVersion`/`TurnLine`
    generated-content pattern to follow), and `PRD_adaptive_learning_games.md`
    for the `Variant`/`Rating` definitions, to confirm these still match what's
    described above — this idea file may be stale by the time it's picked up.

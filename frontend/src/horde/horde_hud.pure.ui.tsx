@@ -6,7 +6,7 @@ import { formatTime } from './horde_scoring.pure.lib.ts'
 import type { ArmedMode, FeedbackKind } from './use_horde_round.pure.hook.ts'
 
 /**
- * Everything drawn over the 3D view during a round: Back, the clock (counting
+ * Everything drawn over the 3D view during a round: Back and "I don't know" (top left), the clock (counting
  * down, then in overtime counting up against the personal best), lives
  * (whole and half hearts), armor gem charges, grenades, push-backs, mute, the question, the answers as real buttons (the same
  * targets for keyboard and screen-reader players, independent of the
@@ -30,6 +30,10 @@ export const OVERTIME_BANNER_MS = 3000
 
 export interface HordeHudProps {
   readonly question: string | null
+  /** The whole fact once "I don't know" was pressed ("6 × 7 = 42"), shown small in the top right, out of the field's way; null otherwise. */
+  readonly revealedAnswer: string | null
+  /** Shows the answer; null hides the button (between questions, once revealed, during the intro). */
+  readonly onDontKnow: (() => void) | null
   /** The question fills the screen before the horde moves. */
   readonly intro: boolean
   readonly secondsLeft: number
@@ -48,6 +52,8 @@ export interface HordeHudProps {
   readonly grenades: number
   /** Push-backs left this round. */
   readonly shoves: number
+  /** A push-back was just earned: show it for a moment. */
+  readonly shoveEarned: boolean
   /** Special rounds left, or null with standard rounds loaded (they never run out). */
   readonly ammo: number | null
   /** The last special round was just fired: show it for a moment. */
@@ -128,7 +134,7 @@ function clockLabel(ms: number): string {
   return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
 }
 
-export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime, lives, armor, streak, armorColor, grenades, shoves, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, revealedAnswer, onDontKnow, intro, secondsLeft, overtime, onEndOvertime, lives, armor, streak, armorColor, grenades, shoves, shoveEarned, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
   const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
@@ -136,28 +142,42 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
   return (
     <>
       <div style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 200, pointerEvents: 'none' }}>
-        <span style={{ pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
           <DenButton label="Back" variant="quiet" shape="pill" size="md" iconOnly boxSize={44} iconPaths={BACK_ICON} onClick={onBack} />
-        </span>
+          {onDontKnow !== null && (
+            <button type="button" aria-label="I don't know" aria-keyshortcuts="?" title="Show me the answer (?)" onClick={onDontKnow} style={{ ...PILL, border: 0, cursor: 'pointer' }}>
+              🤔 I don&apos;t know
+              <kbd aria-hidden="true" style={KEYCAP}>?</kbd>
+            </button>
+          )}
+          {overtime !== null && (
+            <button type="button" aria-label="Stop & bank points" title="Stop here and bank your points" onClick={onEndOvertime} style={{ ...PILL, border: 0, cursor: 'pointer', background: '#3D8BFF', color: '#FFFFFF' }}>
+              🏁 Stop &amp; bank
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {revealedAnswer !== null && (
+            <div role="status" aria-label={`The answer: ${revealedAnswer}`} style={{ ...PILL, background: '#3F7A22', color: '#FFFFFF' }}>
+              💡 {revealedAnswer}
+            </div>
+          )}
           {overtime === null ? (
             <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
               ⏱ {secondsLeft}s
             </div>
           ) : (
-            <>
-              <div role="timer" aria-label={`Overtime: ${clockLabel(overtime.lastedMs)} survived`} style={{ ...PILL, background: '#2A2E37', color: '#FFB020' }}>
+            // One pill for the clock and the record to beat, so overtime adds nothing to a full bar.
+            <div style={{ ...PILL, background: '#2A2E37', color: '#FFB020' }}>
+              <span role="timer" aria-label={`Overtime: ${clockLabel(overtime.lastedMs)} survived`}>
                 🔥 {formatTime(overtime.lastedMs)}
-              </div>
-              {overtime.bestMs > 0 && (
-                <div role="status" aria-label={newRecord ? 'New personal best!' : `Your best: ${clockLabel(overtime.bestMs)}`} style={{ ...PILL, color: newRecord ? '#3F7A22' : '#5B6576' }}>
-                  🏅 {newRecord ? 'New record!' : `Best ${formatTime(overtime.bestMs)}`}
-                </div>
-              )}
-              <span style={{ pointerEvents: 'auto' }}>
-                <DenButton label="Stop & bank points" variant="blue" shape="pill" size="md" lipColor="#0037DB" onClick={onEndOvertime} />
               </span>
-            </>
+              {overtime.bestMs > 0 && (
+                <span role="status" aria-label={newRecord ? 'New personal best!' : `Your best: ${clockLabel(overtime.bestMs)}`} style={{ fontSize: 14, color: newRecord ? '#8EE06A' : '#C9CED8' }}>
+                  🏅 {newRecord ? 'New record!' : `Best ${formatTime(overtime.bestMs)}`}
+                </span>
+              )}
+            </div>
           )}
           {ammo !== null && (
             <div role="status" aria-label={ammo > 0 ? `${String(ammo)} special rounds left` : 'Special rounds used up: back to standard rounds'} style={{ ...PILL, color: ammo > 0 ? '#7F5305' : '#98A2B3' }}>
@@ -246,14 +266,18 @@ export function HordeHud({ question, intro, secondsLeft, overtime, onEndOvertime
         </div>
       )}
 
-      {overtime !== null && banner && (
-        <div aria-hidden="true" style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 160, padding: '16px 28px', borderRadius: 24, background: 'rgba(42,46,55,0.92)', color: '#FFFFFF', textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36, color: '#FFB020' }}>🔥 Overtime!</div>
-          <div style={{ fontSize: 17, fontWeight: 600, marginTop: 4 }}>{overtime.bestMs > 0 ? `The zombies speed up. Beat your best: ${formatTime(overtime.bestMs)}` : 'The zombies speed up. How long can you last?'}</div>
-        </div>
-      )}
-
       <div style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
+        {overtime !== null && banner && (
+          // Small, under the question: a big banner here hid the horde just as it sped up.
+          <div aria-hidden="true" style={{ ...BANNER, background: '#2A2E37', color: '#FFB020' }}>
+            🔥 Overtime! The zombies speed up{overtime.bestMs > 0 ? `. Beat ${formatTime(overtime.bestMs)}` : ''}
+          </div>
+        )}
+        {shoveEarned && (
+          <div aria-hidden="true" style={{ ...BANNER, background: '#3D8BFF' }}>
+            ✋ +1 push-back for 3 right answers!
+          </div>
+        )}
         {armed !== 'shot' && (
           <div role="status" style={{ ...BANNER, background: ring }}>
             Grenade ready: click near the right zombie (G to cancel)
