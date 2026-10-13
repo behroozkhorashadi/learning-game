@@ -1,6 +1,6 @@
 # Zombie Horde: a new free-roaming zombie math game with health, lives, and a points-funded armory
 
-**Status:** in-progress: phases 1–3 built on `feat/zombie-horde` (2026-10-11), new animation art still to do
+**Status:** in-progress: phases 1–3 built (2026-10-11), overtime built (2026-10-12); new animation art and phase 4 (the 10-zombie horde, ducking, scopes) still to do
 
 ## What was built (2026-10-11)
 
@@ -46,9 +46,19 @@ Balance pass from replayed playtests (2026-10-11):
   More than one made the round unlosable. horde_balance.pure.lib.test.ts simulates rounds and
   pins this: answering every 6s survives ~95%, every 20s loses.
 
+Overtime (2026-10-12, commit `eaf1cff`):
+- Beating the 60s clock no longer ends the round. Zombies keep speeding up
+  (`OVERTIME_RAMP`, no cap) until they get through; even perfect play is overrun
+  within ~4 minutes (`horde_balance.pure.lib.test.ts`). The player can stop and
+  bank at any time in overtime.
+- Overtime earns 2 points a second; beating the personal best earns 100. The best
+  is the longest round, a `survived` armory ledger entry (`best_survived_ms`),
+  shown on the start screen, the overtime HUD, and the results.
+
 Still to do:
 - Real fall, crawl, get-up, crouch, and sidestep clips (Meshy or Mixamo); the
   roles exist and today borrow `Dead` (played backwards to get up) and `Running`.
+- Phase 4 below: the real horde in overtime, heavy ducking, and scopes.
 - Destructible cover (out of scope, per the user).
 - Playtest the numbers with the kid.
 
@@ -66,13 +76,12 @@ weapons, bullet types, and grenades.
 ## Context
 
 This came from the user (the kid's parent) while reviewing
-`ideas/points-and-upgrades.md`. They decided the health/weapon/bullet half of
-that idea belongs in a **new** game rather than bolted onto Equation Outbreak:
+`ideas/points-and-upgrades.md` (now `outbreak-points-and-reload.md`). They
+decided the health/weapon/bullet half of that idea belongs in a **new** game rather than bolted onto Equation Outbreak:
 "it's a whole new game... I don't want to pollute the old game. We should
 maintain the old game."
 
-That decision also dissolves the open conflict in `points-and-upgrades.md`
-phase 2 (multi-hit health vs. Outbreak's "exactly two shots per wave" rule):
+That decision also dissolved the open conflict in that file's old phase 2 (multi-hit health vs. Outbreak's "exactly two shots per wave" rule):
 this game has no per-wave shot limit, so health just works.
 
 ### Decisions already made with the user (2026-10-11)
@@ -173,8 +182,7 @@ zone), add it so Outbreak's behavior is unchanged and its tests still pass.
 ### Phase 2: points and the armory
 
 - Scoring per round (kills, headshots, accuracy).
-- A saved per-profile balance. Where it lives is the same open question as
-  `points-and-upgrades.md` step 2. Ask, don't guess.
+- A saved per-profile balance (built: the backend ledger in `app/armory/`).
 - A shop/loadout panel on the start screen. Catalog as data: weapons
   (damage, fire rate), bullets (damage per zone), grenades (count, radius).
 - Grenade rule that can't skip the math (see open questions).
@@ -189,12 +197,102 @@ zone), add it so Outbreak's behavior is unchanged and its tests still pass.
   collider so it isn't frustrating to hit low to the ground. Answer label
   drops with it but stays readable.
 
+### Phase 4: overtime becomes a horde, zombies duck, scopes in the armory
+
+Requested by the user on 2026-10-11 after the first playtests: "once you get
+past 60 seconds, it really starts to become a horde ... it sort of almost
+becomes a little bit of a mess. Maybe we can get up to 10 zombies. I want them
+to start moving differently, like ducking behind stuff, almost to the degree
+where it gets annoying." Scopes are the counter: the far end of a longer
+hallway is hard to read and hit without zooming.
+
+Overtime itself already exists (above): the round keeps going and speeds up.
+What's missing is everything that makes it a *horde*.
+
+**What stands in the way today** (verified 2026-10-12; re-check):
+
+- **The zombie count is fixed at 4** (`ZOMBIE_COUNT` in
+  `src/horde/horde_engine.pure.lib.ts`), and many things assume it:
+  - `SLOT_CENTRES = [-0.66, -0.22, 0.22, 0.66]`: each slot wanders its own
+    share of the field's width.
+  - `setQuestion` deals the question's options onto the first `ZOMBIE_COUNT`
+    slots and makes sure the right answer is on a live zombie.
+  - The assembly picks a roster with
+    `pickSessionRoster(ZOMBIE_CHARACTER_REGISTRY, ZOMBIE_COUNT, Math.random)`
+    (`src/zombies/zombie_roster.pure.lib.ts`), which **throws if there are
+    fewer enabled characters than the roster size**. There are 4 character
+    models, so 10 zombies need repeats (maybe tinted or scaled to tell apart).
+- **Answers:** the backend sends **4 options** per question (1 right + 3
+  distractors, `backend/app/play/games/fact_fluency_reducers_pure.py`;
+  `horde_question.pure.lib.ts` requires at least 4). With 10 zombies, 6 have
+  no answer unless something changes.
+- **Hallway length:** `SPAWN_DEPTH = 19`, `CONTACT_DEPTH = 1.4`, and the field
+  narrows toward the camera (`maxAbsX`), in `src/horde/horde_field.pure.lib.ts`.
+  Cover is a fixed list (`COVER`, six pieces from depth 7 to 16.5) with a
+  comment on gap widths so zombies can't wedge. The floor and back wall in
+  `horde_environment.pure.ui.tsx` size off `SPAWN_DEPTH`.
+- **Hiding:** `HIDE_CHANCE = 0.55`, hide for 1.4–2.8s, a 7s cooldown, only
+  with cover within `HIDE_BAND` in front. The right-answer zombie **never
+  hides**. Keep that in overtime, or "annoying" becomes unwinnable; the decoys
+  are the ones that should duck a lot.
+- **Camera:** fixed at `CAMERA_POSITION = [0, 1.7, 2.2]`, fov 56
+  (`horde_scene.pure.ui.tsx`). No zoom.
+- **Perf:** 10 skinned, animated zombies is 2.5× today's load. Measure before
+  and after (AGENTS.md, Performance), keep `useFrame` allocation-free, and check
+  the story still runs.
+
+**In scope:**
+
+1. *The horde.* Overtime escalates in stages, e.g. every 15s: +1 or +2
+   zombies, the spawn point moves back. Cap at about 10. A table of stages
+   (data, not scattered constants) so it's easy to tune after a playtest.
+   Replace the 4 fixed slots with lanes derived from the count.
+2. *A longer hallway.* Either the field grows in overtime, or the hall is long
+   from the start with zombies spawning nearer for the first 60s (simpler
+   than geometry that changes mid-round). More cover further back, following
+   the gap rule. Answer labels must stay readable at the far end, at least
+   with a scope.
+3. *Ducking.* In overtime, decoys hide much more: higher `HIDE_CHANCE`,
+   shorter cooldown, popping up and down behind low cover, running from one
+   piece of cover to the next, maybe a crouch in place. Wants the crouch and
+   sidestep clips from "Still to do"; stopgap: lower the model, as hiding does
+   today.
+4. *Scopes.* A new armory catalog kind, e.g. a **2×** and a **3×** scope.
+   Zoom by narrowing the fov (56 → 28 for 2×, ~19 for 3×) while aiming down
+   the scope, centred on the aim point: hold right-click or a key, plus an
+   on-screen button for touch (accessible names). A scope overlay (circle
+   vignette, crosshair) in the HUD while zoomed. Shooting must still raycast
+   correctly from the zoomed camera (`horde_raycast.pure.lib.ts`). Backend:
+   add the items to `backend/app/armory/`, run `make gen-api`, update the zod
+   adapter.
+5. *Balance.* Extend `horde_balance.pure.lib.test.ts` to cover the horde
+   stages; it pins winnability today and must keep doing so.
+
+**Open questions for phase 4** (ask before writing code):
+
+- **Extra zombies' answers:** (a) ask the backend for more distractors for
+  `zombie_horde` (every zombie stays meaningful), (b) extra zombies carry no
+  number (pure threats to shoot or push back; the messiest horde and the
+  simplest), or (c) repeat wrong answers.
+- **How annoying is annoying?** Should ducking ever hide the right answer,
+  even briefly? (Today: never.)
+- **Scope controls:** hold or toggle? Which key? Does the 3× replace the 2×,
+  or can you switch?
+- **Scope prices**, and is a scope needed to make the long hall fair (then the
+  starter loadout may need a basic 1.5×) or just a nice upgrade?
+- Does the longer hall exist from the start, or grow in overtime?
+
+**Phase 4 order:** engine first, pure and tested (N zombies, stages, longer
+field, overtime hiding, balance sim); then scopes (catalog + `make gen-api`,
+loadout, zoom, HUD overlay, stories); measure frame time with 10 zombies; play
+it with `make dev`; record what was built at the top of this file.
+
 ### Out of scope
 
 - Destructible or respawning cover (user: "later if ever").
 - Any change to Equation Outbreak's gameplay.
 - Points or upgrades in other games.
-- Player movement (assumed stationary with aim, like Outbreak; confirm).
+- Player movement (the player stays in one spot and aims).
 - Real-money anything.
 
 ## Starter instructions for Claude
@@ -208,7 +306,7 @@ zone), add it so Outbreak's behavior is unchanged and its tests still pass.
    and Outbreak's wiring for reference (`src/outbreak/zombie_arena.effect.ui.tsx`,
    `src/outbreak/zombie_math_blaster.assembly.main.ts`). Re-verify the
    "Context" facts above; they may be stale.
-2. Raise the open questions below with the user before writing engine code.
+2. For new work, raise that phase's open questions with the user before writing engine code.
 3. Write the pure engine and its tests first. No React, no three.js.
 4. Then the scene, the feature component (`bindHorde`), and the assembly.
    Register the game in `src/main/app.assembly.main.ts` (and the dev screen
@@ -219,27 +317,13 @@ zone), add it so Outbreak's behavior is unchanged and its tests still pass.
    `python3 docs/architecture/build.py`.
 7. Play it with `make dev` before calling a phase done.
 
-## Open questions
+## Open questions (phases 1–3)
 
-- Does a zombie reaching the player cost a life? Then what happens to that
-  zombie (knocked back, or replaced)?
-- Lives: 2 or 3? Can a thrown object be avoided (e.g. shot down), or does it
-  always land?
-- Can the player turn or move, or stay in one spot and aim like Outbreak?
-  A "much larger area" may need at least a wider field of view or turning.
-- Damage numbers: e.g. zombie health 3, headshot 3, body 2, leg 1 plus a
-  knockdown. A feel decision, to tune together.
-- Grenade rule: does it only count near the correct zombie, or does it only
-  slow zombies rather than damage them? It must not let a kid skip the math.
-- Does a wrong shot also cost points, or is the thrown object penalty enough?
-- Final name of the game.
+All answered; see "Defaults chosen" at the top. Phase 4's open questions are
+in its own section.
 
 ## Related
 
-- `ideas/points-and-upgrades.md`: its phase 1 (points + reload for Outbreak)
-  stands on its own. Its phase 2 (health, weapon and bullet catalog) moves
-  here. The points balance and its storage should be shared by both games,
-  so decide its storage once.
+- `ideas/outbreak-points-and-reload.md`: points and a faster reload for
+  Equation Outbreak, spent from this game's armory ledger.
 - `ideas/post-game-stats.md`: the end screen is the natural place for stats.
-- `ideas/horde-overtime-and-scopes.md`: what comes after 60 seconds (up to
-  10 zombies, a longer hall, heavy ducking) and buyable 2×/3× scopes.

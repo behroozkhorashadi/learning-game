@@ -21,7 +21,7 @@ don't have is product thinking — how to take a rough idea and make it
 concrete, how to ask for feedback in a way that's actually useful, and how
 to turn feedback into a specific next change. That's a coachable skill, and
 it's the same shape as something this app already does:
-`RevisionPass` (`backend/app/models/piece.py`) already records a "coach
+`RevisionPass` (`backend/app/pieces/pieces_schemas_pure.py`) already records a "coach
 asks questions, kid answers, note whether anything changed" step for the
 writing games. This idea generalizes that pattern from "revise a story" to
 "refine and iterate a game."
@@ -38,7 +38,7 @@ that whoever builds this should pin down rather than assume:
 - **Sharing scope.** A public, cross-family "app center" runs immediately
   into the PRD's no-accounts stance and real moderation/COPPA concerns.
   The app already has a `Profile` model with a profile picker
-  (`frontend/src/games/ProfilePicker.tsx`) for multiple kids per
+  (`frontend/src/profiles/`) for multiple kids per
   household/install — that's a natural, much lower-risk scope for sharing
   and peer feedback (siblings/family profiles) that sidesteps the
   stranger-safety problem entirely. Treat within-household sharing as the
@@ -104,8 +104,8 @@ code" system.
 This is a product-design idea, not a build spec — don't start writing game
 infrastructure from this file directly.
 
-1. Read `backend/app/models/piece.py` (`RevisionPass`) and
-   `backend/app/games/base.py` (`GameModule`) to confirm the coaching and
+1. Read `backend/app/pieces/pieces_schemas_pure.py` (`RevisionPass`) and
+   `backend/app/play/games/game_module_reducers_pure.py` (`GameModule`) to confirm the coaching and
    game-module patterns referenced above still match the code.
 2. Read `ideas/adaptive-game-evolution-engine.md` — this idea depends on
    that one's Level 1/2 primitives existing (or being built alongside).

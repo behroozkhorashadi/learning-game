@@ -52,7 +52,7 @@ describe('HordeHud', () => {
     render(<HordeHud {...props({ secondsLeft: 0, overtime: { lastedMs: 61_500, bestMs: 95_000, clockMs: 60_000 }, onEndOvertime })} />)
     expect(screen.getByRole('timer', { name: 'Overtime: 1 minute 1 second survived' }).textContent).toContain('1:01')
     expect(screen.getByRole('status', { name: 'Your best: 1 minute 35 seconds' })).toBeTruthy()
-    expect(screen.getByText('Overtime!', { exact: false })).toBeTruthy()
+    expect(screen.getByText('🔥 Overtime! The zombies speed up. Beat 1:35')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Stop & bank points' }))
     expect(onEndOvertime).toHaveBeenCalledTimes(1)
   })
@@ -65,7 +65,7 @@ describe('HordeHud', () => {
 
   it('with no record yet, just counts up', () => {
     render(<HordeHud {...props({ secondsLeft: 0, overtime: { lastedMs: 62_000, bestMs: 0, clockMs: 60_000 } })} />)
-    expect(screen.getByText('The zombies speed up. How long can you last?')).toBeTruthy()
+    expect(screen.getByText('🔥 Overtime! The zombies speed up')).toBeTruthy()
     expect(screen.queryByRole('status', { name: /best/i })).toBeNull()
   })
 
