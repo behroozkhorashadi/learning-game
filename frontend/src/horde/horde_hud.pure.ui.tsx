@@ -4,9 +4,9 @@ import { formatTime } from './horde_scoring.pure.lib.ts'
 import type { ArmedMode, FeedbackKind } from './use_horde_round.pure.hook.ts'
 
 /**
- * Everything drawn over the 3D view during a round: Back, the clock (counting
+ * Everything drawn over the 3D view during a round: Back and "I don't know" (top left), the clock (counting
  * down, then in overtime counting up against the personal best), lives,
- * grenades, push-backs, mute, the question (and "I don't know"), the answers as real buttons (the same
+ * grenades, push-backs, mute, the question, the answers as real buttons (the same
  * targets for keyboard and screen-reader players, independent of the
  * canvas), the crosshair, and the hit/hurt flashes. Props only.
  */
@@ -107,9 +107,15 @@ export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, o
   return (
     <>
       <div style={{ position: 'absolute', top: 16, left: 16, right: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 200, pointerEvents: 'none' }}>
-        <span style={{ pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
           <DenButton label="Back" variant="quiet" shape="pill" size="md" iconOnly boxSize={44} iconPaths={BACK_ICON} onClick={onBack} />
-        </span>
+          {onDontKnow !== null && (
+            <button type="button" aria-label="I don't know" aria-keyshortcuts="?" title="Show me the answer (?)" onClick={onDontKnow} style={{ ...PILL, border: 0, cursor: 'pointer' }}>
+              🤔 I don&apos;t know
+              <kbd aria-hidden="true" style={KEYCAP}>?</kbd>
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {overtime === null ? (
             <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
@@ -213,14 +219,6 @@ export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, o
       )}
 
       <div style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
-        {onDontKnow !== null && (
-          <span style={{ pointerEvents: 'auto' }}>
-            <button type="button" aria-label="I don't know" aria-keyshortcuts="?" title="Show me the answer (?)" onClick={onDontKnow} style={{ ...PILL, height: 36, border: 0, cursor: 'pointer', fontSize: 15 }}>
-              🤔 I don&apos;t know
-              <kbd aria-hidden="true" style={KEYCAP}>?</kbd>
-            </button>
-          </span>
-        )}
         {revealed && (
           // Screen readers hear the answer from the round's live message; the banner is for eyes.
           <div aria-hidden="true" style={{ ...BANNER, background: '#3F7A22' }}>
