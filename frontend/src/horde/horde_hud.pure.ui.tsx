@@ -27,10 +27,9 @@ export interface HudOvertime {
 export const OVERTIME_BANNER_MS = 3000
 
 export interface HordeHudProps {
-  /** The question, or the whole fact once its answer is revealed. */
   readonly question: string | null
-  /** The answer is showing ("I don't know" was pressed). */
-  readonly revealed: boolean
+  /** The whole fact once "I don't know" was pressed ("6 × 7 = 42"), shown small in the top right, out of the field's way; null otherwise. */
+  readonly revealedAnswer: string | null
   /** Shows the answer; null hides the button (between questions, once revealed, during the intro). */
   readonly onDontKnow: (() => void) | null
   /** The question fills the screen before the horde moves. */
@@ -99,7 +98,7 @@ function clockLabel(ms: number): string {
   return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
 }
 
-export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, shoveEarned, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, revealedAnswer, onDontKnow, intro, secondsLeft, overtime, onEndOvertime, lives, grenades, shoves, shoveEarned, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
   const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
@@ -117,6 +116,11 @@ export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, o
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {revealedAnswer !== null && (
+            <div role="status" aria-label={`The answer: ${revealedAnswer}`} style={{ ...PILL, background: '#3F7A22', color: '#FFFFFF' }}>
+              💡 {revealedAnswer}
+            </div>
+          )}
           {overtime === null ? (
             <div role="timer" aria-label={`${String(secondsLeft)} seconds left`} style={{ ...PILL, color: secondsLeft <= 10 ? '#CD2A20' : '#2A2E37' }}>
               ⏱ {secondsLeft}s
@@ -196,13 +200,12 @@ export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, o
             zIndex: 150,
             padding: '14px 24px',
             borderRadius: 20,
-            background: revealed ? '#EAF6E2' : '#FFFFFF',
-            border: revealed ? '3px solid #3F7A22' : '3px solid transparent',
+            background: '#FFFFFF',
             boxShadow: '0 10px 24px -12px rgba(0,13,51,0.35)',
             fontFamily: 'var(--font-display)',
             fontWeight: 800,
             fontSize: 34,
-            color: revealed ? '#3F7A22' : '#2A2E37',
+            color: '#2A2E37',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
           }}
@@ -219,12 +222,6 @@ export function HordeHud({ question, revealed, onDontKnow, intro, secondsLeft, o
       )}
 
       <div style={{ position: 'absolute', top: 140, left: '50%', transform: 'translateX(-50%)', zIndex: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
-        {revealed && (
-          // Screen readers hear the answer from the round's live message; the banner is for eyes.
-          <div aria-hidden="true" style={{ ...BANNER, background: '#3F7A22' }}>
-            Now you know! Zap the zombie with the answer
-          </div>
-        )}
         {shoveEarned && (
           <div aria-hidden="true" style={{ ...BANNER, background: '#3D8BFF' }}>
             ✋ +1 push-back for 3 right answers!

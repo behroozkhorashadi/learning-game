@@ -155,7 +155,8 @@ describe('ZombieHorde: a round', () => {
     const harness = await open()
     await startRound(harness)
     press("I don't know")
-    expect(question()).toBe(`3 + 4 = ${String(rightAnswer(0))}`)
+    expect(screen.getByRole('status', { name: `The answer: 3 + 4 = ${String(rightAnswer(0))}` })).toBeTruthy()
+    expect(question()).toBe('3 + 4 =')
     expect(harness.attempts).toHaveLength(1)
     expect(harness.attempts[0]).toMatchObject({ telemetry: { correct: false } })
     // Only the right zombie still carries an answer.

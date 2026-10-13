@@ -15,7 +15,7 @@ const meta = {
   ],
   args: {
     question: '7 × 6 =',
-    revealed: false,
+    revealedAnswer: null,
     onDontKnow: fn(),
     intro: false,
     secondsLeft: 37,
@@ -108,12 +108,13 @@ export const NewRecord: Story = {
 }
 
 export const AnswerRevealed: Story = {
-  args: { question: '7 × 6 = 42', revealed: true, answers: [{ zombieId: 'z1', label: '42' }] },
+  args: { revealedAnswer: '7 × 6 = 42', answers: [{ zombieId: 'z1', label: '42' }] },
   // Once the answer shows, there's nothing left to ask for.
   render: (args) => <HordeHud {...args} onDontKnow={null} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await expect(canvas.getByRole('heading', { name: 'Question' })).toHaveTextContent('7 × 6 = 42')
+    await expect(canvas.getByRole('heading', { name: 'Question' })).toHaveTextContent('7 × 6 =')
+    await expect(canvas.getByRole('status', { name: 'The answer: 7 × 6 = 42' })).toBeVisible()
     await expect(canvas.queryByRole('button', { name: "I don't know" })).toBeNull()
   },
 }

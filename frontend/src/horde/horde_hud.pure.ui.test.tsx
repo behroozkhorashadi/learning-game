@@ -7,7 +7,7 @@ afterEach(cleanup)
 function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
   return {
     question: '3 + 4 =',
-    revealed: false,
+    revealedAnswer: null,
     onDontKnow: vi.fn(),
     intro: false,
     secondsLeft: 42,
@@ -147,10 +147,10 @@ describe('HordeHud', () => {
     expect(screen.queryByRole('button', { name: "I don't know" })).toBeNull()
   })
 
-  it('shows the whole fact once the answer is revealed', () => {
-    render(<HordeHud {...props({ question: '3 + 4 = 7', revealed: true, onDontKnow: null })} />)
-    expect(screen.getByRole('heading', { name: 'Question' }).textContent).toBe('3 + 4 = 7')
-    expect(screen.getByText('Now you know! Zap the zombie with the answer')).toBeTruthy()
+  it('shows a revealed answer small in the top bar, leaving the question as it was', () => {
+    render(<HordeHud {...props({ revealedAnswer: '3 + 4 = 7', onDontKnow: null })} />)
+    expect(screen.getByRole('status', { name: 'The answer: 3 + 4 = 7' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Question' }).textContent).toBe('3 + 4 =')
   })
 
   it('says so for a moment when a push-back is earned', () => {

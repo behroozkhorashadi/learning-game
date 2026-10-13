@@ -234,8 +234,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             onReloadStart={deps.audio.playReload}
           />
           <HordeHud
-            question={state.question === null ? null : state.questionRevealed ? state.question.summary : state.question.text}
-            revealed={state.questionRevealed}
+            question={state.question?.text ?? null}
+            revealedAnswer={state.question !== null && state.questionRevealed ? state.question.summary : null}
             onDontKnow={phase === 'playing' && state.question !== null && !state.questionRevealed ? round.dontKnow : null}
             intro={phase === 'intro'}
             secondsLeft={secondsLeft(state.elapsedMs, round.durationMs)}
