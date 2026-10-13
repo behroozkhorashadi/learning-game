@@ -46,10 +46,11 @@ export interface ArtStudioViewProps {
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 export const MAX_IDEA_LENGTH = 120
 
-function Gallery({ gallery }: { readonly gallery: QueryState<readonly ArtPieceRecord[]> }): ReactElement | null {
+/** The kid's art pieces as a grid of thumbnails, each opening full size. Also shown on the badges screen. */
+export function ArtGallery({ gallery, emptyText }: { readonly gallery: QueryState<readonly ArtPieceRecord[]>; readonly emptyText: string }): ReactElement {
   if (gallery.kind === 'loading') return <p style={{ color: '#8896AA' }}>Opening your gallery…</p>
   if (gallery.kind === 'failed') return <p role="alert" style={{ color: '#CD2A20' }}>Your gallery couldn&apos;t load ({gallery.message}).</p>
-  if (gallery.data.length === 0) return <p style={{ color: '#8896AA' }}>Your gallery is empty. Make your first piece!</p>
+  if (gallery.data.length === 0) return <p style={{ color: '#8896AA' }}>{emptyText}</p>
   return (
     <ul aria-label="Your gallery" style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
       {gallery.data.map((piece) => (
@@ -159,7 +160,7 @@ export function ArtStudioView({ balance, price, camera, videoRef, selfie, style,
       )}
 
       <h2 style={{ margin: '28px 0 12px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: '#2A2E37', textAlign: 'left' }}>Your gallery</h2>
-      <Gallery gallery={gallery} />
+      <ArtGallery gallery={gallery} emptyText="Your gallery is empty. Make your first piece!" />
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import type { ArtPieceRecord } from '@app/api/armory_schema.pure.lib.ts'
 import type { BadgeRecord, ProfileStatsRecord } from '@app/api/badges_schema.pure.lib.ts'
 
 export const BADGES: readonly BadgeRecord[] = [
@@ -16,3 +17,7 @@ export const STATS: ProfileStatsRecord = {
 }
 
 export const NEW_PLAYER_STATS: ProfileStatsRecord = { total_stars: 0, day_streak: 0, minutes_this_week: 0, most_played_game: null, avg_rating: null, last_session_at: null, progress_delta_pct: null }
+
+export const ART: readonly ArtPieceRecord[] = [
+  { id: 'art-1', profile_id: 1, image_url: '/images/badges/word-wizard.png', style: 'comic_hero', idea: 'a pet dragon', created_at: '2026-01-05T12:00:00Z' },
+]

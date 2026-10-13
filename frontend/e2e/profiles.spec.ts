@@ -63,7 +63,7 @@ test('badges screen opens and goes back', async ({ page }) => {
   const name = uniqueName('Ivy')
   await createProfile(page, { name })
 
-  await page.getByRole('button', { name: 'View badges' }).click()
+  await page.getByRole('button', { name: 'View badges and prizes' }).click()
   await expect(page.getByText('Pick a game')).toHaveCount(0)
   await snap(page, '05-badges')
   await page.getByRole('button', { name: /back/i }).first().click()

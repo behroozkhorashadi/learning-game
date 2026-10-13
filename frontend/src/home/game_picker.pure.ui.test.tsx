@@ -42,7 +42,7 @@ describe('GamePickerView', () => {
   it('the tile selects the game; the header buttons reach badges, edit, and switch', () => {
     const props = renderPicker()
     fireEvent.click(screen.getByText('Equation Outbreak'))
-    fireEvent.click(screen.getByRole('button', { name: 'View badges' }))
+    fireEvent.click(screen.getByRole('button', { name: 'View badges and prizes' }))
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }))
     fireEvent.click(screen.getByRole('button', { name: 'Switch player' }))
     expect(props.onSelectGame).toHaveBeenCalledWith('fact_fluency')

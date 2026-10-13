@@ -1,14 +1,17 @@
 import { useState, type CSSProperties, type ReactElement } from 'react'
+import type { ArtPieceRecord } from '@app/api/armory_schema.pure.lib.ts'
 import type { BadgeRecord, ProfileStatsRecord } from '@app/api/badges_schema.pure.lib.ts'
 import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon } from '@app/den/icons.pure.ui.tsx'
+import { ArtGallery } from '@app/horde/art_studio_view.pure.ui.tsx'
 import type { QueryState } from '@app/query/query_state.pure.lib.ts'
 import { badgeColors, formatAverageRating, formatEarnedDate, formatLastSession, formatProgress } from './badges_format.pure.lib.ts'
 
 /**
- * Badges & accomplishments, ported from the Claude Design handoff bundle
- * (`Badges & Accomplishments.dc.html`). Props only: the badges and stats
- * arrive as a QueryState from the bound screen (badges.effect.ui.tsx). A kid
- * view and a parent view, toggled in place.
+ * Badges & prizes, ported from the Claude Design handoff bundle
+ * (`Badges & Accomplishments.dc.html`), plus the art the kid made in Zombie
+ * Horde's Art Studio. Props only: the badges, stats, and gallery arrive as
+ * QueryStates from the bound screen (badges.effect.ui.tsx). A kid view and a
+ * parent view, toggled in place.
  */
 
 function BadgeArt({ badge, width, height }: { readonly badge: BadgeRecord; readonly width: number | string; readonly height: number }): ReactElement {
@@ -47,6 +50,17 @@ function BadgeArt({ badge, width, height }: { readonly badge: BadgeRecord; reado
         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       />
     </div>
+  )
+}
+
+const GALLERY_EMPTY = 'No art yet. Spend Zombie Horde points in the Art Studio to make some!'
+
+function PrizesSection({ gallery, marginBottom }: { readonly gallery: QueryState<readonly ArtPieceRecord[]>; readonly marginBottom: number }): ReactElement {
+  return (
+    <section aria-label="Zombie Horde art gallery">
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom }}>Zombie Horde art gallery</div>
+      <ArtGallery gallery={gallery} emptyText={GALLERY_EMPTY} />
+    </section>
   )
 }
 
@@ -93,13 +107,15 @@ export interface BadgesData {
 
 export interface BadgesViewProps {
   readonly state: QueryState<BadgesData>
+  /** Zombie Horde's art, loaded apart from the badges. */
+  readonly gallery: QueryState<readonly ArtPieceRecord[]>
   readonly kidName: string
   /** For "Today at …" on the last session. */
   readonly now: Date
   readonly onBack: () => void
 }
 
-export function BadgesView({ state, kidName, now, onBack }: BadgesViewProps): ReactElement {
+export function BadgesView({ state, gallery, kidName, now, onBack }: BadgesViewProps): ReactElement {
   const [isKidView, setIsKidView] = useState(true)
   const toggleView = (): void => {
     setIsKidView((v) => !v)
@@ -116,7 +132,7 @@ export function BadgesView({ state, kidName, now, onBack }: BadgesViewProps): Re
   if (state.kind === 'loading') {
     return (
       <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
-        <div role="status" style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '48px 32px', textAlign: 'center', color: '#9A907C', fontWeight: 600, height: 'fit-content' }}>Loading your badges…</div>
+        <div role="status" style={{ background: '#FFFDF8', border: '1px solid #EDE5D5', borderRadius: 28, padding: '48px 32px', textAlign: 'center', color: '#9A907C', fontWeight: 600, height: 'fit-content' }}>Loading your badges &amp; prizes…</div>
       </div>
     )
   }
@@ -135,7 +151,7 @@ export function BadgesView({ state, kidName, now, onBack }: BadgesViewProps): Re
                 <Avatar kidName={kidName} />
                 <div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3' }}>{kidName}</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, lineHeight: 1.1, color: '#2A2E37' }}>Your badges</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, lineHeight: 1.1, color: '#2A2E37' }}>Badges &amp; prizes</div>
                 </div>
               </div>
               <ToggleButton isKidView={isKidView} onToggle={toggleView} />
@@ -173,6 +189,10 @@ export function BadgesView({ state, kidName, now, onBack }: BadgesViewProps): Re
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div style={{ marginTop: 32 }}>
+              <PrizesSection gallery={gallery} marginBottom={16} />
             </div>
           </div>
         ) : (
@@ -222,6 +242,8 @@ export function BadgesView({ state, kidName, now, onBack }: BadgesViewProps): Re
                     ))}
                   </div>
                 </div>
+
+                <PrizesSection gallery={gallery} marginBottom={20} />
 
                 <div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 20 }}>Learning insights</div>

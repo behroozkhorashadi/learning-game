@@ -88,8 +88,8 @@ export function GamePickerView({ games, age, profile, onSelectGame, onSwitchProf
             <button
               type="button"
               onClick={onViewBadges}
-              aria-label="View badges"
-              title="View badges"
+              aria-label="View badges and prizes"
+              title="View badges and prizes"
               style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
             >
               <BadgeIcon />
