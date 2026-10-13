@@ -7,8 +7,8 @@ afterEach(cleanup)
 
 describe('bindGamePicker', () => {
   it('loads the catalog and shows it', async () => {
-    const GamePicker = bindGamePicker({ listGames: () => Promise.resolve(GAMES) })
-    render(<GamePicker profile={{ name: 'Rami', birth_year: new Date().getFullYear() - 7 }} onSelectGame={vi.fn()} onSwitchProfile={vi.fn()} onEditProfile={vi.fn()} onViewBadges={vi.fn()} onOpenPracticeSettings={vi.fn()} />)
+    const GamePicker = bindGamePicker({ listGames: () => Promise.resolve(GAMES), currentYear: 2026 })
+    render(<GamePicker profile={{ name: 'Rami', birth_year: 2019 }} onSelectGame={vi.fn()} onSwitchProfile={vi.fn()} onEditProfile={vi.fn()} onViewBadges={vi.fn()} onOpenPracticeSettings={vi.fn()} />)
     expect(await screen.findByText('Equation Outbreak')).toBeTruthy()
   })
 })

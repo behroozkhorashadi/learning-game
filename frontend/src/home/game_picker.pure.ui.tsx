@@ -60,12 +60,12 @@ export interface GamePickerProps {
 
 export interface GamePickerViewProps extends GamePickerProps {
   readonly games: QueryState<readonly GameRecord[]>
+  readonly age: number
 }
 
 /** The kid home, props only: the game list arrives as a QueryState from game_picker.effect.ui.tsx. */
-export function GamePickerView({ games, profile, onSelectGame, onSwitchProfile, onEditProfile, onViewBadges, onOpenPracticeSettings }: GamePickerViewProps): ReactElement {
+export function GamePickerView({ games, age, profile, onSelectGame, onSwitchProfile, onEditProfile, onViewBadges, onOpenPracticeSettings }: GamePickerViewProps): ReactElement {
   const theme0 = CARD_THEMES[0]
-  const age = new Date().getFullYear() - profile.birth_year
 
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>

@@ -8,7 +8,7 @@ const meta = {
   title: 'app/home/GamePickerView',
   component: GamePickerView,
   parameters: { layout: 'fullscreen' },
-  args: { games: loaded(GAMES), profile: { name: 'Mia' }, onSelectGame: fn(), onSwitchProfile: fn(), onEditProfile: fn(), onViewBadges: fn(), onOpenPracticeSettings: fn() },
+  args: { games: loaded(GAMES), age: 7, profile: { name: 'Mia', birth_year: 2019 }, onSelectGame: fn(), onSwitchProfile: fn(), onEditProfile: fn(), onViewBadges: fn(), onOpenPracticeSettings: fn() },
 } satisfies Meta<typeof GamePickerView>
 
 export default meta

@@ -4,7 +4,7 @@ import type { BoardItem } from '@app/tiles/tile_placement.pure.lib.ts'
 
 /** Mock data for the dev screens (`?screen=`): fixed content so a screen opens without playing through to it. */
 
-export const MOCK_PROFILE: { readonly id: number; readonly name: string } = { id: 1, name: 'Mia' }
+export const MOCK_PROFILE: { readonly id: number; readonly name: string; readonly birth_year: number } = { id: 1, name: 'Mia', birth_year: 2018 }
 
 export const TILE_ITEM: BoardItem = {
   kind: 'word',
