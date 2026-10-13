@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createRound, type HordeZombie, type Posture } from './horde_engine.pure.lib.ts'
-import { blastProgress, clipRoleFor, healthFraction, isDrawn, projectilePosition, secondsLeft, slotColor, zoneAlongBody } from './horde_scene_rules.pure.lib.ts'
+import { IMPACT_MS, createRound, type HordeZombie, type Impact, type Posture } from './horde_engine.pure.lib.ts'
+import { IMPACT_STYLE_MS, blastProgress, clipRoleFor, impactPosition, impactProgress, impactStyleFor, healthFraction, isDrawn, projectilePosition, secondsLeft, slotColor, zoneAlongBody } from './horde_scene_rules.pure.lib.ts'
 
 const ZOMBIE: HordeZombie = createRound({ seed: 1, lives: 3, grenades: 0, shoves: 3, ammo: 0, cover: [] }).zombies[0] ?? (() => { throw new Error('no zombie') })()
 
@@ -59,6 +59,28 @@ describe('horde scene rules', () => {
     const blast = { id: 'b', x: 0, depth: 5, atMs: 100, dud: false }
     expect(blastProgress(blast, 100)).toEqual({ grow: 0, fade: 1 })
     expect(blastProgress(blast, 10_000)).toEqual({ grow: 1, fade: 0 })
+  })
+
+  it('draws special rounds in their own style, and standard rounds as a spark', () => {
+    const impact: Impact = { id: 'i1', x: 0, depth: 5, zone: 'body', atMs: 0, special: true }
+    expect(impactStyleFor(impact, 'explosion')).toBe('explosion')
+    expect(impactStyleFor({ ...impact, special: false }, 'explosion')).toBe('spark')
+  })
+
+  it('puts a hit effect higher for a headshot than a leg shot', () => {
+    const impact: Impact = { id: 'i1', x: 1, depth: 5, zone: 'head', atMs: 0, special: false }
+    expect(impactPosition(impact)[1]).toBeGreaterThan(impactPosition({ ...impact, zone: 'body' })[1])
+    expect(impactPosition({ ...impact, zone: 'body' })[1]).toBeGreaterThan(impactPosition({ ...impact, zone: 'leg' })[1])
+  })
+
+  it('a hit effect grows and fades, lasts longer the bigger it is, and never outlives the engine\'s impact', () => {
+    const impact: Impact = { id: 'i1', x: 0, depth: 5, zone: 'body', atMs: 100, special: true }
+    expect(impactProgress(impact, 'spark', 100)).toEqual({ grow: 0, fade: 1 })
+    expect(impactProgress(impact, 'spark', 100 + IMPACT_STYLE_MS.spark)).toBeNull()
+    expect(impactProgress(impact, 'explosion', 100 + IMPACT_STYLE_MS.spark)).not.toBeNull()
+    expect(IMPACT_STYLE_MS.spark).toBeLessThan(IMPACT_STYLE_MS.pierce)
+    expect(IMPACT_STYLE_MS.pierce).toBeLessThan(IMPACT_STYLE_MS.explosion)
+    expect(IMPACT_STYLE_MS.explosion).toBeLessThanOrEqual(IMPACT_MS)
   })
 
   it('counts whole seconds down, never below zero', () => {

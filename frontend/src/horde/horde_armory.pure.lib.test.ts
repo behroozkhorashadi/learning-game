@@ -9,10 +9,13 @@ describe('horde armory', () => {
     expect([hitsToDefeat(power, 'head'), hitsToDefeat(power, 'body'), hitsToDefeat(power, 'leg')]).toEqual([2, 4, 5])
   })
 
-  it('never makes a headshot a one-hit defeat, whatever the gear', () => {
+  it('only the Mega Blaster with Explosive Rounds makes a headshot a one-hit defeat', () => {
     const everything = [...WEAPONS, ...BULLETS].map((item) => item.id)
     for (const weapon of WEAPONS) {
-      for (const bullet of BULLETS) expect(hitsToDefeat(shotPower(loadoutFor(weapon.id, bullet.id, everything)), 'head')).toBeGreaterThanOrEqual(2)
+      for (const bullet of BULLETS) {
+        const top = weapon.id === 'mega_blaster' && bullet.id === 'explosive_rounds'
+        expect(hitsToDefeat(shotPower(loadoutFor(weapon.id, bullet.id, everything)), 'head')).toBe(top ? 1 : 2)
+      }
     }
   })
 
@@ -26,11 +29,25 @@ describe('horde armory', () => {
     }
   })
 
-  it('the best gear brings a body defeat down to 2 hits', () => {
+  it('the best gear brings a body defeat down to 2 hits and a headshot to 1', () => {
     const owned = [...STARTER, 'rapid_blaster', 'mega_blaster', 'armor_piercing', 'explosive_rounds']
     const { weaponId, bulletId } = bestOwned(owned)
     expect([weaponId, bulletId]).toEqual(['mega_blaster', 'explosive_rounds'])
-    expect(hitsToDefeat(shotPower(loadoutFor(weaponId, bulletId, owned)), 'body')).toBe(2)
+    const power = shotPower(loadoutFor(weaponId, bulletId, owned))
+    expect([hitsToDefeat(power, 'head'), hitsToDefeat(power, 'body')]).toEqual([1, 2])
+  })
+
+  it('each weapon upgrade with Explosive Rounds takes fewer hits somewhere', () => {
+    const everything = [...WEAPONS, ...BULLETS].map((item) => item.id)
+    const counts = WEAPONS.map((weapon) => {
+      const power = shotPower(loadoutFor(weapon.id, 'explosive_rounds', everything))
+      return [hitsToDefeat(power, 'head'), hitsToDefeat(power, 'body'), hitsToDefeat(power, 'leg')]
+    })
+    expect(counts).toEqual([
+      [2, 3, 3],
+      [2, 2, 3],
+      [1, 2, 3],
+    ])
   })
 
   it('falls back to the starter for anything not owned or unknown', () => {

@@ -51,10 +51,10 @@ export function wrongAnswer(i: number): number {
 export const CATALOG: readonly ArmoryItemRecord[] = [
   { id: 'starter_blaster', kind: 'weapon', name: 'Starter Blaster', description: 'Your trusty blaster.', price: 0, quantity: 1, consumable: false, requires: null },
   { id: 'rapid_blaster', kind: 'weapon', name: 'Rapid Blaster', description: 'Reloads twice as fast and hits a little harder.', price: 250, quantity: 1, consumable: false, requires: 'starter_blaster' },
-  { id: 'mega_blaster', kind: 'weapon', name: 'Mega Blaster', description: 'Huge hits and a lightning-fast reload.', price: 600, quantity: 1, consumable: false, requires: 'rapid_blaster' },
+  { id: 'mega_blaster', kind: 'weapon', name: 'Mega Blaster', description: 'Huge hits and a lightning-fast reload. With Explosive Rounds, one headshot does it.', price: 600, quantity: 1, consumable: false, requires: 'rapid_blaster' },
   { id: 'standard_rounds', kind: 'bullet', name: 'Standard Rounds', description: 'Never run out. Headshots hit hardest; leg shots knock zombies down.', price: 0, quantity: 1, consumable: false, requires: null },
   { id: 'armor_piercing', kind: 'bullet', name: 'Armor-Piercing Rounds', description: '25 rounds. Body and leg shots hit much harder.', price: 60, quantity: 25, consumable: true, requires: null },
-  { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: '25 rounds. Every shot hits harder, wherever it lands.', price: 120, quantity: 25, consumable: true, requires: null },
+  { id: 'explosive_rounds', kind: 'bullet', name: 'Explosive Rounds', description: '25 rounds. Every shot hits harder and blows up where it lands.', price: 120, quantity: 25, consumable: true, requires: null },
   { id: 'art_studio', kind: 'art', name: 'Art Studio', description: 'Snap a selfie and turn it into a one-of-a-kind piece of art for your gallery.', price: 300, quantity: 1, consumable: true, requires: null },
   { id: 'grenade_pack', kind: 'grenade', name: 'Grenade Pack', description: 'Three grenades. A grenade only goes off near the zombie with the right answer.', price: 80, quantity: 3, consumable: true, requires: null },
 ]
@@ -140,10 +140,14 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, a
   }
 }
 
-/** The 3D view as buttons: `head 7`, `body 7`, `leg 7`, and `grenade at 7` per zombie with an answer, plus `miss` and `floor grenade`. */
-export function FakeHordeViewport({ zombies, answers, grenadeArmed, onShot, onGrenade }: HordeViewportProps): ReactElement {
+/** The 3D view as buttons: `head 7`, `body 7`, `leg 7`, and `grenade at 7` per zombie with an answer, plus `miss` and `floor grenade`. Names the blaster in hand and each hit effect showing. */
+export function FakeHordeViewport({ zombies, answers, grenadeArmed, weapon, impacts, impactStyle, onShot, onGrenade }: HordeViewportProps): ReactElement {
   return (
     <div>
+      <span>{`holding the ${weapon.displayName}`}</span>
+      {impacts.map((impact) => (
+        <span key={impact.id}>{`${impact.special ? impactStyle : 'spark'} hit`}</span>
+      ))}
       <button
         type="button"
         onClick={() => {

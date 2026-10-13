@@ -28,6 +28,8 @@ function props(overrides: Partial<HordeSceneProps> = {}): HordeSceneProps {
     characters: ZOMBIE_CHARACTER_REGISTRY.slice(0, 4),
     projectiles: [],
     blasts: [],
+    impacts: [],
+    impactStyle: 'spark',
     elapsedMs: 0,
     cover: COVER,
     shadows: false,
@@ -108,6 +110,26 @@ describe('HordeScene', () => {
     )
     for (const piece of COVER) expect(renderer.scene.instance.getObjectByName(`collider-${piece.id}`)).toBeTruthy()
     expect(renderer.scene.instance.getObjectByName('floor')).toBeTruthy()
+  })
+
+  it('draws each hit in its rounds\' style while it lasts, and standard rounds as a spark', async () => {
+    const impacts = [
+      { id: 'i1', x: 0, depth: 6, zone: 'head' as const, atMs: 0, special: true },
+      { id: 'i2', x: 2, depth: 8, zone: 'body' as const, atMs: 0, special: false },
+    ]
+    const at = async (impactStyle: HordeSceneProps['impactStyle'], elapsedMs: number): Promise<readonly string[]> => {
+      const renderer = await ReactThreeTestRenderer.create(<HordeScene {...props({ impacts, impactStyle, elapsedMs })} />)
+      const names: string[] = []
+      renderer.scene.instance.traverse((obj) => {
+        if (obj.name.startsWith('impact-')) names.push(obj.name)
+      })
+      return names.sort()
+    }
+    expect(await at('explosion', 100)).toEqual(['impact-explosion', 'impact-spark'])
+    expect(await at('pierce', 100)).toEqual(['impact-pierce', 'impact-spark'])
+    // The spark is quick; the explosion lingers.
+    expect(await at('explosion', 400)).toEqual(['impact-explosion'])
+    expect(await at('explosion', 5000)).toEqual([])
   })
 })
 

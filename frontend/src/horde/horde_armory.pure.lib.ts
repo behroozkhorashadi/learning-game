@@ -6,7 +6,9 @@
  *
  * Health is 100. With the starter blaster and standard rounds, a zombie takes
  * 2 headshots, 4 body shots, or 5 leg shots (each of which knocks it down).
- * Upgrades bring the body and leg counts down; a headshot is never a one-hit kill.
+ * Upgrades bring the body and leg counts down. Only the top pair, the Mega
+ * Blaster with Explosive Rounds, defeats a zombie with one headshot: buying
+ * both has to be worth it, since a round lands one hit per question.
  */
 
 export type ShotZone = 'head' | 'body' | 'leg'
@@ -22,9 +24,13 @@ export interface WeaponStats {
   readonly cooldownMs: number
 }
 
+/** How a hit looks where it lands. */
+export type ImpactStyle = 'spark' | 'pierce' | 'explosion'
+
 export interface BulletStats {
   readonly id: string
   readonly power: ShotPower
+  readonly impact: ImpactStyle
 }
 
 export interface GrenadeStats {
@@ -36,7 +42,7 @@ export interface GrenadeStats {
 export const ZOMBIE_MAX_HEALTH = 100
 
 const STARTER_WEAPON: WeaponStats = { id: 'starter_blaster', damageScale: 1, cooldownMs: 700 }
-const STANDARD_ROUNDS: BulletStats = { id: 'standard_rounds', power: { head: 50, body: 25, leg: 20 } }
+const STANDARD_ROUNDS: BulletStats = { id: 'standard_rounds', power: { head: 50, body: 25, leg: 20 }, impact: 'spark' }
 
 export const WEAPONS: readonly WeaponStats[] = [
   STARTER_WEAPON,
@@ -46,8 +52,8 @@ export const WEAPONS: readonly WeaponStats[] = [
 
 export const BULLETS: readonly BulletStats[] = [
   STANDARD_ROUNDS,
-  { id: 'armor_piercing', power: { head: 50, body: 35, leg: 25 } },
-  { id: 'explosive_rounds', power: { head: 55, body: 45, leg: 35 } },
+  { id: 'armor_piercing', power: { head: 50, body: 35, leg: 25 }, impact: 'pierce' },
+  { id: 'explosive_rounds', power: { head: 75, body: 45, leg: 35 }, impact: 'explosion' },
 ]
 
 export const GRENADE: GrenadeStats = { radius: 2.6, damage: 100 }

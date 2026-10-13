@@ -1,6 +1,6 @@
 import type { ZombieClipRole } from '@app/zombies/zombie_animation_fallback.pure.lib.ts'
-import { ZOMBIE_MAX_HEALTH, type ShotZone } from './horde_armory.pure.lib.ts'
-import { BLAST_MS, type Blast, type HordeZombie, type Projectile } from './horde_engine.pure.lib.ts'
+import { ZOMBIE_MAX_HEALTH, type ImpactStyle, type ShotZone } from './horde_armory.pure.lib.ts'
+import { BLAST_MS, IMPACT_MS, type Blast, type HordeZombie, type Impact, type Projectile } from './horde_engine.pure.lib.ts'
 import { worldPosition } from './horde_field.pure.lib.ts'
 
 /** The scene's pure rules (horde_scene.pure.ui.tsx renders them). */
@@ -89,6 +89,30 @@ export function projectilePosition(projectile: Projectile, nowMs: number): Vec3 
 export function blastProgress(blast: Blast, nowMs: number): { readonly grow: number; readonly fade: number } {
   const t = Math.min(Math.max((nowMs - blast.atMs) / BLAST_MS, 0), 1)
   return { grow: 1 - (1 - t) * (1 - t), fade: 1 - t }
+}
+
+/** How long each kind of hit effect lasts: the bigger the bang, the longer. Never longer than the engine keeps an impact. */
+export const IMPACT_STYLE_MS: Readonly<Record<ImpactStyle, number>> = { spark: 260, pierce: 380, explosion: IMPACT_MS }
+
+/** Roughly where on a standing zombie each zone is, in world units above the floor. */
+const ZONE_HEIGHT: Readonly<Record<ShotZone, number>> = { head: 1.75, body: 1.2, leg: 0.5 }
+
+/** How a hit looks: special rounds in the loadout's own style, standard rounds (and special ones run out) as a spark. */
+export function impactStyleFor(impact: Impact, specialStyle: ImpactStyle): ImpactStyle {
+  return impact.special ? specialStyle : 'spark'
+}
+
+/** Where a hit effect sits: on the zombie, at the height of the zone it hit. */
+export function impactPosition(impact: Impact): Vec3 {
+  const [x, , z] = worldPosition(impact.x, impact.depth)
+  return [x, ZONE_HEIGHT[impact.zone], z]
+}
+
+/** A hit effect's growth (0..1, fast at first) and fade (1..0) at `nowMs`, or null once it's over. */
+export function impactProgress(impact: Impact, style: ImpactStyle, nowMs: number): { readonly grow: number; readonly fade: number } | null {
+  const t = (nowMs - impact.atMs) / IMPACT_STYLE_MS[style]
+  if (t < 0 || t >= 1) return null
+  return { grow: 1 - (1 - t) * (1 - t) * (1 - t), fade: 1 - t }
 }
 
 /** Seconds left on the clock, rounded up, for the HUD. */

@@ -4,7 +4,7 @@ import { expect, userEvent, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { MuzzleFlash } from './muzzle_flash.pure.ui.tsx'
 
-function Stage({ reducedMotion }: { readonly reducedMotion: boolean }): ReactElement {
+function Stage({ reducedMotion, color = '#FFFFFF', sizeScale = 1 }: { readonly reducedMotion: boolean; readonly color?: string; readonly sizeScale?: number }): ReactElement {
   const [shots, setShots] = useState(0)
   return (
     <div>
@@ -17,7 +17,7 @@ function Stage({ reducedMotion }: { readonly reducedMotion: boolean }): ReactEle
         Flash
       </button>
       <SceneStoryFrame camera={[0, 0, 0.6]}>
-        <MuzzleFlash triggerSignal={shots} reducedMotion={reducedMotion} />
+        <MuzzleFlash triggerSignal={shots} reducedMotion={reducedMotion} color={color} sizeScale={sizeScale} />
       </SceneStoryFrame>
     </div>
   )
@@ -36,3 +36,12 @@ export const OnTrigger: Story = {
 }
 
 export const ReducedMotion: Story = { args: { reducedMotion: true } }
+
+/** The Mega Blaster's flash: pink and big. */
+export const Mega: Story = {
+  args: { color: '#FF9CF9', sizeScale: 1.7 },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Flash' }))
+    await expect(within(canvasElement).getByRole('figure', { name: '3D scene' })).toBeVisible()
+  },
+}

@@ -80,6 +80,8 @@ const PERSONAL_SPACE = 1.1
 const SEPARATION_SPEED = 0.0015
 /** How long a grenade blast stays in the state for the scene to draw. */
 export const BLAST_MS = 900
+/** How long a hit's impact stays in the state for the scene to draw. */
+export const IMPACT_MS = 700
 
 export type Posture =
   /** Walking toward the player, weaving between cover. */
@@ -156,6 +158,17 @@ export interface Blast {
   readonly dud: boolean
 }
 
+/** Where a right-answer hit landed, for the scene's hit effect. */
+export interface Impact {
+  readonly id: string
+  readonly x: number
+  readonly depth: number
+  readonly zone: ShotZone
+  readonly atMs: number
+  /** Fired with a special round (so it looks like one), not a standard round. */
+  readonly special: boolean
+}
+
 export interface HordeStats {
   readonly shots: number
   readonly correctHits: number
@@ -203,7 +216,7 @@ export interface HordeState {
   readonly ammo: number
   /** The random stream's position. */
   readonly seed: number
-  /** For ids: zombies, projectiles, blasts. */
+  /** For ids: zombies, projectiles, blasts, impacts. */
   readonly nextId: number
   /** One per slot, in slot order. */
   readonly zombies: readonly HordeZombie[]
@@ -214,6 +227,7 @@ export interface HordeState {
   readonly answers: readonly HordeOption[]
   readonly projectiles: readonly Projectile[]
   readonly blasts: readonly Blast[]
+  readonly impacts: readonly Impact[]
   /** The weapon can fire again at this `elapsedMs`. */
   readonly readyAtMs: number
   readonly stats: HordeStats
@@ -339,6 +353,7 @@ export function createRound({ seed, lives, grenades, shoves, ammo, cover }: { re
     answers: [],
     projectiles: [],
     blasts: [],
+    impacts: [],
     readyAtMs: 0,
     stats: EMPTY_STATS,
     events: [],
@@ -646,6 +661,7 @@ export function tick(state: HordeState, dtMs: number, config: HordeConfig): Hord
     zombies,
     projectiles,
     blasts: state.blasts.filter((blast) => now - blast.atMs < BLAST_MS),
+    impacts: state.impacts.filter((impact) => now - impact.atMs < IMPACT_MS),
     stats: livesLost === 0 ? state.stats : { ...state.stats, livesLost: state.stats.livesLost + livesLost },
     events,
   }
@@ -736,8 +752,11 @@ export function shoot(state: HordeState, target: ShotTarget | null, config: Hord
   events.push({ type: 'hit', zombieId: zombie.id, zone: target.zone, killed })
   const solved = solvedEvent(state)
   if (solved !== null) events.push(solved)
+  const impact: Impact = { id: `i${String(state.nextId)}`, x: zombie.x, depth: zombie.depth, zone: target.zone, atMs: now, special }
   return {
     ...fired,
+    nextId: state.nextId + 1,
+    impacts: [...state.impacts, impact],
     zombies: state.zombies.map((z) => (z.id === zombie.id ? hit : z)),
     question: null,
     answers: [],

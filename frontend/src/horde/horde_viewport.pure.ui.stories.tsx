@@ -24,6 +24,8 @@ const meta = {
     characters: ZOMBIE_CHARACTER_REGISTRY.slice(0, 4),
     projectiles: [],
     blasts: [],
+    impacts: [],
+    impactStyle: 'spark',
     elapsedMs: 0,
     cover: COVER,
     shadows: true,

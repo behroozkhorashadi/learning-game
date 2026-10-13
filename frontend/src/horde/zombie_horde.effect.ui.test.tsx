@@ -238,6 +238,17 @@ describe('ZombieHorde: special rounds', () => {
     expect(harness.armory.rounds[0]?.rounds_used).toEqual({ armor_piercing: 2 })
   })
 
+  it('holds the blaster equipped, and each hit looks like the rounds that made it', async () => {
+    const harness = await open({ armory: fakeArmory({ owned: ['rapid_blaster', 'mega_blaster'], ammo: { explosive_rounds: 1 } }) })
+    await startRound(harness)
+    expect(screen.getByText('holding the Mega Blaster')).toBeTruthy()
+    press(`head ${String(rightAnswer(0))}`)
+    expect(screen.getByText('explosion hit')).toBeTruthy()
+    await harness.scheduler.advance(NEXT_QUESTION_MS + 50)
+    press(`body ${String(rightAnswer(1))}`)
+    expect(screen.getByText('spark hit')).toBeTruthy()
+  })
+
   it('buys a pack of rounds again and again', async () => {
     const harness = await open({ armory: fakeArmory({ balance: 200 }) })
     press('Buy Armor-Piercing Rounds for 60 points')

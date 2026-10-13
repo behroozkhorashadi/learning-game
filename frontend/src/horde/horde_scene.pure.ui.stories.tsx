@@ -2,9 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
 import { expect, fn, waitFor, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
-import { STARTER_BLASTER } from '@app/blaster/weapon_definitions.pure.lib.ts'
+import { MEGA_BLASTER, STARTER_BLASTER, type WeaponDefinition } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
-import { createRound, type HordeZombie, type Posture } from './horde_engine.pure.lib.ts'
+import type { ImpactStyle } from './horde_armory.pure.lib.ts'
+import { createRound, type HordeZombie, type Impact, type Posture } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HordeScene } from './horde_scene.pure.ui.tsx'
 
@@ -18,7 +19,15 @@ const POSES: readonly { readonly posture: Posture; readonly x: number; readonly 
 ]
 const ZOMBIES: readonly HordeZombie[] = BASE.map((zombie, i) => ({ ...zombie, ...POSES[i], postureUntilMs: 1e9 }))
 
-function Stage({ onShot, onZombieReady }: { readonly onShot: () => void; readonly onZombieReady: (id: string) => void }): ReactElement {
+interface StageProps {
+  readonly onShot: () => void
+  readonly onZombieReady: (id: string) => void
+  readonly weapon?: WeaponDefinition
+  readonly impacts?: readonly Impact[]
+  readonly impactStyle?: ImpactStyle
+}
+
+function Stage({ onShot, onZombieReady, weapon = STARTER_BLASTER, impacts = [], impactStyle = 'spark' }: StageProps): ReactElement {
   return (
     <SceneStoryFrame height={520}>
       <HordeScene
@@ -27,10 +36,12 @@ function Stage({ onShot, onZombieReady }: { readonly onShot: () => void; readonl
         characters={ZOMBIE_CHARACTER_REGISTRY.slice(0, 4)}
         projectiles={[{ id: 'p1', fromX: -3, fromDepth: 12, launchedAtMs: 0, landsAtMs: 1100 }]}
         blasts={[{ id: 'b1', x: 2, depth: 13, atMs: 200, dud: false }]}
+        impacts={impacts}
+        impactStyle={impactStyle}
         elapsedMs={450}
         cover={COVER}
         shadows
-        weapon={STARTER_BLASTER}
+        weapon={weapon}
         weaponPhase="readyFirstShot"
         cockingUntilMs={null}
         cockingMs={700}
@@ -57,18 +68,37 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const MidRound: Story = {
-  play: async ({ args, canvasElement }) => {
-    const frame = within(canvasElement).getByRole('figure', { name: '3D scene' })
-    await waitFor(
-      async () => {
-        await expect(frame.dataset['sceneReady']).toBe('true')
-      },
-      { timeout: 10000 },
-    )
-    await waitFor(async () => {
-      await expect(args.onZombieReady).toHaveBeenCalledTimes(4)
-    })
-    await expect(within(canvasElement).getByText('42')).toBeVisible()
+async function allZombiesReady({ args, canvasElement }: { readonly args: { readonly onZombieReady: (id: string) => void }; readonly canvasElement: HTMLElement }): Promise<void> {
+  const frame = within(canvasElement).getByRole('figure', { name: '3D scene' })
+  await waitFor(
+    async () => {
+      await expect(frame.dataset['sceneReady']).toBe('true')
+    },
+    { timeout: 10000 },
+  )
+  await waitFor(async () => {
+    await expect(args.onZombieReady).toHaveBeenCalledTimes(4)
+  })
+  await expect(within(canvasElement).getByText('42')).toBeVisible()
+}
+
+export const MidRound: Story = { play: allZombiesReady }
+
+/** The Mega Blaster with Explosive Rounds: a fireball on the walking zombie's head, a plain spark (standard round) on the downed one. */
+export const MegaExplosiveHit: Story = {
+  args: {
+    weapon: MEGA_BLASTER,
+    impactStyle: 'explosion',
+    impacts: [
+      { id: 'i1', x: -1.5, depth: 6, zone: 'head', atMs: 250, special: true },
+      { id: 'i2', x: 1.2, depth: 8, zone: 'body', atMs: 380, special: false },
+    ],
   },
+  play: allZombiesReady,
+}
+
+/** Armor-piercing rounds: a streak straight through the zombie. */
+export const ArmorPiercingHit: Story = {
+  args: { impactStyle: 'pierce', impacts: [{ id: 'i1', x: -1.5, depth: 6, zone: 'body', atMs: 300, special: true }] },
+  play: allZombiesReady,
 }

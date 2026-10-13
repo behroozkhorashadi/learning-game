@@ -1,10 +1,11 @@
 import ReactThreeTestRenderer from '@react-three/test-renderer'
-import type * as THREE from 'three'
+import * as THREE from 'three'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FAILING_MODEL_URLS } from '@app/zombies/drei_fake.test.lib.ts'
 import { EQUATION_BLASTER_URL } from './blaster_config.pure.lib.ts'
 import { EquationBlaster, type EquationBlasterProps } from './equation_blaster.pure.ui.tsx'
-import { STARTER_BLASTER } from './weapon_definitions.pure.lib.ts'
+import { FINISH_LOOKS } from './blaster_finish.pure.lib.ts'
+import { MEGA_BLASTER, RAPID_BLASTER, STARTER_BLASTER } from './weapon_definitions.pure.lib.ts'
 
 vi.mock('@react-three/drei', async (importOriginal) => (await import('@app/zombies/drei_fake.test.lib.ts')).withFakeModels(await importOriginal<object>()))
 
@@ -98,5 +99,30 @@ describe('EquationBlaster', () => {
     const both = await ReactThreeTestRenderer.create(<EquationBlaster {...props()} />)
     const one = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ hideLeftArm: true })} />)
     expect((recoilGroup(both)?.children.length ?? 0) - (recoilGroup(one)?.children.length ?? 0)).toBe(1)
+  })
+
+  it('dresses each better blaster in more parts, a glow that breathes, and a bigger flash in its own colour', async () => {
+    const starter = await ReactThreeTestRenderer.create(<EquationBlaster {...props()} />)
+    expect(starter.scene.instance.getObjectByName('blaster-finish')).toBeUndefined()
+
+    for (const weapon of [RAPID_BLASTER, MEGA_BLASTER]) {
+      const look = FINISH_LOOKS[weapon.finish]
+      const renderer = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ weapon })} />)
+      expect(renderer.scene.instance.getObjectByName('blaster-finish')?.children).toHaveLength(look.parts.length)
+      const light = renderer.scene.instance.getObjectByName('muzzle-light')
+      expect(light instanceof THREE.PointLight && light.color.getHexString()).toBe(new THREE.Color(look.flashColor).getHexString())
+    }
+
+    const mega = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ weapon: MEGA_BLASTER })} />)
+    const glows: number[] = []
+    for (let i = 0; i < 8; i++) {
+      await ReactThreeTestRenderer.act(async () => {
+        await mega.advanceFrames(1, 0.1)
+      })
+      const ring = mega.scene.instance.getObjectByName('blaster-part-ring')
+      if (ring instanceof THREE.Mesh && ring.material instanceof THREE.MeshStandardMaterial) glows.push(ring.material.emissiveIntensity)
+    }
+    expect(glows).toHaveLength(8)
+    expect(new Set(glows).size).toBeGreaterThan(1)
   })
 })

@@ -60,9 +60,13 @@ export interface MuzzleFlashProps {
   readonly reducedMotion: boolean
   /** Seeds the per-shot jitter (size, rotation, spark spread). */
   readonly seed?: number
+  /** Multiplies the flash, sparks, and light: white keeps the flash's own warm colours. */
+  readonly color?: string
+  /** Scales the flash and how far the sparks fly: a bigger weapon, a bigger bang. */
+  readonly sizeScale?: number
 }
 
-export function MuzzleFlash({ triggerSignal, reducedMotion, seed = 0x5eed }: MuzzleFlashProps): ReactElement {
+export function MuzzleFlash({ triggerSignal, reducedMotion, seed = 0x5eed, color = '#FFFFFF', sizeScale = 1 }: MuzzleFlashProps): ReactElement {
   const [random] = useState(() => seededRandom(seed))
   const flashSpriteRef = useRef<THREE.Sprite>(null)
   const lightRef = useRef<THREE.PointLight>(null)
@@ -91,7 +95,7 @@ export function MuzzleFlash({ triggerSignal, reducedMotion, seed = 0x5eed }: Muz
       if (t === null || roll === null) {
         flash.visible = false
       } else {
-        const endScale = MUZZLE_FLASH_END_SIZE * roll.sizeMultiplier
+        const endScale = MUZZLE_FLASH_END_SIZE * roll.sizeMultiplier * sizeScale
         flash.visible = true
         flash.scale.setScalar(flashScaleAt(t, endScale * MUZZLE_FLASH_START_SCALE_FRACTION, endScale))
         flash.material.opacity = flashOpacityAt(t) * MUZZLE_FLASH_BRIGHTNESS
@@ -109,12 +113,13 @@ export function MuzzleFlash({ triggerSignal, reducedMotion, seed = 0x5eed }: Muz
       }
       const eased = easeOutQuad(sparkT)
       sprite.visible = true
-      sprite.position.set(displacement[0] * eased, displacement[1] * eased, displacement[2] * eased)
+      const reach = eased * sizeScale
+      sprite.position.set(displacement[0] * reach, displacement[1] * reach, displacement[2] * reach)
       sprite.material.opacity = 1 - sparkT
     }
 
     if (lightRef.current) {
-      const peak = reducedMotion ? MUZZLE_LIGHT_INTENSITY * 0.5 : MUZZLE_LIGHT_INTENSITY
+      const peak = (reducedMotion ? MUZZLE_LIGHT_INTENSITY * 0.5 : MUZZLE_LIGHT_INTENSITY) * sizeScale
       lightRef.current.intensity = computeMuzzleLightIntensity(elapsed, MUZZLE_LIGHT_DURATION_MS, peak)
     }
   })
@@ -122,7 +127,7 @@ export function MuzzleFlash({ triggerSignal, reducedMotion, seed = 0x5eed }: Muz
   return (
     <group>
       <sprite ref={flashSpriteRef} name="muzzle-flash" visible={false} raycast={() => null}>
-        <spriteMaterial map={FLASH_TEXTURE} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0} />
+        <spriteMaterial map={FLASH_TEXTURE} color={color} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0} />
       </sprite>
 
       {SPARK_INDEXES.map((i) => (
@@ -136,11 +141,11 @@ export function MuzzleFlash({ triggerSignal, reducedMotion, seed = 0x5eed }: Muz
           scale={MUZZLE_SPARK_SIZE}
           raycast={() => null}
         >
-          <spriteMaterial map={SPARK_TEXTURE} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0} />
+          <spriteMaterial map={SPARK_TEXTURE} color={color} transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0} />
         </sprite>
       ))}
 
-      <pointLight ref={lightRef} name="muzzle-light" color={MUZZLE_LIGHT_COLOR} intensity={0} distance={MUZZLE_LIGHT_DISTANCE} decay={2} />
+      <pointLight ref={lightRef} name="muzzle-light" color={color === '#FFFFFF' ? MUZZLE_LIGHT_COLOR : color} intensity={0} distance={MUZZLE_LIGHT_DISTANCE} decay={2} />
     </group>
   )
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ComponentType, type ReactElement, type ReactNode } from 'react'
 import type { ArmoryStateRecord } from '@app/api/armory_schema.pure.lib.ts'
 import { aimFromPointer } from '@app/outbreak/arena_session.pure.lib.ts'
-import { STARTER_BLASTER } from '@app/blaster/weapon_definitions.pure.lib.ts'
+import { STARTER_BLASTER, weaponDefinitionFor } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts'
@@ -178,6 +178,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
       return answer === null ? [] : [{ zombieId: zombie.id, label: answer.label }]
     })
     const weaponCooling = state.elapsedMs < state.readyAtMs
+    const weapon = weaponDefinitionFor(round.loadout?.weapon.id ?? STARTER_BLASTER.id)
 
     return (
       <div style={{ width: '100%', height: '100vh', background: 'var(--surface-app)', overflow: 'hidden', display: 'flex' }}>
@@ -211,13 +212,15 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             characters={round.characters}
             projectiles={state.projectiles}
             blasts={state.blasts}
+            impacts={state.impacts}
+            impactStyle={round.loadout?.bullet.impact ?? STARTER_LOADOUT.bullet.impact}
             elapsedMs={state.elapsedMs}
             cover={COVER}
             shadows={!reducedMotion}
-            weapon={STARTER_BLASTER}
+            weapon={weapon}
             weaponPhase={weaponCooling ? 'cocking' : 'readyFirstShot'}
             cockingUntilMs={weaponCooling ? state.readyAtMs : null}
-            cockingMs={round.loadout?.weapon.cooldownMs ?? STARTER_BLASTER.cockingMs}
+            cockingMs={round.loadout?.weapon.cooldownMs ?? weapon.cockingMs}
             recoilSignal={round.recoilSignal}
             aimNdc={aimNdc}
             reducedMotion={reducedMotion}
@@ -238,10 +241,10 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             grenades={state.grenades}
             shoves={state.shoves}
             ammo={round.loadout !== null && round.loadout.bullet.id !== STARTER_LOADOUT.bullet.id ? state.ammo : null}
+            outOfRounds={round.outOfRounds}
             armed={round.armed}
             muted={round.audioMuted}
             answers={phase === 'playing' ? answers : []}
-            outOfRounds={round.outOfRounds}
             feedback={round.feedback}
             aimNdc={aimNdc}
             reducedMotion={reducedMotion}

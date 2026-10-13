@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { GRENADE, STARTER_LOADOUT, shotPower } from './horde_armory.pure.lib.ts'
 import {
   FLIGHT_MS,
+  IMPACT_MS,
   ROUND_MS,
   ZOMBIE_COUNT,
   answerFor,
@@ -559,6 +560,28 @@ describe('special rounds', () => {
     expect(state.events).toContainEqual({ type: 'outOfAmmo' })
     state = shootSlot(state, slot, 'body')
     expect(state.events).not.toContainEqual({ type: 'outOfAmmo' })
+  })
+
+  it('leave an impact where each right hit lands, marked special while they last, and clear it after a moment', () => {
+    let state: HordeState = { ...round(4, OPEN_FIELD), ammo: 1 }
+    const first = holding(state, true)
+    state = shoot(state, { zombieId: first.id, zone: 'head' }, OPEN_FIELD)
+    expect(state.impacts).toEqual([expect.objectContaining({ x: first.x, depth: first.depth, zone: 'head', atMs: 0, special: true })])
+    state = run(state, 800, OPEN_FIELD)
+    expect(state.impacts).toEqual([])
+    state = setQuestion(state, { ...QUESTION, id: 'q2' })
+    const second = holding(state, true)
+    state = shoot(state, { zombieId: second.id, zone: 'leg' }, OPEN_FIELD)
+    expect(state.impacts).toEqual([expect.objectContaining({ x: second.x, depth: second.depth, zone: 'leg', atMs: state.elapsedMs, special: false })])
+    expect(IMPACT_MS).toBeLessThan(800)
+  })
+
+  it('leave no impact for a wrong answer or a miss', () => {
+    let state = round(4, OPEN_FIELD)
+    state = shoot(state, { zombieId: holding(state, false).id, zone: 'body' }, OPEN_FIELD)
+    state = run(state, 800, OPEN_FIELD)
+    state = shoot(state, null, OPEN_FIELD)
+    expect(state.impacts).toEqual([])
   })
 })
 

@@ -6,23 +6,23 @@ import { walkPhaseFor } from '@app/arena/outbreak_scene_rules.pure.lib.ts'
 import { resolveRaycastOutcome } from '@app/arena/raycast_outcome.pure.lib.ts'
 import { EquationBlaster } from '@app/blaster/equation_blaster.pure.ui.tsx'
 import type { WeaponDefinition } from '@app/blaster/weapon_definitions.pure.lib.ts'
-import { unitBoxGeometry, unitSphereGeometry } from '@app/science_fair/shared_geometry.pure.lib.ts'
+import { unitBoxGeometry, unitSphereGeometry, unitTorusGeometry } from '@app/science_fair/shared_geometry.pure.lib.ts'
 import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
 import { ZombieCharacter3D } from '@app/zombies/zombie_character_3d.pure.ui.tsx'
 import type { WeaponPhase } from '@app/zombies/zombie_wave_engine.pure.lib.ts'
-import { GRENADE } from './horde_armory.pure.lib.ts'
-import { isTargetable, type Blast, type HordeZombie, type Projectile } from './horde_engine.pure.lib.ts'
+import { GRENADE, type ImpactStyle } from './horde_armory.pure.lib.ts'
+import { isTargetable, type Blast, type HordeZombie, type Impact, type Projectile } from './horde_engine.pure.lib.ts'
 import { HordeEnvironment } from './horde_environment.pure.ui.tsx'
 import { CAMERA_POSITION, fieldPoint, worldPosition, type Cover } from './horde_field.pure.lib.ts'
 import { classifyHordeIntersections, type HordeHitMeta } from './horde_raycast.pure.lib.ts'
-import { blastProgress, clipRoleFor, healthFraction, isDrawn, projectilePosition, slotColor } from './horde_scene_rules.pure.lib.ts'
+import { blastProgress, clipRoleFor, healthFraction, impactPosition, impactProgress, impactStyleFor, isDrawn, projectilePosition, slotColor } from './horde_scene_rules.pure.lib.ts'
 import { HordeZombieLabel } from './horde_zombie_label.pure.ui.tsx'
 import { useHordeZombieTarget } from './use_horde_zombie_target.pure.hook.ts'
 
 /**
  * Zombie Horde's 3D view: a fixed camera over a wide field, cover, the roaming
- * zombies with their answers and health, thrown objects, grenade blasts, and
- * the first-person blaster. It renders engine state and reports shots; it
+ * zombies with their answers and health, thrown objects, grenade blasts, hit
+ * effects in the loaded rounds' style, and the first-person blaster. It renders engine state and reports shots; it
  * never decides what a shot does.
  *
  * One click handler on the whole field: R3F raycasts everything under it, and
@@ -40,6 +40,9 @@ export interface HordeSceneProps {
   readonly characters: readonly CharacterDefinition[]
   readonly projectiles: readonly Projectile[]
   readonly blasts: readonly Blast[]
+  readonly impacts: readonly Impact[]
+  /** How a hit with the loaded special rounds looks (standard rounds always spark). */
+  readonly impactStyle: ImpactStyle
   readonly elapsedMs: number
   readonly cover: readonly Cover[]
   readonly shadows: boolean
@@ -119,6 +122,76 @@ function GrenadeBlast({ blast, elapsedMs, radius }: { readonly blast: Blast; rea
   )
 }
 
+const PIERCE_SHARD_ANGLES = [0.3, 1.35, 2.4, 3.45, 4.5, 5.55] as const
+
+function glowMaterial(color: string, opacity: number): ReactElement {
+  return <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+}
+
+/** Where a right hit landed: a spark (standard rounds), a streak through the zombie (armor-piercing), or a fireball (explosive). */
+function HitEffect({ impact, specialStyle, elapsedMs }: { readonly impact: Impact; readonly specialStyle: ImpactStyle; readonly elapsedMs: number }): ReactElement | null {
+  const style = impactStyleFor(impact, specialStyle)
+  const progress = impactProgress(impact, style, elapsedMs)
+  if (progress === null) return null
+  const { grow, fade } = progress
+  const position = impactPosition(impact)
+  switch (style) {
+    case 'spark':
+      return (
+        <mesh name="impact-spark" position={position} scale={0.15 + 0.35 * grow} raycast={() => null}>
+          <primitive object={unitSphereGeometry} attach="geometry" />
+          {glowMaterial('#FFE066', 0.9 * fade)}
+        </mesh>
+      )
+    case 'pierce': {
+      // Punches through: a ring where it went in, and shards bursting out the back.
+      const length = 0.2 + 0.9 * grow
+      return (
+        <group name="impact-pierce" position={position}>
+          {PIERCE_SHARD_ANGLES.map((angle) => (
+            <mesh key={angle} position={[Math.cos(angle) * (0.15 + length / 2), Math.sin(angle) * (0.15 + length / 2), -0.3]} rotation={[0, 0, angle]} scale={[length, 0.05, 0.05]} raycast={() => null}>
+              <primitive object={unitBoxGeometry} attach="geometry" />
+              {glowMaterial('#7DF9FF', fade)}
+            </mesh>
+          ))}
+          <mesh scale={0.4 + 0.9 * grow} raycast={() => null}>
+            <primitive object={unitTorusGeometry} attach="geometry" />
+            {glowMaterial('#22D3EE', 0.8 * fade)}
+          </mesh>
+        </group>
+      )
+    }
+    case 'explosion':
+      return (
+        <group name="impact-explosion" position={position}>
+          <mesh scale={0.4 + 1.5 * grow} raycast={() => null}>
+            <primitive object={unitSphereGeometry} attach="geometry" />
+            {glowMaterial('#FF6A00', 0.8 * fade)}
+          </mesh>
+          <mesh scale={0.3 + 0.8 * grow} raycast={() => null}>
+            <primitive object={unitSphereGeometry} attach="geometry" />
+            {glowMaterial('#FFF3A3', fade * fade)}
+          </mesh>
+          <mesh position={[0, 0.5 * grow, 0]} scale={0.5 + 1.1 * grow} raycast={() => null}>
+            <primitive object={unitSphereGeometry} attach="geometry" />
+            <meshBasicMaterial color="#3F3F46" transparent opacity={0.4 * fade * grow} depthWrite={false} />
+          </mesh>
+          {/* A shockwave across the floor. */}
+          <mesh position={[0, 0.05 - position[1], 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.5 + 3 * grow, 0.5 + 3 * grow, 0.3]} raycast={() => null}>
+            <primitive object={unitTorusGeometry} attach="geometry" />
+            {glowMaterial('#FF9F1C', 0.7 * fade)}
+          </mesh>
+        </group>
+      )
+    default:
+      return assertNeverStyle(style)
+  }
+}
+
+function assertNeverStyle(style: never): never {
+  throw new Error(`unknown impact style: ${String(style)}`)
+}
+
 const COLLIDER_PREFIX = 'collider-'
 
 /** The id of the nearest cover collider along the shot, from its mesh name. */
@@ -136,6 +209,8 @@ export function HordeScene({
   characters,
   projectiles,
   blasts,
+  impacts,
+  impactStyle,
   elapsedMs,
   cover,
   shadows,
@@ -182,6 +257,9 @@ export function HordeScene({
       ))}
       {blasts.map((blast) => (
         <GrenadeBlast key={blast.id} blast={blast} elapsedMs={elapsedMs} radius={GRENADE.radius} />
+      ))}
+      {impacts.map((impact) => (
+        <HitEffect key={impact.id} impact={impact} specialStyle={impactStyle} elapsedMs={elapsedMs} />
       ))}
 
       <EquationBlaster

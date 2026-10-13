@@ -16,9 +16,10 @@ import {
   RIGHT_ARM_URL,
   type WeaponViewConfig,
 } from './blaster_config.pure.lib.ts'
+import { FINISH_LOOKS, glowAt, type FinishLook, type FinishPart } from './blaster_finish.pure.lib.ts'
 import { applyWeaponRotation, cockingSlideAmount, computeVisualCockingProgress, recoilAt, scalePosition, writeAimQuaternion, writeAimRayDirection } from './blaster_pose.pure.lib.ts'
 import { MuzzleFlash } from './muzzle_flash.pure.ui.tsx'
-import { disableRaycastRecursively } from './scene_graph.pure.lib.ts'
+import { disableRaycastRecursively, tintMaterials } from './scene_graph.pure.lib.ts'
 import type { WeaponDefinition } from './weapon_definitions.pure.lib.ts'
 
 /**
@@ -35,6 +36,7 @@ import type { WeaponDefinition } from './weapon_definitions.pure.lib.ts'
  *     └─ aim/idle group (aim-follow rotation + subtle sway)
  *          └─ recoil group (kicks back and up on every accepted shot)
  *               ├─ weapon model group (the blaster GLB, or its fallback)
+ *               │    ├─ finish parts (the weapon's add-ons: blaster_finish)
  *               │    └─ muzzle anchor (MuzzleFlash, at the model's real tip)
  *               ├─ right-arm anchor (fixed)
  *               └─ cocking group (left arm: slides only while cocking)
@@ -74,14 +76,79 @@ export function preloadBlasterModels(): void {
   useGLTF.preload(LEFT_ARM_URL)
 }
 
-function ClonedGltf({ url }: { readonly url: string }): ReactElement {
+type Tint = FinishLook['tint']
+
+function ClonedGltf({ url, tint = null }: { readonly url: string; readonly tint?: Tint }): ReactElement {
   const { scene } = useGLTF(url)
   const cloned = useMemo(() => {
     const clone = scene.clone(true)
     disableRaycastRecursively(clone)
+    if (tint !== null) tintMaterials(clone, tint)
     return clone
-  }, [scene])
+  }, [scene, tint])
   return <primitive object={cloned} />
+}
+
+function PartGeometry({ part }: { readonly part: FinishPart }): ReactElement {
+  switch (part.shape) {
+    case 'box':
+      return <boxGeometry args={[...part.size]} />
+    case 'ring':
+      return <torusGeometry args={[part.radius, part.tube, 10, 32]} />
+    case 'sphere':
+      return <sphereGeometry args={[part.radius, 16, 12]} />
+    case 'tube':
+      return <cylinderGeometry args={[part.radius, part.radius, part.length, 16]} />
+    default:
+      return assertNeverPart(part)
+  }
+}
+
+function assertNeverPart(part: never): never {
+  throw new Error(`unknown blaster part: ${JSON.stringify(part)}`)
+}
+
+/** Rings and tubes are built around their own Z / Y axis; turn them to run along the barrel (X). */
+function partRotation(part: FinishPart): [number, number, number] {
+  if (part.shape === 'ring') return [0, Math.PI / 2, 0]
+  if (part.shape === 'tube') return [0, 0, Math.PI / 2]
+  return [0, 0, 0]
+}
+
+/** The weapon's add-ons, in blaster-model space. Glowing parts breathe; the frame loop only sets their intensity. */
+function FinishParts({ look, reducedMotion }: { readonly look: FinishLook; readonly reducedMotion: boolean }): ReactElement | null {
+  const glowing = useRef<THREE.MeshStandardMaterial[]>([])
+  const elapsedRef = useRef(0)
+  useFrame((_, delta) => {
+    elapsedRef.current += delta
+    const intensity = reducedMotion ? look.glowIntensity : glowAt(look, elapsedRef.current)
+    for (const material of glowing.current) material.emissiveIntensity = intensity
+  })
+  if (look.parts.length === 0) return null
+  return (
+    <group name="blaster-finish">
+      {look.parts.map((part, i) => (
+        <mesh key={i} name={`blaster-part-${part.shape}`} position={[...part.position]} rotation={partRotation(part)} raycast={() => null}>
+          <PartGeometry part={part} />
+          <meshStandardMaterial
+            ref={(material: THREE.MeshStandardMaterial | null) => {
+              if (material === null || !part.glow) return undefined
+              glowing.current.push(material)
+              return () => {
+                glowing.current = glowing.current.filter((m) => m !== material)
+              }
+            }}
+            color={part.color}
+            emissive={part.glow ? part.color : '#000000'}
+            emissiveIntensity={part.glow ? look.glowIntensity : 0}
+            roughness={part.glow ? 0.3 : 0.45}
+            metalness={part.glow ? 0.1 : 0.6}
+            toneMapped={!part.glow}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
 }
 
 /** The original procedural gun, shown if the blaster GLB fails to load. Shared geometry: it's a fixed shape. */
@@ -125,6 +192,7 @@ export function EquationBlaster({
 }: EquationBlasterProps): ReactElement {
   const camera = useThree((state) => state.camera)
   const view = weaponView ?? DEFAULT_WEAPON_VIEW
+  const look = FINISH_LOOKS[weapon.finish]
 
   const rightGripPosition = useMemo(() => scalePosition(applyWeaponRotation(view.rightGripPosition, view.weaponRotation), view.weaponScale), [view.rightGripPosition, view.weaponRotation, view.weaponScale])
   const leftGripPosition = useMemo(() => scalePosition(applyWeaponRotation(view.leftGripPosition, view.weaponRotation), view.weaponScale), [view.leftGripPosition, view.weaponRotation, view.weaponScale])
@@ -214,11 +282,13 @@ export function EquationBlaster({
                     console.warn('[EquationBlaster] Equation Blaster GLB failed to load — using the placeholder gun.')
                   }}
                 >
-                  <ClonedGltf url={EQUATION_BLASTER_URL} />
+                  <ClonedGltf url={EQUATION_BLASTER_URL} tint={look.tint} />
                 </AsyncBoundary>
 
+                <FinishParts look={look} reducedMotion={reducedMotion} />
+
                 <group position={view.muzzlePosition}>
-                  <MuzzleFlash triggerSignal={recoilSignal} reducedMotion={reducedMotion} />
+                  <MuzzleFlash triggerSignal={recoilSignal} reducedMotion={reducedMotion} color={look.flashColor} sizeScale={look.flashScale} />
                 </group>
               </group>
 
