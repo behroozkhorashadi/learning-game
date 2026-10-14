@@ -87,3 +87,39 @@ export const FINISH_LOOKS: Readonly<Record<BlasterFinish, FinishLook>> = { class
 export function glowAt(look: FinishLook, seconds: number): number {
   return look.glowIntensity * (1 + look.glowPulse * Math.sin(seconds * 4))
 }
+
+/** A badge a kid designed (Zombie Horde's emblem): a round picture with a ring in its colour, on the arm, the blaster, or both. */
+export interface WornEmblem {
+  /** Loaded as a texture: the kid's art, or a drawn symbol as a data URL. */
+  readonly imageUrl: string
+  readonly ringColor: string
+  readonly onArm: boolean
+  readonly onBlaster: boolean
+}
+
+/** One face an emblem is stuck on: where its centre is, and how it's turned (a disc faces +Z unturned). */
+export interface EmblemFace {
+  readonly position: Vec3Tuple
+  readonly rotation: Vec3Tuple
+}
+
+/** Where an emblem sits, in the model's own unscaled space (see the asset audit in blaster_config.pure.lib.ts): one or more faces, all the same size. */
+export interface EmblemSpot {
+  readonly faces: readonly EmblemFace[]
+  readonly radius: number
+}
+
+/**
+ * On the blaster's side that faces the first-person camera (+Z, behind the
+ * grip), tilted toward the camera so it reads face-on. The tilt is the
+ * camera's direction in the model's space under DEFAULT_WEAPON_VIEW's
+ * rotation: (0.73, 0.15, 0.67).
+ */
+export const BLASTER_EMBLEM_SPOT: EmblemSpot = { faces: [{ position: [0.32, -0.02, 0.1], rotation: [-0.214, 0.82, 0.093] }], radius: 0.06 }
+
+/**
+ * On the support (left) forearm's side that faces the camera (+Z), tilted
+ * the same way: the camera's direction in the arm's space
+ * is (-0.27, -0.22, 0.94).
+ */
+export const ARM_EMBLEM_SPOT: EmblemSpot = { faces: [{ position: [0.02, 0.12, 0.17], rotation: [0.228, -0.268, 0.031] }], radius: 0.11 }

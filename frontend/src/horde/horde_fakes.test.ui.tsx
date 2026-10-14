@@ -1,5 +1,5 @@
 import type { ComponentType, ReactElement } from 'react'
-import type { ArmoryItemRecord, ArmoryStateRecord, ArtPieceRecord, ArtResultRecord } from '@app/api/armory_schema.pure.lib.ts'
+import type { ArmoryItemRecord, ArmoryLooksRecord, ArmoryLooksStateRecord, ArmoryStateRecord, ArtPieceRecord, ArtResultRecord } from '@app/api/armory_schema.pure.lib.ts'
 import type { components } from '@app/api/openapi_schema.pure.lib.ts'
 import { fakeCamera, picture } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
 import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
@@ -9,8 +9,10 @@ import type { ArenaScheduler } from '@app/outbreak/zombie_arena_state.pure.lib.t
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import { bindArtStudio } from './art_studio.effect.ui.tsx'
 import type { Difficulty } from './horde_difficulty.pure.lib.ts'
+import { DEFAULT_LOOKS } from './horde_looks.pure.lib.ts'
 import type { Recording } from './horde_recording.pure.lib.ts'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
+import { bindStyleStudio } from './style_studio.effect.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
 
 /**
@@ -67,6 +69,11 @@ export const CATALOG: readonly ArmoryItemRecord[] = [
   { id: 'jungle_camo', kind: 'skin', name: 'Jungle Camo', description: 'Green and sneaky. Just for looks.', price: 100, quantity: 1, consumable: false, requires: null },
   { id: 'galaxy_suit', kind: 'skin', name: 'Galaxy Suit', description: 'Deep purple with a starry glow. Just for looks.', price: 200, quantity: 1, consumable: false, requires: null },
   { id: 'gold_suit', kind: 'skin', name: 'Gold Suit', description: 'Shiny gold, for true zombie champions. Just for looks.', price: 400, quantity: 1, consumable: false, requires: null },
+  { id: 'suit_paint', kind: 'style', name: 'Suit Paint Studio', description: 'Paint your armor any colour you like: matte, shiny, or glowing.', price: 150, quantity: 1, consumable: false, requires: null },
+  { id: 'blaster_paint', kind: 'style', name: 'Blaster Paint', description: 'Paint your blaster any colour you like.', price: 150, quantity: 1, consumable: false, requires: null },
+  { id: 'emblem_maker', kind: 'style', name: 'Emblem Maker', description: 'Design your own badge for your arm or blaster: a symbol, or one of your art pieces.', price: 120, quantity: 1, consumable: false, requires: null },
+  { id: 'pathfinder_frame', kind: 'style', name: 'Pathfinder Backdrop', description: 'Hang one of your art pieces behind the Pathfinder board.', price: 100, quantity: 1, consumable: false, requires: null },
+  { id: 'horde_billboard', kind: 'style', name: 'Horde Billboard', description: 'Hang one of your art pieces on a giant billboard in Zombie Horde.', price: 100, quantity: 1, consumable: false, requires: null },
 ]
 
 export interface RoundReport {
@@ -88,11 +95,16 @@ export interface FakeArmory {
   readonly createArt: (profileId: number, request: components['schemas']['ArtCreate']) => Promise<ArtResultRecord>
   /** The prompts' inputs the fake AI was sent. */
   readonly artRequests: readonly components['schemas']['ArtCreate'][]
+  readonly looks: (profileId: number) => Promise<ArmoryLooksStateRecord>
+  readonly saveLooks: (profileId: number, looks: ArmoryLooksRecord) => Promise<ArmoryLooksStateRecord>
+  /** The looks as last saved. */
+  readonly savedLooks: () => ArmoryLooksRecord
 }
 
 /** The armory server in memory: the same refusals as the backend (unknown, owned, locked, too expensive). */
-export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, gems = {}, artAvailable = true, bestMs = {} }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly gems?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: Partial<Readonly<Record<Difficulty, number>>> } = {}): FakeArmory {
-  const art: ArtPieceRecord[] = []
+export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, gems = {}, artAvailable = true, bestMs = {}, art: startingArt = [], looks: startingLooks = DEFAULT_LOOKS }: { readonly balance?: number; readonly owned?: readonly string[]; readonly grenades?: number; readonly ammo?: Readonly<Record<string, number>>; readonly gems?: Readonly<Record<string, number>>; readonly artAvailable?: boolean; readonly bestMs?: Partial<Readonly<Record<Difficulty, number>>>; readonly art?: readonly ArtPieceRecord[]; readonly looks?: ArmoryLooksRecord } = {}): FakeArmory {
+  const art: ArtPieceRecord[] = [...startingArt]
+  let savedLooks = startingLooks
   const artRequests: components['schemas']['ArtCreate'][] = []
   let points = balance
   let spent = 0
@@ -102,6 +114,10 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, g
   const rounds: RoundReport[] = []
   const shots = new Map<string, number>([['armor_piercing', ammo['armor_piercing'] ?? 0], ['explosive_rounds', ammo['explosive_rounds'] ?? 0]])
   const charges = new Map<string, number>(CATALOG.filter((item) => item.kind === 'gem').map((item) => [item.id, gems[item.id] ?? 0]))
+  const looksState = (looks: ArmoryLooksRecord): ArmoryLooksStateRecord => ({
+    looks,
+    pictures: Object.fromEntries(art.filter((piece) => [looks.emblem?.art_id, looks.hung.pathfinder, looks.hung.horde].includes(piece.id)).map((piece) => [piece.id, piece.image_url])),
+  })
   const state = (): ArmoryStateRecord => ({
     profile_id: 1,
     balance: points - spent,
@@ -144,6 +160,25 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, g
       art.push(piece)
       return Promise.resolve({ piece, armory: state() })
     },
+    savedLooks: () => savedLooks,
+    looks: () => Promise.resolve(looksState(savedLooks)),
+    saveLooks: (_profileId, looks) => {
+      // The backend's checks (looks_reducers_pure): every look needs its unlock, and art must be in the gallery.
+      const owned = state().owned
+      const needs = [
+        looks.skin_id,
+        looks.suit_paint === null ? null : 'suit_paint',
+        looks.blaster_color === null ? null : 'blaster_paint',
+        looks.emblem === null ? null : 'emblem_maker',
+        looks.hung.pathfinder === null ? null : 'pathfinder_frame',
+        looks.hung.horde === null ? null : 'horde_billboard',
+      ].find((id) => id !== null && !owned.includes(id))
+      if (needs !== undefined && needs !== null) return Promise.reject(new Error(`that look needs '${needs}' first`))
+      const missing = [looks.emblem?.art_id ?? null, looks.hung.pathfinder, looks.hung.horde].find((id) => id !== null && !art.some((piece) => piece.id === id))
+      if (missing !== undefined && missing !== null) return Promise.reject(new Error(`there's no art piece '${missing}' in this gallery`))
+      savedLooks = looks
+      return Promise.resolve(looksState(looks))
+    },
     recordRound: (_profileId, round) => {
       rounds.push(round)
       points += round.points
@@ -158,11 +193,14 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, g
 }
 
 /** The 3D view as buttons: `head 7`, `body 7`, `leg 7`, and `grenade at 7` per zombie with an answer, plus `miss` and `floor grenade`. Names the blaster in hand and each hit effect showing. */
-export function FakeHordeViewport({ zombies, answers, grenadeArmed, weapon, armTint, impacts, impactStyle, onShot, onGrenade }: HordeViewportProps): ReactElement {
+export function FakeHordeViewport({ zombies, answers, grenadeArmed, weapon, armTint, blasterTint, emblem, billboardUrl, impacts, impactStyle, onShot, onGrenade }: HordeViewportProps): ReactElement {
   return (
     <div>
       <span>{`holding the ${weapon.displayName}`}</span>
       <span>{armTint === null ? 'plain arms' : `arms tinted ${armTint.color}`}</span>
+      <span>{blasterTint === null ? 'blaster as it comes' : `blaster painted ${blasterTint.color}`}</span>
+      {emblem !== null && <span>{`emblem${emblem.onArm ? ' on the arm' : ''}${emblem.onBlaster ? ' on the blaster' : ''}`}</span>}
+      {billboardUrl !== null && <span>{`billboard showing ${billboardUrl}`}</span>}
       {impacts.map((impact) => (
         <span key={impact.id}>{`${impact.special ? impactStyle : 'spark'} hit`}</span>
       ))}
@@ -257,7 +295,7 @@ export function hordeHarness({ approachMs = 60_000, travelMs = 600_000, armory =
       return Promise.resolve()
     },
     bankRound: armory.recordRound,
-    armory: { load: armory.load, purchase: armory.purchase },
+    armory: { load: armory.load, purchase: armory.purchase, looks: armory.looks, saveLooks: armory.saveLooks },
     scheduler: realScheduler ?? scheduler,
     audio,
     pickRoster: () => ZOMBIE_CHARACTER_REGISTRY.slice(0, 4),
@@ -272,6 +310,7 @@ export function hordeHarness({ approachMs = 60_000, travelMs = 600_000, armory =
     travelMsFor: () => travelMs,
     Viewport,
     ArtStudio: bindArtStudio({ camera: fakeCamera(), gallery: armory.gallery, createArt: armory.createArt }),
+    StyleStudio: bindStyleStudio({ looks: armory.looks, saveLooks: armory.saveLooks, gallery: armory.gallery, purchase: armory.purchase }),
     motion,
     readAloud: {
       speakText: (text, onEnd) => {

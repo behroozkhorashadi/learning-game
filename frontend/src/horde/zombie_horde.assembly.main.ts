@@ -16,6 +16,7 @@ import { ZOMBIE_COUNT } from './horde_engine.pure.lib.ts'
 import { bindArtStudio } from './art_studio.effect.ui.tsx'
 import { travelMsFor } from './horde_question.pure.lib.ts'
 import { HordeViewport } from './horde_viewport.pure.ui.tsx'
+import { bindStyleStudio } from './style_studio.effect.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
 
 /** Zombie Horde, wired to the real API (questions, attempts, the armory), Web Audio, and the 3D view. Called once by the app shell. */
@@ -32,7 +33,7 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
     nextItem: practice.nextItem,
     recordAttempt: practice.recordAttempt,
     bankRound: armory.recordRound,
-    armory: { load: armory.load, purchase: armory.purchase },
+    armory: { load: armory.load, purchase: armory.purchase, looks: armory.looks, saveLooks: armory.saveLooks },
     scheduler: assembleArenaScheduler(),
     audio: bindGameAudio({
       openAudioContext: () => (AudioContextClass === null ? null : new AudioContextClass()),
@@ -62,6 +63,7 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
       gallery: armory.gallery,
       createArt: armory.createArt,
     }),
+    StyleStudio: bindStyleStudio({ looks: armory.looks, saveLooks: armory.saveLooks, gallery: armory.gallery, purchase: armory.purchase }),
     motion: assembleMotionPreference(),
     readAloud: assembleSpeech(),
   })

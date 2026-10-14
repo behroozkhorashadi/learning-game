@@ -310,3 +310,16 @@ describe('Pathfinder published maps', () => {
     expect(screen.getByRole('button', { name: /^Mine/ }).textContent).toMatch(/by you/)
   })
 })
+
+describe('Pathfinder backdrop', () => {
+  it("hangs the kid's art behind the game, and leaves the plain background without it", async () => {
+    await renderGame()
+    expect(screen.queryByRole('img', { name: 'Your backdrop art' })).toBeNull()
+    cleanup()
+    const hung = fakePathfinderScreens(undefined, '/static/armory-art/a1.jpg')
+    render(<hung.Pathfinder profileId={1} onBack={vi.fn()} />)
+    await screen.findByText(/maps completed/)
+    const art = await screen.findByRole('img', { name: 'Your backdrop art' })
+    expect(art.getAttribute('src')).toBe('/static/armory-art/a1.jpg')
+  })
+})

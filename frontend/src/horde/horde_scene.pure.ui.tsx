@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { walkPhaseFor } from '@app/arena/outbreak_scene_rules.pure.lib.ts'
 import { resolveRaycastOutcome } from '@app/arena/raycast_outcome.pure.lib.ts'
 import { EquationBlaster } from '@app/blaster/equation_blaster.pure.ui.tsx'
+import type { WornEmblem } from '@app/blaster/blaster_finish.pure.lib.ts'
 import type { WeaponDefinition } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { unitBoxGeometry, unitSphereGeometry, unitTorusGeometry } from '@app/science_fair/shared_geometry.pure.lib.ts'
 import { SCIENTIST_ZOMBIE, type CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
@@ -49,6 +50,12 @@ export interface HordeSceneProps {
   readonly weapon: WeaponDefinition
   /** The worn armor skin's tint over the arms; null for none. */
   readonly armTint: ArmTint | null
+  /** The kid's blaster paint, or null to keep the blaster's own finish. */
+  readonly blasterTint: ArmTint | null
+  /** The kid's emblem, or null for none. */
+  readonly emblem: WornEmblem | null
+  /** The kid's art on the billboard behind the horde, or null for no billboard. */
+  readonly billboardUrl: string | null
   readonly weaponPhase: WeaponPhase
   readonly cockingUntilMs: number | null
   readonly cockingMs: number
@@ -219,6 +226,9 @@ export function HordeScene({
   shadows,
   weapon,
   armTint,
+  blasterTint,
+  emblem,
+  billboardUrl,
   weaponPhase,
   cockingUntilMs,
   cockingMs,
@@ -250,7 +260,7 @@ export function HordeScene({
       <PerspectiveCamera makeDefault position={CAMERA_POSITION} rotation={[-0.14, 0, 0]} fov={aspectRatio < 1 ? 72 : 56} near={0.1} far={60} />
 
       <group onPointerDown={handlePointerDown}>
-        <HordeEnvironment cover={cover} shadows={shadows} />
+        <HordeEnvironment cover={cover} shadows={shadows} billboardUrl={billboardUrl} />
         {zombies.map((zombie, i) =>
           isDrawn(zombie) ? <ZombieInstance key={zombie.id} zombie={zombie} answer={answers[i] ?? null} character={characters[zombie.slot] ?? SCIENTIST_ZOMBIE} onReady={onZombieReady} /> : null,
         )}
@@ -269,6 +279,8 @@ export function HordeScene({
       <EquationBlaster
         weapon={weapon}
         armTint={armTint}
+        blasterTint={blasterTint}
+        emblem={emblem}
         weaponPhase={weaponPhase}
         cockingUntilMs={cockingUntilMs}
         elapsedMs={elapsedMs}

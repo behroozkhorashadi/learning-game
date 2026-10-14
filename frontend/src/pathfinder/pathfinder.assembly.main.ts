@@ -1,4 +1,6 @@
 import type { ComponentType } from 'react'
+import { bindArmoryApi } from '@app/api/armory_api.effect.lib.ts'
+import { hungPictureUrl } from '@app/api/armory_schema.pure.lib.ts'
 import { bindPathfinderApi } from '@app/api/pathfinder_api.effect.lib.ts'
 import { assembleRandomId } from '@app/ids/random_id.assembly.main.ts'
 import { bindPathfinder, type PathfinderProps } from './pathfinder.effect.ui.tsx'
@@ -12,7 +14,8 @@ import { bindPathfinderPublishedMaps } from './pathfinder_published_maps.effect.
 import type { Dialogs, ScheduleTimeout, SubscribeToFocus } from './pathfinder_state.pure.lib.ts'
 
 /**
- * Wires Pathfinder to the real API, timers, dialogs, and window focus.
+ * Wires Pathfinder to the real API, timers, dialogs, and window focus, and
+ * to the armory's looks for the art a kid hung behind it.
  * `assemblePathfinder()` is the game (src/App.tsx, legacy, calls it once);
  * the map builder and the level gallery are also dev screens.
  */
@@ -60,12 +63,14 @@ function mapBuilderOver(p: ReturnType<typeof platform>): ComponentType<Pathfinde
 
 export function assemblePathfinder(): ComponentType<PathfinderProps> {
   const p = platform()
+  const armory = bindArmoryApi({ fetch: async (url, init) => fetch(url, init), baseUrl: '' })
   return bindPathfinder({
     progress: p.api,
     scheduleTimeout: p.scheduleTimeout,
     LevelSelect: bindPathfinderLevelSelect({ listMaps: p.api.listMaps }),
     PublishedMaps: bindPathfinderPublishedMaps({ listPublishedMaps: p.api.listPublishedMaps, subscribeToFocus: p.subscribeToFocus }),
     MapBuilder: mapBuilderOver(p),
+    loadBackdrop: async (profileId) => hungPictureUrl(await armory.looks(profileId), 'pathfinder'),
   })
 }
 

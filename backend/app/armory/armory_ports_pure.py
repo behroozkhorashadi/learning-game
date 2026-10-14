@@ -8,6 +8,8 @@ from typing import Protocol
 
 from app.armory.armory_schemas_pure import (
     ArmoryEntry,
+    ArmoryLooks,
+    ArmoryLooksState,
     ArmoryRoundCreate,
     ArmoryState,
     ArtCreate,
@@ -41,6 +43,16 @@ class ArtStudioRepository(ArmoryRepository, Protocol):
         ...
 
     def add_art(self, piece: ArtPiece) -> None: ...
+
+
+class LooksRepository(ArtStudioRepository, Protocol):
+    """The ledger and gallery (to check what's owned), plus the profile's saved looks."""
+
+    def looks_for(self, profile_id: int) -> ArmoryLooks | None:
+        """None until the profile first saves its looks."""
+        ...
+
+    def save_looks(self, profile_id: int, looks: ArmoryLooks) -> None: ...
 
 
 class ArtMaker(Protocol):
@@ -85,6 +97,16 @@ class NotSoldHereError(ValueError):
         super().__init__(f"{item_id!r} is bought in the art studio, by making art")
 
 
+class LookLockedError(ValueError):
+    def __init__(self, item_id: str) -> None:
+        super().__init__(f"that look needs {item_id!r} first")
+
+
+class UnknownArtError(LookupError):
+    def __init__(self, art_id: str) -> None:
+        super().__init__(f"there's no art piece {art_id!r} in this gallery")
+
+
 class InvalidArtError(ValueError):
     pass
 
@@ -105,3 +127,9 @@ class ArmoryService:
     state: Callable[[int], ArmoryState]
     record_round: Callable[[int, ArmoryRoundCreate], ArmoryState]
     purchase: Callable[[int, str], ArmoryState]
+
+
+@dataclass(frozen=True)
+class LooksService:
+    state: Callable[[int], ArmoryLooksState]
+    save: Callable[[int, ArmoryLooks], ArmoryLooksState]

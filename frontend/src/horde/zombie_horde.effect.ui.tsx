@@ -1,5 +1,5 @@
 import { useMemo, useState, type ComponentType, type ReactElement, type ReactNode } from 'react'
-import type { ArmoryStateRecord } from '@app/api/armory_schema.pure.lib.ts'
+import type { ArmoryLooksRecord, ArmoryLooksStateRecord, ArmoryStateRecord } from '@app/api/armory_schema.pure.lib.ts'
 import { aimFromPointer } from '@app/outbreak/arena_session.pure.lib.ts'
 import { STARTER_BLASTER, weaponDefinitionFor } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
@@ -9,21 +9,23 @@ import type { ReadAloud } from '@app/speech/speech_state.pure.lib.ts'
 import { useReadAloud } from '@app/speech/use_read_aloud.pure.hook.ts'
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
 import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
-import { NO_ROUND_ARMOR, STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom, skinFor } from './horde_armory.pure.lib.ts'
+import { NO_ROUND_ARMOR, STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom } from './horde_armory.pure.lib.ts'
 import { MEDIUM, difficultyById, type Difficulty } from './horde_difficulty.pure.lib.ts'
 import { answerFor, inOvertime } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
 import { HordeHud } from './horde_hud.pure.ui.tsx'
+import { DEFAULT_LOOKS, gearLookFor } from './horde_looks.pure.lib.ts'
 import { HordeResults } from './horde_results.pure.ui.tsx'
 import { secondsLeft } from './horde_scene_rules.pure.lib.ts'
 import { armorSaved, isNewBest, pointsBreakdown } from './horde_scoring.pure.lib.ts'
 import { HORDE_INSTRUCTIONS, HordeStart } from './horde_start.pure.ui.tsx'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
+import type { StyleStudioProps } from './style_studio.effect.ui.tsx'
 import { useHordeRound, type HordeRoundDeps } from './use_horde_round.pure.hook.ts'
 
 /**
  * Zombie Horde, the whole screen: the start screen with the armory (buy and
- * equip with the points earned), the round (60 seconds, then overtime) over the 3D view, and
+ * equip with the points earned), the Art and Style Studios, the round (60 seconds, then overtime) over the 3D view, and
  * the results with the points banked. The round's rules are the engine's
  * (horde_engine), its lifecycle the round hook's (use_horde_round); this
  * component owns the armory selection and lays the pieces out.
@@ -40,6 +42,9 @@ export interface ZombieHordeProps {
 export interface ZombieHordeArmory {
   readonly load: (profileId: number) => Promise<ArmoryStateRecord>
   readonly purchase: (profileId: number, itemId: string) => Promise<ArmoryStateRecord>
+  /** The kid's saved looks: the skin worn, paint, emblem, and billboard art. */
+  readonly looks: (profileId: number) => Promise<ArmoryLooksStateRecord>
+  readonly saveLooks: (profileId: number, looks: ArmoryLooksRecord) => Promise<ArmoryLooksStateRecord>
 }
 
 export interface ZombieHordeDeps extends HordeRoundDeps {
@@ -48,26 +53,31 @@ export interface ZombieHordeDeps extends HordeRoundDeps {
   readonly Viewport: ComponentType<HordeViewportProps>
   /** The art studio, opened from the start screen. In the app, art_studio.effect.ui.tsx bound to the camera and API. */
   readonly ArtStudio: ComponentType<ArtStudioProps>
+  /** The Style Studio, opened from the start screen. In the app, style_studio.effect.ui.tsx bound to the API. */
+  readonly StyleStudio: ComponentType<StyleStudioProps>
   readonly motion: MotionPreference
   /** Reads the instructions aloud, and stops them. */
   readonly readAloud: ReadAloud
 }
 
 export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHordeProps> {
-  const { armory, Viewport, ArtStudio, motion, readAloud } = deps
+  const { armory, Viewport, ArtStudio, StyleStudio, motion, readAloud } = deps
 
   function ZombieHorde({ profileId, onBack }: ZombieHordeProps): ReactElement {
     const round = useHordeRound(deps, profileId)
     const reducedMotion = usePrefersReducedMotion(motion)
     const loadArmory = useMemo(() => () => armory.load(profileId), [profileId])
     const armoryQuery = useReloadableQuery(loadArmory)
+    const loadLooks = useMemo(() => () => armory.looks(profileId), [profileId])
+    const looksQuery = useReloadableQuery(loadLooks)
     const [chosen, setChosen] = useState<LoadoutChoice | null>(null)
+    // A skin just picked, worn at once while it saves.
     const [chosenSkin, setChosenSkin] = useState<string | null>(null)
     const [buying, setBuying] = useState<string | null>(null)
     const [bought, setBought] = useState<string | null>(null)
     const [buyError, setBuyError] = useState<string | null>(null)
     const [aimNdc, setAimNdc] = useState<{ readonly x: number; readonly y: number } | null>(null)
-    const [inStudio, setInStudio] = useState(false)
+    const [studio, setStudio] = useState<'art' | 'style' | null>(null)
     const [difficulty, setDifficulty] = useState<Difficulty>(MEDIUM.id)
 
     const armoryData = armoryQuery.state.kind === 'loaded' ? armoryQuery.state.data : null
@@ -76,8 +86,21 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     // Until a kid picks, the best gear they have is equipped; special rounds that ran out drop back to standard.
     const best = bestOwned(usable)
     const choice = chosen === null ? best : { weaponId: chosen.weaponId, bulletId: usable.includes(chosen.bulletId) ? chosen.bulletId : best.bulletId }
-    // Looks only: the arms in the round, and the colour the gems flash in.
-    const skin = skinFor(chosenSkin, usable)
+    // Looks only: the arms, the blaster's paint, the emblem, the billboard, and the colour the gems flash in.
+    // If the looks can't load, the round is played in the default look.
+    const savedLooks = looksQuery.state.kind === 'loaded' ? looksQuery.state.data : { looks: DEFAULT_LOOKS, pictures: {} }
+    const gear = gearLookFor({ ...savedLooks, looks: { ...savedLooks.looks, skin_id: chosenSkin ?? savedLooks.looks.skin_id } }, usable)
+
+    async function wear(skinId: string): Promise<void> {
+      setChosenSkin(skinId)
+      setBuyError(null)
+      try {
+        await armory.saveLooks(profileId, { ...savedLooks.looks, skin_id: skinId })
+        looksQuery.reload()
+      } catch (err) {
+        setBuyError(errorMessage(err))
+      }
+    }
 
     async function buy(itemId: string): Promise<void> {
       setBuying(itemId)
@@ -96,23 +119,36 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
     const { phase, state } = round
     const inRound = (phase === 'intro' || phase === 'playing') && state !== null
-    const onStartScreen = (phase === 'ready' || phase === 'loading') && !inStudio
+    const onStartScreen = (phase === 'ready' || phase === 'loading') && studio === null
     // Reading stops when the round starts or the studio opens.
     const instructions = useReadAloud(readAloud, HORDE_INSTRUCTIONS, onStartScreen)
 
     const artPrice = armoryData?.catalog.find((item) => item.kind === 'art')?.price ?? null
 
-    if (inStudio && armoryData !== null && artPrice !== null) {
+    const closeStudio = (): void => {
+      setStudio(null)
+    }
+
+    if (studio === 'art' && armoryData !== null && artPrice !== null) {
       return (
         <Page>
-          <ArtStudio
+          <ArtStudio profileId={profileId} balance={armoryData.balance} price={artPrice} onSpent={armoryQuery.reload} onBack={closeStudio} />
+        </Page>
+      )
+    }
+
+    if (studio === 'style' && armoryData !== null) {
+      return (
+        <Page>
+          <StyleStudio
             profileId={profileId}
-            balance={armoryData.balance}
-            price={artPrice}
+            armory={armoryData}
             onSpent={armoryQuery.reload}
-            onBack={() => {
-              setInStudio(false)
+            onSaved={() => {
+              setChosenSkin(null)
+              looksQuery.reload()
             }}
+            onBack={closeStudio}
           />
         </Page>
       )
@@ -144,7 +180,14 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
               armoryData === null || artPrice === null
                 ? null
                 : () => {
-                    setInStudio(true)
+                    setStudio('art')
+                  }
+            }
+            onOpenStyle={
+              armoryData === null
+                ? null
+                : () => {
+                    setStudio('style')
                   }
             }
             onBack={onBack}
@@ -159,8 +202,10 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
                 buying={buying}
                 bought={bought}
                 buyError={buyError}
-                skinId={skin.id}
-                onWear={setChosenSkin}
+                skinId={gear.skinId}
+                onWear={(skinId) => {
+                  void wear(skinId)
+                }}
               />
             }
           />
@@ -242,7 +287,10 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             cover={COVER}
             shadows={!reducedMotion}
             weapon={weapon}
-            armTint={skin.tint}
+            armTint={gear.armTint}
+            blasterTint={gear.blasterTint}
+            emblem={gear.emblem}
+            billboardUrl={gear.billboardUrl}
             weaponPhase={weaponCooling ? 'cocking' : 'readyFirstShot'}
             cockingUntilMs={weaponCooling ? state.readyAtMs : null}
             cockingMs={round.loadout?.weapon.cooldownMs ?? weapon.cockingMs}
@@ -267,7 +315,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             lives={state.lives}
             armor={state.armor}
             streak={state.streak}
-            armorColor={skin.color}
+            armorColor={gear.armorColor}
             grenades={state.grenades}
             shoves={state.shoves}
             shoveEarned={round.shoveEarned}

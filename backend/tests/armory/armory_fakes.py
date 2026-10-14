@@ -4,7 +4,7 @@ clock, and a profile lookup where profiles 1 and 2 exist."""
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from app.armory.armory_schemas_pure import ArmoryEntry, ArtPicture, ArtPiece
+from app.armory.armory_schemas_pure import ArmoryEntry, ArmoryLooks, ArtPicture, ArtPiece
 
 NOW = datetime(2026, 10, 11, 9, 0, tzinfo=UTC)
 
@@ -60,6 +60,34 @@ class InMemoryArtStudioRepository(InMemoryArmoryRepository):
 
     def add_art(self, piece: ArtPiece) -> None:
         self.art.append(piece)
+
+
+class InMemoryLooksRepository(InMemoryArtStudioRepository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.looks: dict[int, ArmoryLooks] = {}
+
+    def looks_for(self, profile_id: int) -> ArmoryLooks | None:
+        return self.looks.get(profile_id)
+
+    def save_looks(self, profile_id: int, looks: ArmoryLooks) -> None:
+        self.looks[profile_id] = looks
+
+
+def bought(item_id: str, profile_id: int = 1) -> ArmoryEntry:
+    """A purchase row, as if `item_id` had been bought (free, so the balance is untouched)."""
+    return ArmoryEntry(profile_id=profile_id, kind="purchased", item_id=item_id, points=0, quantity=1, created_at=NOW)
+
+
+def art_piece(art_id: str, profile_id: int = 1) -> ArtPiece:
+    return ArtPiece(
+        id=art_id,
+        profile_id=profile_id,
+        image_url=f"/static/armory-art/{art_id}.jpg",
+        style="comic_hero",
+        idea="",
+        created_at=NOW,
+    )
 
 
 class InMemoryArtStore:

@@ -32,6 +32,8 @@ from app.armory.armory_service_effect import make_armory_service
 from app.armory.art_files_repository_effect import make_file_art_store
 from app.armory.art_studio_routes_effect import bind_art_studio_routes
 from app.armory.art_studio_service_effect import make_art_studio_service
+from app.armory.looks_routes_effect import bind_looks_routes
+from app.armory.looks_service_effect import make_looks_service
 from app.badges.badge_art_client_effect import make_no_badge_painter, make_openai_badge_painter
 from app.badges.badge_art_files_repository_effect import make_file_badge_art_store
 from app.badges.badges_ports_pure import BadgeArt, BadgeNeighbors
@@ -250,6 +252,8 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         new_id=lambda: uuid4().hex,
     )
     app.include_router(bind_art_studio_routes(service=art_studio))
+    looks = make_looks_service(repository=armory_repository, profile_exists=profiles.exists)
+    app.include_router(bind_looks_routes(service=looks))
     replays = make_replays_service(
         repository=replay_repository, profile_exists=profiles.exists, clock=utc_now, new_id=lambda: uuid4().hex
     )

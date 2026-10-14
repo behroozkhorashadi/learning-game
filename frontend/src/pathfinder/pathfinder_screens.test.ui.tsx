@@ -24,7 +24,8 @@ export interface FakePathfinderScreens {
   readonly LevelGallery: ComponentType
 }
 
-export function fakePathfinderScreens(server: FakePathfinderServer = fakePathfinderServer()): FakePathfinderScreens {
+/** `backdropUrl` is the art the kid hung behind Pathfinder (null for none). */
+export function fakePathfinderScreens(server: FakePathfinderServer = fakePathfinderServer(), backdropUrl: string | null = null): FakePathfinderScreens {
   const dialogs = scriptedDialogs()
   const timers = manualTimers()
   const focus = manualFocus()
@@ -44,6 +45,7 @@ export function fakePathfinderScreens(server: FakePathfinderServer = fakePathfin
     LevelSelect: bindPathfinderLevelSelect({ listMaps: server.listMaps }),
     PublishedMaps,
     MapBuilder,
+    loadBackdrop: () => Promise.resolve(backdropUrl),
   })
   return { server, dialogs, timers, focus, Pathfinder, MapBuilder, Editor, MyMaps, PlayTest, PublishedMaps, LevelGallery: bindPathfinderLevelGallery({ PlayTest }) }
 }

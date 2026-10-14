@@ -1,5 +1,6 @@
 """Zombie Horde's points and armory. Points are earned per round and spent in the
-armory on weapons, bullets, grenade packs, armor gems, armor upgrades, and skins.
+armory on weapons, bullets, grenade packs, armor gems, armor upgrades, skins, and the
+style unlocks that let a kid design their own looks (`ArmoryLooks`).
 
 Nothing is mutated and reconstructed: every earn, purchase, and grenade use is one
 `ArmoryEntry` in a per-profile ledger, and the balance, what's owned, and how many
@@ -13,9 +14,9 @@ rate, blast radius) is the client's (frontend/src/horde/horde_armory.pure.lib.ts
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-ArmoryItemKind = Literal["weapon", "bullet", "grenade", "gem", "upgrade", "skin", "art"]
+ArmoryItemKind = Literal["weapon", "bullet", "grenade", "gem", "upgrade", "skin", "art", "style"]
 ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used", "gems_used", "survived"]
 # How hard a round was played: how fast the horde comes, and how far its points go.
 # Each keeps its own personal best.
@@ -167,3 +168,74 @@ class ArtResult(BaseModel):
 
     piece: ArtPiece
     armory: ArmoryState
+
+
+ArtId = Annotated[str, StringConstraints(min_length=1, max_length=64)]
+HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9A-Fa-f]{6}$")]
+# How painted armor catches the light: flat, glossy, or glowing in its own colour.
+SuitShine = Literal["matte", "shiny", "glow"]
+# The symbols an emblem can show. Friendly ones only: zombies are goofy here, never gory.
+EmblemSymbol = Literal[
+    "star", "bolt", "heart", "crown", "flame", "rocket", "paw", "smile", "moon", "rainbow", "dino", "zombie"
+]
+EmblemPlace = Literal["arm", "blaster", "both"]
+
+
+class SuitPaint(BaseModel):
+    """A suit painted in the kid's own colour, in place of a skin's tint."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    color: HexColor
+    shine: SuitShine
+
+
+class Emblem(BaseModel):
+    """A round badge worn on the arm, the blaster, or both: one of the symbols on a
+    colour, or one of the kid's own art pieces."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    symbol: EmblemSymbol | None = None
+    art_id: ArtId | None = None
+    color: HexColor
+    place: EmblemPlace
+
+    @model_validator(mode="after")
+    def _one_picture(self) -> "Emblem":
+        if (self.symbol is None) == (self.art_id is None):
+            msg = "an emblem shows a symbol or a piece of art, not both or neither"
+            raise ValueError(msg)
+        return self
+
+
+class HungPictures(BaseModel):
+    """Art pieces hung in the games, by art id: Pathfinder's backdrop and Zombie Horde's billboard."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    pathfinder: ArtId | None = None
+    horde: ArtId | None = None
+
+
+class ArmoryLooks(BaseModel):
+    """How a kid has dressed up their gear. Every field is optional: unset is the
+    default look. Each customization needs its style unlock owned (looks_reducers_pure)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    skin_id: ItemId | None = None
+    suit_paint: SuitPaint | None = None
+    blaster_color: HexColor | None = None
+    emblem: Emblem | None = None
+    hung: HungPictures = HungPictures()
+
+
+class ArmoryLooksState(BaseModel):
+    """The looks, with the URL of every art piece they use, so a game can show one
+    without loading the whole gallery."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    looks: ArmoryLooks
+    pictures: dict[str, str]

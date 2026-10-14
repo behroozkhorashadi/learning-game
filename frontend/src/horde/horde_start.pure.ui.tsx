@@ -35,10 +35,12 @@ export interface HordeStartProps {
   readonly onStart: () => void
   /** Opens the art studio, or null while it can't be opened (the armory hasn't loaded). */
   readonly onOpenStudio: (() => void) | null
+  /** Opens the Style Studio, or null while it can't be opened (the armory hasn't loaded). */
+  readonly onOpenStyle: (() => void) | null
   readonly onBack: () => void
 }
 
-export function HordeStart({ shop, starting, difficulty, onChooseDifficulty, bestMs, readingInstructions, onHearInstructions, onStart, onOpenStudio, onBack }: HordeStartProps): ReactElement {
+export function HordeStart({ shop, starting, difficulty, onChooseDifficulty, bestMs, readingInstructions, onHearInstructions, onStart, onOpenStudio, onOpenStyle, onBack }: HordeStartProps): ReactElement {
   const best = bestMs[difficulty]
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: 760, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
@@ -88,6 +90,13 @@ export function HordeStart({ shop, starting, difficulty, onChooseDifficulty, bes
           <div style={{ fontSize: 13, color: '#5B6576' }}>Spend points to turn a selfie into zombie-slayer art.</div>
         </div>
         <DenButton label="Open studio" variant="softBlue" shape="pill" disabled={onOpenStudio === null} {...(onOpenStudio === null ? {} : { onClick: onOpenStudio })} />
+      </div>
+      <div style={{ marginTop: 12, padding: '16px 18px', borderRadius: 20, background: '#E6F7F1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left' }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#2A2E37' }}>🖌️ Style Studio</div>
+          <div style={{ fontSize: 13, color: '#5B6576' }}>Paint your suit and blaster, design an emblem, and hang your art in the games.</div>
+        </div>
+        <DenButton label="Customize" variant="softGreen" shape="pill" disabled={onOpenStyle === null} {...(onOpenStyle === null ? {} : { onClick: onOpenStyle })} />
       </div>
     </div>
   )

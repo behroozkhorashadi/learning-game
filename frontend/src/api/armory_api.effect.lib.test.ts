@@ -72,4 +72,23 @@ describe('bindArmoryApi', () => {
     const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
     await expect(api.createArt(3, { image_data_url: 'x', style: 'pixel_hero', idea: '' })).rejects.toThrow('no points were spent')
   })
+
+  it('reads and saves the looks', async () => {
+    const looks = { skin_id: null, suit_paint: { color: '#FF00AA', shine: 'glow' }, blaster_color: null, emblem: { symbol: 'star', art_id: null, color: '#FFAA00', place: 'arm' }, hung: { pathfinder: 'a1', horde: null } } as const
+    const state = { looks, pictures: { a1: '/static/armory-art/a1.jpg' } }
+    const http = fakeHttp(() => ok(state))
+    const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
+    await expect(api.looks(3)).resolves.toEqual(state)
+    await expect(api.saveLooks(3, looks)).resolves.toEqual(state)
+    expect(http.requests).toEqual([
+      { url: '/api/profiles/3/armory/looks', method: 'GET', body: undefined },
+      { url: '/api/profiles/3/armory/looks', method: 'PUT', body: looks },
+    ])
+  })
+
+  it('rejects looks with a colour that is not hex', async () => {
+    const http = fakeHttp(() => ok({ looks: { skin_id: null, suit_paint: null, blaster_color: 'green', emblem: null, hung: { pathfinder: null, horde: null } }, pictures: {} }))
+    const api = bindArmoryApi({ fetch: http.fetch, baseUrl: '' })
+    await expect(api.looks(3)).rejects.toThrow('GET /api/profiles/3/armory/looks returned an unexpected body')
+  })
 })

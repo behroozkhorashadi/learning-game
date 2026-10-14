@@ -1,5 +1,6 @@
 import { useMemo, useState, type ComponentType, type ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { useQuery } from '@app/query/use_query.pure.hook.ts'
 import { ArrowLeftIcon } from '@app/den/icons.pure.ui.tsx'
 import type { PathfinderLevelSelectProps } from './pathfinder_level_select.effect.ui.tsx'
 import { ALL_LEVELS } from './pathfinder_levels.pure.lib.ts'
@@ -28,6 +29,9 @@ import { usePathfinderPlay } from './use_pathfinder_play.pure.hook.ts'
  * is recorded through the same completions store (keyed by the map's
  * `custom-<uuid>` id, which can't collide with a curated level id), which
  * is what marks it played.
+ *
+ * A kid who bought the Pathfinder Backdrop in Zombie Horde's Style Studio
+ * sees the art they hung there behind the game (`loadBackdrop`).
  */
 
 export const PATHFINDER_GAME_ID = 'pathfinder_no_way_back'
@@ -48,6 +52,8 @@ export interface PathfinderDeps {
   readonly LevelSelect: ComponentType<PathfinderLevelSelectProps>
   readonly PublishedMaps: ComponentType<PathfinderPublishedMapsProps>
   readonly MapBuilder: ComponentType<PathfinderMapBuilderProps>
+  /** The URL of the art the kid hung behind Pathfinder, or null for the plain background. */
+  readonly loadBackdrop: (profileId: number) => Promise<string | null>
 }
 
 const FIRST_LEVEL: DotPuzzle = ALL_LEVELS[0] ?? { id: 'empty', difficulty: 'easy', rows: 1, columns: 1, dots: [] }
@@ -78,8 +84,12 @@ function BackButton({ onClick }: { readonly onClick: () => void }): ReactElement
   )
 }
 
-export function bindPathfinder({ progress, scheduleTimeout, LevelSelect, PublishedMaps, MapBuilder }: PathfinderDeps): ComponentType<PathfinderProps> {
+export function bindPathfinder({ progress, scheduleTimeout, LevelSelect, PublishedMaps, MapBuilder, loadBackdrop }: PathfinderDeps): ComponentType<PathfinderProps> {
   function Pathfinder({ profileId, profileName, onBack }: PathfinderProps): ReactElement {
+    const loadMyBackdrop = useMemo(() => () => loadBackdrop(profileId), [profileId])
+    const backdrop = useQuery(loadMyBackdrop)
+    // A backdrop that can't load just leaves the plain background.
+    const backdropUrl = backdrop.kind === 'loaded' ? backdrop.data : null
     const [mode, setMode] = useState<Mode>('select')
     const [puzzle, setPuzzle] = useState<DotPuzzle>(FIRST_LEVEL)
     const [playSource, setPlaySource] = useState<PlaySource>('levels')
@@ -120,11 +130,13 @@ export function bindPathfinder({ progress, scheduleTimeout, LevelSelect, Publish
     const completeMessage = playSource === 'published' || nextLevel !== undefined ? 'Every dot connected! 🎉' : "Every dot connected! You've finished every map! 🎉"
 
     return (
-      <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
-        <div style={{ width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ position: 'relative', minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
+        {/* Softened over the app colour, so small text on the page stays readable. */}
+        {backdropUrl !== null && <img src={backdropUrl} alt="Your backdrop art" style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0, pointerEvents: 'none', opacity: 0.55 }} />}
+        <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <BackButton onClick={handleTopBack} />
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--fg-primary)' }}>Pathfinder: No Way Back</h1>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--fg-primary)', ...(backdropUrl === null ? {} : { background: 'var(--surface-default)', padding: '6px 16px', borderRadius: 9999 }) }}>Pathfinder: No Way Back</h1>
           </div>
 
           {(mode === 'select' || mode === 'published') && levels.saveFailed && (
@@ -162,7 +174,7 @@ export function bindPathfinder({ progress, scheduleTimeout, LevelSelect, Publish
           {mode === 'play' && (
             <div
               style={{
-                background: 'var(--surface-default)',
+                background: backdropUrl === null ? 'var(--surface-default)' : 'rgba(255, 255, 255, 0.9)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 24,
                 padding: '28px 24px',

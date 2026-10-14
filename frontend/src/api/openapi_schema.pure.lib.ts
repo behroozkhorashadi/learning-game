@@ -479,6 +479,31 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/profiles/{profile_id}/armory/looks": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get Looks
+         * @description The profile's looks (the default look until first saved), with the URL of each art piece they use.
+         */
+        readonly get: operations["get_looks_api_profiles__profile_id__armory_looks_get"];
+        /**
+         * Save Looks
+         * @description Saves the looks. 409 when one needs an unlock (or skin) that isn't owned, or
+         *     uses art that isn't in this profile's gallery.
+         */
+        readonly put: operations["save_looks_api_profiles__profile_id__armory_looks_put"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/profiles/{profile_id}/armory/purchases": {
         readonly parameters: {
             readonly query?: never;
@@ -846,7 +871,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            readonly kind: "weapon" | "bullet" | "grenade" | "gem" | "upgrade" | "skin" | "art";
+            readonly kind: "weapon" | "bullet" | "grenade" | "gem" | "upgrade" | "skin" | "art" | "style";
             /** Name */
             readonly name: string;
             /** Price */
@@ -855,6 +880,33 @@ export interface components {
             readonly quantity: number;
             /** Requires */
             readonly requires: string | null;
+        };
+        /**
+         * ArmoryLooks
+         * @description How a kid has dressed up their gear. Every field is optional: unset is the
+         *     default look. Each customization needs its style unlock owned (looks_reducers_pure).
+         */
+        readonly ArmoryLooks: {
+            /** Blaster Color */
+            readonly blaster_color?: string | null;
+            readonly emblem?: components["schemas"]["Emblem"] | null;
+            /** @default {} */
+            readonly hung: components["schemas"]["HungPictures"];
+            /** Skin Id */
+            readonly skin_id?: string | null;
+            readonly suit_paint?: components["schemas"]["SuitPaint"] | null;
+        };
+        /**
+         * ArmoryLooksState
+         * @description The looks, with the URL of every art piece they use, so a game can show one
+         *     without loading the whole gallery.
+         */
+        readonly ArmoryLooksState: {
+            readonly looks: components["schemas"]["ArmoryLooks"];
+            /** Pictures */
+            readonly pictures: {
+                readonly [key: string]: string;
+            };
         };
         /** ArmoryPurchaseCreate */
         readonly ArmoryPurchaseCreate: {
@@ -1112,6 +1164,24 @@ export interface components {
             readonly rounds: number;
         };
         /**
+         * Emblem
+         * @description A round badge worn on the arm, the blaster, or both: one of the symbols on a
+         *     colour, or one of the kid's own art pieces.
+         */
+        readonly Emblem: {
+            /** Art Id */
+            readonly art_id?: string | null;
+            /** Color */
+            readonly color: string;
+            /**
+             * Place
+             * @enum {string}
+             */
+            readonly place: "arm" | "blaster" | "both";
+            /** Symbol */
+            readonly symbol?: ("star" | "bolt" | "heart" | "crown" | "flame" | "rocket" | "paw" | "smile" | "moon" | "rainbow" | "dino" | "zombie") | null;
+        };
+        /**
          * GameMetadata
          * @description Static per-game-module definition — PRD §6. Not a DB table.
          */
@@ -1144,6 +1214,16 @@ export interface components {
         readonly HTTPValidationError: {
             /** Detail */
             readonly detail?: readonly components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HungPictures
+         * @description Art pieces hung in the games, by art id: Pathfinder's backdrop and Zombie Horde's billboard.
+         */
+        readonly HungPictures: {
+            /** Horde */
+            readonly horde?: string | null;
+            /** Pathfinder */
+            readonly pathfinder?: string | null;
         };
         /** Illustration */
         readonly Illustration: {
@@ -1761,6 +1841,19 @@ export interface components {
             readonly changed: boolean;
             /** Questions Asked */
             readonly questions_asked?: readonly string[];
+        };
+        /**
+         * SuitPaint
+         * @description A suit painted in the kid's own colour, in place of a skin's tint.
+         */
+        readonly SuitPaint: {
+            /** Color */
+            readonly color: string;
+            /**
+             * Shine
+             * @enum {string}
+             */
+            readonly shine: "matte" | "shiny" | "glow";
         };
         /**
          * TelemetryCore
@@ -2913,6 +3006,72 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ArtResult"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_looks_api_profiles__profile_id__armory_looks_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArmoryLooksState"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly save_looks_api_profiles__profile_id__armory_looks_put: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ArmoryLooks"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ArmoryLooksState"];
                 };
             };
             /** @description Validation Error */

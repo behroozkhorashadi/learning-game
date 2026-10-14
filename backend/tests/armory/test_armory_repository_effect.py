@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine, insert
 
 from app.armory.armory_repository_effect import SqlArmoryRepository, make_sql_armory_repository
-from app.armory.armory_schemas_pure import ArtPiece
+from app.armory.armory_schemas_pure import ArmoryLooks, ArtPiece, SuitPaint
 from tests.armory.armory_fakes import NOW, earned
 
 
@@ -51,3 +51,14 @@ def test_art_round_trips_newest_first_and_goes_with_the_profile(repository: SqlA
     repository.delete_for_profile(1)
     assert repository.list_art(1) == ()
     assert repository.list_art(2) == (theirs,)
+
+
+def test_looks_round_trip_and_are_replaced(repository: SqlArmoryRepository) -> None:
+    assert repository.looks_for(1) is None
+    repository.save_looks(1, ArmoryLooks(blaster_color="#112233"))
+    repository.save_looks(1, ArmoryLooks(suit_paint=SuitPaint(color="#445566", shine="glow")))
+    repository.save_looks(2, ArmoryLooks(skin_id="gold_suit"))
+    assert repository.looks_for(1) == ArmoryLooks(suit_paint=SuitPaint(color="#445566", shine="glow"))
+    repository.delete_for_profile(1)
+    assert repository.looks_for(1) is None
+    assert repository.looks_for(2) == ArmoryLooks(skin_id="gold_suit")

@@ -43,6 +43,9 @@ function Stage({ onShot, onZombieReady, weapon = STARTER_BLASTER, impacts = [], 
         shadows
         weapon={weapon}
         armTint={null}
+        blasterTint={null}
+        emblem={null}
+        billboardUrl={null}
         weaponPhase="readyFirstShot"
         cockingUntilMs={null}
         cockingMs={700}

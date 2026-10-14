@@ -125,4 +125,41 @@ describe('EquationBlaster', () => {
     expect(glows).toHaveLength(8)
     expect(new Set(glows).size).toBeGreaterThan(1)
   })
+
+  it('wears an emblem where it was put', async () => {
+    const emblem = (onArm: boolean, onBlaster: boolean) => ({ imageUrl: '/art/a1.jpg', ringColor: '#FFAA00', onArm, onBlaster })
+    const count = async (worn: ReturnType<typeof emblem> | null): Promise<number> => {
+      const renderer = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ emblem: worn })} />)
+      let found = 0
+      renderer.scene.instance.traverse((child) => {
+        if (child.name === 'emblem') found++
+      })
+      return found
+    }
+    expect(await count(null)).toBe(0)
+    expect(await count(emblem(true, false))).toBe(1)
+    expect(await count(emblem(false, true))).toBe(1)
+    expect(await count(emblem(true, true))).toBe(2)
+    const renderer = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ emblem: emblem(true, false) })} />)
+    const badge = renderer.scene.instance.getObjectByName('emblem')
+    let pictures = 0
+    badge?.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial && child.material.map !== null) pictures++
+    })
+    expect(pictures).toBe(1)
+  })
+
+  it("paints the blaster in the kid's colour instead of its finish's", async () => {
+    const colorOf = (renderer: Renderer): string | undefined => {
+      let color: string | undefined
+      renderer.scene.instance.traverse((child) => {
+        if (color === undefined && child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial && child.material.emissive.getHex() !== 0) color = child.material.emissive.getHexString()
+      })
+      return color
+    }
+    const painted = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ hideLeftArm: true, hideRightArm: true, blasterTint: { color: '#00FF88', amount: 0.7, glow: 0.12 } })} />)
+    expect(colorOf(painted)).toBe('00ff88')
+    const plain = await ReactThreeTestRenderer.create(<EquationBlaster {...props({ hideLeftArm: true, hideRightArm: true })} />)
+    expect(colorOf(plain)).toBeUndefined()
+  })
 })

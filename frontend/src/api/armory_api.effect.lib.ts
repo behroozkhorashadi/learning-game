@@ -1,6 +1,16 @@
 import { failureMessage, type HttpFetch } from './http.pure.lib.ts'
 import { z } from 'zod'
-import { armoryStateSchema, artPieceSchema, artResultSchema, type ArmoryStateRecord, type ArtPieceRecord, type ArtResultRecord } from './armory_schema.pure.lib.ts'
+import {
+  armoryLooksStateSchema,
+  armoryStateSchema,
+  artPieceSchema,
+  artResultSchema,
+  type ArmoryLooksRecord,
+  type ArmoryLooksStateRecord,
+  type ArmoryStateRecord,
+  type ArtPieceRecord,
+  type ArtResultRecord,
+} from './armory_schema.pure.lib.ts'
 import type { components } from './openapi_schema.pure.lib.ts'
 
 /**
@@ -20,6 +30,10 @@ export interface ArmoryApi {
   readonly gallery: (profileId: number) => Promise<readonly ArtPieceRecord[]>
   /** Turns a selfie into art and pays for it. Rejects with the server's reason (not enough points, the AI unavailable): then nothing is charged. */
   readonly createArt: (profileId: number, request: components['schemas']['ArtCreate']) => Promise<ArtResultRecord>
+  /** The profile's looks, with the URL of each art piece they use. */
+  readonly looks: (profileId: number) => Promise<ArmoryLooksStateRecord>
+  /** Saves the looks. Rejects with the server's reason when one needs an unlock that isn't owned. */
+  readonly saveLooks: (profileId: number, looks: ArmoryLooksRecord) => Promise<ArmoryLooksStateRecord>
 }
 
 const gallerySchema = z.array(artPieceSchema).readonly()
@@ -31,7 +45,7 @@ function armoryPath(profileId: number): string {
 }
 
 export function bindArmoryApi({ fetch, baseUrl }: { readonly fetch: HttpFetch; readonly baseUrl: string }): ArmoryApi {
-  async function request<T>(method: 'GET' | 'POST', path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {
     const response = await fetch(`${baseUrl}${path}`, body === undefined ? { method, headers: { Accept: 'application/json' } } : { method, headers: JSON_HEADERS, body: JSON.stringify(body) })
     if (!response.ok) throw new Error(await failureMessage(response, `${method} ${path}`))
     const result = schema.safeParse(await response.json())
@@ -52,5 +66,7 @@ export function bindArmoryApi({ fetch, baseUrl }: { readonly fetch: HttpFetch; r
     },
     gallery: async (profileId) => request('GET', `${armoryPath(profileId)}/art`, gallerySchema),
     createArt: async (profileId, art) => request('POST', `${armoryPath(profileId)}/art`, artResultSchema, art),
+    looks: async (profileId) => request('GET', `${armoryPath(profileId)}/looks`, armoryLooksStateSchema),
+    saveLooks: async (profileId, looks) => request('PUT', `${armoryPath(profileId)}/looks`, armoryLooksStateSchema, looks),
   }
 }

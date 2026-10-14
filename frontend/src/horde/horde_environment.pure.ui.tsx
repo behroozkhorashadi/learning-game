@@ -1,4 +1,6 @@
+import { useTexture } from '@react-three/drei'
 import type { ReactElement } from 'react'
+import { AsyncBoundary } from '@app/boundary/async_boundary.pure.ui.tsx'
 import { ENVIRONMENT_USER_DATA } from '@app/arena/raycast_tags.pure.lib.ts'
 import { PrimShape } from '@app/science_fair/prim_shape.pure.ui.tsx'
 import { unitBoxGeometry, unitCylinderGeometry } from '@app/science_fair/shared_geometry.pure.lib.ts'
@@ -10,6 +12,8 @@ import { CONTACT_DEPTH, SPAWN_DEPTH, maxAbsX, worldPosition, type Cover } from '
  * invisible collider exactly its size, tagged as environment, so a shot that
  * hits it is blocked (the scene's single click handler resolves it). The
  * floor is raycastable but untagged: grenades aim at it, shots ignore it.
+ * A kid who bought the Horde Billboard sees their own art on a giant
+ * billboard behind the horde.
  */
 
 const FLOOR_LENGTH = SPAWN_DEPTH + 6
@@ -67,6 +71,41 @@ function Barrier({ cover }: { readonly cover: Cover }): ReactElement {
   )
 }
 
+/** The billboard: in the back-left corner behind where zombies appear, high enough to clear them, turned toward the player, and clear of the fog. */
+const BILLBOARD = { position: [-8.5, 6, -SPAWN_DEPTH - 2] as const, turn: 0.35, size: 5, frame: 0.3 }
+
+function BillboardPicture({ url }: { readonly url: string }): ReactElement {
+  const texture = useTexture(url)
+  return (
+    <mesh name="billboard-picture" position={[0, 0, 0.06]} raycast={() => null}>
+      <planeGeometry args={[BILLBOARD.size, BILLBOARD.size]} />
+      <meshBasicMaterial map={texture} fog={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
+function Billboard({ url }: { readonly url: string }): ReactElement {
+  const outer = BILLBOARD.size + BILLBOARD.frame * 2
+  const [x, y, z] = BILLBOARD.position
+  return (
+    <group name="billboard" position={[x, y, z]} rotation={[0, BILLBOARD.turn, 0]}>
+      <mesh raycast={() => null}>
+        <boxGeometry args={[outer, outer, 0.1]} />
+        <meshBasicMaterial color="#2A2E37" fog={false} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * (outer / 2 - 0.6), -y / 2 - outer / 4, -0.1]} raycast={() => null}>
+          <boxGeometry args={[0.3, y - outer / 2, 0.3]} />
+          <meshStandardMaterial color="#4B4F5A" />
+        </mesh>
+      ))}
+      <AsyncBoundary loading={null} failed={() => null}>
+        <BillboardPicture url={url} />
+      </AsyncBoundary>
+    </group>
+  )
+}
+
 function CoverPiece({ cover }: { readonly cover: Cover }): ReactElement {
   const [x, , z] = worldPosition(cover.x, cover.depth)
   return (
@@ -87,9 +126,11 @@ function CoverPiece({ cover }: { readonly cover: Cover }): ReactElement {
 export interface HordeEnvironmentProps {
   readonly cover: readonly Cover[]
   readonly shadows: boolean
+  /** The kid's art on the billboard, or null for no billboard. */
+  readonly billboardUrl: string | null
 }
 
-export function HordeEnvironment({ cover, shadows }: HordeEnvironmentProps): ReactElement {
+export function HordeEnvironment({ cover, shadows, billboardUrl }: HordeEnvironmentProps): ReactElement {
   return (
     <group>
       <hemisphereLight args={['#CBB8F2', '#3B2F5C', 0.6]} />
@@ -114,6 +155,8 @@ export function HordeEnvironment({ cover, shadows }: HordeEnvironmentProps): Rea
         <planeGeometry args={[FLOOR_WIDTH + 20, 16]} />
         <meshBasicMaterial color="#A98FE0" />
       </mesh>
+
+      {billboardUrl !== null && <Billboard url={billboardUrl} />}
 
       {cover.map((piece) => (
         <CoverPiece key={piece.id} cover={piece} />

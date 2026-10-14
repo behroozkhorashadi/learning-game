@@ -1,12 +1,12 @@
-"""SQL storage for the armory ledger over an injected engine. Rows are parsed back
+"""SQL storage for the armory ledger, the art gallery, and the saved looks over an injected engine. Rows are parsed back
 through ArmoryEntry, so a bad row fails loudly here instead of downstream."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import Column, Engine, Integer, MetaData, String, Table, delete, insert, select
+from sqlalchemy import Column, Engine, Integer, MetaData, String, Table, Text, delete, insert, select
 
-from app.armory.armory_schemas_pure import ArmoryEntry, ArtPiece
+from app.armory.armory_schemas_pure import ArmoryEntry, ArmoryLooks, ArtPiece
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,7 @@ class SqlArmoryRepository:
     engine: Engine
     table: Table
     art: Table
+    looks: Table
     metadata: MetaData
 
     def create_schema(self) -> None:
@@ -45,10 +46,22 @@ class SqlArmoryRepository:
                 )
             )
 
+    def looks_for(self, profile_id: int) -> ArmoryLooks | None:
+        query = select(self.looks.c.looks).where(self.looks.c.profile_id == profile_id)
+        with self.engine.connect() as connection:
+            stored = connection.execute(query).scalar_one_or_none()
+        return None if stored is None else ArmoryLooks.model_validate_json(str(stored))
+
+    def save_looks(self, profile_id: int, looks: ArmoryLooks) -> None:
+        with self.engine.begin() as connection:
+            connection.execute(delete(self.looks).where(self.looks.c.profile_id == profile_id))
+            connection.execute(insert(self.looks).values(profile_id=profile_id, looks=looks.model_dump_json()))
+
     def delete_for_profile(self, profile_id: int) -> None:
         with self.engine.begin() as connection:
             connection.execute(delete(self.table).where(self.table.c.profile_id == profile_id))
             connection.execute(delete(self.art).where(self.art.c.profile_id == profile_id))
+            connection.execute(delete(self.looks).where(self.looks.c.profile_id == profile_id))
 
 
 def make_sql_armory_repository(*, engine: Engine) -> SqlArmoryRepository:
@@ -75,7 +88,14 @@ def make_sql_armory_repository(*, engine: Engine) -> SqlArmoryRepository:
         Column("idea", String(200), nullable=False),
         Column("created_at", String(40), nullable=False),
     )
-    return SqlArmoryRepository(engine=engine, table=table, art=art, metadata=metadata)
+    # One row per profile: its looks as JSON, parsed back through ArmoryLooks.
+    looks = Table(
+        "armory_looks",
+        metadata,
+        Column("profile_id", Integer, primary_key=True, autoincrement=False),
+        Column("looks", Text, nullable=False),
+    )
+    return SqlArmoryRepository(engine=engine, table=table, art=art, looks=looks, metadata=metadata)
 
 
 def _row(entry: ArmoryEntry) -> dict[str, object]:

@@ -345,6 +345,52 @@ describe('ZombieHorde: armor gems', () => {
   })
 })
 
+describe('ZombieHorde: the Style Studio', () => {
+  const ART = { id: 'art-1', profile_id: 1, image_url: '/static/armory-art/art-1.jpg', style: 'comic_hero', idea: 'a dragon', created_at: '2026-10-11T12:00:00Z' } as const
+
+  it('unlocks suit paint with points, paints the suit, and wears it into the round', async () => {
+    const harness = await open({ armory: fakeArmory({ balance: 200 }) })
+    press('Customize')
+    await settle()
+    expect(screen.getByRole('heading', { name: 'Style Studio' })).toBeTruthy()
+    press('Unlock Suit Paint Studio for 150 points')
+    await settle()
+    expect(screen.getByRole('status', { name: 'Points' }).textContent).toContain('50')
+    fireEvent.click(within(screen.getByRole('group', { name: 'Suit colour' })).getByRole('button', { name: 'Pink' }))
+    press('Glowing')
+    press('Save my look')
+    await settle()
+    expect(screen.getByText('✓ Saved! Your new look is on.')).toBeTruthy()
+    expect(harness.armory.savedLooks().suit_paint).toEqual({ color: '#EC407A', shine: 'glow' })
+    press('Back')
+    await settle()
+    await startRound(harness)
+    expect(screen.getByText('arms tinted #EC407A')).toBeTruthy()
+  })
+
+  it('plays in the saved looks: the painted blaster, the emblem, and the art on the billboard', async () => {
+    const harness = await open({
+      armory: fakeArmory({
+        owned: ['blaster_paint', 'emblem_maker', 'horde_billboard'],
+        art: [ART],
+        looks: { skin_id: null, suit_paint: null, blaster_color: '#00FF88', emblem: { symbol: null, art_id: 'art-1', color: '#FFAA00', place: 'blaster' }, hung: { pathfinder: null, horde: 'art-1' } },
+      }),
+    })
+    await startRound(harness)
+    expect(screen.getByText('blaster painted #00FF88')).toBeTruthy()
+    expect(screen.getByText('emblem on the blaster')).toBeTruthy()
+    expect(screen.getByText('billboard showing /static/armory-art/art-1.jpg')).toBeTruthy()
+  })
+
+  it("plays in the default look when the looks can't load", async () => {
+    const armory = fakeArmory({ owned: ['gold_suit'] })
+    const harness = await open({ armory: { ...armory, looks: () => Promise.reject(new Error('GET looks failed with HTTP 500')) } })
+    await startRound(harness)
+    expect(screen.getByText('arms tinted #D4A017')).toBeTruthy()
+    expect(screen.getByText('blaster as it comes')).toBeTruthy()
+  })
+})
+
 describe('ZombieHorde: armor upgrades and skins', () => {
   it('buys a skin, wears it into the round, and the arms show it', async () => {
     const harness = await open({ armory: fakeArmory({ balance: 150 }) })
@@ -354,6 +400,9 @@ describe('ZombieHorde: armor upgrades and skins', () => {
     // A new skin is worn straight away: it's the fanciest owned.
     expect(within(screen.getByRole('list', { name: 'Armor skins' })).getAllByText('Wearing')).toHaveLength(1)
     press('Wear Steel Suit')
+    await settle()
+    // Worn for good: the choice is saved with the looks.
+    expect(harness.armory.savedLooks().skin_id).toBe('steel_suit')
     await startRound(harness)
     expect(screen.getByText('plain arms')).toBeTruthy()
     press('Back')

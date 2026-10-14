@@ -17,6 +17,7 @@ const meta = {
     readingInstructions: false, onHearInstructions: fn(),
     onStart: fn(),
     onOpenStudio: fn(),
+    onOpenStyle: fn(),
     onBack: fn(),
   },
 } satisfies Meta<typeof HordeStart>
@@ -31,6 +32,8 @@ export const Ready: Story = {
     await expect(args.onChooseDifficulty).toHaveBeenCalledWith('hard')
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Start' }))
     await expect(args.onStart).toHaveBeenCalled()
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Customize' }))
+    await expect(args.onOpenStyle).toHaveBeenCalled()
   },
 }
 

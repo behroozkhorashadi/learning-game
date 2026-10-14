@@ -26,6 +26,13 @@ from app.armory.armory_schemas_pure import (
 # Bought by making a piece of art in the art studio (art_studio_service_effect.py).
 ART_ITEM_ID = "art_studio"
 
+# The style unlocks: each is bought once and opens one part of the Style Studio.
+SUIT_PAINT_ID = "suit_paint"
+BLASTER_PAINT_ID = "blaster_paint"
+EMBLEM_MAKER_ID = "emblem_maker"
+PATHFINDER_FRAME_ID = "pathfinder_frame"
+HORDE_BILLBOARD_ID = "horde_billboard"
+
 # Every profile starts with one grenade, so the first round shows what one does.
 STARTING_GRENADES = 1
 
@@ -186,6 +193,56 @@ CATALOG: tuple[ArmoryItem, ...] = (
         name="Gold Suit",
         description="Shiny gold, for true zombie champions. Just for looks.",
         price=400,
+        quantity=1,
+        consumable=False,
+        requires=None,
+    ),
+    ArmoryItem(
+        id=SUIT_PAINT_ID,
+        kind="style",
+        name="Suit Paint Studio",
+        description="Paint your armor any colour you like: matte, shiny, or glowing.",
+        price=150,
+        quantity=1,
+        consumable=False,
+        requires=None,
+    ),
+    ArmoryItem(
+        id=BLASTER_PAINT_ID,
+        kind="style",
+        name="Blaster Paint",
+        description="Paint your blaster any colour you like.",
+        price=150,
+        quantity=1,
+        consumable=False,
+        requires=None,
+    ),
+    ArmoryItem(
+        id=EMBLEM_MAKER_ID,
+        kind="style",
+        name="Emblem Maker",
+        description="Design your own badge for your arm or blaster: a symbol, or one of your art pieces.",
+        price=120,
+        quantity=1,
+        consumable=False,
+        requires=None,
+    ),
+    ArmoryItem(
+        id=PATHFINDER_FRAME_ID,
+        kind="style",
+        name="Pathfinder Backdrop",
+        description="Hang one of your art pieces behind the Pathfinder board.",
+        price=100,
+        quantity=1,
+        consumable=False,
+        requires=None,
+    ),
+    ArmoryItem(
+        id=HORDE_BILLBOARD_ID,
+        kind="style",
+        name="Horde Billboard",
+        description="Hang one of your art pieces on a giant billboard in Zombie Horde.",
+        price=100,
         quantity=1,
         consumable=False,
         requires=None,

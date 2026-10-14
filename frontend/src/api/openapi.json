@@ -40,7 +40,8 @@
               "gem",
               "upgrade",
               "skin",
-              "art"
+              "art",
+              "style"
             ],
             "title": "Kind",
             "type": "string"
@@ -84,6 +85,85 @@
           "requires"
         ],
         "title": "ArmoryItem",
+        "type": "object"
+      },
+      "ArmoryLooks": {
+        "additionalProperties": false,
+        "description": "How a kid has dressed up their gear. Every field is optional: unset is the\ndefault look. Each customization needs its style unlock owned (looks_reducers_pure).",
+        "properties": {
+          "blaster_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blaster Color"
+          },
+          "emblem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Emblem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hung": {
+            "$ref": "#/components/schemas/HungPictures",
+            "default": {}
+          },
+          "skin_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skin Id"
+          },
+          "suit_paint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuitPaint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "ArmoryLooks",
+        "type": "object"
+      },
+      "ArmoryLooksState": {
+        "additionalProperties": false,
+        "description": "The looks, with the URL of every art piece they use, so a game can show one\nwithout loading the whole gallery.",
+        "properties": {
+          "looks": {
+            "$ref": "#/components/schemas/ArmoryLooks"
+          },
+          "pictures": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Pictures",
+            "type": "object"
+          }
+        },
+        "required": [
+          "looks",
+          "pictures"
+        ],
+        "title": "ArmoryLooksState",
         "type": "object"
       },
       "ArmoryPurchaseCreate": {
@@ -744,6 +824,70 @@
         "title": "DayActivity",
         "type": "object"
       },
+      "Emblem": {
+        "additionalProperties": false,
+        "description": "A round badge worn on the arm, the blaster, or both: one of the symbols on a\ncolour, or one of the kid's own art pieces.",
+        "properties": {
+          "art_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Id"
+          },
+          "color": {
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Color",
+            "type": "string"
+          },
+          "place": {
+            "enum": [
+              "arm",
+              "blaster",
+              "both"
+            ],
+            "title": "Place",
+            "type": "string"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "enum": [
+                  "star",
+                  "bolt",
+                  "heart",
+                  "crown",
+                  "flame",
+                  "rocket",
+                  "paw",
+                  "smile",
+                  "moon",
+                  "rainbow",
+                  "dino",
+                  "zombie"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "required": [
+          "color",
+          "place"
+        ],
+        "title": "Emblem",
+        "type": "object"
+      },
       "GameMetadata": {
         "description": "Static per-game-module definition \u2014 PRD \u00a76. Not a DB table.",
         "properties": {
@@ -825,6 +969,40 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HungPictures": {
+        "additionalProperties": false,
+        "description": "Art pieces hung in the games, by art id: Pathfinder's backdrop and Zombie Horde's billboard.",
+        "properties": {
+          "horde": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horde"
+          },
+          "pathfinder": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pathfinder"
+          }
+        },
+        "title": "HungPictures",
         "type": "object"
       },
       "Illustration": {
@@ -2175,6 +2353,32 @@
           }
         },
         "title": "RevisionPassCreate",
+        "type": "object"
+      },
+      "SuitPaint": {
+        "additionalProperties": false,
+        "description": "A suit painted in the kid's own colour, in place of a skin's tint.",
+        "properties": {
+          "color": {
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Color",
+            "type": "string"
+          },
+          "shine": {
+            "enum": [
+              "matte",
+              "shiny",
+              "glow"
+            ],
+            "title": "Shine",
+            "type": "string"
+          }
+        },
+        "required": [
+          "color",
+          "shine"
+        ],
+        "title": "SuitPaint",
         "type": "object"
       },
       "TelemetryCore": {
@@ -3874,6 +4078,100 @@
           }
         },
         "summary": "Create Art",
+        "tags": [
+          "armory"
+        ]
+      }
+    },
+    "/api/profiles/{profile_id}/armory/looks": {
+      "get": {
+        "description": "The profile's looks (the default look until first saved), with the URL of each art piece they use.",
+        "operationId": "get_looks_api_profiles__profile_id__armory_looks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmoryLooksState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Looks",
+        "tags": [
+          "armory"
+        ]
+      },
+      "put": {
+        "description": "Saves the looks. 409 when one needs an unlock (or skin) that isn't owned, or\nuses art that isn't in this profile's gallery.",
+        "operationId": "save_looks_api_profiles__profile_id__armory_looks_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmoryLooks"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmoryLooksState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Looks",
         "tags": [
           "armory"
         ]

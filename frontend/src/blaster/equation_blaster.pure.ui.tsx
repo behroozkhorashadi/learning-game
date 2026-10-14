@@ -16,9 +16,10 @@ import {
   RIGHT_ARM_URL,
   type WeaponViewConfig,
 } from './blaster_config.pure.lib.ts'
-import { FINISH_LOOKS, glowAt, type FinishLook, type FinishPart } from './blaster_finish.pure.lib.ts'
+import { ARM_EMBLEM_SPOT, BLASTER_EMBLEM_SPOT, FINISH_LOOKS, glowAt, type FinishLook, type FinishPart, type WornEmblem } from './blaster_finish.pure.lib.ts'
 import { applyWeaponRotation, cockingSlideAmount, computeVisualCockingProgress, recoilAt, scalePosition, writeAimQuaternion, writeAimRayDirection } from './blaster_pose.pure.lib.ts'
 import { MuzzleFlash } from './muzzle_flash.pure.ui.tsx'
+import { EmblemBadge } from './emblem_badge.pure.ui.tsx'
 import { disableRaycastRecursively, tintMaterials } from './scene_graph.pure.lib.ts'
 import type { WeaponDefinition } from './weapon_definitions.pure.lib.ts'
 
@@ -38,8 +39,10 @@ import type { WeaponDefinition } from './weapon_definitions.pure.lib.ts'
  *               ├─ weapon model group (the blaster GLB, or its fallback)
  *               │    ├─ finish parts (the weapon's add-ons: blaster_finish)
  *               │    └─ muzzle anchor (MuzzleFlash, at the model's real tip)
+ *               │    └─ emblem (if worn on the blaster)
  *               ├─ right-arm anchor (fixed)
  *               └─ cocking group (left arm: slides only while cocking)
+ *                    └─ emblem (if worn on the arm)
  *
  * Nothing here takes part in zombie/environment raycasting: no
  * `userData.raycastKind`, and every mesh's raycast is disabled.
@@ -66,6 +69,10 @@ export interface EquationBlasterProps {
   readonly weaponView?: WeaponViewConfig | undefined
   /** An armor skin's tint over both arms (Zombie Horde); none leaves them as modelled. */
   readonly armTint?: Tint
+  /** A kid's own paint over the blaster (Zombie Horde), in place of its finish's tint; none keeps the finish's. */
+  readonly blasterTint?: Tint
+  /** A kid's emblem on the (left) forearm, the blaster, or both (Zombie Horde). */
+  readonly emblem?: WornEmblem | null
   /** Dev-only: hide an arm while calibrating the weapon body. */
   readonly hideRightArm?: boolean
   readonly hideLeftArm?: boolean
@@ -190,6 +197,8 @@ export function EquationBlaster({
   onReloadStart,
   weaponView,
   armTint = null,
+  blasterTint = null,
+  emblem = null,
   hideRightArm = false,
   hideLeftArm = false,
 }: EquationBlasterProps): ReactElement {
@@ -285,8 +294,10 @@ export function EquationBlaster({
                     console.warn('[EquationBlaster] Equation Blaster GLB failed to load — using the placeholder gun.')
                   }}
                 >
-                  <ClonedGltf url={EQUATION_BLASTER_URL} tint={look.tint} />
+                  <ClonedGltf url={EQUATION_BLASTER_URL} tint={blasterTint ?? look.tint} />
                 </AsyncBoundary>
+
+                {emblem?.onBlaster === true && <EmblemBadge imageUrl={emblem.imageUrl} ringColor={emblem.ringColor} spot={BLASTER_EMBLEM_SPOT} />}
 
                 <FinishParts look={look} reducedMotion={reducedMotion} />
 
@@ -323,6 +334,7 @@ export function EquationBlaster({
                     >
                       <ClonedGltf url={LEFT_ARM_URL} tint={armTint} />
                     </AsyncBoundary>
+                    {emblem?.onArm === true && <EmblemBadge imageUrl={emblem.imageUrl} ringColor={emblem.ringColor} spot={ARM_EMBLEM_SPOT} />}
                   </group>
                 </group>
               )}
