@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import type { ProfileCreateBody } from './create_profile_draft.pure.lib.ts'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindCreateProfile } from './create_profile.effect.ui.tsx'
 import { bindProfilePhotoCapture } from './profile_photo_capture.effect.ui.tsx'
 import { PHOTO, fakeCamera, fakeRemix } from './profile_photo_fixtures.test.lib.ts'
@@ -9,7 +10,7 @@ import { PHOTO, fakeCamera, fakeRemix } from './profile_photo_fixtures.test.lib.
 afterEach(cleanup)
 
 const TODAY = '2026-10-10'
-const NORA: ProfileRecord = { id: 3, name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false, has_password: false, created_at: null }
+const NORA: ProfileRecord = { id: 3, name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false, has_password: false, created_at: null, parent_id: null }
 
 /** A create capability that records each body and settles the way the test says. */
 function fakeCreate(outcome: { readonly resolve: ProfileRecord } | { readonly reject: string } | 'pending' = { resolve: NORA }) {
@@ -24,11 +25,12 @@ function fakeCreate(outcome: { readonly resolve: ProfileRecord } | { readonly re
 
 function renderScreen(create = fakeCreate()) {
   const PhotoCapture = bindProfilePhotoCapture({ camera: fakeCamera(), remixPhoto: fakeRemix().remixPhoto })
-  const CreateProfile = bindCreateProfile({ createProfile: create.createProfile, PhotoCapture, today: () => TODAY })
+  const CreateProfile = bindCreateProfile({ createProfile: create.createProfile, PhotoCapture, today: () => TODAY, listParents: () => Promise.resolve(PARENTS) })
   const onCreated = vi.fn<(profile: ProfileRecord, password: string | null) => void>()
   const onCancel = vi.fn<() => void>()
-  render(<CreateProfile onCreated={onCreated} onCancel={onCancel} />)
-  return { ...create, onCreated, onCancel }
+  const onAddParent = vi.fn<() => void>()
+  render(<CreateProfile onCreated={onCreated} onCancel={onCancel} onAddParent={onAddParent} />)
+  return { ...create, onCreated, onCancel, onAddParent }
 }
 
 const submit = (): void => {
@@ -78,7 +80,7 @@ describe('CreateProfile', () => {
     await waitFor(() => {
       expect(onCreated).toHaveBeenCalledWith(NORA, null)
     })
-    expect(bodies).toEqual([{ name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false, new_photos: [], password: null }])
+    expect(bodies).toEqual([{ name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false, new_photos: [], password: null, parent_id: null }])
   })
 
   it('turns reading support on for a young player until the parent overrides it', () => {
@@ -164,5 +166,19 @@ describe('CreateProfile', () => {
       expect(bodies).toHaveLength(1)
     })
     expect(bodies[0]).toMatchObject({ avatar: 'cat', new_photos: [{ image_data_url: PHOTO, use_as_avatar: false }] })
+  })
+
+  it('links the new player to the parent picked in the dropdown', async () => {
+    const { bodies } = renderScreen()
+    fillValidForm()
+    fireEvent.change(await screen.findByRole('combobox', { name: /Parent/ }), { target: { value: '2' } })
+    submit()
+    expect(bodies[0]?.parent_id).toBe(2)
+  })
+
+  it("hands off to the parent sign-up from \"I'm a parent\"", () => {
+    const { onAddParent } = renderScreen()
+    fireEvent.click(screen.getByRole('button', { name: /I'm a parent/ }))
+    expect(onAddParent).toHaveBeenCalled()
   })
 })

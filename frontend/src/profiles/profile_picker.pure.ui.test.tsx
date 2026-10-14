@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOADING, failed, loaded } from '@app/query/query_state.pure.lib.ts'
+import { MOM, PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { PROFILES, RAMI } from './profile_fixtures.test.lib.ts'
 import { ProfilePickerView, type ProfilePickerViewProps } from './profile_picker.pure.ui.tsx'
 
@@ -9,10 +10,13 @@ afterEach(cleanup)
 function renderView(overrides: Partial<ProfilePickerViewProps> = {}): ProfilePickerViewProps {
   const props: ProfilePickerViewProps = {
     state: loaded(PROFILES),
+    parents: loaded(PARENTS),
     onSelect: vi.fn(),
     onAddPlayer: vi.fn(),
     onEditProfile: vi.fn(),
     onOpenAdmin: vi.fn(),
+    onSelectParent: vi.fn(),
+    onAddParent: vi.fn(),
     ...overrides,
   }
   render(<ProfilePickerView {...props} />)
@@ -75,5 +79,19 @@ describe('ProfilePickerView', () => {
     renderView({ state: loaded([]) })
     expect(screen.queryByRole('button', { name: /Play as/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'Add a player' })).toBeTruthy()
+  })
+
+  it('lists the grown-ups, signs one in, and offers "I\'m a parent"', () => {
+    const props = renderView()
+    fireEvent.click(screen.getByRole('button', { name: 'Parent dashboard for Mom' }))
+    expect(props.onSelectParent).toHaveBeenCalledWith(MOM)
+    fireEvent.click(screen.getByRole('button', { name: "I'm a parent" }))
+    expect(props.onAddParent).toHaveBeenCalled()
+  })
+
+  it('hides the grown-ups row when the parent list fails, keeping the kids', () => {
+    renderView({ parents: failed('nope') })
+    expect(screen.queryByRole('button', { name: "I'm a parent" })).toBeNull()
+    expect(screen.getByText('Rami')).toBeTruthy()
   })
 })

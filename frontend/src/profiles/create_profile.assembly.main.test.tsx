@@ -22,11 +22,11 @@ function fillAndSubmit(): void {
 
 describe('assembleCreateProfile', () => {
   it('POSTs the new profile to /api/profiles and hands back the parsed result', async () => {
-    const fetchFake = vi.fn(() => respond(201, { id: 9, name: 'Ada', avatar: 'cat', birth_year: 2017 }))
+    const fetchFake = vi.fn((url: string) => (url === '/api/parents' ? respond(200, []) : respond(201, { id: 9, name: 'Ada', avatar: 'cat', birth_year: 2017 })))
     vi.stubGlobal('fetch', fetchFake)
     const CreateProfile = assembleCreateProfile()
     const onCreated = vi.fn()
-    render(<CreateProfile onCreated={onCreated} onCancel={vi.fn()} />)
+    render(<CreateProfile onCreated={onCreated} onCancel={vi.fn()} onAddParent={vi.fn()} />)
     fillAndSubmit()
 
     await waitFor(() => {
@@ -36,9 +36,9 @@ describe('assembleCreateProfile', () => {
   })
 
   it("shows the server's detail when the create is rejected", async () => {
-    vi.stubGlobal('fetch', vi.fn(() => respond(422, { detail: 'That name is taken' })))
+    vi.stubGlobal('fetch', vi.fn((url: string) => (url === '/api/parents' ? respond(200, []) : respond(422, { detail: 'That name is taken' }))))
     const CreateProfile = assembleCreateProfile()
-    render(<CreateProfile onCreated={vi.fn()} onCancel={vi.fn()} />)
+    render(<CreateProfile onCreated={vi.fn()} onCancel={vi.fn()} onAddParent={vi.fn()} />)
     fillAndSubmit()
     expect((await screen.findByRole('alert')).textContent).toBe('That name is taken')
   })

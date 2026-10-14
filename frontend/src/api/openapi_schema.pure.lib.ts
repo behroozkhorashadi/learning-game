@@ -151,6 +151,114 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/parents": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List Parents
+         * @description The grown-ups row on the profile picker, and the kid profile's
+         *     "Parent" dropdown. No auth: names only.
+         */
+        readonly get: operations["list_parents_api_parents_get"];
+        readonly put?: never;
+        /**
+         * Post Parent
+         * @description Backs the "I'm a parent" screen. The password is required.
+         */
+        readonly post: operations["post_parent_api_parents_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/parents/{parent_id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /**
+         * Delete Parent
+         * @description Admin-only. Unlinks the parent's kids (their profiles stay).
+         */
+        readonly delete: operations["delete_parent_api_parents__parent_id__delete"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/parents/{parent_id}/kids": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List Parent Kids
+         * @description The family overview: each linked kid's last seven days at a glance.
+         */
+        readonly get: operations["list_parent_kids_api_parents__parent_id__kids_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/parents/{parent_id}/kids/{profile_id}/report": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Kid Report
+         * @description One linked kid's progress report over the last `days` days (and the
+         *     same stretch before, for comparison).
+         */
+        readonly get: operations["kid_report_api_parents__parent_id__kids__profile_id__report_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/parents/{parent_id}/unlock": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Unlock Parent
+         * @description The parent login. Accepts the parent's password, or the admin
+         *     password as an override. Holds no session: the frontend keeps the
+         *     password and sends it as `X-Parent-Password` on the report reads.
+         */
+        readonly post: operations["unlock_parent_api_parents__parent_id__unlock_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/pathfinder/published-maps": {
         readonly parameters: {
             readonly query?: never;
@@ -1065,6 +1173,18 @@ export interface components {
             /** Time Ms */
             readonly time_ms: number;
         };
+        /** BadgeEarned */
+        readonly BadgeEarned: {
+            /**
+             * Awarded At
+             * Format: date-time
+             */
+            readonly awarded_at: string;
+            /** Name */
+            readonly name: string;
+            /** Tier */
+            readonly tier: string;
+        };
         /**
          * BadgeStatus
          * @description Response shape for GET /api/profiles/{profile_id}/badges — a Badge
@@ -1164,6 +1284,27 @@ export interface components {
             readonly rounds: number;
         };
         /**
+         * DayPoint
+         * @description One local calendar day of the period (days without play included, as zeros).
+         */
+        readonly DayPoint: {
+            /** Correct */
+            readonly correct: number;
+            /**
+             * Day
+             * Format: date
+             */
+            readonly day: string;
+            /** Game Minutes */
+            readonly game_minutes: {
+                readonly [key: string]: number;
+            };
+            /** Minutes */
+            readonly minutes: number;
+            /** Problems */
+            readonly problems: number;
+        };
+        /**
          * Emblem
          * @description A round badge worn on the arm, the blaster, or both: one of the symbols on a
          *     colour, or one of the kid's own art pieces.
@@ -1180,6 +1321,22 @@ export interface components {
             readonly place: "arm" | "blaster" | "both";
             /** Symbol */
             readonly symbol?: ("star" | "bolt" | "heart" | "crown" | "flame" | "rocket" | "paw" | "smile" | "moon" | "rainbow" | "dino" | "zombie") | null;
+        };
+        /**
+         * FactCell
+         * @description How one arithmetic fact went in the period, for the facts grid.
+         */
+        readonly FactCell: {
+            /** Attempts */
+            readonly attempts: number;
+            /** First Try */
+            readonly first_try: number;
+            /** Left */
+            readonly left: number;
+            /** Operator */
+            readonly operator: string;
+            /** Right */
+            readonly right: number;
         };
         /**
          * GameMetadata
@@ -1203,12 +1360,65 @@ export interface components {
             /** Title */
             readonly title: string;
         };
+        /**
+         * GameStat
+         * @description One game the kid played in the period.
+         */
+        readonly GameStat: {
+            /** Accuracy Pct */
+            readonly accuracy_pct: number | null;
+            /**
+             * Area
+             * @enum {string}
+             */
+            readonly area: "math" | "reading" | "puzzles" | "writing" | "other";
+            /** First Try Pct */
+            readonly first_try_pct: number | null;
+            /** Game Id */
+            readonly game_id: string;
+            /** Icon */
+            readonly icon: string;
+            /** Last Played At */
+            readonly last_played_at: string | null;
+            /** Level */
+            readonly level: number | null;
+            /** Level History */
+            readonly level_history: readonly components["schemas"]["LevelPoint"][];
+            /** Levels Gained */
+            readonly levels_gained: number;
+            /** Max Level */
+            readonly max_level: number | null;
+            /** Median Answer Ms */
+            readonly median_answer_ms: number | null;
+            /** Minutes */
+            readonly minutes: number;
+            /** Note */
+            readonly note: string | null;
+            /** Problems */
+            readonly problems: number;
+            /** Rating */
+            readonly rating: number | null;
+            /** Title */
+            readonly title: string;
+        };
         /** GridPosition */
         readonly GridPosition: {
             /** Col */
             readonly col: number;
             /** Row */
             readonly row: number;
+        };
+        /**
+         * HourCell
+         * @description Minutes played in one weekday/hour slot over the period (local time).
+         */
+        readonly HourCell: {
+            /** Hour */
+            readonly hour: number;
+            /** Minutes */
+            readonly minutes: number;
+            /** Weekday */
+            readonly weekday: number;
         };
         /** HTTPValidationError */
         readonly HTTPValidationError: {
@@ -1291,6 +1501,25 @@ export interface components {
             /** Prompt Excerpt */
             readonly prompt_excerpt: string;
         };
+        /**
+         * Insight
+         * @description One plain-language finding: a win, something to keep an eye on, or a note.
+         */
+        readonly Insight: {
+            /** Detail */
+            readonly detail: string;
+            /** Game Id */
+            readonly game_id?: string | null;
+            /** Skill */
+            readonly skill?: string | null;
+            /** Title */
+            readonly title: string;
+            /**
+             * Tone
+             * @enum {string}
+             */
+            readonly tone: "celebrate" | "attention" | "info";
+        };
         /** Item */
         readonly Item: {
             /** Game Id */
@@ -1307,6 +1536,94 @@ export interface components {
             readonly variant_id?: string | null;
         };
         readonly JsonValue: unknown;
+        /**
+         * KidReport
+         * @description Response shape for GET /api/parents/{parent_id}/kids/{profile_id}/report.
+         */
+        readonly KidReport: {
+            /** Age */
+            readonly age: number;
+            /** Avatar */
+            readonly avatar: string;
+            /** Badges */
+            readonly badges: readonly components["schemas"]["BadgeEarned"][];
+            /** Daily */
+            readonly daily: readonly components["schemas"]["DayPoint"][];
+            /** Day Streak */
+            readonly day_streak: number;
+            /** Fact Cells */
+            readonly fact_cells: readonly components["schemas"]["FactCell"][];
+            /** Games */
+            readonly games: readonly components["schemas"]["GameStat"][];
+            /** Insights */
+            readonly insights: readonly components["schemas"]["Insight"][];
+            /** Last Played At */
+            readonly last_played_at: string | null;
+            /** Longest Streak */
+            readonly longest_streak: number;
+            /** Name */
+            readonly name: string;
+            readonly previous: components["schemas"]["PeriodTotals"];
+            /** Profile Id */
+            readonly profile_id: number;
+            /** Range Days */
+            readonly range_days: number;
+            /** Skills */
+            readonly skills: readonly components["schemas"]["SkillStat"][];
+            /**
+             * Today
+             * Format: date
+             */
+            readonly today: string;
+            readonly totals: components["schemas"]["PeriodTotals"];
+            /** Trouble Spots */
+            readonly trouble_spots: readonly components["schemas"]["TroubleSpot"][];
+            /** Weekly */
+            readonly weekly: readonly components["schemas"]["WeekPoint"][];
+            /** When */
+            readonly when: readonly components["schemas"]["HourCell"][];
+        };
+        /**
+         * KidSummary
+         * @description One kid on a parent's family overview: the last seven days at a glance.
+         */
+        readonly KidSummary: {
+            /** Active Days 7D */
+            readonly active_days_7d: number;
+            /** Age */
+            readonly age: number;
+            /** Attention Count */
+            readonly attention_count: number;
+            /** Avatar */
+            readonly avatar: string;
+            /** Daily Minutes 7D */
+            readonly daily_minutes_7d: readonly number[];
+            /** Day Streak */
+            readonly day_streak: number;
+            /** First Try Pct 7D */
+            readonly first_try_pct_7d: number | null;
+            readonly headline: components["schemas"]["Insight"] | null;
+            /** Last Played At */
+            readonly last_played_at: string | null;
+            /** Minutes 7D */
+            readonly minutes_7d: number;
+            /** Name */
+            readonly name: string;
+            /** Problems 7D */
+            readonly problems_7d: number;
+            /** Profile Id */
+            readonly profile_id: number;
+        };
+        /** LevelPoint */
+        readonly LevelPoint: {
+            /**
+             * At
+             * Format: date-time
+             */
+            readonly at: string;
+            /** Level */
+            readonly level: number;
+        };
         /**
          * NewProfilePhoto
          * @description One photo (the camera original or an AI remix of it) to add to a
@@ -1327,6 +1644,41 @@ export interface components {
              * @default false
              */
             readonly use_as_avatar: boolean;
+        };
+        /**
+         * ParentCreate
+         * @description Inbound POST body for /api/parents. A parent always has a password: it
+         *     guards the kids' progress reports.
+         */
+        readonly ParentCreate: {
+            /** Name */
+            readonly name: string;
+            /** Password */
+            readonly password: string;
+        };
+        /**
+         * ParentRead
+         * @description A parent account as GET /api/parents lists it.
+         */
+        readonly ParentRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /** Id */
+            readonly id: number;
+            /** Name */
+            readonly name: string;
+        };
+        /**
+         * ParentUnlockRequest
+         * @description Inbound POST body for /api/parents/{parent_id}/unlock: the parent's own
+         *     password, or the admin password as an override.
+         */
+        readonly ParentUnlockRequest: {
+            /** Password */
+            readonly password: string;
         };
         /**
          * PathfinderCompletionsCreate
@@ -1396,6 +1748,30 @@ export interface components {
             readonly name?: string | null;
             /** Published */
             readonly published?: boolean | null;
+        };
+        /**
+         * PeriodTotals
+         * @description What a kid did in one stretch of days.
+         */
+        readonly PeriodTotals: {
+            /** Accuracy Pct */
+            readonly accuracy_pct: number | null;
+            /** Active Days */
+            readonly active_days: number;
+            /** Avg Sitting Minutes */
+            readonly avg_sitting_minutes: number | null;
+            /** Correct */
+            readonly correct: number;
+            /** First Try Pct */
+            readonly first_try_pct: number | null;
+            /** Median Answer Ms */
+            readonly median_answer_ms: number | null;
+            /** Minutes */
+            readonly minutes: number;
+            /** Problems */
+            readonly problems: number;
+            /** Sittings */
+            readonly sittings: number;
         };
         /** Piece */
         readonly Piece: {
@@ -1527,6 +1903,8 @@ export interface components {
              * @default []
              */
             readonly new_photos: readonly components["schemas"]["NewProfilePhoto"][];
+            /** Parent Id */
+            readonly parent_id?: number | null;
             /** Password */
             readonly password?: string | null;
             /**
@@ -1592,6 +1970,8 @@ export interface components {
             readonly id?: number | null;
             /** Name */
             readonly name: string;
+            /** Parent Id */
+            readonly parent_id?: number | null;
             /**
              * Reading Support
              * @default false
@@ -1648,10 +2028,17 @@ export interface components {
              * @default []
              */
             readonly new_photos: readonly components["schemas"]["NewProfilePhoto"][];
+            /** Parent Id */
+            readonly parent_id?: number | null;
             /** Password */
             readonly password?: string | null;
             /** Reading Support */
             readonly reading_support?: boolean | null;
+            /**
+             * Remove Parent
+             * @default false
+             */
+            readonly remove_parent: boolean;
             /**
              * Remove Password
              * @default false
@@ -1843,6 +2230,39 @@ export interface components {
             readonly questions_asked?: readonly string[];
         };
         /**
+         * SkillStat
+         * @description One skill across every game that practices it (multiplication, 2-syllable
+         *     words, ...), with the period before for comparison.
+         */
+        readonly SkillStat: {
+            /** Accuracy Pct */
+            readonly accuracy_pct: number | null;
+            /**
+             * Area
+             * @enum {string}
+             */
+            readonly area: "math" | "reading" | "puzzles" | "writing" | "other";
+            /** First Try Pct */
+            readonly first_try_pct: number | null;
+            /** Key */
+            readonly key: string;
+            /** Label */
+            readonly label: string;
+            /** Median Answer Ms */
+            readonly median_answer_ms: number | null;
+            /** Previous First Try Pct */
+            readonly previous_first_try_pct: number | null;
+            /** Previous Median Answer Ms */
+            readonly previous_median_answer_ms: number | null;
+            /** Problems */
+            readonly problems: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            readonly status: "strong" | "steady" | "needs_work" | "new";
+        };
+        /**
          * SuitPaint
          * @description A suit painted in the kid's own colour, in place of a skin's tint.
          */
@@ -1887,6 +2307,33 @@ export interface components {
         readonly TodoUpdate: {
             /** Done */
             readonly done: boolean;
+        };
+        /**
+         * TroubleSpot
+         * @description A problem the kid keeps missing.
+         */
+        readonly TroubleSpot: {
+            /** Answer */
+            readonly answer: string;
+            /** Attempts */
+            readonly attempts: number;
+            /** Game Id */
+            readonly game_id: string;
+            /** Game Title */
+            readonly game_title: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            readonly last_seen_at: string;
+            /** Misses */
+            readonly misses: number;
+            /** Prompt */
+            readonly prompt: string;
+            /** Skill */
+            readonly skill: string;
+            /** Wrong Answers */
+            readonly wrong_answers: readonly string[];
         };
         /**
          * TurnAuthor
@@ -1976,6 +2423,27 @@ export interface components {
              * @default parent
              */
             readonly verified_by: string;
+        };
+        /**
+         * WeekPoint
+         * @description One week (Monday start) of the last twelve, for the progress lines.
+         */
+        readonly WeekPoint: {
+            /** Math First Try Pct */
+            readonly math_first_try_pct: number | null;
+            /** Math Median Answer Ms */
+            readonly math_median_answer_ms: number | null;
+            /** Minutes */
+            readonly minutes: number;
+            /** Problems */
+            readonly problems: number;
+            /** Reading First Try Pct */
+            readonly reading_first_try_pct: number | null;
+            /**
+             * Week Start
+             * Format: date
+             */
+            readonly week_start: string;
         };
     };
     responses: never;
@@ -2274,6 +2742,192 @@ export interface operations {
                 content: {
                     readonly "application/json": components["schemas"]["Item"];
                 };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly list_parents_api_parents_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["ParentRead"][];
+                };
+            };
+        };
+    };
+    readonly post_parent_api_parents_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ParentCreate"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ParentRead"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly delete_parent_api_parents__parent_id__delete: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                readonly "x-admin-password"?: string | null;
+            };
+            readonly path: {
+                readonly parent_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly list_parent_kids_api_parents__parent_id__kids_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                readonly "x-parent-password"?: string | null;
+            };
+            readonly path: {
+                readonly parent_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["KidSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly kid_report_api_parents__parent_id__kids__profile_id__report_get: {
+        readonly parameters: {
+            readonly query?: {
+                readonly days?: number;
+            };
+            readonly header?: {
+                readonly "x-parent-password"?: string | null;
+            };
+            readonly path: {
+                readonly parent_id: number;
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["KidReport"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly unlock_parent_api_parents__parent_id__unlock_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly parent_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ParentUnlockRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             readonly 422: {

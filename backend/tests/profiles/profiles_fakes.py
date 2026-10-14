@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 
 from app.profiles.profile_passwords_service_effect import make_scrypt_password_hasher
 from app.profiles.profile_photos_repository_effect import FilePhotoStore, make_file_photo_store
-from app.profiles.profiles_ports_pure import ProfilesService
+from app.profiles.profiles_ports_pure import ProfileNeighbors, ProfilesService
 from app.profiles.profiles_repository_effect import SqlProfileRepository, make_sql_profile_repository
 from app.profiles.profiles_schemas_pure import AvatarImage
 from app.profiles.profiles_service_effect import make_profiles_service
@@ -58,6 +58,14 @@ class EraseRecorder:
         self.erased.append(profile_id)
 
 
+# The parent ids the fake parents feature knows; any other id can't be linked.
+PARENT_IDS = frozenset({10, 11})
+
+
+def parent_exists(parent_id: int) -> bool:
+    return parent_id in PARENT_IDS
+
+
 def is_admin(password: str | None) -> bool:
     return password == ADMIN_PASSWORD
 
@@ -85,8 +93,7 @@ def harness(tmp_path: Path) -> Harness:
         repository=repository,
         photo_store=photos,
         hasher=make_scrypt_password_hasher(new_salt=lambda: next(salts)),
-        is_admin_password=is_admin,
-        erase_profile_data=erased,
+        neighbors=ProfileNeighbors(is_admin_password=is_admin, erase_profile_data=erased, parent_exists=parent_exists),
         clock=TickingClock(),
     )
     return Harness(service=service, repository=repository, photos=photos, erased=erased)

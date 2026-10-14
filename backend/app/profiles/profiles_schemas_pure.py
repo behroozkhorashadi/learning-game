@@ -68,6 +68,8 @@ class ProfileCreate(BaseModel):
     new_photos: list[NewProfilePhoto] = []
     # Optional: a profile without one works exactly as before (anyone can pick it).
     password: str | None = None
+    # Optional: the grown-up (GET /api/parents) who can see this kid's progress.
+    parent_id: int | None = None
 
 
 class ProfileUpdate(BaseModel):
@@ -87,6 +89,10 @@ class ProfileUpdate(BaseModel):
     # Sets (or changes) the password. `remove_password` clears it; both is a 422.
     password: str | None = None
     remove_password: bool = False
+    # Links the kid to a parent (or moves them to another). `remove_parent` unlinks;
+    # both is a 422.
+    parent_id: int | None = None
+    remove_parent: bool = False
 
 
 class ProfileUnlockRequest(BaseModel):
@@ -129,6 +135,8 @@ class ProfileRead(BaseModel):
     reading_support: bool = False
     created_at: datetime | None = None
     has_password: bool = False
+    # The parent this kid is linked to, if any.
+    parent_id: int | None = None
 
 
 class ProfileRecord(BaseModel):

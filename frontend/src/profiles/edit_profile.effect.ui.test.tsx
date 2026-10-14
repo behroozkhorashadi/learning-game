@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ProfileAuth, ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindEditProfile } from './edit_profile.effect.ui.tsx'
 import { bindProfilePhotoCapture } from './profile_photo_capture.effect.ui.tsx'
 import { fakeCamera, fakeRemix } from './profile_photo_fixtures.test.lib.ts'
@@ -9,7 +10,7 @@ import { fakeProfilesServer, type FakeProfilesOptions } from './profiles_api_fak
 
 afterEach(cleanup)
 
-const PHOTO_PROFILE: ProfileRecord = { id: 4, name: 'Nora', avatar: '/static/profile-avatars/abc.jpg', birth_year: 2019, reading_support: false, has_password: false, created_at: null }
+const PHOTO_PROFILE: ProfileRecord = { id: 4, name: 'Nora', avatar: '/static/profile-avatars/abc.jpg', birth_year: 2019, reading_support: false, has_password: false, created_at: null, parent_id: null }
 const PROTECTED: ProfileRecord = { ...PHOTO_PROFILE, avatar: 'owl', has_password: true }
 const SAVED: readonly SavedPhoto[] = [
   { id: 1, url: PHOTO_PROFILE.avatar, label: 'Photo', created_at: '2026-10-01T00:00:00' },
@@ -24,6 +25,7 @@ function renderEdit(profile: ProfileRecord, auth: ProfileAuth = { kind: 'none' }
     deletePhoto: server.deletePhoto,
     PhotoCapture: bindProfilePhotoCapture({ camera: fakeCamera(), remixPhoto: fakeRemix().remixPhoto }),
     today: () => '2026-10-10',
+    listParents: () => Promise.resolve(PARENTS),
   })
   const onSaved = vi.fn<(profile: ProfileRecord, password: string | null | undefined) => void>()
   render(<EditProfile profile={profile} auth={auth} onSaved={onSaved} onCancel={vi.fn()} />)
@@ -48,7 +50,7 @@ describe('EditProfile', () => {
       expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nora B' }), undefined)
     })
     expect(updates()).toEqual([
-      { op: 'update', id: 4, auth, body: { name: 'Nora B', birth_year: 2019, reading_support: false, avatar: PHOTO_PROFILE.avatar, new_photos: [], remove_password: false } },
+      { op: 'update', id: 4, auth, body: { name: 'Nora B', birth_year: 2019, reading_support: false, avatar: PHOTO_PROFILE.avatar, new_photos: [], remove_password: false, remove_parent: true } },
     ])
   })
 
@@ -130,5 +132,17 @@ describe('EditProfile', () => {
     fireEvent.change(screen.getByDisplayValue('Nora'), { target: { value: '  ' } })
     save()
     expect(updates()).toHaveLength(0)
+  })
+
+  it('moves the kid to another parent, or unlinks them', async () => {
+    const { updates } = renderEdit({ ...PHOTO_PROFILE, parent_id: 1 })
+    const select = await screen.findByRole('combobox', { name: /Parent/ })
+    await screen.findByRole('option', { name: 'Dad' })
+    fireEvent.change(select, { target: { value: '2' } })
+    save()
+    await waitFor(() => {
+      expect(updates()).toHaveLength(1)
+    })
+    expect(updates()[0]).toMatchObject({ body: { parent_id: 2, remove_parent: false } })
   })
 })

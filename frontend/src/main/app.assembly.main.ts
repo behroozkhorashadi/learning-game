@@ -8,6 +8,9 @@ import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
 import { assembleZombieHorde } from '@app/horde/zombie_horde.assembly.main.ts'
 import { assembleOutbreakSettings } from '@app/outbreak/outbreak_settings.assembly.main.ts'
 import { assembleZombieMathBlaster } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
+import { assembleCreateParent } from '@app/parents/create_parent.assembly.main.ts'
+import { assembleParentDashboard } from '@app/parents/parent_dashboard.assembly.main.ts'
+import { assembleParentLogin } from '@app/parents/parent_login.assembly.main.ts'
 import { assemblePathfinder } from '@app/pathfinder/pathfinder.assembly.main.ts'
 import { assembleCreateProfile } from '@app/profiles/create_profile.assembly.main.ts'
 import { assembleEditProfile } from '@app/profiles/edit_profile.assembly.main.ts'
@@ -30,6 +33,9 @@ export function assembleAppScreens(): AppScreens {
     ProfileUnlock: assembleProfileUnlock(),
     EditProfile: assembleEditProfile(),
     AdminPanel: assembleAdminPanel(),
+    CreateParent: assembleCreateParent(),
+    ParentLogin: assembleParentLogin(),
+    ParentDashboard: assembleParentDashboard(),
     GamePicker: assembleGamePicker(),
     Badges: assembleBadges(),
     BadgeCelebrations: assembleBadgeCelebrations(),

@@ -102,9 +102,9 @@ export function bindDevScreens(d: DevScreensDeps): readonly DevScreen[] {
   return [
     ...d.standalone,
     screen('profile-picker', 'Profile picker', () => (
-      <d.ProfilePicker onSelect={(p) => { log('onSelect', p) }} onAddPlayer={() => { log('onAddPlayer') }} onEditProfile={(p) => { log('onEditProfile', p) }} onOpenAdmin={() => { log('onOpenAdmin') }} />
+      <d.ProfilePicker onSelect={(p) => { log('onSelect', p) }} onAddPlayer={() => { log('onAddPlayer') }} onEditProfile={(p) => { log('onEditProfile', p) }} onOpenAdmin={() => { log('onOpenAdmin') }} onSelectParent={(p) => { log('onSelectParent', p) }} onAddParent={() => { log('onAddParent') }} />
     )),
-    screen('create-profile', 'Create profile', () => <d.CreateProfile onCreated={(p) => { log('onCreated', p) }} onCancel={() => { log('onCancel') }} />),
+    screen('create-profile', 'Create profile', () => <d.CreateProfile onCreated={(p) => { log('onCreated', p) }} onCancel={() => { log('onCancel') }} onAddParent={() => { log('onAddParent') }} />),
     screen('admin-panel', 'Admin panel', () => <d.AdminPanel onClose={() => { log('onClose') }} />),
     screen('game-picker', 'Game picker', () => (
       <d.GamePicker

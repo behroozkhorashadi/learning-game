@@ -73,6 +73,20 @@ def test_ratings_store_the_scale_by_name_as_before(repository: SqlPlayRepository
         assert connection.execute(text("SELECT scale FROM rating")).scalar_one() == "STARS_1_5"
 
 
+def test_ratings_for_a_profile_are_game_and_value_oldest_first(repository: SqlPlayRepository) -> None:
+    for minutes, (profile_id, game_id, value) in enumerate(((1, "b", 5), (1, "a", 2), (2, "a", 3))):
+        repository.add_rating(
+            Rating(
+                profile_id=profile_id,
+                game_id=game_id,
+                scale=RatingScale.FACES,
+                value=value,
+                created_at=START + timedelta(minutes=minutes),
+            )
+        )
+    assert repository.ratings_for(1) == (("b", 5), ("a", 2))
+
+
 def test_delete_for_profile_takes_verifications_of_its_attempts(repository: SqlPlayRepository) -> None:
     mine = repository.add_attempt(_attempt())
     theirs = repository.add_attempt(_attempt(profile_id=2))

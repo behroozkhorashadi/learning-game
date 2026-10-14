@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { START, cancelled, created, editFromHome, editFromPicker, go, saved, selectProfile, switchPlayer, unlocked } from './app_navigation.pure.lib.ts'
 
-const OPEN: ProfileRecord = { id: 1, name: 'Mia', avatar: 'fox', birth_year: 2019, reading_support: false, has_password: false, created_at: null }
+const OPEN: ProfileRecord = { id: 1, name: 'Mia', avatar: 'fox', birth_year: 2019, reading_support: false, has_password: false, created_at: null, parent_id: null }
 const LOCKED: ProfileRecord = { ...OPEN, id: 2, name: 'Nora', has_password: true }
 
 describe('app navigation', () => {

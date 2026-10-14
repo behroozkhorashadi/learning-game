@@ -8,6 +8,9 @@ import type { GamePickerProps } from '@app/home/game_picker.pure.ui.tsx'
 import type { ZombieHordeProps } from '@app/horde/zombie_horde.effect.ui.tsx'
 import type { OutbreakSettingsProps } from '@app/outbreak/outbreak_settings.effect.ui.tsx'
 import type { ZombieArenaProps } from '@app/outbreak/zombie_arena.effect.ui.tsx'
+import type { CreateParentProps } from '@app/parents/create_parent.effect.ui.tsx'
+import type { ParentDashboardProps } from '@app/parents/parent_dashboard.effect.ui.tsx'
+import type { ParentLoginProps } from '@app/parents/parent_login.effect.ui.tsx'
 import type { PathfinderProps } from '@app/pathfinder/pathfinder.effect.ui.tsx'
 import type { CreateProfileProps } from '@app/profiles/create_profile.effect.ui.tsx'
 import type { EditProfileProps } from '@app/profiles/edit_profile.effect.ui.tsx'
@@ -18,7 +21,22 @@ import type { StoryLibraryProps } from '@app/story_library/story_library.effect.
 import type { StyleRemixProps } from '@app/style_remix/style_remix.effect.ui.tsx'
 import type { SyllableBuilderProps } from '@app/syllable_builder/syllable_builder.effect.ui.tsx'
 import type { TagTeamProps } from '@app/tag_team/tag_team.effect.ui.tsx'
-import { START, cancelled, created, editFromHome, editFromPicker, go, saved, selectProfile, switchPlayer, unlocked, type AppState } from './app_navigation.pure.lib.ts'
+import {
+  START,
+  cancelled,
+  created,
+  editFromHome,
+  editFromPicker,
+  go,
+  parentCreated,
+  parentSignedIn,
+  saved,
+  pickParent,
+  selectProfile,
+  switchPlayer,
+  unlocked,
+  type AppState,
+} from './app_navigation.pure.lib.ts'
 
 /** Every screen the app routes between, already bound (app.assembly.main.ts). */
 export interface AppScreens {
@@ -27,6 +45,9 @@ export interface AppScreens {
   readonly ProfileUnlock: ComponentType<ProfileUnlockProps>
   readonly EditProfile: ComponentType<EditProfileProps>
   readonly AdminPanel: ComponentType<AdminPanelProps>
+  readonly CreateParent: ComponentType<CreateParentProps>
+  readonly ParentLogin: ComponentType<ParentLoginProps>
+  readonly ParentDashboard: ComponentType<ParentDashboardProps>
   readonly GamePicker: ComponentType<GamePickerProps>
   readonly Badges: ComponentType<BadgesProps>
   /** Over every player screen: new-badge fanfare (a toast while in a game). */
@@ -74,7 +95,19 @@ export function bindApp({ screens: s, Overlay }: AppDeps): ComponentType {
       case 'admin':
         return <s.AdminPanel onClose={back} />
       case 'create':
-        return <s.CreateProfile onCreated={(profile, password) => { update((st) => created(st, profile, password)) }} onCancel={back} />
+        return (
+          <s.CreateProfile
+            onCreated={(profile, password) => { update((st) => created(st, profile, password)) }}
+            onCancel={back}
+            onAddParent={() => { update((st) => go(st, { kind: 'create-parent' })) }}
+          />
+        )
+      case 'create-parent':
+        return <s.CreateParent onCreated={(parent, password) => { update((st) => parentCreated(st, parent, password)) }} onCancel={back} />
+      case 'parent-login':
+        return <s.ParentLogin parent={screen.parent} onSignedIn={(password) => { update((st) => parentSignedIn(st, password)) }} onCancel={back} />
+      case 'parent-dashboard':
+        return <s.ParentDashboard key={screen.parent.id} parent={screen.parent} password={screen.password} onSignOut={() => { update(switchPlayer) }} />
       case 'unlock':
         return <s.ProfileUnlock profile={screen.profile} onUnlocked={(password) => { update((st) => unlocked(st, password)) }} onCancel={back} />
       case 'edit':
@@ -94,6 +127,8 @@ export function bindApp({ screens: s, Overlay }: AppDeps): ComponentType {
             onAddPlayer={() => { update((st) => go(st, { kind: 'create' })) }}
             onEditProfile={(profile) => { update((st) => editFromPicker(st, profile)) }}
             onOpenAdmin={() => { update((st) => go(st, { kind: 'admin' })) }}
+            onSelectParent={(parent) => { update((st) => pickParent(st, parent)) }}
+            onAddParent={() => { update((st) => go(st, { kind: 'create-parent' })) }}
           />
         )
       case 'home':

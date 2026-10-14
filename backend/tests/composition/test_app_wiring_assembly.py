@@ -73,6 +73,7 @@ def test_the_entry_point_serves_every_route_group(monkeypatch: pytest.MonkeyPatc
         "/api/profiles/{profile_id}/armory",
         "/api/profiles/{profile_id}/horde/replays",
         "/api/client-errors",
+        "/api/parents/{parent_id}/kids/{profile_id}/report",
     ):
         assert path in paths
 
@@ -109,6 +110,32 @@ def test_attempts_and_pieces_award_badges_and_feed_the_stats(tmp_path: Path) -> 
         assert {b["key"] for b in client.get(f"/api/profiles/{kid}/badges/new").json()} == {"quick-builder"}
         stats = client.get(f"/api/profiles/{kid}/stats").json()
         assert (stats["total_stars"], stats["most_played_game"], stats["day_streak"]) == (5, "Syllable Builder", 1)
+
+
+def test_a_parent_sees_a_linked_kids_play_in_the_report(tmp_path: Path) -> None:
+    with _client(_settings(tmp_path)) as client:
+        parent = client.post("/api/parents", json={"name": "Mom", "password": "secret"}).json()["id"]
+        kid = client.post("/api/profiles", json={**KID, "parent_id": parent}).json()["id"]
+        client.post("/api/profiles", json={**KID, "name": "Not hers"})
+        for correct in (True, False, False):
+            item = client.get("/api/items/next", params={"profile_id": kid, "game_id": "fact_fluency"}).json()
+            attempt = {
+                "item_id": item["item_id"],
+                "profile_id": kid,
+                "game_id": "fact_fluency",
+                "telemetry": {"correct": correct, "hints_used": 0, "time_ms": 2000},
+            }
+            assert client.post("/api/attempts", json=attempt).status_code == 201
+
+        auth = {"X-Parent-Password": "secret"}
+        assert [k["name"] for k in client.get(f"/api/parents/{parent}/kids", headers=auth).json()] == ["Ada"]
+        report = client.get(f"/api/parents/{parent}/kids/{kid}/report", params={"days": 7}, headers=auth).json()
+        assert (report["totals"]["problems"], report["totals"]["correct"]) == (3, 1)
+        assert report["games"][0]["title"] == "Equation Outbreak"
+        assert sum(cell["attempts"] for cell in report["fact_cells"]) == 3
+
+        assert client.delete(f"/api/parents/{parent}", headers=ADMIN).status_code == 204
+        assert next(p for p in client.get("/api/profiles").json() if p["id"] == kid)["parent_id"] is None
 
 
 def test_deleting_a_profile_removes_everything_other_features_keep_for_it(tmp_path: Path) -> None:

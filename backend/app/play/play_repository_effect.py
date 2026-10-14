@@ -110,6 +110,13 @@ class SqlPlayRepository:
         with self.engine.connect() as connection:
             return tuple(int(value) for value in connection.execute(query).scalars())
 
+    def ratings_for(self, profile_id: int) -> tuple[tuple[str, int], ...]:
+        """(game id, value), oldest first."""
+        c = self.ratings.c
+        query = select(c.game_id, c.value).where(c.profile_id == profile_id).order_by(c.created_at, c.id)
+        with self.engine.connect() as connection:
+            return tuple((str(row.game_id), int(row.value)) for row in connection.execute(query))
+
     def add_rating(self, rating: Rating) -> Rating:
         with self.engine.begin() as connection:
             statement = insert(self.ratings).values(**rating.model_dump(exclude={"id"})).returning(self.ratings.c.id)

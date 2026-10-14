@@ -16,6 +16,7 @@ flowchart TB
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
     armory["armory/<br/>/profiles/{id}/armory, /rounds, /purchases, /art, /looks<br/>Zombie Horde points ledger + catalog, art studio,<br/>looks (skin, paint, emblem, hung art)"]
     replays["replays/<br/>/profiles/{id}/horde/replays<br/>last 3 Zombie Horde round recordings"]
+    parents["parents/<br/>/parents, /unlock, /kids, /kids/{id}/report<br/>parent accounts (scrypt), kid progress report:<br/>skills, trouble spots, facts grid, time, trends, insights (pure)"]
     crash["crash_reports/<br/>POST /api/client-errors<br/>→ logs/client_errors.log"]
   end
 
@@ -24,7 +25,7 @@ flowchart TB
   openai["OpenAI Images API"]
 
   main --> comp
-  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & armory & replays & crash
+  comp -- "builds + wires<br/>(features never import each other)" --> todo & profiles & admin & play & events & badges & pieces & practice & pathfinder & armory & replays & parents & crash
   profiles -- "is_admin_password" --> admin
   profiles -- "erase a profile's data" --> play & events & badges & pieces & practice & pathfinder & armory & replays
   play -- "birth year, practice config" --> profiles & practice
@@ -32,8 +33,12 @@ flowchart TB
   play & pieces -- "after an attempt / piece:<br/>award badges" --> badges
   badges -- "history: attempts, ratings,<br/>pieces, event times" --> play & pieces & events
   practice -- "game rules" --> play
+  profiles -- "parent exists?" --> parents
+  parents -- "linked kids, unlink" --> profiles
+  parents -- "history: attempts, items shown,<br/>level changes, ratings, badges, puzzles" --> play & events & badges & pathfinder
+  parents -- "is_admin_password" --> admin
   practice & pathfinder & pieces & badges & armory & replays -- "profile lookups" --> profiles
-  todo & profiles & play & events & badges & pieces & practice & pathfinder & armory & replays --> sqlite
+  todo & profiles & play & events & badges & pieces & practice & pathfinder & armory & replays & parents --> sqlite
   profiles & pieces & badges --> files
   profiles -- "photo remix" --> openai
   armory -- "art studio (via the photo remixer)" --> openai

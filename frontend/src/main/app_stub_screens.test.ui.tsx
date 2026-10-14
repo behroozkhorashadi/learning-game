@@ -1,9 +1,11 @@
 import type { ComponentType, ReactElement } from 'react'
+import type { ParentRecord } from '@app/api/parents_schema.pure.lib.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import type { AppScreens } from './app.effect.ui.tsx'
 
-export const MIA: ProfileRecord = { id: 1, name: 'Mia', avatar: 'fox', birth_year: 2019, reading_support: false, has_password: false, created_at: null }
-export const NORA: ProfileRecord = { id: 2, name: 'Nora', avatar: 'owl', birth_year: 2018, reading_support: false, has_password: true, created_at: null }
+export const MIA: ProfileRecord = { id: 1, name: 'Mia', avatar: 'fox', birth_year: 2019, reading_support: false, has_password: false, created_at: null, parent_id: null }
+export const MOM: ParentRecord = { id: 5, name: 'Mom', created_at: '2026-10-01T00:00:00' }
+export const NORA: ProfileRecord = { id: 2, name: 'Nora', avatar: 'owl', birth_year: 2018, reading_support: false, has_password: true, created_at: null, parent_id: null }
 
 /**
  * Stand-ins for every screen, for testing the router alone: each shows its
@@ -43,6 +45,8 @@ const STUB_ARGS: Readonly<Record<string, readonly unknown[]>> = {
   onEditProfile: [NORA],
   onCreated: [MIA, 'pw'],
   onUnlocked: ['tiger42'],
+  onSelectParent: [MOM],
+  onSignedIn: ['mom-pw'],
   onSaved: [{ ...NORA, name: 'Nora B' }, undefined],
   onSelectGame: ['prompt_forge'],
   onOpenPracticeSettings: ['fact_fluency'],
@@ -58,6 +62,9 @@ export const STUB_SCREENS: AppScreens = {
   ProfileUnlock: any('ProfileUnlock'),
   EditProfile: any('EditProfile'),
   AdminPanel: any('AdminPanel'),
+  CreateParent: any('CreateParent'),
+  ParentLogin: any('ParentLogin'),
+  ParentDashboard: any('ParentDashboard'),
   GamePicker: any('GamePicker'),
   Badges: any('Badges'),
   BadgeCelebrations: any('BadgeCelebrations'),

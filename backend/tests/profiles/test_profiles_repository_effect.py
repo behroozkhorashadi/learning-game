@@ -20,7 +20,12 @@ def _new(name: str, *, profile_id: int | None = None, avatar: str = "fox") -> Ne
 
 
 def test_keeps_the_existing_tables(repository: SqlProfileRepository) -> None:
-    assert sorted(inspect(repository.engine).get_table_names()) == ["profile", "profilepassword", "profilephoto"]
+    assert sorted(inspect(repository.engine).get_table_names()) == [
+        "profile",
+        "profileparent",
+        "profilepassword",
+        "profilephoto",
+    ]
 
 
 def test_insert_get_update_list_and_names(repository: SqlProfileRepository) -> None:
@@ -50,3 +55,20 @@ def test_photos_and_passwords_go_with_the_profile(repository: SqlProfileReposito
     repository.delete(profile.id)
     assert (repository.get(profile.id), repository.list_photos(profile.id)) == (None, ())
     assert repository.password_hash(profile.id) is None
+
+
+def test_parent_links_move_clear_and_go_with_the_profile(repository: SqlProfileRepository) -> None:
+    ada = repository.insert(_new("Ada"))
+    bo = repository.insert(_new("Bo"))
+    repository.set_parent(ada.id, 10)
+    repository.set_parent(ada.id, 11)
+    repository.set_parent(bo.id, 11)
+    assert repository.parent_links() == {ada.id: 11, bo.id: 11}
+    repository.clear_parent(bo.id)
+    assert repository.parent_links() == {ada.id: 11}
+    repository.set_parent(bo.id, 11)
+    repository.clear_parent_links(11)
+    assert repository.parent_links() == {}
+    repository.set_parent(ada.id, 10)
+    repository.delete(ada.id)
+    assert repository.parent_links() == {}

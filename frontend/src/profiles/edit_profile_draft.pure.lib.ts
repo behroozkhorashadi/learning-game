@@ -20,6 +20,8 @@ export interface EditProfileDraft {
   readonly newPhotos: readonly NewPhoto[]
   readonly readingSupport: boolean
   readonly password: PasswordDraft
+  /** The linked parent, or null to unlink (a no-op when there was none). */
+  readonly parentId: number | null
 }
 
 /**
@@ -40,6 +42,8 @@ export function profileUpdateFrom(draft: EditProfileDraft, currentYear: number):
     reading_support: draft.readingSupport,
     new_photos: newPhotosPayload(draft.newPhotos, draft.photo),
     remove_password: draft.password.remove,
+    remove_parent: draft.parentId === null,
+    ...(draft.parentId === null ? {} : { parent_id: draft.parentId }),
     ...(isNewPhoto ? {} : { avatar: draft.photo ?? draft.avatar }),
     ...(!draft.password.remove && draft.password.password !== '' ? { password: draft.password.password } : {}),
   }

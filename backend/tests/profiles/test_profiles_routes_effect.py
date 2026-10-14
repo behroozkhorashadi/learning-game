@@ -86,6 +86,7 @@ def test_create_profile_round_trips(client: httpx.Client) -> None:
         "reading_support": True,
         "created_at": "2026-10-07T12:00:00",
         "has_password": False,
+        "parent_id": None,
     }
     assert listed(client, 1) == body
 
@@ -388,3 +389,14 @@ def test_remix_without_provider_is_503(client: httpx.Client, remixer: FakeRemixe
     remixer.result = None
     response = client.post("/api/profile-photos/remix", json={"image_data_url": PHOTO_DATA_URL, "style": "cartoon"})
     assert (response.status_code, response.json()) == (503, {"detail": "AI photo remix isn't available right now"})
+
+
+def test_a_kid_links_to_a_parent_on_create_and_edit(client: httpx.Client) -> None:
+    kid = create(client, parent_id=10)
+    assert listed(client, kid["id"])["parent_id"] == 10
+    moved = client.patch(f"/api/profiles/{kid['id']}", json={"parent_id": 11})
+    assert moved.json()["parent_id"] == 11
+    unlinked = client.patch(f"/api/profiles/{kid['id']}", json={"remove_parent": True})
+    assert unlinked.json()["parent_id"] is None
+    unknown = client.post("/api/profiles", json={"name": "X", "avatar": "owl", "birth_year": YEAR - 7, "parent_id": 99})
+    assert (unknown.status_code, unknown.json()) == (422, {"detail": "no parent with id 99"})

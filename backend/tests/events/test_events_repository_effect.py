@@ -50,6 +50,12 @@ def test_session_payloads_latest_and_timestamps(tmp_path: Path) -> None:
     )
     assert log.latest(profile_id=3, game_id="g", event_types=("item_shown",)) is None
     assert len(log.timestamps(1)) == 4
+    shown = log.for_profile(1, ("item_shown", "difficulty_changed"))
+    assert [(e.event_type.value, e.payload) for e in shown] == [
+        ("item_shown", {"n": 1}),
+        ("difficulty_changed", {"needs_confidence_item": True}),
+        ("item_shown", {"n": 2}),
+    ]
     assert min(log.timestamps(1)) == START.replace(tzinfo=None)
 
     log.delete_for_profile(1)

@@ -16,7 +16,7 @@ function respond(body: unknown): Promise<Response> {
 
 describe('assembleEditProfile', () => {
   it('loads photos and PATCHes the profile with the profile-password header', async () => {
-    const fetchFake = vi.fn((url: string, _init?: RequestInit) => (url.endsWith('/photos') ? respond([]) : respond({ ...LOCKED, name: 'Nora B' })))
+    const fetchFake = vi.fn((url: string, _init?: RequestInit) => (url.endsWith('/photos') || url === '/api/parents' ? respond([]) : respond({ ...LOCKED, name: 'Nora B' })))
     vi.stubGlobal('fetch', fetchFake)
     const EditProfile = assembleEditProfile()
     const onSaved = vi.fn()
@@ -29,6 +29,7 @@ describe('assembleEditProfile', () => {
     })
     const sent = fetchFake.mock.calls.map(([url, init]) => [url, init?.method, new Headers(init?.headers).get('X-Profile-Password')])
     expect(sent).toEqual([
+      ['/api/parents', 'GET', null],
       ['/api/profiles/3/photos', 'GET', 'tiger42'],
       ['/api/profiles/3', 'PATCH', 'tiger42'],
     ])

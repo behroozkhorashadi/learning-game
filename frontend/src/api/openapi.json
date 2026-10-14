@@ -535,6 +535,30 @@
         "title": "AttemptRead",
         "type": "object"
       },
+      "BadgeEarned": {
+        "properties": {
+          "awarded_at": {
+            "format": "date-time",
+            "title": "Awarded At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "tier",
+          "awarded_at"
+        ],
+        "title": "BadgeEarned",
+        "type": "object"
+      },
       "BadgeStatus": {
         "description": "Response shape for GET /api/profiles/{profile_id}/badges \u2014 a Badge\njoined with whether (and when) this profile earned it.",
         "properties": {
@@ -824,6 +848,44 @@
         "title": "DayActivity",
         "type": "object"
       },
+      "DayPoint": {
+        "description": "One local calendar day of the period (days without play included, as zeros).",
+        "properties": {
+          "correct": {
+            "title": "Correct",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "game_minutes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Game Minutes",
+            "type": "object"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "minutes",
+          "problems",
+          "correct",
+          "game_minutes"
+        ],
+        "title": "DayPoint",
+        "type": "object"
+      },
       "Emblem": {
         "additionalProperties": false,
         "description": "A round badge worn on the arm, the blaster, or both: one of the symbols on a\ncolour, or one of the kid's own art pieces.",
@@ -888,6 +950,40 @@
         "title": "Emblem",
         "type": "object"
       },
+      "FactCell": {
+        "description": "How one arithmetic fact went in the period, for the facts grid.",
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "first_try": {
+            "title": "First Try",
+            "type": "integer"
+          },
+          "left": {
+            "title": "Left",
+            "type": "integer"
+          },
+          "operator": {
+            "title": "Operator",
+            "type": "string"
+          },
+          "right": {
+            "title": "Right",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operator",
+          "left",
+          "right",
+          "attempts",
+          "first_try"
+        ],
+        "title": "FactCell",
+        "type": "object"
+      },
       "GameMetadata": {
         "description": "Static per-game-module definition \u2014 PRD \u00a76. Not a DB table.",
         "properties": {
@@ -940,6 +1036,162 @@
         "title": "GameMetadata",
         "type": "object"
       },
+      "GameStat": {
+        "description": "One game the kid played in the period.",
+        "properties": {
+          "accuracy_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy Pct"
+          },
+          "area": {
+            "enum": [
+              "math",
+              "reading",
+              "puzzles",
+              "writing",
+              "other"
+            ],
+            "title": "Area",
+            "type": "string"
+          },
+          "first_try_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Try Pct"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "last_played_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played At"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "level_history": {
+            "items": {
+              "$ref": "#/components/schemas/LevelPoint"
+            },
+            "title": "Level History",
+            "type": "array"
+          },
+          "levels_gained": {
+            "title": "Levels Gained",
+            "type": "integer"
+          },
+          "max_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Level"
+          },
+          "median_answer_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Answer Ms"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "title",
+          "icon",
+          "area",
+          "minutes",
+          "problems",
+          "accuracy_pct",
+          "first_try_pct",
+          "median_answer_ms",
+          "level",
+          "max_level",
+          "levels_gained",
+          "level_history",
+          "last_played_at",
+          "rating",
+          "note"
+        ],
+        "title": "GameStat",
+        "type": "object"
+      },
       "GridPosition": {
         "properties": {
           "col": {
@@ -969,6 +1221,30 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HourCell": {
+        "description": "Minutes played in one weekday/hour slot over the period (local time).",
+        "properties": {
+          "hour": {
+            "title": "Hour",
+            "type": "integer"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "weekday": {
+            "title": "Weekday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "weekday",
+          "hour",
+          "minutes"
+        ],
+        "title": "HourCell",
         "type": "object"
       },
       "HungPictures": {
@@ -1107,6 +1383,57 @@
         "title": "IllustrationGenerateRequest",
         "type": "object"
       },
+      "Insight": {
+        "description": "One plain-language finding: a win, something to keep an eye on, or a note.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tone": {
+            "enum": [
+              "celebrate",
+              "attention",
+              "info"
+            ],
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tone",
+          "title",
+          "detail"
+        ],
+        "title": "Insight",
+        "type": "object"
+      },
       "Item": {
         "properties": {
           "game_id": {
@@ -1148,6 +1475,266 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KidReport": {
+        "description": "Response shape for GET /api/parents/{parent_id}/kids/{profile_id}/report.",
+        "properties": {
+          "age": {
+            "title": "Age",
+            "type": "integer"
+          },
+          "avatar": {
+            "title": "Avatar",
+            "type": "string"
+          },
+          "badges": {
+            "items": {
+              "$ref": "#/components/schemas/BadgeEarned"
+            },
+            "title": "Badges",
+            "type": "array"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DayPoint"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "day_streak": {
+            "title": "Day Streak",
+            "type": "integer"
+          },
+          "fact_cells": {
+            "items": {
+              "$ref": "#/components/schemas/FactCell"
+            },
+            "title": "Fact Cells",
+            "type": "array"
+          },
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/GameStat"
+            },
+            "title": "Games",
+            "type": "array"
+          },
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/Insight"
+            },
+            "title": "Insights",
+            "type": "array"
+          },
+          "last_played_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played At"
+          },
+          "longest_streak": {
+            "title": "Longest Streak",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/PeriodTotals"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "range_days": {
+            "title": "Range Days",
+            "type": "integer"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkillStat"
+            },
+            "title": "Skills",
+            "type": "array"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PeriodTotals"
+          },
+          "trouble_spots": {
+            "items": {
+              "$ref": "#/components/schemas/TroubleSpot"
+            },
+            "title": "Trouble Spots",
+            "type": "array"
+          },
+          "weekly": {
+            "items": {
+              "$ref": "#/components/schemas/WeekPoint"
+            },
+            "title": "Weekly",
+            "type": "array"
+          },
+          "when": {
+            "items": {
+              "$ref": "#/components/schemas/HourCell"
+            },
+            "title": "When",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile_id",
+          "name",
+          "avatar",
+          "age",
+          "range_days",
+          "today",
+          "totals",
+          "previous",
+          "day_streak",
+          "longest_streak",
+          "last_played_at",
+          "daily",
+          "when",
+          "games",
+          "skills",
+          "fact_cells",
+          "trouble_spots",
+          "weekly",
+          "insights",
+          "badges"
+        ],
+        "title": "KidReport",
+        "type": "object"
+      },
+      "KidSummary": {
+        "description": "One kid on a parent's family overview: the last seven days at a glance.",
+        "properties": {
+          "active_days_7d": {
+            "title": "Active Days 7D",
+            "type": "integer"
+          },
+          "age": {
+            "title": "Age",
+            "type": "integer"
+          },
+          "attention_count": {
+            "title": "Attention Count",
+            "type": "integer"
+          },
+          "avatar": {
+            "title": "Avatar",
+            "type": "string"
+          },
+          "daily_minutes_7d": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Daily Minutes 7D",
+            "type": "array"
+          },
+          "day_streak": {
+            "title": "Day Streak",
+            "type": "integer"
+          },
+          "first_try_pct_7d": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Try Pct 7D"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Insight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_played_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played At"
+          },
+          "minutes_7d": {
+            "title": "Minutes 7D",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problems_7d": {
+            "title": "Problems 7D",
+            "type": "integer"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "name",
+          "avatar",
+          "age",
+          "last_played_at",
+          "minutes_7d",
+          "active_days_7d",
+          "problems_7d",
+          "first_try_pct_7d",
+          "day_streak",
+          "daily_minutes_7d",
+          "attention_count",
+          "headline"
+        ],
+        "title": "KidSummary",
+        "type": "object"
+      },
+      "LevelPoint": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "at",
+          "level"
+        ],
+        "title": "LevelPoint",
+        "type": "object"
+      },
       "NewProfilePhoto": {
         "description": "One photo (the camera original or an AI remix of it) to add to a\nprofile's saved pictures on create/update. Every version a kid made gets\nsaved, so they can switch back to any of them later; `use_as_avatar`\nmarks the one to show right now (at most one per request).",
         "properties": {
@@ -1170,6 +1757,64 @@
           "image_data_url"
         ],
         "title": "NewProfilePhoto",
+        "type": "object"
+      },
+      "ParentCreate": {
+        "description": "Inbound POST body for /api/parents. A parent always has a password: it\nguards the kids' progress reports.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "password"
+        ],
+        "title": "ParentCreate",
+        "type": "object"
+      },
+      "ParentRead": {
+        "description": "A parent account as GET /api/parents lists it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "ParentRead",
+        "type": "object"
+      },
+      "ParentUnlockRequest": {
+        "description": "Inbound POST body for /api/parents/{parent_id}/unlock: the parent's own\npassword, or the admin password as an override.",
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "ParentUnlockRequest",
         "type": "object"
       },
       "PathfinderCompletionsCreate": {
@@ -1317,6 +1962,88 @@
           }
         },
         "title": "PathfinderCustomMapUpdate",
+        "type": "object"
+      },
+      "PeriodTotals": {
+        "description": "What a kid did in one stretch of days.",
+        "properties": {
+          "accuracy_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy Pct"
+          },
+          "active_days": {
+            "title": "Active Days",
+            "type": "integer"
+          },
+          "avg_sitting_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Sitting Minutes"
+          },
+          "correct": {
+            "title": "Correct",
+            "type": "integer"
+          },
+          "first_try_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Try Pct"
+          },
+          "median_answer_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Answer Ms"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          },
+          "sittings": {
+            "title": "Sittings",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes",
+          "active_days",
+          "sittings",
+          "problems",
+          "correct",
+          "accuracy_pct",
+          "first_try_pct",
+          "avg_sitting_minutes",
+          "median_answer_ms"
+        ],
+        "title": "PeriodTotals",
         "type": "object"
       },
       "Piece": {
@@ -1624,6 +2351,17 @@
             "title": "New Photos",
             "type": "array"
           },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
           "password": {
             "anyOf": [
               {
@@ -1770,6 +2508,17 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
           },
           "reading_support": {
             "default": false,
@@ -1929,6 +2678,17 @@
             "title": "New Photos",
             "type": "array"
           },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
           "password": {
             "anyOf": [
               {
@@ -1950,6 +2710,11 @@
               }
             ],
             "title": "Reading Support"
+          },
+          "remove_parent": {
+            "default": false,
+            "title": "Remove Parent",
+            "type": "boolean"
           },
           "remove_password": {
             "default": false,
@@ -2355,6 +3120,113 @@
         "title": "RevisionPassCreate",
         "type": "object"
       },
+      "SkillStat": {
+        "description": "One skill across every game that practices it (multiplication, 2-syllable\nwords, ...), with the period before for comparison.",
+        "properties": {
+          "accuracy_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy Pct"
+          },
+          "area": {
+            "enum": [
+              "math",
+              "reading",
+              "puzzles",
+              "writing",
+              "other"
+            ],
+            "title": "Area",
+            "type": "string"
+          },
+          "first_try_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Try Pct"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "median_answer_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Answer Ms"
+          },
+          "previous_first_try_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous First Try Pct"
+          },
+          "previous_median_answer_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Median Answer Ms"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "strong",
+              "steady",
+              "needs_work",
+              "new"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "area",
+          "problems",
+          "accuracy_pct",
+          "first_try_pct",
+          "median_answer_ms",
+          "previous_first_try_pct",
+          "previous_median_answer_ms",
+          "status"
+        ],
+        "title": "SkillStat",
+        "type": "object"
+      },
       "SuitPaint": {
         "additionalProperties": false,
         "description": "A suit painted in the kid's own colour, in place of a skin's tint.",
@@ -2480,6 +3352,64 @@
           "done"
         ],
         "title": "TodoUpdate",
+        "type": "object"
+      },
+      "TroubleSpot": {
+        "description": "A problem the kid keeps missing.",
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "game_title": {
+            "title": "Game Title",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "misses": {
+            "title": "Misses",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "skill": {
+            "title": "Skill",
+            "type": "string"
+          },
+          "wrong_answers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Wrong Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "game_id",
+          "game_title",
+          "skill",
+          "prompt",
+          "answer",
+          "attempts",
+          "misses",
+          "last_seen_at",
+          "wrong_answers"
+        ],
+        "title": "TroubleSpot",
         "type": "object"
       },
       "TurnAuthor": {
@@ -2658,6 +3588,67 @@
           "correct"
         ],
         "title": "VerificationCreate",
+        "type": "object"
+      },
+      "WeekPoint": {
+        "description": "One week (Monday start) of the last twelve, for the progress lines.",
+        "properties": {
+          "math_first_try_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Math First Try Pct"
+          },
+          "math_median_answer_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Math Median Answer Ms"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          },
+          "reading_first_try_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading First Try Pct"
+          },
+          "week_start": {
+            "format": "date",
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week_start",
+          "minutes",
+          "problems",
+          "math_first_try_pct",
+          "reading_first_try_pct",
+          "math_median_answer_ms"
+        ],
+        "title": "WeekPoint",
         "type": "object"
       }
     }
@@ -3059,6 +4050,293 @@
           }
         },
         "summary": "Get Next Item"
+      }
+    },
+    "/api/parents": {
+      "get": {
+        "description": "The grown-ups row on the profile picker, and the kid profile's\n\"Parent\" dropdown. No auth: names only.",
+        "operationId": "list_parents_api_parents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ParentRead"
+                  },
+                  "title": "Response List Parents Api Parents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Parents"
+      },
+      "post": {
+        "description": "Backs the \"I'm a parent\" screen. The password is required.",
+        "operationId": "post_parent_api_parents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Parent"
+      }
+    },
+    "/api/parents/{parent_id}": {
+      "delete": {
+        "description": "Admin-only. Unlinks the parent's kids (their profiles stay).",
+        "operationId": "delete_parent_api_parents__parent_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parent_id",
+            "required": true,
+            "schema": {
+              "title": "Parent Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-admin-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Password"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Parent"
+      }
+    },
+    "/api/parents/{parent_id}/kids": {
+      "get": {
+        "description": "The family overview: each linked kid's last seven days at a glance.",
+        "operationId": "list_parent_kids_api_parents__parent_id__kids_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parent_id",
+            "required": true,
+            "schema": {
+              "title": "Parent Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-parent-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Parent-Password"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KidSummary"
+                  },
+                  "title": "Response List Parent Kids Api Parents  Parent Id  Kids Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Parent Kids"
+      }
+    },
+    "/api/parents/{parent_id}/kids/{profile_id}/report": {
+      "get": {
+        "description": "One linked kid's progress report over the last `days` days (and the\nsame stretch before, for comparison).",
+        "operationId": "kid_report_api_parents__parent_id__kids__profile_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parent_id",
+            "required": true,
+            "schema": {
+              "title": "Parent Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-parent-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Parent-Password"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KidReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Kid Report"
+      }
+    },
+    "/api/parents/{parent_id}/unlock": {
+      "post": {
+        "description": "The parent login. Accepts the parent's password, or the admin\npassword as an override. Holds no session: the frontend keeps the\npassword and sends it as `X-Parent-Password` on the report reads.",
+        "operationId": "unlock_parent_api_parents__parent_id__unlock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parent_id",
+            "required": true,
+            "schema": {
+              "title": "Parent Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParentUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlock Parent"
       }
     },
     "/api/pathfinder/published-maps": {

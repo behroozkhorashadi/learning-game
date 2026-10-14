@@ -12,13 +12,12 @@ from dataclasses import dataclass
 from app.profiles.profiles_ports_pure import (
     Clock,
     CurrentPhotoError,
-    EraseProfileData,
     InvalidProfileError,
-    IsAdminPassword,
     NotAdminError,
     PasswordHasher,
     PhotoNotFoundError,
     PhotoStore,
+    ProfileNeighbors,
     ProfileNotFoundError,
     ProfileRepository,
     ProfilesService,
@@ -55,8 +54,7 @@ class _Profiles:
     repository: ProfileRepository
     photo_store: PhotoStore
     hasher: PasswordHasher
-    is_admin_password: IsAdminPassword
-    erase_profile_data: EraseProfileData
+    neighbors: ProfileNeighbors
     clock: Clock
 
     # --- helpers ---
@@ -75,7 +73,7 @@ class _Profiles:
             return
         if profile_password and self.hasher.matches(profile_password, stored):
             return
-        if self.is_admin_password(profile_password) or self.is_admin_password(admin_password):
+        if self.neighbors.is_admin_password(profile_password) or self.neighbors.is_admin_password(admin_password):
             return
         raise WrongProfilePasswordError
 
@@ -93,11 +91,23 @@ class _Profiles:
     def _delete_everything(self, profile: ProfileRecord) -> None:
         """Other features' rows first, then every picture (including a current avatar
         that predates the saved-pictures list), then the profile."""
-        self.erase_profile_data(profile.id)
+        self.neighbors.erase_profile_data(profile.id)
         urls = {profile.avatar, *(photo.url for photo in self.repository.list_photos(profile.id))}
         self.repository.delete(profile.id)
         for url in sorted(urls):
             self.photo_store.delete(url)
+
+    def _validate_parent(self, parent_id: int | None) -> None:
+        if parent_id is not None and not self.neighbors.parent_exists(parent_id):
+            msg = f"no parent with id {parent_id}"
+            raise InvalidProfileError(msg)
+
+    def _read(self, profile: ProfileRecord) -> ProfileRead:
+        return profile_read(
+            profile,
+            has_password=self.repository.password_hash(profile.id) is not None,
+            parent_id=self.repository.parent_links().get(profile.id),
+        )
 
     def _remove_demo_if_needed(self) -> None:
         demo = demo_to_remove(self.repository.list_all())
@@ -108,7 +118,11 @@ class _Profiles:
 
     def list_profiles(self) -> tuple[ProfileRead, ...]:
         protected = self.repository.protected_ids()
-        return tuple(profile_read(p, has_password=p.id in protected) for p in self.repository.list_all())
+        links = self.repository.parent_links()
+        return tuple(
+            profile_read(p, has_password=p.id in protected, parent_id=links.get(p.id))
+            for p in self.repository.list_all()
+        )
 
     def create_profile(self, payload: ProfileCreate) -> ProfileRead:
         now = self.clock()
@@ -119,6 +133,7 @@ class _Profiles:
         validate_new_photos(payload.new_photos)
         if not any(photo.use_as_avatar for photo in payload.new_photos):
             validate_avatar(payload.avatar)
+        self._validate_parent(payload.parent_id)
 
         profile = self.repository.insert(
             NewProfile(
@@ -135,8 +150,10 @@ class _Profiles:
             profile = self.repository.update(profile.model_copy(update={"avatar": photo_avatar}))
         if payload.password is not None:
             self.repository.set_password_hash(profile.id, self.hasher.hash(payload.password))
+        if payload.parent_id is not None:
+            self.repository.set_parent(profile.id, payload.parent_id)
         self._remove_demo_if_needed()
-        return profile_read(profile, has_password=payload.password is not None)
+        return self._read(profile)
 
     def unlock(self, profile_id: int, password: str) -> None:
         self._require(profile_id)
@@ -150,8 +167,12 @@ class _Profiles:
         if change.password is not None and change.remove_password:
             msg = "send either password or remove_password, not both"
             raise InvalidProfileError(msg)
+        if change.parent_id is not None and change.remove_parent:
+            msg = "send either parent_id or remove_parent, not both"
+            raise InvalidProfileError(msg)
         if change.password is not None:
             validate_new_password(change.password)
+        self._validate_parent(change.parent_id)
         validate_new_photos(change.new_photos)
         updates = self._field_updates(profile, change)
 
@@ -162,9 +183,12 @@ class _Profiles:
             self.repository.set_password_hash(profile_id, self.hasher.hash(change.password))
         elif change.remove_password:
             self.repository.delete_password(profile_id)
+        if change.parent_id is not None:
+            self.repository.set_parent(profile_id, change.parent_id)
+        elif change.remove_parent:
+            self.repository.clear_parent(profile_id)
 
-        updated = self.repository.update(profile.model_copy(update=updates))
-        return profile_read(updated, has_password=self.repository.password_hash(profile_id) is not None)
+        return self._read(self.repository.update(profile.model_copy(update=updates)))
 
     def _field_updates(self, profile: ProfileRecord, change: ProfileUpdate) -> dict[str, object]:
         """Validated name/birth year/reading support/avatar changes. Re-sending the current
@@ -209,7 +233,7 @@ class _Profiles:
         self.photo_store.delete(photo.url)
 
     def delete_profile(self, profile_id: int, admin_password: str | None) -> None:
-        if not self.is_admin_password(admin_password):
+        if not self.neighbors.is_admin_password(admin_password):
             raise NotAdminError
         self._delete_everything(self._require(profile_id))
 
@@ -254,22 +278,26 @@ class _Profiles:
     def names(self, profile_ids: Sequence[int]) -> Mapping[int, str]:
         return self.repository.names(profile_ids)
 
+    def kids_of(self, parent_id: int) -> tuple[ProfileRead, ...]:
+        return tuple(p for p in self.list_profiles() if p.parent_id == parent_id)
+
+    def unlink_parent(self, parent_id: int) -> None:
+        self.repository.clear_parent_links(parent_id)
+
 
 def make_profiles_service(
     *,
     repository: ProfileRepository,
     photo_store: PhotoStore,
     hasher: PasswordHasher,
-    is_admin_password: IsAdminPassword,
-    erase_profile_data: EraseProfileData,
+    neighbors: ProfileNeighbors,
     clock: Clock,
 ) -> ProfilesService:
     impl = _Profiles(
         repository=repository,
         photo_store=photo_store,
         hasher=hasher,
-        is_admin_password=is_admin_password,
-        erase_profile_data=erase_profile_data,
+        neighbors=neighbors,
         clock=clock,
     )
     return ProfilesService(
@@ -284,4 +312,6 @@ def make_profiles_service(
         exists=impl.exists,
         birth_year=impl.birth_year,
         names=impl.names,
+        kids_of=impl.kids_of,
+        unlink_parent=impl.unlink_parent,
     )

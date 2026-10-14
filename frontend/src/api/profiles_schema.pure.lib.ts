@@ -17,6 +17,8 @@ export const profileSchema = z
     reading_support: z.boolean().default(false),
     has_password: z.boolean().default(false),
     created_at: z.string().nullable().default(null),
+    /** The parent this kid is linked to (`GET /api/parents`), if any. */
+    parent_id: z.number().int().nullable().default(null),
   })
   .readonly() satisfies z.ZodType<components['schemas']['ProfileRead']>
 

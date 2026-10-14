@@ -1,8 +1,11 @@
 import { useState, type ComponentType, type ReactElement } from 'react'
+import type { ParentRecord } from '@app/api/parents_schema.pure.lib.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
+import { useQuery } from '@app/query/use_query.pure.hook.ts'
 import { profileCreateFrom, type ProfileCreateBody } from './create_profile_draft.pure.lib.ts'
+import { ParentSelect } from './parent_select.pure.ui.tsx'
 import { ProfileFormFields } from './profile_form_fields.pure.ui.tsx'
 import { defaultReadingSupport, yearOf } from './profile_form.pure.lib.ts'
 import { EMPTY_PASSWORD_DRAFT, type PasswordDraft } from './profile_password.pure.lib.ts'
@@ -22,6 +25,8 @@ export interface CreateProfileProps {
   /** `password` is the one just set, or null. The shell keeps it so the new player can edit their profile without being asked for it again. */
   readonly onCreated: (profile: ProfileRecord, password: string | null) => void
   readonly onCancel: () => void
+  /** "I'm a parent": make a parent account instead of a player. */
+  readonly onAddParent: () => void
 }
 
 export interface CreateProfileDeps {
@@ -31,10 +36,12 @@ export interface CreateProfileDeps {
   readonly PhotoCapture: ComponentType<ProfilePhotoCaptureProps>
   /** Today as `YYYY-MM-DD`. Read once per mount. */
   readonly today: () => string
+  /** GET /api/parents, for the "Parent" dropdown. */
+  readonly listParents: () => Promise<readonly ParentRecord[]>
 }
 
-export function bindCreateProfile({ createProfile, PhotoCapture, today }: CreateProfileDeps): ComponentType<CreateProfileProps> {
-  function CreateProfile({ onCreated, onCancel }: CreateProfileProps): ReactElement {
+export function bindCreateProfile({ createProfile, PhotoCapture, today, listParents }: CreateProfileDeps): ComponentType<CreateProfileProps> {
+  function CreateProfile({ onCreated, onCancel, onAddParent }: CreateProfileProps): ReactElement {
     const [todayIso] = useState(today)
     const currentYear = yearOf(todayIso)
     const [name, setName] = useState('')
@@ -45,10 +52,12 @@ export function bindCreateProfile({ createProfile, PhotoCapture, today }: Create
     const [readingSupport, setReadingSupport] = useState(false)
     const [readingSupportTouched, setReadingSupportTouched] = useState(false)
     const [passwordDraft, setPasswordDraft] = useState<PasswordDraft>(EMPTY_PASSWORD_DRAFT)
+    const [parentId, setParentId] = useState<number | null>(null)
+    const parents = useQuery(listParents)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const body = profileCreateFrom({ name, birthday, avatar, photo, newPhotos, readingSupport, password: passwordDraft }, currentYear)
+    const body = profileCreateFrom({ name, birthday, avatar, photo, newPhotos, readingSupport, password: passwordDraft, parentId }, currentYear)
     const canSubmit = body !== null && !submitting
 
     function handleBirthdayChange(value: string): void {
@@ -75,6 +84,9 @@ export function bindCreateProfile({ createProfile, PhotoCapture, today }: Create
         <div style={{ width: '100%', maxWidth: 560, background: 'var(--surface-default)', border: '1px solid var(--border-subtle)', borderRadius: 32, padding: '44px 40px', boxShadow: 'var(--elevation-600)' }}>
           <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 32, lineHeight: 1.1, color: 'var(--fg-primary)', textAlign: 'center' }}>Add a player</h1>
           <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Tell us a bit about them.</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+            <DenButton label="I'm a parent" variant="softBlue" size="sm" shape="pill" ariaLabel="I'm a parent: make a parent account instead" onClick={onAddParent} />
+          </div>
 
           <ProfileFormFields
             today={todayIso}
@@ -107,6 +119,8 @@ export function bindCreateProfile({ createProfile, PhotoCapture, today }: Create
           />
 
           <ProfilePasswordFields draft={passwordDraft} onChange={setPasswordDraft} />
+
+          <ParentSelect parents={parents.kind === 'loaded' ? parents.data : []} value={parentId} onChange={setParentId} />
 
           {error !== null && (
             <div role="alert" style={{ marginTop: 20, color: '#CD2A20', background: '#FDF2F2', padding: 12, borderRadius: 12 }}>

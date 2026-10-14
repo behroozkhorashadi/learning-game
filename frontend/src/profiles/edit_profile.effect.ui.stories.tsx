@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindEditProfile } from './edit_profile.effect.ui.tsx'
 import { LOCKED } from './profile_fixtures.test.lib.ts'
 import { bindProfilePhotoCapture } from './profile_photo_capture.effect.ui.tsx'
@@ -23,6 +24,7 @@ function Bound({ saveFails, onSaved }: BoundProps): ReactElement {
       deletePhoto: server.deletePhoto,
       PhotoCapture: bindProfilePhotoCapture({ camera: fakeCamera(), remixPhoto: fakeRemix().remixPhoto }),
       today: () => '2026-10-10',
+      listParents: () => Promise.resolve(PARENTS),
     })
   })
   return <EditProfile profile={LOCKED} auth={{ kind: 'profile', password: 'tiger42' }} onSaved={onSaved} onCancel={fn()} />

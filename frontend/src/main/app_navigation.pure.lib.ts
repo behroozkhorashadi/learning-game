@@ -1,3 +1,4 @@
+import type { ParentRecord } from '@app/api/parents_schema.pure.lib.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 
 /**
@@ -24,6 +25,10 @@ export type Screen =
   | { readonly kind: 'library' }
   | { readonly kind: 'practice-settings'; readonly gameId: string }
   | { readonly kind: 'game'; readonly gameId: string }
+  /** The grown-ups' side: no player, never under the badge fanfare. */
+  | { readonly kind: 'create-parent' }
+  | { readonly kind: 'parent-login'; readonly parent: ParentRecord }
+  | { readonly kind: 'parent-dashboard'; readonly parent: ParentRecord; readonly password: string }
 
 export interface AppState {
   readonly player: Player | null
@@ -83,4 +88,19 @@ export function switchPlayer(): AppState {
 
 export function go(state: AppState, screen: Screen): AppState {
   return at(state, screen)
+}
+
+/** Picking a grown-up on the picker: they always sign in first. */
+export function pickParent(_state: AppState, parent: ParentRecord): AppState {
+  return { player: null, screen: { kind: 'parent-login', parent } }
+}
+
+export function parentSignedIn(state: AppState, password: string): AppState {
+  if (state.screen.kind !== 'parent-login') return state
+  return at(state, { kind: 'parent-dashboard', parent: state.screen.parent, password })
+}
+
+/** A new parent account goes straight to its (empty) dashboard. */
+export function parentCreated(_state: AppState, parent: ParentRecord, password: string): AppState {
+  return { player: null, screen: { kind: 'parent-dashboard', parent, password } }
 }

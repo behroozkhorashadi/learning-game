@@ -25,6 +25,8 @@ Clock = Callable[[], datetime]
 IsAdminPassword = Callable[[str | None], bool]
 # Deletes everything other features keep for a profile, before the profile itself goes.
 EraseProfileData = Callable[[int], None]
+# Whether a parent account exists (the parents feature's check), for linking a kid.
+ParentExists = Callable[[int], bool]
 
 
 class ProfileRepository(Protocol):
@@ -66,6 +68,18 @@ class ProfileRepository(Protocol):
 
     def delete_password(self, profile_id: int) -> None: ...
 
+    def parent_links(self) -> Mapping[int, int]:
+        """Kid profile id -> parent id, for every linked kid."""
+        ...
+
+    def set_parent(self, profile_id: int, parent_id: int) -> None: ...
+
+    def clear_parent(self, profile_id: int) -> None: ...
+
+    def clear_parent_links(self, parent_id: int) -> None:
+        """Unlinks every kid from a parent that's going away."""
+        ...
+
 
 class PhotoStore(Protocol):
     """Picture files served under /static/profile-avatars/."""
@@ -89,6 +103,15 @@ class PasswordHasher(Protocol):
     def hash(self, password: str) -> str: ...
 
     def matches(self, password: str, stored: str) -> bool: ...
+
+
+@dataclass(frozen=True)
+class ProfileNeighbors:
+    """What profiles asks of the other features, through assembly."""
+
+    is_admin_password: IsAdminPassword
+    erase_profile_data: EraseProfileData
+    parent_exists: ParentExists
 
 
 class ProfileNotFoundError(LookupError):
@@ -144,6 +167,10 @@ class ProfilesService:
     exists: Callable[[int], bool]
     birth_year: Callable[[int], int | None]
     names: Callable[[Sequence[int]], Mapping[int, str]]
+    # The kids linked to a parent, in id order.
+    kids_of: Callable[[int], tuple[ProfileRead, ...]]
+    # Unlinks every kid from a parent (before the parent is deleted).
+    unlink_parent: Callable[[int], None]
 
 
 @dataclass(frozen=True)

@@ -136,8 +136,8 @@ def remix_prompt(style: str | None, idea: str | None) -> str:
     return " ".join(parts)
 
 
-def profile_read(profile: ProfileRecord, *, has_password: bool) -> ProfileRead:
-    return ProfileRead(**profile.model_dump(), has_password=has_password)
+def profile_read(profile: ProfileRecord, *, has_password: bool, parent_id: int | None) -> ProfileRead:
+    return ProfileRead(**profile.model_dump(), has_password=has_password, parent_id=parent_id)
 
 
 def is_demo(profile: ProfileRecord) -> bool:

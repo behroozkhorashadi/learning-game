@@ -26,6 +26,8 @@ def test_completions_come_back_in_completion_order(repository: SqlPathfinderRepo
     repository.add_completions(1, [], START)
     repository.add_completions(2, ["z"], START)
     assert repository.completed_level_ids(1) == ("b", "a")
+    assert repository.completion_times(1) == (START.replace(tzinfo=None),) * 2
+    assert repository.completion_times(3) == ()
 
 
 def test_maps_round_trip_newest_first(repository: SqlPathfinderRepository) -> None:

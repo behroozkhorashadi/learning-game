@@ -2,11 +2,12 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { PROFILES, RAMI } from './profile_fixtures.test.lib.ts'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindProfilePicker } from './profile_picker.effect.ui.tsx'
 
 afterEach(cleanup)
 
-const callbacks = { onSelect: vi.fn(), onAddPlayer: vi.fn(), onEditProfile: vi.fn(), onOpenAdmin: vi.fn() }
+const callbacks = { onSelect: vi.fn(), onAddPlayer: vi.fn(), onEditProfile: vi.fn(), onOpenAdmin: vi.fn(), onSelectParent: vi.fn(), onAddParent: vi.fn() }
 
 /** A list call that settles when the test says, so the loading state is observable. */
 function deferredList(): { readonly listProfiles: () => Promise<readonly ProfileRecord[]>; readonly resolve: (p: readonly ProfileRecord[]) => void; readonly reject: (e: Error) => void } {
@@ -22,7 +23,7 @@ function deferredList(): { readonly listProfiles: () => Promise<readonly Profile
 describe('bindProfilePicker', () => {
   it('shows the loaded profiles and selects one', async () => {
     const list = deferredList()
-    const ProfilePicker = bindProfilePicker({ listProfiles: list.listProfiles })
+    const ProfilePicker = bindProfilePicker({ listProfiles: list.listProfiles, listParents: () => Promise.resolve(PARENTS) })
     const onSelect = vi.fn()
     render(<ProfilePicker {...callbacks} onSelect={onSelect} />)
     expect(screen.queryByRole('button', { name: 'Add a player' })).toBeNull()
@@ -36,7 +37,7 @@ describe('bindProfilePicker', () => {
 
   it('shows the error when listing fails', async () => {
     const list = deferredList()
-    const ProfilePicker = bindProfilePicker({ listProfiles: list.listProfiles })
+    const ProfilePicker = bindProfilePicker({ listProfiles: list.listProfiles, listParents: () => Promise.resolve(PARENTS) })
     render(<ProfilePicker {...callbacks} />)
     await act(async () => {
       list.reject(new Error('GET /api/profiles failed with HTTP 503'))
@@ -46,9 +47,10 @@ describe('bindProfilePicker', () => {
 
   it('asks for the list once per mount', async () => {
     const listProfiles = vi.fn(() => Promise.resolve(PROFILES))
-    const ProfilePicker = bindProfilePicker({ listProfiles })
+    const ProfilePicker = bindProfilePicker({ listProfiles, listParents: () => Promise.resolve(PARENTS) })
     render(<ProfilePicker {...callbacks} />)
     expect(await screen.findByText('Demo Kid')).toBeTruthy()
     expect(listProfiles).toHaveBeenCalledTimes(1)
+    expect(await screen.findByRole('button', { name: 'Parent dashboard for Dad' })).toBeTruthy()
   })
 })

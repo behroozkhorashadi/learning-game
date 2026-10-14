@@ -16,6 +16,8 @@ export interface CreateProfileDraft {
   readonly newPhotos: readonly NewPhoto[]
   readonly readingSupport: boolean
   readonly password: PasswordDraft
+  /** The parent to link to (`GET /api/parents`), or null for none. */
+  readonly parentId: number | null
 }
 
 /**
@@ -37,5 +39,6 @@ export function profileCreateFrom(draft: CreateProfileDraft, currentYear: number
     reading_support: draft.readingSupport,
     new_photos: newPhotosPayload(draft.newPhotos, draft.photo),
     password: draft.password.password === '' ? null : draft.password.password,
+    parent_id: draft.parentId,
   }
 }

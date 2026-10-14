@@ -1,9 +1,12 @@
 import { useState, type ComponentType, type ReactElement } from 'react'
+import type { ParentRecord } from '@app/api/parents_schema.pure.lib.ts'
 import type { ProfileAuth, ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
+import { useQuery } from '@app/query/use_query.pure.hook.ts'
 import { CardShell } from './card_shell.pure.ui.tsx'
 import { isPhotoAvatar, passwordAfterSave, profileUpdateFrom, type ProfileUpdateBody } from './edit_profile_draft.pure.lib.ts'
+import { ParentSelect } from './parent_select.pure.ui.tsx'
 import { ProfileFormFields } from './profile_form_fields.pure.ui.tsx'
 import { yearOf } from './profile_form.pure.lib.ts'
 import { EMPTY_PASSWORD_DRAFT, type PasswordDraft } from './profile_password.pure.lib.ts'
@@ -40,9 +43,11 @@ export interface EditProfileDeps {
   readonly PhotoCapture: ComponentType<ProfilePhotoCaptureProps>
   /** Today as `YYYY-MM-DD`. Read once per mount. */
   readonly today: () => string
+  /** GET /api/parents, for the "Parent" dropdown. */
+  readonly listParents: () => Promise<readonly ParentRecord[]>
 }
 
-export function bindEditProfile({ updateProfile, listPhotos, deletePhoto, PhotoCapture, today }: EditProfileDeps): ComponentType<EditProfileProps> {
+export function bindEditProfile({ updateProfile, listPhotos, deletePhoto, PhotoCapture, today, listParents }: EditProfileDeps): ComponentType<EditProfileProps> {
   function EditProfile({ profile, auth, onSaved, onCancel }: EditProfileProps): ReactElement {
     const [todayIso] = useState(today)
     const currentYear = yearOf(todayIso)
@@ -54,6 +59,8 @@ export function bindEditProfile({ updateProfile, listPhotos, deletePhoto, PhotoC
     const [newPhotos, setNewPhotos] = useState<readonly NewPhoto[]>([])
     const [readingSupport, setReadingSupport] = useState(profile.reading_support)
     const [passwordDraft, setPasswordDraft] = useState<PasswordDraft>(EMPTY_PASSWORD_DRAFT)
+    const [parentId, setParentId] = useState<number | null>(profile.parent_id)
+    const parents = useQuery(listParents)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -62,7 +69,7 @@ export function bindEditProfile({ updateProfile, listPhotos, deletePhoto, PhotoC
     const [remove] = useState(() => (saved: SavedPhoto) => deletePhoto(profile.id, saved.id, auth))
     const saved = useSavedPhotos(load, remove)
 
-    const body = profileUpdateFrom({ name, birthday, avatar, photo, newPhotos, readingSupport, password: passwordDraft }, currentYear)
+    const body = profileUpdateFrom({ name, birthday, avatar, photo, newPhotos, readingSupport, password: passwordDraft, parentId }, currentYear)
     const canSubmit = body !== null && !submitting
 
     async function deleteSavedPhoto(photoToDelete: SavedPhoto): Promise<void> {
@@ -104,6 +111,8 @@ export function bindEditProfile({ updateProfile, listPhotos, deletePhoto, PhotoC
         />
 
         <ProfilePasswordFields draft={passwordDraft} onChange={setPasswordDraft} hasPassword={profile.has_password} />
+
+        <ParentSelect parents={parents.kind === 'loaded' ? parents.data : []} value={parentId} onChange={setParentId} />
 
         <div className="profile-avatar-divider">
           <span>or use a photo</span>

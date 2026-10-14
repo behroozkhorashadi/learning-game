@@ -12,7 +12,7 @@ flowchart TB
     session["session/<br/>session shell: SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, HandoffPencil, ProgressBar"]
     den["den/<br/>DenButton, DenCard, DenChip, DenFlipCard,<br/>DenJar, DenTile, icons, icon_paths"]
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
-    apiad["api/<br/>profiles, admin, pathfinder, practice, pieces, badges,<br/>practice_config, armory, todos (zod at the door)<br/>openapi_schema (generated), http types"]
+    apiad["api/<br/>profiles, parents, admin, pathfinder, practice, pieces, badges,<br/>practice_config, armory, todos (zod at the door)<br/>openapi_schema (generated), http types"]
     flags["flags/<br/>feature flags, read in assembly only"]
     practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
@@ -24,6 +24,7 @@ flowchart TB
     timing["timing/<br/>Timers capability + useScheduled"]
     library["story_library/<br/>shelf + reader + home entry card<br/>(bindStoryLibrary, injected confirm)"]
     badges["badges/<br/>Badges and prizes: BadgesView (pure) + bindBadges,<br/>medals, badge + streak details, reuses the art gallery;<br/>bindBadgeCelebrations (polls for new badges)"]
+    parents["parents/<br/>parent mode: CreateParent, ParentLogin, ParentDashboard<br/>(FamilyOverview + KidReportView), SVG charts + grids"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
     boundary["boundary/<br/>AsyncBoundary (works inside a Canvas too)"]
@@ -51,6 +52,9 @@ flowchart TB
   library --> writing & query & apiad & den
   app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
   app -- "assembleAdminPanel() once" --> admin
+  app -- "assembleCreateParent(), assembleParentLogin(),<br/>assembleParentDashboard() once" --> parents
+  parents --> query & apiad & den & profiles
+  profiles -- "ParentBadge on the picker" --> parents
   app -- "assembleBadges(),<br/>assembleBadgeCelebrations() once" --> badges
   app -- "assembleSyllableBuilder(),<br/>assembleEquationBuilder() once" --> pgames
   pgames --> practice & tiles & session & speech

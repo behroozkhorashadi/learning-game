@@ -46,6 +46,16 @@ class SqlPathfinderRepository:
         with self.engine.connect() as connection:
             return tuple(str(level_id) for level_id in connection.execute(query).scalars())
 
+    def completion_times(self, profile_id: int) -> tuple[datetime, ...]:
+        """When each level was finished, oldest first."""
+        query = (
+            select(self.completions.c.completed_at)
+            .where(self.completions.c.profile_id == profile_id)
+            .order_by(self.completions.c.completed_at, self.completions.c.id)
+        )
+        with self.engine.connect() as connection:
+            return tuple(connection.execute(query).scalars())
+
     def add_completions(self, profile_id: int, level_ids: Sequence[str], completed_at: datetime) -> None:
         if not level_ids:
             return

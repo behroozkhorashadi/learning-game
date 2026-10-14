@@ -10,11 +10,12 @@ const COMPLETE: CreateProfileDraft = {
   newPhotos: [],
   readingSupport: true,
   password: EMPTY_PASSWORD_DRAFT,
+  parentId: null,
 }
 
 describe('profileCreateFrom', () => {
   it('builds the POST body from a complete draft', () => {
-    expect(profileCreateFrom(COMPLETE, 2026)).toEqual({ name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: true, new_photos: [], password: null })
+    expect(profileCreateFrom(COMPLETE, 2026)).toEqual({ name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: true, new_photos: [], password: null, parent_id: null })
   })
 
   it.each<[string, Partial<CreateProfileDraft>]>([
@@ -25,6 +26,10 @@ describe('profileCreateFrom', () => {
     ['an invalid password', { password: { password: 'abc', confirm: 'abc', remove: false } }],
   ])('is null with %s', (_, change) => {
     expect(profileCreateFrom({ ...COMPLETE, ...change }, 2026)).toBeNull()
+  })
+
+  it('links the new kid to the chosen parent', () => {
+    expect(profileCreateFrom({ ...COMPLETE, parentId: 2 }, 2026)?.parent_id).toBe(2)
   })
 
   it('uses a photo as the avatar when there is no animal, and sends the password', () => {

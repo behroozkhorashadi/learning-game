@@ -75,7 +75,7 @@ describe('bindProfilesApi', () => {
     }
     const api = bindProfilesApi({ fetch, baseUrl: '' })
     const auth = { kind: 'admin', password: 's' } as const
-    expect((await api.update(4, { name: 'B', new_photos: [], remove_password: false }, auth)).name).toBe('B')
+    expect((await api.update(4, { name: 'B', new_photos: [], remove_password: false, remove_parent: false }, auth)).name).toBe('B')
     await api.remove(4, auth)
     expect(await api.listPhotos(4, auth)).toHaveLength(1)
     await api.deletePhoto(4, 1, auth)

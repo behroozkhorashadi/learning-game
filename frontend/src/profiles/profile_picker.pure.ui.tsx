@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react'
+import type { ParentRecord } from '@app/api/parents_schema.pure.lib.ts'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { PENCIL_ICON } from '@app/den/icon_paths.pure.lib.ts'
 import type { QueryState } from '@app/query/query_state.pure.lib.ts'
+import { ParentBadge } from '@app/parents/parent_badge.pure.ui.tsx'
 import { ProfileAvatar } from './profile_avatar.pure.ui.tsx'
 
 /**
@@ -24,13 +26,19 @@ export interface ProfilePickerProps {
   readonly onAddPlayer: () => void
   readonly onEditProfile: (profile: ProfileRecord) => void
   readonly onOpenAdmin: () => void
+  /** A grown-up picked their name: they sign in to the parent dashboard. */
+  readonly onSelectParent: (parent: ParentRecord) => void
+  /** "I'm a parent": make a parent account. */
+  readonly onAddParent: () => void
 }
 
 export interface ProfilePickerViewProps extends ProfilePickerProps {
   readonly state: QueryState<readonly ProfileRecord[]>
+  /** The parent accounts, for the grown-ups row. A failure there only hides the row. */
+  readonly parents: QueryState<readonly ParentRecord[]>
 }
 
-export function ProfilePickerView({ state, onSelect, onAddPlayer, onEditProfile, onOpenAdmin }: ProfilePickerViewProps): ReactElement {
+export function ProfilePickerView({ state, parents, onSelect, onAddPlayer, onEditProfile, onOpenAdmin, onSelectParent, onAddParent }: ProfilePickerViewProps): ReactElement {
   const profiles = state.kind === 'loaded' ? state.data : []
   return (
     <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
@@ -113,6 +121,35 @@ export function ProfilePickerView({ state, onSelect, onAddPlayer, onEditProfile,
             </button>
           )}
         </div>
+
+        {state.kind === 'loaded' && parents.kind !== 'failed' && (
+          <div style={{ marginTop: 44, paddingTop: 24, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-tertiary)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Grown-ups</div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
+              {(parents.kind === 'loaded' ? parents.data : []).map((parent) => (
+                <button
+                  key={parent.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectParent(parent)
+                  }}
+                  aria-label={`Parent dashboard for ${parent.name}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 8px 8px', borderRadius: 9999, border: '2px solid var(--border-default)', background: 'var(--surface-default)', cursor: 'pointer' }}
+                >
+                  <ParentBadge name={parent.name} size={36} />
+                  <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--fg-primary)' }}>🔒 {parent.name}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={onAddParent}
+                style={{ padding: '10px 18px', borderRadius: 9999, border: '2px dashed var(--border-default)', background: 'var(--surface-subtle)', cursor: 'pointer', fontWeight: 700, fontSize: 16, color: 'var(--fg-secondary)' }}
+              >
+                I&apos;m a parent
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <button

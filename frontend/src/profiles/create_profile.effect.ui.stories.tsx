@@ -2,11 +2,12 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindCreateProfile } from './create_profile.effect.ui.tsx'
 import { bindProfilePhotoCapture } from './profile_photo_capture.effect.ui.tsx'
 import { fakeCamera, fakeRemix } from './profile_photo_fixtures.test.lib.ts'
 
-const NORA: ProfileRecord = { id: 3, name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false, has_password: false, created_at: null }
+const NORA: ProfileRecord = { id: 3, name: 'Nora', avatar: 'cat', birth_year: 2019, reading_support: false, has_password: false, created_at: null, parent_id: null }
 
 interface BoundProps {
   readonly create: 'succeeds' | 'fails'
@@ -20,9 +21,10 @@ function Bound({ create, onCreated }: BoundProps): ReactElement {
       createProfile: () => (create === 'succeeds' ? Promise.resolve(NORA) : Promise.reject(new Error('name must not be blank'))),
       PhotoCapture: bindProfilePhotoCapture({ camera: fakeCamera(), remixPhoto: fakeRemix().remixPhoto }),
       today: () => '2026-10-10',
+      listParents: () => Promise.resolve(PARENTS),
     }),
   )
-  return <CreateProfile onCreated={onCreated} onCancel={fn()} />
+  return <CreateProfile onCreated={onCreated} onCancel={fn()} onAddParent={fn()} />
 }
 
 const meta = {

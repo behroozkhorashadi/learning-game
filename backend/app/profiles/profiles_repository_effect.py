@@ -1,7 +1,9 @@
 """SQL storage for profiles over an injected engine. The tables keep the names and
 columns the app has always used (`profile`, `profilephoto`, `profilepassword`), so
 existing databases work unchanged. The password hash has its own table so it can never
-ride along in a serialized profile. Rows are parsed back through the records."""
+ride along in a serialized profile, and the link to a parent has its own
+(`profileparent`) so adding it needed no migration. Rows are parsed back through the
+records."""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -32,6 +34,7 @@ class SqlProfileRepository:
     profiles: Table
     photos: Table
     passwords: Table
+    parents: Table
     metadata: MetaData
 
     def create_schema(self) -> None:
@@ -77,6 +80,7 @@ class SqlProfileRepository:
         with self.engine.begin() as connection:
             connection.execute(delete(self.photos).where(self.photos.c.profile_id == profile_id))
             connection.execute(delete(self.passwords).where(self.passwords.c.profile_id == profile_id))
+            connection.execute(delete(self.parents).where(self.parents.c.profile_id == profile_id))
             connection.execute(delete(self.profiles).where(self.profiles.c.id == profile_id))
 
     def names(self, profile_ids: Sequence[int]) -> Mapping[int, str]:
@@ -135,6 +139,26 @@ class SqlProfileRepository:
         with self.engine.begin() as connection:
             connection.execute(delete(self.passwords).where(self.passwords.c.profile_id == profile_id))
 
+    def parent_links(self) -> Mapping[int, int]:
+        with self.engine.connect() as connection:
+            return {
+                int(row.profile_id): int(row.parent_id)
+                for row in connection.execute(select(self.parents.c.profile_id, self.parents.c.parent_id))
+            }
+
+    def set_parent(self, profile_id: int, parent_id: int) -> None:
+        with self.engine.begin() as connection:
+            connection.execute(delete(self.parents).where(self.parents.c.profile_id == profile_id))
+            connection.execute(insert(self.parents).values(profile_id=profile_id, parent_id=parent_id))
+
+    def clear_parent(self, profile_id: int) -> None:
+        with self.engine.begin() as connection:
+            connection.execute(delete(self.parents).where(self.parents.c.profile_id == profile_id))
+
+    def clear_parent_links(self, parent_id: int) -> None:
+        with self.engine.begin() as connection:
+            connection.execute(delete(self.parents).where(self.parents.c.parent_id == parent_id))
+
 
 def make_sql_profile_repository(*, engine: Engine) -> SqlProfileRepository:
     metadata = MetaData()
@@ -163,4 +187,12 @@ def make_sql_profile_repository(*, engine: Engine) -> SqlProfileRepository:
         Column("profile_id", Integer, ForeignKey("profile.id"), primary_key=True),
         Column("password_hash", String, nullable=False),
     )
-    return SqlProfileRepository(engine=engine, profiles=profiles, photos=photos, passwords=passwords, metadata=metadata)
+    parents = Table(
+        "profileparent",
+        metadata,
+        Column("profile_id", Integer, ForeignKey("profile.id"), primary_key=True),
+        Column("parent_id", Integer, nullable=False, index=True),
+    )
+    return SqlProfileRepository(
+        engine=engine, profiles=profiles, photos=photos, passwords=passwords, parents=parents, metadata=metadata
+    )

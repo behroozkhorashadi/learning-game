@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindEditProfile } from '@app/profiles/edit_profile.effect.ui.tsx'
 import { bindProfilePhotoCapture } from '@app/profiles/profile_photo_capture.effect.ui.tsx'
 import { fakeCamera, fakeRemix } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
@@ -10,8 +11,8 @@ import { bindAdminPanel, type AdminPanelProps } from './admin_panel.effect.ui.ts
 export const ADMIN_PASSWORD = 'parentcode123'
 
 export const PLAYERS: readonly ProfileRecord[] = [
-  { id: 1, name: 'Demo Kid', avatar: 'fox', birth_year: 2020, reading_support: false, has_password: false, created_at: null },
-  { id: 2, name: 'Rami', avatar: 'rami', birth_year: 2019, reading_support: false, has_password: true, created_at: null },
+  { id: 1, name: 'Demo Kid', avatar: 'fox', birth_year: 2020, reading_support: false, has_password: false, created_at: null, parent_id: null },
+  { id: 2, name: 'Rami', avatar: 'rami', birth_year: 2019, reading_support: false, has_password: true, created_at: null, parent_id: null },
 ]
 
 /** The admin panel bound over an in-memory server, the real edit screen, and a fixed clock. */
@@ -36,6 +37,7 @@ export function fakeAdminPanel(server: FakeProfilesServer = fakeProfilesServer({
       deletePhoto: server.deletePhoto,
       PhotoCapture: bindProfilePhotoCapture({ camera: fakeCamera(), remixPhoto: fakeRemix().remixPhoto }),
       today: () => '2026-10-10',
+      listParents: () => Promise.resolve(PARENTS),
     }),
     today: () => '2026-10-10',
   })

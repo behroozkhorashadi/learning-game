@@ -85,6 +85,16 @@ class SqlEventLog:
         with self.engine.connect() as connection:
             return tuple(connection.execute(query).scalars())
 
+    def for_profile(self, profile_id: int, event_types: Sequence[str]) -> tuple[Event, ...]:
+        """A profile's events of these types, oldest first."""
+        c = self.table.c
+        query = (
+            select(self.table)
+            .where(c.profile_id == profile_id, c.event_type.in_([EventType(t) for t in event_types]))
+            .order_by(c.timestamp)
+        )
+        return self._events(query)
+
     def delete_for_profile(self, profile_id: int) -> None:
         with self.engine.begin() as connection:
             connection.execute(delete(self.table).where(self.table.c.profile_id == profile_id))

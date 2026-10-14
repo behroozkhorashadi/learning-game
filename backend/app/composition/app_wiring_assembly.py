@@ -36,7 +36,7 @@ from app.armory.looks_routes_effect import bind_looks_routes
 from app.armory.looks_service_effect import make_looks_service
 from app.badges.badge_art_client_effect import make_no_badge_painter, make_openai_badge_painter
 from app.badges.badge_art_files_repository_effect import make_file_badge_art_store
-from app.badges.badges_ports_pure import BadgeArt, BadgeNeighbors
+from app.badges.badges_ports_pure import BadgeArt, BadgeNeighbors, BadgesService
 from app.badges.badges_repository_effect import make_sql_badge_repository
 from app.badges.badges_routes_effect import bind_badges_routes
 from app.badges.badges_schemas_pure import Activity, ActivityAttempt, BadgeArtImage
@@ -46,7 +46,19 @@ from app.crash_reports.crash_reports_repository_effect import make_file_client_e
 from app.crash_reports.crash_reports_routes_effect import bind_crash_reports_routes
 from app.crash_reports.crash_reports_service_effect import make_crash_reports_service
 from app.events.events_repository_effect import SqlEventLog, make_sql_event_log
-from app.pathfinder.pathfinder_repository_effect import make_sql_pathfinder_repository
+from app.parents.parents_ports_pure import ParentNeighbors
+from app.parents.parents_repository_effect import make_sql_parent_repository
+from app.parents.parents_routes_effect import bind_parents_routes
+from app.parents.parents_schemas_pure import (
+    BadgeEarned,
+    GameInfo,
+    HistoryAttempt,
+    Kid,
+    KidHistory,
+    LevelChange,
+)
+from app.parents.parents_service_effect import make_parents_service
+from app.pathfinder.pathfinder_repository_effect import SqlPathfinderRepository, make_sql_pathfinder_repository
 from app.pathfinder.pathfinder_routes_effect import bind_pathfinder_routes
 from app.pathfinder.pathfinder_service_effect import make_pathfinder_service
 from app.pieces.illustrations_repository_effect import make_file_illustration_store
@@ -57,6 +69,7 @@ from app.pieces.pieces_routes_effect import bind_pieces_routes
 from app.pieces.pieces_service_effect import make_pieces_service
 from app.play.games.arithmetic_reducers_pure import ALL_OPERATORS
 from app.play.games.catalog_reducers_pure import game_catalog
+from app.play.games.game_module_reducers_pure import GameModule
 from app.play.play_ports_pure import PlayNeighbors, PlayService
 from app.play.play_repository_effect import SqlPlayRepository, make_sql_play_repository
 from app.play.play_routes_effect import bind_play_routes
@@ -70,10 +83,10 @@ from app.profiles.photo_remix_client_effect import make_openai_photo_remixer, ma
 from app.profiles.photo_remix_service_effect import make_photo_remix_service
 from app.profiles.profile_passwords_service_effect import make_scrypt_password_hasher
 from app.profiles.profile_photos_repository_effect import make_file_photo_store
-from app.profiles.profiles_ports_pure import PhotoRemixer
+from app.profiles.profiles_ports_pure import PhotoRemixer, ProfileNeighbors
 from app.profiles.profiles_repository_effect import make_sql_profile_repository
 from app.profiles.profiles_routes_effect import bind_profiles_routes
-from app.profiles.profiles_schemas_pure import AvatarImage, LocalSeedProfile, ProfileRecord
+from app.profiles.profiles_schemas_pure import AvatarImage, LocalSeedProfile, ProfileRead, ProfileRecord
 from app.profiles.profiles_service_effect import make_profiles_service
 from app.replays.replays_repository_effect import make_sql_replay_repository
 from app.replays.replays_routes_effect import bind_replays_routes
@@ -91,9 +104,14 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def local_time(moment: datetime) -> datetime:
+    """A stored (naive UTC) moment on this machine's clock (the family's)."""
+    return (moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)).astimezone()
+
+
 def local_day(moment: datetime) -> date:
     """The day on this machine's calendar (the family's): stored times are naive UTC."""
-    return (moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)).astimezone().date()
+    return local_time(moment).date()
 
 
 def assemble_engine(settings: AppSettings) -> Engine:
@@ -137,6 +155,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
     profile_repository = make_sql_profile_repository(engine=engine)
     armory_repository = make_sql_armory_repository(engine=engine)
     replay_repository = make_sql_replay_repository(engine=engine)
+    parent_repository = make_sql_parent_repository(engine=engine)
     for create_schema in (
         events.create_schema,
         practice_configs.create_schema,
@@ -147,6 +166,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         profile_repository.create_schema,
         armory_repository.create_schema,
         replay_repository.create_schema,
+        parent_repository.create_schema,
     ):
         create_schema()
 
@@ -163,14 +183,18 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         ):
             delete_for_profile(profile_id)
 
+    hasher = make_scrypt_password_hasher(new_salt=lambda: os.urandom(16))
     profiles = make_profiles_service(
         repository=profile_repository,
         photo_store=make_file_photo_store(
             directory=settings.static_dir / "profile-avatars", new_name=lambda: uuid4().hex
         ),
-        hasher=make_scrypt_password_hasher(new_salt=lambda: os.urandom(16)),
-        is_admin_password=admin.is_admin_password,
-        erase_profile_data=erase_profile_data,
+        hasher=hasher,
+        neighbors=ProfileNeighbors(
+            is_admin_password=admin.is_admin_password,
+            erase_profile_data=erase_profile_data,
+            parent_exists=lambda parent_id: parent_repository.get(parent_id) is not None,
+        ),
         clock=utc_now,
     )
     remix = make_photo_remix_service(remixer=assemble_photo_remixer(settings))
@@ -191,6 +215,21 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
         local_day=local_day,
     )
     app.include_router(bind_badges_routes(service=badges))
+
+    parents = make_parents_service(
+        repository=parent_repository,
+        hasher=hasher,
+        neighbors=ParentNeighbors(
+            kids_of=lambda parent_id: tuple(kid_of(p) for p in profiles.kids_of(parent_id)),
+            history=lambda profile_id: kid_history(play_repository, events, badges, pathfinder, profile_id),
+            unlink_kids=profiles.unlink_parent,
+            games={game_id: game_info(game) for game_id, game in catalog.items()},
+            is_admin_password=admin.is_admin_password,
+        ),
+        clock=utc_now,
+        local_time=local_time,
+    )
+    app.include_router(bind_parents_routes(service=parents))
 
     def award_badges(profile_id: int, session_id: str | None) -> None:
         badges.evaluate(profile_id, session_id)
@@ -391,4 +430,69 @@ def activity_of(play: SqlPlayRepository, pieces: SqlPieceRepository, events: Sql
         piece_game_ids=pieces.game_ids_for(profile_id),
         rating_values=play.rating_values(profile_id),
         event_timestamps=events.timestamps(profile_id),
+    )
+
+
+def kid_of(profile: ProfileRead) -> Kid:
+    return Kid(profile_id=profile.id or 0, name=profile.name, avatar=profile.avatar, birth_year=profile.birth_year)
+
+
+def game_info(game: GameModule) -> GameInfo:
+    meta = game.metadata
+    return GameInfo(
+        game_id=meta.id, title=meta.title, icon=meta.icon, max_level=meta.max_level, skill_ids=tuple(meta.skill_ids)
+    )
+
+
+# What a parent's report counts as the kid doing something (badges, ratings, and
+# verifications happen around play, not as play).
+PLAY_EVENT_TYPES: Final = ("item_shown", "attempt", "difficulty_changed", "piece_created", "piece_revised")
+
+
+def kid_history(
+    play: SqlPlayRepository,
+    events: SqlEventLog,
+    badges: BadgesService,
+    pathfinder: SqlPathfinderRepository,
+    profile_id: int,
+) -> KidHistory:
+    played = events.for_profile(profile_id, PLAY_EVENT_TYPES)
+    return KidHistory(
+        attempts=tuple(
+            HistoryAttempt(
+                game_id=a.game_id,
+                item_id=a.item_id,
+                level=a.level,
+                correct=a.correct,
+                hints_used=a.hints_used,
+                time_ms=a.time_ms,
+                details=a.details,
+                created_at=a.created_at,
+            )
+            for a in play.attempts_for_profile(profile_id)
+        ),
+        shown_items=tuple(e.payload for e in played if e.event_type.value == "item_shown"),
+        actions=tuple((e.timestamp, e.game_id) for e in played),
+        level_changes=tuple(
+            level_change(e.game_id, e.timestamp, e.payload)
+            for e in played
+            if e.event_type.value == "difficulty_changed"
+        ),
+        ratings=play.ratings_for(profile_id),
+        badges=tuple(
+            BadgeEarned(name=b.name, tier=b.tier, awarded_at=b.awarded_at)
+            for b in badges.badges_for(profile_id)
+            if b.earned and b.awarded_at is not None
+        ),
+        pathfinder_completions=pathfinder.completion_times(profile_id),
+    )
+
+
+def level_change(game_id: str, at: datetime, payload: dict[str, object]) -> LevelChange:
+    before, after = payload.get("from"), payload.get("to")
+    return LevelChange(
+        game_id=game_id,
+        at=at,
+        before=before if isinstance(before, int) else 0,
+        after=after if isinstance(after, int) else 0,
     )

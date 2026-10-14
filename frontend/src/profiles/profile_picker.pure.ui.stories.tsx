@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { LOADING, failed, loaded } from '@app/query/query_state.pure.lib.ts'
+import { MOM, PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { PROFILES, RAMI } from './profile_fixtures.test.lib.ts'
 import { ProfilePickerView } from './profile_picker.pure.ui.tsx'
 
@@ -8,7 +9,7 @@ const meta = {
   title: 'app/profiles/ProfilePickerView',
   component: ProfilePickerView,
   parameters: { layout: 'fullscreen' },
-  args: { state: loaded(PROFILES), onSelect: fn(), onAddPlayer: fn(), onEditProfile: fn(), onOpenAdmin: fn() },
+  args: { state: loaded(PROFILES), parents: loaded(PARENTS), onSelect: fn(), onAddPlayer: fn(), onEditProfile: fn(), onOpenAdmin: fn(), onSelectParent: fn(), onAddParent: fn() },
 } satisfies Meta<typeof ProfilePickerView>
 
 export default meta
@@ -22,6 +23,10 @@ export const Loaded: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Edit Rami' }))
     await expect(args.onEditProfile).toHaveBeenCalledWith(RAMI)
     await expect(canvas.getByRole('button', { name: 'Play as Nora (needs a password)' })).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Parent dashboard for Mom' }))
+    await expect(args.onSelectParent).toHaveBeenCalledWith(MOM)
+    await userEvent.click(canvas.getByRole('button', { name: "I'm a parent" }))
+    await expect(args.onAddParent).toHaveBeenCalled()
   },
 }
 

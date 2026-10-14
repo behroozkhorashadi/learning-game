@@ -76,6 +76,29 @@ describe('the app shell', () => {
     expect(on('GamePicker')).toBeTruthy()
   })
 
+  it('a grown-up signs in from the picker to their dashboard, with no badge fanfare, and signs out', () => {
+    renderApp()
+    press('onSelectParent')
+    expect(on('ParentLogin').textContent).toContain('"name":"Mom"')
+    press('onSignedIn')
+    expect(on('ParentDashboard').textContent).toContain('password: "mom-pw"')
+    expect(screen.queryByRole('region', { name: 'BadgeCelebrations' })).toBeNull()
+    press('onSignOut')
+    expect(on('ProfilePicker')).toBeTruthy()
+  })
+
+  it('"I\'m a parent" from the picker or the create screen makes a parent and opens their dashboard', () => {
+    renderApp()
+    press('onAddParent')
+    press('onCancel')
+    expect(on('ProfilePicker')).toBeTruthy()
+    press('onAddPlayer')
+    press('onAddParent')
+    expect(on('CreateParent')).toBeTruthy()
+    press('onCreated')
+    expect(on('ParentDashboard').textContent).toContain('password: "pw"')
+  })
+
   it('renders the overlay over every screen', () => {
     const App = bindApp({ screens: STUB_SCREENS, Overlay: () => <a href="?screen=index">Dev screens</a> })
     render(<App />)

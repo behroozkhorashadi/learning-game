@@ -19,6 +19,8 @@ def test_update_fields_are_all_optional() -> None:
         "new_photos": [],
         "password": None,
         "remove_password": False,
+        "parent_id": None,
+        "remove_parent": False,
     }
 
 

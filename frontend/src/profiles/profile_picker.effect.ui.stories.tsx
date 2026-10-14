@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
 import { expect, fn, within } from 'storybook/test'
+import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { PROFILES } from './profile_fixtures.test.lib.ts'
 import { bindProfilePicker } from './profile_picker.effect.ui.tsx'
 
@@ -11,9 +12,10 @@ function Bound({ list }: { readonly list: ListMode }): ReactElement {
   const [ProfilePicker] = useState(() =>
     bindProfilePicker({
       listProfiles: () => (list === 'succeeds' ? Promise.resolve(PROFILES) : Promise.reject(new Error('GET /api/profiles failed with HTTP 503'))),
+      listParents: () => Promise.resolve(PARENTS),
     }),
   )
-  return <ProfilePicker onSelect={fn()} onAddPlayer={fn()} onEditProfile={fn()} onOpenAdmin={fn()} />
+  return <ProfilePicker onSelect={fn()} onAddPlayer={fn()} onEditProfile={fn()} onOpenAdmin={fn()} onSelectParent={fn()} onAddParent={fn()} />
 }
 
 const meta = {

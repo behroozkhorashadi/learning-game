@@ -1,8 +1,12 @@
-"""Startup seeding, the demo-profile policy, and the read access other features use."""
+"""Startup seeding, the demo-profile policy, the read access other features use, and
+linking a kid to a parent."""
 
 from pathlib import Path
 
-from app.profiles.profiles_schemas_pure import LocalSeedProfile, NewProfile, ProfileCreate
+import pytest
+
+from app.profiles.profiles_ports_pure import InvalidProfileError
+from app.profiles.profiles_schemas_pure import LocalSeedProfile, NewProfile, ProfileCreate, ProfileUpdate
 from tests.profiles.profiles_fakes import START, YEAR, harness
 
 
@@ -59,3 +63,33 @@ def test_lookups_for_other_features(tmp_path: Path) -> None:
     assert setup.service.birth_year(ada.id) == YEAR - 7
     assert setup.service.birth_year(99) is None
     assert setup.service.names([ada.id, 99]) == {ada.id: "Ada"}
+
+
+def test_kids_link_to_a_known_parent_and_can_move_or_unlink(tmp_path: Path) -> None:
+    setup = harness(tmp_path)
+    ada = setup.service.create_profile(_create("Ada").model_copy(update={"parent_id": 10}))
+    bo = setup.service.create_profile(_create("Bo"))
+    assert ada.id is not None
+    assert bo.id is not None
+    assert (ada.parent_id, bo.parent_id) == (10, None)
+    assert [k.name for k in setup.service.kids_of(10)] == ["Ada"]
+
+    moved = setup.service.update_profile(bo.id, ProfileUpdate(parent_id=10), None, None)
+    assert moved.parent_id == 10
+    assert [k.name for k in setup.service.kids_of(10)] == ["Ada", "Bo"]
+    unlinked = setup.service.update_profile(bo.id, ProfileUpdate(remove_parent=True), None, None)
+    assert unlinked.parent_id is None
+
+    setup.service.unlink_parent(10)
+    assert setup.service.kids_of(10) == ()
+
+
+def test_linking_to_an_unknown_parent_or_both_link_and_unlink_is_rejected(tmp_path: Path) -> None:
+    setup = harness(tmp_path)
+    with pytest.raises(InvalidProfileError, match="no parent with id 99"):
+        setup.service.create_profile(_create("Ada").model_copy(update={"parent_id": 99}))
+    assert setup.service.list_profiles() == ()
+    ada = setup.service.create_profile(_create("Ada"))
+    assert ada.id is not None
+    with pytest.raises(InvalidProfileError, match="either parent_id or remove_parent"):
+        setup.service.update_profile(ada.id, ProfileUpdate(parent_id=10, remove_parent=True), None, None)
