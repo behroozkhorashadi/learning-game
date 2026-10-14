@@ -39,7 +39,7 @@ if ! curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/profiles >/dev/
 fi
 
 cd "$repo_root/frontend"
-npx vite --port "$port" --host "${FIGMA_DEV_SERVER_HOST:-0.0.0.0}" --strictPort &
+"$repo_root/frontend/node_modules/.bin/vite" --port "$port" --host "${FIGMA_DEV_SERVER_HOST:-0.0.0.0}" --strictPort &
 frontend_pid=$!
 
 # Exit (and let the trap stop the survivor) as soon as either server dies.
