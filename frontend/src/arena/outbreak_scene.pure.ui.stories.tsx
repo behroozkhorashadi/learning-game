@@ -61,7 +61,8 @@ export const FourZombiesApproach: Story = {
     await waitFor(async () => {
       await expect(args.onZombieReady).toHaveBeenCalledTimes(4)
     })
-    await expect(within(canvasElement).getByText('7')).toBeVisible()
+    // The answer labels render a frame or more after the zombies report ready; wait, so a busy machine doesn't fail it.
+    await expect(await within(canvasElement).findByText('7')).toBeVisible()
   },
 }
 
