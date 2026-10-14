@@ -9,6 +9,7 @@ import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 import type { Speech } from '@app/speech/speech_state.pure.lib.ts'
+import { useReadAloud } from '@app/speech/use_read_aloud.pure.hook.ts'
 import { TileBoard } from '@app/tiles/tile_board.pure.ui.tsx'
 import { SYLLABLE_CONFIG, SYLLABLE_GAME_ID, syllableBoard, type SyllablePayload } from './syllable_item.pure.lib.ts'
 import { WordPicture } from './word_picture.pure.ui.tsx'
@@ -41,6 +42,7 @@ export function bindSyllableBuilder({ practice, speech }: SyllableBuilderDeps): 
   function SyllableBuilder({ profileId, profileName, onBack }: SyllableBuilderProps): ReactElement {
     const game = usePracticeSession(practice, SYLLABLE_CONFIG, profileId)
     const { session, item } = game
+    const instructions = useReadAloud(speech, INSTRUCTIONS, session.phase === 'start')
     const word = item?.payload.target_word ?? null
 
     return (
@@ -63,9 +65,8 @@ export function bindSyllableBuilder({ practice, speech }: SyllableBuilderDeps): 
               eyebrow="Word building"
               headline="Let's build some words"
               subtitle={INSTRUCTIONS}
-              onHearInstructions={() => {
-                speech.speakText(INSTRUCTIONS)
-              }}
+              readingInstructions={instructions.reading}
+              onHearInstructions={instructions.toggle}
               sessionLength={SYLLABLE_CONFIG.sessionLength}
               heroSrc={`/images/badges/${SYLLABLE_GAME_ID}.png`}
               onStart={game.start}

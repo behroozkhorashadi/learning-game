@@ -17,6 +17,7 @@ const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
 const SPEAKER_ICON = [
   'M15.75 10.75C15.75 10.75 16.25 11.234 16.25 12C16.25 12.766 15.75 13.25 15.75 13.25M17.75 7.75C17.75 7.75 19.25 9 19.25 11.999C19.25 14.997 17.75 16.25 17.75 16.25M13.25 4.75L8.5 8.75H5.75C5.48478 8.75 5.23043 8.85536 5.04289 9.04289C4.85536 9.23043 4.75 9.48478 4.75 9.75V14.25C4.75 14.5152 4.85536 14.7696 5.04289 14.9571C5.23043 15.1446 5.48478 15.25 5.75 15.25H8.5L13.25 19.25V4.75Z',
 ]
+const STOP_ICON = [{ d: 'M7.75 7.75H16.25V16.25H7.75V7.75Z', fill: 'currentColor' }]
 const PLAY_ICON = [{ d: 'M7.75 5.5L18.25 12L7.75 18.5V5.5Z', fill: '#FFFFFF' }]
 
 export interface HordeStartProps {
@@ -27,6 +28,9 @@ export interface HordeStartProps {
   readonly onChooseDifficulty: (difficulty: Difficulty) => void
   /** The longest round this profile has lasted on each difficulty; 0 before its first. */
   readonly bestMs: Readonly<Record<Difficulty, number>>
+  /** True while the instructions are being read; the speaker button then stops them. */
+  readonly readingInstructions: boolean
+  /** Reads the instructions aloud, or stops reading them. */
   readonly onHearInstructions: () => void
   readonly onStart: () => void
   /** Opens the art studio, or null while it can't be opened (the armory hasn't loaded). */
@@ -34,7 +38,7 @@ export interface HordeStartProps {
   readonly onBack: () => void
 }
 
-export function HordeStart({ shop, starting, difficulty, onChooseDifficulty, bestMs, onHearInstructions, onStart, onOpenStudio, onBack }: HordeStartProps): ReactElement {
+export function HordeStart({ shop, starting, difficulty, onChooseDifficulty, bestMs, readingInstructions, onHearInstructions, onStart, onOpenStudio, onBack }: HordeStartProps): ReactElement {
   const best = bestMs[difficulty]
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: 760, background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '40px 32px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14)', textAlign: 'center', boxSizing: 'border-box' }}>
@@ -69,7 +73,7 @@ export function HordeStart({ shop, starting, difficulty, onChooseDifficulty, bes
         })}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28 }}>
-        <DenButton label="Hear how to play" variant="softBlue" shape="pill" size="xl" iconOnly iconPaths={SPEAKER_ICON} onClick={onHearInstructions} />
+        <DenButton label={readingInstructions ? 'Stop reading' : 'Hear how to play'} variant="softBlue" shape="pill" size="xl" iconOnly iconPaths={readingInstructions ? STOP_ICON : SPEAKER_ICON} onClick={onHearInstructions} />
         <DenButton label={starting ? 'Loading…' : 'Start'} variant="blue" shape="pill" size="xl" lipColor="#0037DB" iconPaths={PLAY_ICON} disabled={starting} onClick={onStart} />
       </div>
       {best > 0 && (

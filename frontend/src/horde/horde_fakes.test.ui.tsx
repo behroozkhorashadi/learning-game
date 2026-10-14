@@ -218,6 +218,8 @@ export interface HordeHarness {
   readonly armory: FakeArmory
   /** Every recording saved, in order. */
   readonly replays: readonly Recording[]
+  /** What the voice is reading right now, or null when it's quiet. */
+  readonly nowReading: () => string | null
 }
 
 export interface HordeHarnessOptions {
@@ -241,6 +243,13 @@ export function hordeHarness({ approachMs = 60_000, travelMs = 600_000, armory =
   const replays: Recording[] = []
   let items = 0
   let sessions = 0
+  // A voice that keeps reading until it's stopped.
+  let reading: { readonly text: string; readonly onEnd: (() => void) | undefined } | null = null
+  const stopSpeaking = (): void => {
+    const was = reading
+    reading = null
+    was?.onEnd?.()
+  }
   const ZombieHorde = bindZombieHorde({
     nextItem: () => (nextItemFails === undefined ? Promise.resolve(hordeItem(items++, approachMs)) : Promise.reject(new Error(nextItemFails))),
     recordAttempt: (attempt) => {
@@ -264,7 +273,13 @@ export function hordeHarness({ approachMs = 60_000, travelMs = 600_000, armory =
     Viewport,
     ArtStudio: bindArtStudio({ camera: fakeCamera(), gallery: armory.gallery, createArt: armory.createArt }),
     motion,
-    speakText: () => undefined,
+    readAloud: {
+      speakText: (text, onEnd) => {
+        stopSpeaking()
+        reading = { text, onEnd }
+      },
+      stopSpeaking,
+    },
   })
-  return { ZombieHorde, scheduler, audio, attempts, armory, replays }
+  return { ZombieHorde, scheduler, audio, attempts, armory, replays, nowReading: () => reading?.text ?? null }
 }

@@ -7,6 +7,8 @@ import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_
 import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
+import type { ReadAloud } from '@app/speech/speech_state.pure.lib.ts'
+import { useReadAloud } from '@app/speech/use_read_aloud.pure.hook.ts'
 import { ArenaPerformanceSummary } from './arena_performance_summary.pure.ui.tsx'
 import { containerAnimation, isGamePhase, ANSWER_FEEDBACK_MS } from './arena_session.pure.lib.ts'
 import { useArenaSession, type ArenaSessionDeps } from './use_arena_session.pure.hook.ts'
@@ -35,8 +37,8 @@ export interface ZombieArenaDeps extends ArenaSessionDeps {
   readonly Viewport: ComponentType<OutbreakViewportProps>
   readonly motion: MotionPreference
   readonly debug: ArenaDebug
-  /** Reads the instructions aloud. */
-  readonly speakText: (text: string) => void
+  /** Reads the instructions aloud, and stops them. */
+  readonly readAloud: ReadAloud
   /** For the dev weapon tuning panel's "copy config". */
   readonly copyText: (text: string) => Promise<void>
 }
@@ -46,7 +48,7 @@ const MUTED_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 8.5L21 15
 const SOUND_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 9C17.8 9.7 18.25 10.8 18.25 12C18.25 13.2 17.8 14.3 17 15']
 
 export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieArenaProps> {
-  const { brain, weapon, Viewport, motion, debug, speakText, copyText } = deps
+  const { brain, weapon, Viewport, motion, debug, readAloud, copyText } = deps
 
   function ZombieArena({ profileId, onBack }: ZombieArenaProps): ReactElement {
     const session = useArenaSession(deps, profileId)
@@ -55,6 +57,7 @@ export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieAren
     const inputEnabled = phase === 'playing'
     const wavePhase = phase === 'intro' ? 'intro' : 'playing'
     const gameView = isGamePhase(phase)
+    const instructions = useReadAloud(readAloud, brain.copy.subtitle, phase === 'start')
 
     return (
       <div style={{ width: '100%', height: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', overflow: 'hidden', display: 'flex' }}>
@@ -83,9 +86,8 @@ export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieAren
               eyebrow="Speed round"
               headline={brain.copy.title}
               subtitle={brain.copy.subtitle}
-              onHearInstructions={() => {
-                speakText(brain.copy.subtitle)
-              }}
+              readingInstructions={instructions.reading}
+              onHearInstructions={instructions.toggle}
               sessionLength={brain.sessionLength}
               heroSrc={`/images/badges/${brain.gameId}.png`}
               onStart={session.start}

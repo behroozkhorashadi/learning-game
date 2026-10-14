@@ -8,7 +8,7 @@ import { SYLLABLE_GAME_ID } from './syllable_item.pure.lib.ts'
 
 /** The real bound game over an in-memory practice loop. */
 function Bound(): ReactElement {
-  const [SyllableBuilder] = useState(() => bindSyllableBuilder({ practice: fakePractice(SYLLABLE_GAME_ID, SESSION_WORDS).deps, speech: { speakText: fn(), speakWord: fn() } }))
+  const [SyllableBuilder] = useState(() => bindSyllableBuilder({ practice: fakePractice(SYLLABLE_GAME_ID, SESSION_WORDS).deps, speech: { speakText: fn(), stopSpeaking: fn(), speakWord: fn() } }))
   return <SyllableBuilder profileId={1} profileName="Mia" onBack={fn()} />
 }
 

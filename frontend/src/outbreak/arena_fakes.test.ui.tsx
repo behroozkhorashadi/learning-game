@@ -235,7 +235,7 @@ export function arenaHarness({ approachMs = 8000, motion = NO_MOTION_PREFERENCE,
     Viewport,
     motion,
     debug,
-    speakText: () => undefined,
+    readAloud: { speakText: () => undefined, stopSpeaking: () => undefined },
     copyText: () => Promise.resolve(),
   })
   return { ZombieArena, scheduler, audio, attempts, ratings, rosterPicks: () => picks }

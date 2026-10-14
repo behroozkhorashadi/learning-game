@@ -11,7 +11,7 @@ function Bound({ screen }: { readonly screen: string }): ReactElement {
   const [screens] = useState(() =>
     bindDevScreens({
   standalone: [],
-  speech: { speakText: () => undefined, speakWord: () => undefined },
+  speech: { speakText: () => undefined, stopSpeaking: () => undefined, speakWord: () => undefined },
   log: () => undefined,
   ProfilePicker: NONE,
   CreateProfile: NONE,

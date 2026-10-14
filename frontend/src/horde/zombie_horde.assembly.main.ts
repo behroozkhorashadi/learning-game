@@ -63,6 +63,6 @@ export function assembleZombieHorde(): ComponentType<ZombieHordeProps> {
       createArt: armory.createArt,
     }),
     motion: assembleMotionPreference(),
-    speakText: assembleSpeech().speakText,
+    readAloud: assembleSpeech(),
   })
 }

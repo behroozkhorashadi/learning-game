@@ -5,17 +5,26 @@ import { bindSpeech } from './speech.effect.lib.ts'
 function fakeVoice() {
   const said: { text: string; rate: number; pitch: number }[] = []
   let cancels = 0
+  const spoken: SpeechSynthesisUtterance[] = []
   const synthesis = {
     cancel: (): void => {
       cancels += 1
     },
     speak: (u: SpeechSynthesisUtterance): void => {
+      spoken.push(u)
       said.push({ text: u.text, rate: u.rate, pitch: u.pitch })
     },
   }
   // jsdom has no SpeechSynthesisUtterance; the fields bindSpeech sets are all it reads. Cast confined to this test helper.
-  const makeUtterance = (text: string) => ({ text, rate: 1, pitch: 1 }) as SpeechSynthesisUtterance
-  return { synthesis, makeUtterance, said, cancels: () => cancels }
+  const makeUtterance = (text: string) => ({ text, rate: 1, pitch: 1, onend: null, onerror: null }) as SpeechSynthesisUtterance
+  /** Fires the browser's `end` event on the nth utterance spoken. */
+  const finish = (n: number): void => {
+    const u = spoken[n]
+    if (u === undefined) throw new Error(`no utterance ${String(n)}`)
+    // jsdom has no SpeechSynthesisEvent; bindSpeech's handlers never read the event. Cast confined to this test helper.
+    u.onend?.call(u, new Event('end') as SpeechSynthesisEvent)
+  }
+  return { synthesis, makeUtterance, said, cancels: () => cancels, finish }
 }
 
 const flush = (): Promise<void> => new Promise((resolve) => queueMicrotask(resolve))
@@ -26,6 +35,28 @@ describe('bindSpeech', () => {
     bindSpeech({ ...voice, playClip: () => Promise.resolve() }).speakText('Tap Start')
     expect(voice.said).toEqual([{ text: 'Tap Start', rate: 0.85, pitch: 1.1 }])
     expect(voice.cancels()).toBe(1)
+  })
+
+  it('tells the caller once when reading ends, however it ends', () => {
+    const voice = fakeVoice()
+    const speech = bindSpeech({ ...voice, playClip: () => Promise.resolve() })
+    const ends: string[] = []
+    speech.speakText('one', () => ends.push('one'))
+    voice.finish(0)
+    voice.finish(0)
+    speech.speakText('two', () => ends.push('two'))
+    speech.stopSpeaking()
+    voice.finish(1)
+    speech.speakText('three', () => ends.push('three'))
+    speech.speakText('four', () => ends.push('four'))
+    expect(ends).toEqual(['one', 'two', 'three'])
+    expect(voice.cancels()).toBe(5)
+  })
+
+  it("ends at once where there's no voice", () => {
+    const ends: string[] = []
+    bindSpeech({ synthesis: null, makeUtterance: fakeVoice().makeUtterance, playClip: () => Promise.resolve() }).speakText('hi', () => ends.push('hi'))
+    expect(ends).toEqual(['hi'])
   })
 
   it("plays the word's clip and doesn't use the voice when the clip plays", async () => {

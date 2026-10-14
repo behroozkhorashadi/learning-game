@@ -6,6 +6,7 @@ import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
 import { SessionStart } from '@app/session/session_start.pure.ui.tsx'
 import type { Speech } from '@app/speech/speech_state.pure.lib.ts'
+import { useReadAloud } from '@app/speech/use_read_aloud.pure.hook.ts'
 import { TileBoard } from '@app/tiles/tile_board.pure.ui.tsx'
 import { EquationDisplay } from './equation_display.pure.ui.tsx'
 import { EQUATION_CONFIG, EQUATION_GAME_ID, equationBoard, type EquationPayload } from './equation_item.pure.lib.ts'
@@ -33,6 +34,7 @@ export function bindEquationBuilder({ practice, speech }: EquationBuilderDeps): 
   function EquationBuilder({ profileId, onBack }: EquationBuilderProps): ReactElement {
     const game = usePracticeSession(practice, EQUATION_CONFIG, profileId)
     const { session, item } = game
+    const instructions = useReadAloud(speech, INSTRUCTIONS, session.phase === 'start')
 
     return (
       <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '32px 24px 56px' }}>
@@ -54,9 +56,8 @@ export function bindEquationBuilder({ practice, speech }: EquationBuilderDeps): 
               eyebrow="Number sense"
               headline="Let's build some equations"
               subtitle={INSTRUCTIONS}
-              onHearInstructions={() => {
-                speech.speakText(INSTRUCTIONS)
-              }}
+              readingInstructions={instructions.reading}
+              onHearInstructions={instructions.toggle}
               sessionLength={EQUATION_CONFIG.sessionLength}
               heroSrc={`/images/badges/${EQUATION_GAME_ID}.png`}
               onStart={game.start}

@@ -130,6 +130,7 @@ export function bindDevScreens(d: DevScreensDeps): readonly DevScreen[] {
           eyebrow="Word building"
           headline="Let's build some words"
           subtitle={instructions}
+          readingInstructions={false}
           onHearInstructions={() => { speech.speakText(instructions) }}
           sessionLength={5}
           heroSrc="/images/badges/syllable_builder.png"

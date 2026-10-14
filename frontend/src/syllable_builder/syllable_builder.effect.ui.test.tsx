@@ -10,7 +10,7 @@ afterEach(cleanup)
 
 function renderGame(payloads = SESSION_WORDS) {
   const practice = fakePractice(SYLLABLE_GAME_ID, payloads)
-  const speech: Speech = { speakText: vi.fn(), speakWord: vi.fn() }
+  const speech: Speech = { speakText: vi.fn(), stopSpeaking: vi.fn(), speakWord: vi.fn() }
   const SyllableBuilder = bindSyllableBuilder({ practice: practice.deps, speech })
   const onBack = vi.fn()
   render(<SyllableBuilder profileId={1} profileName="Mia" onBack={onBack} />)
@@ -54,11 +54,14 @@ describe('SyllableBuilder', () => {
     expect(practice.ratings).toEqual([4])
   })
 
-  it('reads the instructions and the word aloud', async () => {
+  it('reads the instructions (stopping them on Start) and the word aloud', async () => {
     const { speech } = renderGame()
     fireEvent.click(screen.getByRole('button', { name: 'Hear how to play' }))
-    expect(speech.speakText).toHaveBeenCalledWith(expect.stringContaining('Slide the sounds together'))
+    expect(speech.speakText).toHaveBeenCalledWith(expect.stringContaining('Slide the sounds together'), expect.any(Function))
+    expect(speech.stopSpeaking).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    // Starting cuts the instructions off.
+    expect(speech.stopSpeaking).toHaveBeenCalledTimes(1)
     fireEvent.click(await screen.findByRole('button', { name: 'Hear the word' }))
     expect(speech.speakWord).toHaveBeenCalledWith('elephant')
   })

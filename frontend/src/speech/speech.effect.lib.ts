@@ -16,21 +16,54 @@ export interface SpeechDeps {
 }
 
 export function bindSpeech({ synthesis, makeUtterance, playClip }: SpeechDeps): Speech {
-  function speakWithVoice(text: string): void {
-    if (synthesis === null) return
+  // The current utterance's end callback, so stopping or replacing it ends it exactly once.
+  let endCurrent: (() => void) | null = null
+
+  function finishCurrent(): void {
+    const end = endCurrent
+    endCurrent = null
+    end?.()
+  }
+
+  function stopSpeaking(): void {
+    finishCurrent()
     try {
-      const utterance = makeUtterance(text)
-      utterance.rate = 0.85
-      utterance.pitch = 1.1
-      synthesis.cancel()
-      synthesis.speak(utterance)
+      synthesis?.cancel()
     } catch {
       // Speech is a nice-to-have; ignore a browser that refuses.
     }
   }
 
+  function speakWithVoice(text: string, onEnd?: () => void): void {
+    stopSpeaking()
+    if (synthesis === null) {
+      onEnd?.()
+      return
+    }
+    const mine = (): void => {
+      onEnd?.()
+    }
+    endCurrent = mine
+    // A late event from an utterance that was already stopped or replaced ends nothing.
+    const ended = (): void => {
+      if (endCurrent === mine) finishCurrent()
+    }
+    try {
+      const utterance = makeUtterance(text)
+      utterance.rate = 0.85
+      utterance.pitch = 1.1
+      utterance.onend = ended
+      utterance.onerror = ended
+      synthesis.speak(utterance)
+    } catch {
+      // Speech is a nice-to-have; a browser that refuses just ends it.
+      ended()
+    }
+  }
+
   return {
     speakText: speakWithVoice,
+    stopSpeaking,
     speakWord: (word) => {
       const slug = wordClipSlug(word)
       if (slug === null) return

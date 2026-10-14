@@ -56,6 +56,22 @@ describe('ZombieHorde: the start screen', () => {
     expect(blasters.getByText('Needs Rapid Blaster')).toBeTruthy()
   })
 
+  it('reads how to play aloud, and a second tap stops it', async () => {
+    const harness = await open()
+    press('Hear how to play')
+    expect(harness.nowReading()).toMatch(/^A math question shows up/)
+    press('Stop reading')
+    expect(harness.nowReading()).toBeNull()
+    expect(screen.getByRole('button', { name: 'Hear how to play' })).toBeTruthy()
+  })
+
+  it('stops reading how to play when the round starts', async () => {
+    const harness = await open()
+    press('Hear how to play')
+    await startRound(harness)
+    expect(harness.nowReading()).toBeNull()
+  })
+
   it('buys an item, then equips it', async () => {
     const harness = await open({ armory: fakeArmory({ balance: 300 }) })
     press('Buy Rapid Blaster for 250 points')

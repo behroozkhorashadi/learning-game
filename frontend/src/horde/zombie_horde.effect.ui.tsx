@@ -5,6 +5,8 @@ import { STARTER_BLASTER, weaponDefinitionFor } from '@app/blaster/weapon_defini
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts'
+import type { ReadAloud } from '@app/speech/speech_state.pure.lib.ts'
+import { useReadAloud } from '@app/speech/use_read_aloud.pure.hook.ts'
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
 import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
 import { NO_ROUND_ARMOR, STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom, skinFor } from './horde_armory.pure.lib.ts'
@@ -47,12 +49,12 @@ export interface ZombieHordeDeps extends HordeRoundDeps {
   /** The art studio, opened from the start screen. In the app, art_studio.effect.ui.tsx bound to the camera and API. */
   readonly ArtStudio: ComponentType<ArtStudioProps>
   readonly motion: MotionPreference
-  /** Reads the instructions aloud. */
-  readonly speakText: (text: string) => void
+  /** Reads the instructions aloud, and stops them. */
+  readonly readAloud: ReadAloud
 }
 
 export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHordeProps> {
-  const { armory, Viewport, ArtStudio, motion, speakText } = deps
+  const { armory, Viewport, ArtStudio, motion, readAloud } = deps
 
   function ZombieHorde({ profileId, onBack }: ZombieHordeProps): ReactElement {
     const round = useHordeRound(deps, profileId)
@@ -94,6 +96,9 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
     const { phase, state } = round
     const inRound = (phase === 'intro' || phase === 'playing') && state !== null
+    const onStartScreen = (phase === 'ready' || phase === 'loading') && !inStudio
+    // Reading stops when the round starts or the studio opens.
+    const instructions = useReadAloud(readAloud, HORDE_INSTRUCTIONS, onStartScreen)
 
     const artPrice = armoryData?.catalog.find((item) => item.kind === 'art')?.price ?? null
 
@@ -122,9 +127,8 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             difficulty={difficulty}
             onChooseDifficulty={setDifficulty}
             bestMs={armoryData?.best_survived_ms ?? NO_BESTS}
-            onHearInstructions={() => {
-              speakText(HORDE_INSTRUCTIONS)
-            }}
+            readingInstructions={instructions.reading}
+            onHearInstructions={instructions.toggle}
             onStart={() => {
               const insane = difficulty === 'insane'
               round.start(

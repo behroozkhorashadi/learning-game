@@ -9,7 +9,7 @@ const NONE = (): null => null
 function deps(overrides: Partial<DevScreensDeps> = {}): DevScreensDeps {
   return {
     standalone: [{ id: 'todo-example', label: 'Todos', Screen: NONE }],
-    speech: { speakText: vi.fn(), speakWord: vi.fn() },
+    speech: { speakText: vi.fn(), stopSpeaking: vi.fn(), speakWord: vi.fn() },
     log: vi.fn(),
     ProfilePicker: NONE,
     CreateProfile: NONE,

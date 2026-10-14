@@ -73,7 +73,7 @@ export function assembleZombieMathBlaster(): ComponentType<ZombieArenaProps> {
     Viewport: OutbreakViewport,
     motion: assembleMotionPreference(),
     debug: arenaDebugFrom(import.meta.env.DEV, window.location.search),
-    speakText: assembleSpeech().speakText,
+    readAloud: assembleSpeech(),
     copyText: (text) => navigator.clipboard.writeText(text),
   })
 }

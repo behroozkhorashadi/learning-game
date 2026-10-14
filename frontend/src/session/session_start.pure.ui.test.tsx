@@ -11,7 +11,7 @@ function renderStart(): SessionStartProps {
     subtitle: 'Slide the sounds together.',
     sessionLength: 5,
     heroSrc: '/missing.png',
-    onHearInstructions: vi.fn(),
+    readingInstructions: false, onHearInstructions: vi.fn(),
     onStart: vi.fn(),
     onBack: vi.fn(),
   }
@@ -35,8 +35,16 @@ describe('SessionStart', () => {
     expect([props.onStart, props.onBack, props.onHearInstructions].map((f) => vi.mocked(f).mock.calls.length)).toEqual([1, 1, 1])
   })
 
+  it('turns the speaker into a stop button while reading', () => {
+    const onHearInstructions = vi.fn()
+    render(<SessionStart eyebrow="" headline="" subtitle="" sessionLength={1} heroSrc="/x.png" readingInstructions onHearInstructions={onHearInstructions} onStart={vi.fn()} onBack={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Hear how to play' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Stop reading' }))
+    expect(onHearInstructions).toHaveBeenCalledTimes(1)
+  })
+
   it('falls back to sparkles when the hero art is missing', () => {
-    const { container } = render(<SessionStart eyebrow="" headline="" subtitle="" sessionLength={1} heroSrc="/x.png" onHearInstructions={vi.fn()} onStart={vi.fn()} onBack={vi.fn()} />)
+    const { container } = render(<SessionStart eyebrow="" headline="" subtitle="" sessionLength={1} heroSrc="/x.png" readingInstructions={false} onHearInstructions={vi.fn()} onStart={vi.fn()} onBack={vi.fn()} />)
     const img = container.querySelector('img')
     if (img === null) throw new Error('expected the hero image')
     fireEvent.error(img)

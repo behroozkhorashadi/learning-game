@@ -8,7 +8,7 @@ import { EQUATION_GAME_ID } from './equation_item.pure.lib.ts'
 
 /** The real bound game over an in-memory practice loop. */
 function Bound(): ReactElement {
-  const [EquationBuilder] = useState(() => bindEquationBuilder({ practice: fakePractice(EQUATION_GAME_ID, SESSION_EQUATIONS).deps, speech: { speakText: fn(), speakWord: fn() } }))
+  const [EquationBuilder] = useState(() => bindEquationBuilder({ practice: fakePractice(EQUATION_GAME_ID, SESSION_EQUATIONS).deps, speech: { speakText: fn(), stopSpeaking: fn(), speakWord: fn() } }))
   return <EquationBuilder profileId={1} onBack={fn()} />
 }
 

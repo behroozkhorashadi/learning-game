@@ -9,7 +9,7 @@ afterEach(cleanup)
 
 function renderGame() {
   const practice = fakePractice(EQUATION_GAME_ID, SESSION_EQUATIONS)
-  const EquationBuilder = bindEquationBuilder({ practice: practice.deps, speech: { speakText: vi.fn(), speakWord: vi.fn() } })
+  const EquationBuilder = bindEquationBuilder({ practice: practice.deps, speech: { speakText: vi.fn(), stopSpeaking: vi.fn(), speakWord: vi.fn() } })
   render(<EquationBuilder profileId={1} onBack={vi.fn()} />)
   return practice
 }

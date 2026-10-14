@@ -14,7 +14,7 @@ const meta = {
     difficulty: 'medium',
     onChooseDifficulty: fn(),
     bestMs: { easy: 0, medium: 84_000, hard: 0, insane: 0 },
-    onHearInstructions: fn(),
+    readingInstructions: false, onHearInstructions: fn(),
     onStart: fn(),
     onOpenStudio: fn(),
     onBack: fn(),
@@ -38,5 +38,13 @@ export const Starting: Story = {
   args: { starting: true },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('button', { name: 'Loading…' })).toBeVisible()
+  },
+}
+
+export const Reading: Story = {
+  args: { readingInstructions: true },
+  play: async ({ args, canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Stop reading' }))
+    await expect(args.onHearInstructions).toHaveBeenCalledTimes(1)
   },
 }
