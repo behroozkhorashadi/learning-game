@@ -26,7 +26,7 @@ export const armoryStateSchema = z
     grenades: z.number().int(),
     ammo: z.record(z.string(), z.number().int()).readonly(),
     gems: z.record(z.string(), z.number().int()).readonly(),
-    best_survived_ms: z.object({ easy: z.number().int(), medium: z.number().int(), hard: z.number().int() }).readonly(),
+    best_survived_ms: z.object({ easy: z.number().int(), medium: z.number().int(), hard: z.number().int(), insane: z.number().int() }).readonly(),
     catalog: z.array(armoryItemSchema).readonly(),
   })
   .readonly() satisfies z.ZodType<components['schemas']['ArmoryState']>

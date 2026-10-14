@@ -811,7 +811,7 @@ export interface components {
              * @default medium
              * @enum {string}
              */
-            readonly difficulty: "easy" | "medium" | "hard";
+            readonly difficulty: "easy" | "medium" | "hard" | "insane";
             /** Gems Used */
             readonly gems_used?: {
                 readonly [key: string]: number;
@@ -979,6 +979,8 @@ export interface components {
             readonly easy: number;
             /** Hard */
             readonly hard: number;
+            /** Insane */
+            readonly insane: number;
             /** Medium */
             readonly medium: number;
         };

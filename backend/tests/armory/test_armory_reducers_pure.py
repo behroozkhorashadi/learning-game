@@ -24,7 +24,7 @@ def test_a_new_profile_owns_the_free_items_and_one_grenade() -> None:
     assert (state.balance, state.earned, state.spent) == (0, 0, 0)
     assert state.owned == ["starter_blaster", "standard_rounds", "steel_suit"]
     assert state.grenades == STARTING_GRENADES
-    assert state.best_survived_ms == BestSurvived(easy=0, medium=0, hard=0)
+    assert state.best_survived_ms == BestSurvived(easy=0, medium=0, hard=0, insane=0)
     assert state.catalog == list(CATALOG)
 
 
@@ -57,14 +57,15 @@ def test_each_difficulty_keeps_its_own_personal_best() -> None:
         ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=80_000),
         ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=65_000, difficulty="hard"),
         ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=40_000, difficulty="hard"),
+        ArmoryRoundCreate(points=0, grenades_used=0, survived_ms=35_000, difficulty="insane"),
     )
     state = summarize(1, tuple(entry for r in rounds for entry in round_entries(1, r, now=NOW)))
-    assert state.best_survived_ms == BestSurvived(easy=120_000, medium=80_000, hard=65_000)
+    assert state.best_survived_ms == BestSurvived(easy=120_000, medium=80_000, hard=65_000, insane=35_000)
 
 
 def test_a_round_from_before_difficulties_counts_as_medium() -> None:
     legacy = ArmoryEntry(profile_id=1, kind="survived", item_id=None, points=0, quantity=90_000, created_at=NOW)
-    assert summarize(1, (legacy,)).best_survived_ms == BestSurvived(easy=0, medium=90_000, hard=0)
+    assert summarize(1, (legacy,)).best_survived_ms == BestSurvived(easy=0, medium=90_000, hard=0, insane=0)
 
 
 def test_a_round_keeps_how_long_it_lasted_through_clamping() -> None:

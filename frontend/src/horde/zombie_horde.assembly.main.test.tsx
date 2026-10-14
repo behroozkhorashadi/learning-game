@@ -19,7 +19,7 @@ const ARMORY = {
   grenades: 1,
   ammo: { armor_piercing: 0 },
   gems: { reflect_gem: 2 },
-  best_survived_ms: { easy: 0, medium: 0, hard: 0 },
+  best_survived_ms: { easy: 0, medium: 0, hard: 0, insane: 0 },
   catalog: [{ id: 'starter_blaster', kind: 'weapon', name: 'Starter Blaster', description: 'Your trusty blaster.', price: 0, quantity: 1, consumable: false, requires: null }],
 }
 

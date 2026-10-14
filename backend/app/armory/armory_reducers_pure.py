@@ -237,6 +237,7 @@ def summarize(profile_id: int, entries: Sequence[ArmoryEntry]) -> ArmoryState:
             easy=_best_survived(entries, "easy"),
             medium=_best_survived(entries, "medium"),
             hard=_best_survived(entries, "hard"),
+            insane=_best_survived(entries, "insane"),
         ),
         catalog=list(CATALOG),
     )

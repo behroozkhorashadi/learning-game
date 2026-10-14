@@ -8,7 +8,7 @@
  */
 
 /** The server's difficulty ids (ArmoryRoundCreate.difficulty). */
-export type Difficulty = 'easy' | 'medium' | 'hard'
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'insane'
 
 export interface DifficultyStats {
   readonly id: Difficulty
@@ -24,8 +24,9 @@ export interface DifficultyStats {
 export const EASY: DifficultyStats = { id: 'easy', label: 'Easy', blurb: 'Slower zombies. Full points.', travelScale: 1.3, pointsScale: 1 }
 export const MEDIUM: DifficultyStats = { id: 'medium', label: 'Medium', blurb: 'Regular zombies. Fewer points.', travelScale: 1, pointsScale: 0.6 }
 export const HARD: DifficultyStats = { id: 'hard', label: 'Hard', blurb: 'Faster zombies. Points are scarce.', travelScale: 0.8, pointsScale: 0.3 }
+export const INSANE: DifficultyStats = { id: 'insane', label: 'Insane', blurb: 'Hard speed. Base blaster, standard rounds, no grenades or armor powers.', travelScale: HARD.travelScale, pointsScale: HARD.pointsScale }
 
-export const DIFFICULTIES: readonly DifficultyStats[] = [EASY, MEDIUM, HARD]
+export const DIFFICULTIES: readonly DifficultyStats[] = [EASY, MEDIUM, HARD, INSANE]
 
 export function difficultyById(id: Difficulty): DifficultyStats {
   return DIFFICULTIES.find((difficulty) => difficulty.id === id) ?? MEDIUM

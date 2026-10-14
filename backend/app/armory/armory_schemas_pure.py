@@ -19,7 +19,7 @@ ArmoryItemKind = Literal["weapon", "bullet", "grenade", "gem", "upgrade", "skin"
 ArmoryEntryKind = Literal["earned", "purchased", "grenades_used", "rounds_used", "gems_used", "survived"]
 # How hard a round was played: how fast the horde comes, and how far its points go.
 # Each keeps its own personal best.
-Difficulty = Literal["easy", "medium", "hard"]
+Difficulty = Literal["easy", "medium", "hard", "insane"]
 
 # A generous ceiling on one round: a round is 60 seconds plus overtime, where the
 # zombies keep speeding up until they get through, so it can't last much past a few
@@ -61,6 +61,7 @@ class BestSurvived(BaseModel):
     easy: int = Field(ge=0)
     medium: int = Field(ge=0)
     hard: int = Field(ge=0)
+    insane: int = Field(ge=0)
 
 
 class ArmoryState(BaseModel):

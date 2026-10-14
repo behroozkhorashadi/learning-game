@@ -261,6 +261,27 @@ describe('ZombieHorde: the end of a round', () => {
     expect(harness.armory.state().best_survived_ms.hard).toBeGreaterThanOrEqual(60_000)
   })
 
+  it('Insane locks gameplay gear but keeps the selected cosmetic color', async () => {
+    const harness = await open({
+      armory: fakeArmory({
+        owned: ['rapid_blaster', 'mega_blaster', 'thorns_plating', 'gold_suit'],
+        grenades: 4,
+        ammo: { explosive_rounds: 8 },
+        gems: { reflect_gem: 2, block_gem: 2, mega_gem: 2, heal_gem: 2 },
+      }),
+    })
+    press('Insane')
+    await startRound(harness)
+    expect(screen.getByText('holding the Starter Blaster')).toBeTruthy()
+    expect(screen.getByText('arms tinted #D4A017')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Grenade (0 left)' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.queryByRole('status', { name: /special rounds left/i })).toBeNull()
+    expect(screen.queryByRole('status', { name: /reflects? left/i })).toBeNull()
+    press(`body ${String(wrongAnswer(0))}`)
+    await harness.scheduler.advance(2500)
+    expect(screen.getByRole('img', { name: '2 lives left' })).toBeTruthy()
+  })
+
   it('play again goes back to the armory with the new balance', WHOLE_ROUND, async () => {
     const harness = await open()
     await startRound(harness)

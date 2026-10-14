@@ -13,7 +13,7 @@ const meta = {
     starting: false,
     difficulty: 'medium',
     onChooseDifficulty: fn(),
-    bestMs: { easy: 0, medium: 84_000, hard: 0 },
+    bestMs: { easy: 0, medium: 84_000, hard: 0, insane: 0 },
     onHearInstructions: fn(),
     onStart: fn(),
     onOpenStudio: fn(),

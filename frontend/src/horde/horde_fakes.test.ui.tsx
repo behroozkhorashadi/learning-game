@@ -97,7 +97,7 @@ export function fakeArmory({ balance = 0, owned = [], grenades = 1, ammo = {}, g
   let points = balance
   let spent = 0
   let left = grenades
-  const best: Record<Difficulty, number> = { easy: 0, medium: 0, hard: 0, ...bestMs }
+  const best: Record<Difficulty, number> = { easy: 0, medium: 0, hard: 0, insane: 0, ...bestMs }
   const bought = new Set(owned)
   const rounds: RoundReport[] = []
   const shots = new Map<string, number>([['armor_piercing', ammo['armor_piercing'] ?? 0], ['explosive_rounds', ammo['explosive_rounds'] ?? 0]])

@@ -7,7 +7,7 @@ import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import { useReloadableQuery } from '@app/query/use_reloadable_query.pure.hook.ts'
 import { ArmoryShop, usableGear, type LoadoutChoice } from './armory_shop.pure.ui.tsx'
 import type { ArtStudioProps } from './art_studio.effect.ui.tsx'
-import { STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom, skinFor } from './horde_armory.pure.lib.ts'
+import { NO_ROUND_ARMOR, STARTER_LOADOUT, bestOwned, loadoutFor, roundArmorFrom, skinFor } from './horde_armory.pure.lib.ts'
 import { MEDIUM, difficultyById, type Difficulty } from './horde_difficulty.pure.lib.ts'
 import { answerFor, inOvertime } from './horde_engine.pure.lib.ts'
 import { COVER } from './horde_field.pure.lib.ts'
@@ -126,7 +126,15 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
               speakText(HORDE_INSTRUCTIONS)
             }}
             onStart={() => {
-              round.start(loadoutFor(choice.weaponId, choice.bulletId, usable), grenades, armoryData?.ammo[choice.bulletId] ?? 0, armoryData?.best_survived_ms[difficulty] ?? 0, roundArmorFrom(armoryData?.gems ?? {}, usable), difficultyById(difficulty))
+              const insane = difficulty === 'insane'
+              round.start(
+                insane ? STARTER_LOADOUT : loadoutFor(choice.weaponId, choice.bulletId, usable),
+                insane ? 0 : grenades,
+                insane ? 0 : (armoryData?.ammo[choice.bulletId] ?? 0),
+                armoryData?.best_survived_ms[difficulty] ?? 0,
+                insane ? NO_ROUND_ARMOR : roundArmorFrom(armoryData?.gems ?? {}, usable),
+                difficultyById(difficulty),
+              )
             }}
             onOpenStudio={
               armoryData === null || artPrice === null
@@ -285,7 +293,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
   return ZombieHorde
 }
 
-const NO_BESTS: Readonly<Record<Difficulty, number>> = { easy: 0, medium: 0, hard: 0 }
+const NO_BESTS: Readonly<Record<Difficulty, number>> = { easy: 0, medium: 0, hard: 0, insane: 0 }
 
 function Page({ children }: { readonly children: ReactNode }): ReactElement {
   return <div style={{ minHeight: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '32px 16px 56px' }}>{children}</div>

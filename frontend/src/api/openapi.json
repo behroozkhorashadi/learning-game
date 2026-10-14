@@ -111,7 +111,8 @@
             "enum": [
               "easy",
               "medium",
-              "hard"
+              "hard",
+              "insane"
             ],
             "title": "Difficulty",
             "type": "string"
@@ -514,6 +515,11 @@
             "title": "Hard",
             "type": "integer"
           },
+          "insane": {
+            "minimum": 0.0,
+            "title": "Insane",
+            "type": "integer"
+          },
           "medium": {
             "minimum": 0.0,
             "title": "Medium",
@@ -523,7 +529,8 @@
         "required": [
           "easy",
           "medium",
-          "hard"
+          "hard",
+          "insane"
         ],
         "title": "BestSurvived",
         "type": "object"

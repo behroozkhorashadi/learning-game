@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HordeStart } from './horde_start.pure.ui.tsx'
 
-const NO_BESTS = { easy: 0, medium: 0, hard: 0 }
+const NO_BESTS = { easy: 0, medium: 0, hard: 0, insane: 0 }
 
 afterEach(cleanup)
 
@@ -29,13 +29,19 @@ describe('HordeStart', () => {
 
   it('picks a difficulty, and shows that difficulty\'s best', () => {
     const onChooseDifficulty = vi.fn()
-    render(<HordeStart shop={null} starting={false} difficulty="hard" onChooseDifficulty={onChooseDifficulty} bestMs={{ easy: 130_000, medium: 84_500, hard: 62_000 }} onHearInstructions={vi.fn()} onStart={vi.fn()} onOpenStudio={null} onBack={vi.fn()} />)
+    render(<HordeStart shop={null} starting={false} difficulty="hard" onChooseDifficulty={onChooseDifficulty} bestMs={{ easy: 130_000, medium: 84_500, hard: 62_000, insane: 0 }} onHearInstructions={vi.fn()} onStart={vi.fn()} onOpenStudio={null} onBack={vi.fn()} />)
     const group = screen.getByRole('group', { name: 'Difficulty' })
     expect(within(group).getByRole('button', { name: /^Hard/ }).getAttribute('aria-pressed')).toBe('true')
     expect(within(group).getByRole('button', { name: /^Easy/ }).getAttribute('aria-pressed')).toBe('false')
     expect(screen.getByText('Your best on Hard: 1:02', { exact: false })).toBeTruthy()
     fireEvent.click(within(group).getByRole('button', { name: /^Easy/ }))
     expect(onChooseDifficulty).toHaveBeenCalledWith('easy')
+  })
+
+  it('offers Insane with its locked-gear rules', () => {
+    render(<HordeStart shop={null} starting={false} difficulty="insane" onChooseDifficulty={vi.fn()} bestMs={NO_BESTS} onHearInstructions={vi.fn()} onStart={vi.fn()} onOpenStudio={null} onBack={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /^Insane/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText(/Base blaster, standard rounds, no grenades or armor powers/)).toBeTruthy()
   })
 
   it('holds Start while the round loads', () => {
