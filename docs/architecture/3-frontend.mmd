@@ -23,7 +23,7 @@ flowchart TB
     errors["errors/<br/>ReportError capability, bound ErrorBoundary,<br/>window error listeners (assembly)"]
     timing["timing/<br/>Timers capability + useScheduled"]
     library["story_library/<br/>shelf + reader + home entry card<br/>(bindStoryLibrary, injected confirm)"]
-    badges["badges/<br/>Badges and prizes: BadgesView (pure) + bindBadges,<br/>reuses the Zombie Horde art gallery"]
+    badges["badges/<br/>Badges and prizes: BadgesView (pure) + bindBadges,<br/>medals, badge + streak details, reuses the art gallery;<br/>bindBadgeCelebrations (polls for new badges)"]
     speech["speech/<br/>Speech: word clips, falling back to speechSynthesis"]
     ids["ids/<br/>v4 UUIDs from getRandomValues (works on http LAN)"]
     boundary["boundary/<br/>AsyncBoundary (works inside a Canvas too)"]
@@ -51,12 +51,12 @@ flowchart TB
   library --> writing & query & apiad & den
   app -- "assemble* once:<br/>picker, create, unlock, edit" --> profiles
   app -- "assembleAdminPanel() once" --> admin
-  app -- "assembleBadges() once" --> badges
+  app -- "assembleBadges(),<br/>assembleBadgeCelebrations() once" --> badges
   app -- "assembleSyllableBuilder(),<br/>assembleEquationBuilder() once" --> pgames
   pgames --> practice & tiles & session & speech
   practice --> apiad & ids
   tiles --> den
-  badges --> query & apiad & den & horde
+  badges --> query & apiad & den & horde & timing & motion
   admin --> profiles & query & apiad & den
   app -. "DEV, ?screen=" .-> dev
   dev --> example

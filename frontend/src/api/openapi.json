@@ -458,6 +458,16 @@
       "BadgeStatus": {
         "description": "Response shape for GET /api/profiles/{profile_id}/badges \u2014 a Badge\njoined with whether (and when) this profile earned it.",
         "properties": {
+          "art_status": {
+            "enum": [
+              "none",
+              "pending",
+              "ready",
+              "failed"
+            ],
+            "title": "Art Status",
+            "type": "string"
+          },
           "art_url": {
             "title": "Art Url",
             "type": "string"
@@ -474,6 +484,26 @@
             ],
             "title": "Awarded At"
           },
+          "category": {
+            "enum": [
+              "streaks",
+              "days",
+              "time",
+              "rounds",
+              "accuracy",
+              "speed",
+              "games",
+              "explorer",
+              "creator",
+              "legend"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "celebrated": {
+            "title": "Celebrated",
+            "type": "boolean"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -482,12 +512,77 @@
             "title": "Earned",
             "type": "boolean"
           },
+          "earned_in_game": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earned In Game"
+          },
+          "earned_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earned Reason"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
           "key": {
             "title": "Key",
             "type": "string"
           },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "personal_art_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Art Url"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "tier": {
+            "enum": [
+              "bronze",
+              "silver",
+              "gold",
+              "legend"
+            ],
+            "title": "Tier",
             "type": "string"
           }
         },
@@ -496,7 +591,11 @@
           "name",
           "description",
           "art_url",
-          "earned"
+          "earned",
+          "category",
+          "tier",
+          "art_status",
+          "celebrated"
         ],
         "title": "BadgeStatus",
         "type": "object"
@@ -605,6 +704,44 @@
           "user_agent"
         ],
         "title": "ClientErrorReport",
+        "type": "object"
+      },
+      "DayActivity": {
+        "description": "One local calendar day the profile played.",
+        "properties": {
+          "correct": {
+            "title": "Correct",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "games": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Games",
+            "type": "array"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "rounds": {
+            "title": "Rounds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "minutes",
+          "rounds",
+          "correct",
+          "games"
+        ],
+        "title": "DayActivity",
         "type": "object"
       },
       "GameMetadata": {
@@ -1499,6 +1636,10 @@
             ],
             "title": "Last Session At"
           },
+          "longest_streak": {
+            "title": "Longest Streak",
+            "type": "integer"
+          },
           "minutes_this_week": {
             "title": "Minutes This Week",
             "type": "integer"
@@ -1525,6 +1666,17 @@
             ],
             "title": "Progress Delta Pct"
           },
+          "recent_days": {
+            "items": {
+              "$ref": "#/components/schemas/DayActivity"
+            },
+            "title": "Recent Days",
+            "type": "array"
+          },
+          "total_minutes": {
+            "title": "Total Minutes",
+            "type": "integer"
+          },
           "total_stars": {
             "title": "Total Stars",
             "type": "integer"
@@ -1533,7 +1685,10 @@
         "required": [
           "total_stars",
           "day_streak",
-          "minutes_this_week"
+          "minutes_this_week",
+          "longest_streak",
+          "total_minutes",
+          "recent_days"
         ],
         "title": "ProfileStats",
         "type": "object"
@@ -3872,6 +4027,141 @@
           }
         },
         "summary": "Get Profile Badges"
+      }
+    },
+    "/api/profiles/{profile_id}/badges/new": {
+      "get": {
+        "description": "Badges this profile earned but hasn't celebrated yet, oldest first.\nCheap enough to poll while the kid plays.",
+        "operationId": "get_new_badges_api_profiles__profile_id__badges_new_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BadgeStatus"
+                  },
+                  "title": "Response Get New Badges Api Profiles  Profile Id  Badges New Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get New Badges"
+      }
+    },
+    "/api/profiles/{profile_id}/badges/{key}/art": {
+      "post": {
+        "description": "Paints this profile's own art for a badge it earned, and waits for it (a\nfew seconds). The badge comes back with art_status ready, or failed.",
+        "operationId": "paint_badge_api_profiles__profile_id__badges__key__art_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadgeStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Paint Badge"
+      }
+    },
+    "/api/profiles/{profile_id}/badges/{key}/celebrated": {
+      "post": {
+        "description": "The kid has seen this badge's celebration.",
+        "operationId": "mark_celebrated_api_profiles__profile_id__badges__key__celebrated_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Celebrated"
       }
     },
     "/api/profiles/{profile_id}/horde/replays": {

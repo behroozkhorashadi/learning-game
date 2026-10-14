@@ -541,6 +541,68 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/profiles/{profile_id}/badges/{key}/art": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Paint Badge
+         * @description Paints this profile's own art for a badge it earned, and waits for it (a
+         *     few seconds). The badge comes back with art_status ready, or failed.
+         */
+        readonly post: operations["paint_badge_api_profiles__profile_id__badges__key__art_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/profiles/{profile_id}/badges/{key}/celebrated": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Mark Celebrated
+         * @description The kid has seen this badge's celebration.
+         */
+        readonly post: operations["mark_celebrated_api_profiles__profile_id__badges__key__celebrated_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/profiles/{profile_id}/badges/new": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get New Badges
+         * @description Badges this profile earned but hasn't celebrated yet, oldest first.
+         *     Cheap enough to poll while the kid plays.
+         */
+        readonly get: operations["get_new_badges_api_profiles__profile_id__badges_new_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/profiles/{profile_id}/horde/replays": {
         readonly parameters: {
             readonly query?: never;
@@ -957,18 +1019,45 @@ export interface components {
          *     joined with whether (and when) this profile earned it.
          */
         readonly BadgeStatus: {
+            /**
+             * Art Status
+             * @enum {string}
+             */
+            readonly art_status: "none" | "pending" | "ready" | "failed";
             /** Art Url */
             readonly art_url: string;
             /** Awarded At */
             readonly awarded_at?: string | null;
+            /**
+             * Category
+             * @enum {string}
+             */
+            readonly category: "streaks" | "days" | "time" | "rounds" | "accuracy" | "speed" | "games" | "explorer" | "creator" | "legend";
+            /** Celebrated */
+            readonly celebrated: boolean;
             /** Description */
             readonly description: string;
             /** Earned */
             readonly earned: boolean;
+            /** Earned In Game */
+            readonly earned_in_game?: string | null;
+            /** Earned Reason */
+            readonly earned_reason?: string | null;
+            /** Goal */
+            readonly goal?: number | null;
             /** Key */
             readonly key: string;
             /** Name */
             readonly name: string;
+            /** Personal Art Url */
+            readonly personal_art_url?: string | null;
+            /** Progress */
+            readonly progress?: number | null;
+            /**
+             * Tier
+             * @enum {string}
+             */
+            readonly tier: "bronze" | "silver" | "gold" | "legend";
         };
         /**
          * BestSurvived
@@ -1002,6 +1091,25 @@ export interface components {
             readonly url: string;
             /** User Agent */
             readonly user_agent: string;
+        };
+        /**
+         * DayActivity
+         * @description One local calendar day the profile played.
+         */
+        readonly DayActivity: {
+            /** Correct */
+            readonly correct: number;
+            /**
+             * Day
+             * Format: date
+             */
+            readonly day: string;
+            /** Games */
+            readonly games: readonly string[];
+            /** Minutes */
+            readonly minutes: number;
+            /** Rounds */
+            readonly rounds: number;
         };
         /**
          * GameMetadata
@@ -1418,12 +1526,18 @@ export interface components {
             readonly day_streak: number;
             /** Last Session At */
             readonly last_session_at?: string | null;
+            /** Longest Streak */
+            readonly longest_streak: number;
             /** Minutes This Week */
             readonly minutes_this_week: number;
             /** Most Played Game */
             readonly most_played_game?: string | null;
             /** Progress Delta Pct */
             readonly progress_delta_pct?: number | null;
+            /** Recent Days */
+            readonly recent_days: readonly components["schemas"]["DayActivity"][];
+            /** Total Minutes */
+            readonly total_minutes: number;
             /** Total Stars */
             readonly total_stars: number;
         };
@@ -2883,6 +2997,99 @@ export interface operations {
         };
     };
     readonly get_profile_badges_api_profiles__profile_id__badges_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["BadgeStatus"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly paint_badge_api_profiles__profile_id__badges__key__art_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly key: string;
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["BadgeStatus"];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly mark_celebrated_api_profiles__profile_id__badges__key__celebrated_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly key: string;
+                readonly profile_id: number;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly get_new_badges_api_profiles__profile_id__badges_new_get: {
         readonly parameters: {
             readonly query?: never;
             readonly header?: never;

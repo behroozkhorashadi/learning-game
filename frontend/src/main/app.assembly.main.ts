@@ -1,5 +1,6 @@
 import { createElement, type ComponentType } from 'react'
 import { assembleAdminPanel } from '@app/admin/admin_panel.assembly.main.ts'
+import { assembleBadgeCelebrations } from '@app/badges/badge_celebrations.assembly.main.ts'
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { assembleClueMaster } from '@app/clue_master/clue_master.assembly.main.ts'
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
@@ -31,6 +32,7 @@ export function assembleAppScreens(): AppScreens {
     AdminPanel: assembleAdminPanel(),
     GamePicker: assembleGamePicker(),
     Badges: assembleBadges(),
+    BadgeCelebrations: assembleBadgeCelebrations(),
     StoryLibrary: assembleStoryLibrary(),
     OutbreakSettings: assembleOutbreakSettings(),
     ZombieMathBlaster: assembleZombieMathBlaster(),

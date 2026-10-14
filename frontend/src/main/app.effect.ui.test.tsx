@@ -29,6 +29,16 @@ describe('the app shell', () => {
     expect(on('GamePicker')).toBeTruthy()
   })
 
+  it('celebrates new badges over a player\'s screens: a party at home, a toast in a game, nothing on the picker', () => {
+    renderApp()
+    expect(screen.queryByRole('region', { name: 'BadgeCelebrations' })).toBeNull()
+    press('onSelect')
+    expect(on('BadgeCelebrations').textContent).toContain('mode: "party"')
+    expect(on('BadgeCelebrations').textContent).toContain('profileId: 1')
+    press('onSelectGame')
+    expect(on('BadgeCelebrations').textContent).toContain('mode: "toast"')
+  })
+
   it("the picker's pencil on a protected profile asks for the password, then edits and returns to the picker", () => {
     renderApp()
     press('onEditProfile')

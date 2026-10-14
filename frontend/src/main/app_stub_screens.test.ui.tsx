@@ -60,6 +60,7 @@ export const STUB_SCREENS: AppScreens = {
   AdminPanel: any('AdminPanel'),
   GamePicker: any('GamePicker'),
   Badges: any('Badges'),
+  BadgeCelebrations: any('BadgeCelebrations'),
   StoryLibrary: any('StoryLibrary'),
   OutbreakSettings: any('OutbreakSettings'),
   ZombieMathBlaster: any('ZombieMathBlaster'),

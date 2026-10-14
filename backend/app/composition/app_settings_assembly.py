@@ -32,6 +32,8 @@ class AppSettings(BaseSettings):
     openai_image_size: str = "1024x1024"
     # Illustrations: "openai" (when a key is set) or "none" (always the placeholder).
     image_provider: Literal["openai", "none"] = "openai"
+    # Personal badge art: small on screen, so "low" (the fastest and cheapest) is plenty.
+    openai_badge_image_quality: Literal["low", "medium", "high"] = "low"
     # An optional second seed profile for a real named tester, kept out of the repo.
     local_seed_profile_name: str | None = None
     local_seed_profile_avatar: str = "fox"

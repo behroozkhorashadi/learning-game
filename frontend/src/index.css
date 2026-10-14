@@ -603,3 +603,136 @@
 * {
   box-sizing: border-box;
 }
+
+/* Badges: the medal's shine and twinkle, and the new-badge celebration. */
+@keyframes badgeShine {
+  0%, 55% {
+    transform: rotate(20deg) translateX(0);
+  }
+  100% {
+    transform: rotate(20deg) translateX(190px);
+  }
+}
+.badge-shine {
+  animation: badgeShine 3.2s ease-in-out infinite;
+  transform-box: view-box;
+}
+@keyframes badgeTwinkle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.badge-twinkle {
+  animation: badgeTwinkle 1.6s ease-in-out infinite;
+}
+@keyframes badgeCelebratePop {
+  0% {
+    transform: scale(0.2) rotate(-200deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.18) rotate(12deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.94) rotate(-4deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+.badge-celebrate-pop {
+  animation: badgeCelebratePop 0.9s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+@keyframes badgeRaysSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.badge-celebrate-rays {
+  animation: badgeRaysSpin 14s linear infinite;
+}
+@keyframes badgeConfettiFall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), 112vh, 0) rotate(var(--spin, 540deg));
+    opacity: 0.9;
+  }
+}
+.badge-confetti {
+  animation: badgeConfettiFall var(--fall, 3s) linear var(--delay, 0s) infinite backwards;
+}
+@keyframes badgeRiseIn {
+  0% {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.badge-rise-in {
+  animation: badgeRiseIn 0.5s ease-out both;
+}
+@keyframes badgeToastIn {
+  0% {
+    transform: translate(-50%, -140%);
+  }
+  12%, 88% {
+    transform: translate(-50%, 0);
+  }
+  100% {
+    transform: translate(-50%, -140%);
+  }
+}
+.badge-toast {
+  animation: badgeToastIn 5s cubic-bezier(0.2, 0.8, 0.3, 1.1) both;
+}
+@keyframes badgeArtShimmer {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.badge-art-shimmer {
+  animation: badgeArtShimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-shine,
+  .badge-twinkle,
+  .badge-celebrate-rays,
+  .badge-confetti,
+  .badge-art-shimmer {
+    animation: none;
+  }
+  .badge-confetti {
+    display: none;
+  }
+  .badge-celebrate-pop,
+  .badge-rise-in {
+    animation-duration: 0.01s;
+  }
+  .badge-toast {
+    /* Fades instead of sliding, but still ends: the toast leaves on animationend. */
+    animation-name: badgeToastFade;
+  }
+}
+@keyframes badgeToastFade {
+  0%, 100% {
+    transform: translate(-50%, 0);
+    opacity: 0;
+  }
+  10%, 90% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}

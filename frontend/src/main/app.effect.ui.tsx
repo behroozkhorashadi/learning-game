@@ -1,5 +1,6 @@
 import { useState, type ComponentType, type ReactElement } from 'react'
 import type { AdminPanelProps } from '@app/admin/admin_panel.effect.ui.tsx'
+import type { BadgeCelebrationsProps } from '@app/badges/badge_celebrations.effect.ui.tsx'
 import type { BadgesProps } from '@app/badges/badges.effect.ui.tsx'
 import type { ClueMasterProps } from '@app/clue_master/clue_master.effect.ui.tsx'
 import type { EquationBuilderProps } from '@app/equation_builder/equation_builder.effect.ui.tsx'
@@ -28,6 +29,8 @@ export interface AppScreens {
   readonly AdminPanel: ComponentType<AdminPanelProps>
   readonly GamePicker: ComponentType<GamePickerProps>
   readonly Badges: ComponentType<BadgesProps>
+  /** Over every player screen: new-badge fanfare (a toast while in a game). */
+  readonly BadgeCelebrations: ComponentType<BadgeCelebrationsProps>
   readonly StoryLibrary: ComponentType<StoryLibraryProps>
   readonly OutbreakSettings: ComponentType<OutbreakSettingsProps>
   readonly ZombieMathBlaster: ComponentType<ZombieArenaProps>
@@ -100,7 +103,12 @@ export function bindApp({ screens: s, Overlay }: AppDeps): ComponentType {
       case 'game': {
         // Every screen past the picker belongs to a player; without one, start over.
         if (player === null) return <Screen state={START} update={update} />
-        return <PlayerScreen state={{ screen, player }} update={update} />
+        return (
+          <>
+            <PlayerScreen state={{ screen, player }} update={update} />
+            <s.BadgeCelebrations key={player.profile.id} profileId={player.profile.id} mode={screen.kind === 'game' ? 'toast' : 'party'} />
+          </>
+        )
       }
     }
   }

@@ -6,10 +6,12 @@ and clients, picks implementations, and calls bind_*/make_*.
 on a temp SQLite file.
 """
 
+import logging
 import os
 from collections.abc import AsyncGenerator, Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from random import Random
 from typing import Final
 from uuid import uuid4
@@ -30,10 +32,12 @@ from app.armory.armory_service_effect import make_armory_service
 from app.armory.art_files_repository_effect import make_file_art_store
 from app.armory.art_studio_routes_effect import bind_art_studio_routes
 from app.armory.art_studio_service_effect import make_art_studio_service
-from app.badges.badges_ports_pure import BadgeNeighbors
+from app.badges.badge_art_client_effect import make_no_badge_painter, make_openai_badge_painter
+from app.badges.badge_art_files_repository_effect import make_file_badge_art_store
+from app.badges.badges_ports_pure import BadgeArt, BadgeNeighbors
 from app.badges.badges_repository_effect import make_sql_badge_repository
 from app.badges.badges_routes_effect import bind_badges_routes
-from app.badges.badges_schemas_pure import Activity, ActivityAttempt
+from app.badges.badges_schemas_pure import Activity, ActivityAttempt, BadgeArtImage
 from app.badges.badges_service_effect import make_badges_service
 from app.composition.app_settings_assembly import AppSettings
 from app.crash_reports.crash_reports_repository_effect import make_file_client_error_log
@@ -67,7 +71,7 @@ from app.profiles.profile_photos_repository_effect import make_file_photo_store
 from app.profiles.profiles_ports_pure import PhotoRemixer
 from app.profiles.profiles_repository_effect import make_sql_profile_repository
 from app.profiles.profiles_routes_effect import bind_profiles_routes
-from app.profiles.profiles_schemas_pure import AvatarImage, LocalSeedProfile
+from app.profiles.profiles_schemas_pure import AvatarImage, LocalSeedProfile, ProfileRecord
 from app.profiles.profiles_service_effect import make_profiles_service
 from app.replays.replays_repository_effect import make_sql_replay_repository
 from app.replays.replays_routes_effect import bind_replays_routes
@@ -83,6 +87,11 @@ APP_TITLE: Final = "Adaptive Learning Games API"
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def local_day(moment: datetime) -> date:
+    """The day on this machine's calendar (the family's): stored times are naive UTC."""
+    return (moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)).astimezone().date()
 
 
 def assemble_engine(settings: AppSettings) -> Engine:
@@ -173,8 +182,11 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
             activity=lambda profile_id: activity_of(play_repository, piece_repository, events, profile_id),
             profile_exists=profiles.exists,
             game_title=lambda game_id: catalog[game_id].metadata.title if game_id in catalog else None,
+            mascot=lambda profile_id: avatar_mascot(profile_repository.get(profile_id)),
         ),
+        art=assemble_badge_art(settings),
         clock=utc_now,
+        local_day=local_day,
     )
     app.include_router(bind_badges_routes(service=badges))
 
@@ -287,6 +299,37 @@ def assemble_art_maker(settings: AppSettings) -> ArtMaker:
     return generate_art
 
 
+def assemble_badge_art(settings: AppSettings) -> BadgeArt:
+    """Badge art paints on a small worker pool, so earning a badge never waits on it."""
+    api_key = _openai_key(settings)
+    painter: Callable[[str], BadgeArtImage | None] = (
+        make_no_badge_painter()
+        if settings.image_provider == "none" or not api_key
+        else make_openai_badge_painter(
+            http=httpx.Client(timeout=120.0),
+            api_key=api_key,
+            model=settings.openai_image_model,
+            quality=settings.openai_badge_image_quality,
+        )
+    )
+    workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix="badge-art")
+
+    def run_later(job: Callable[[], None]) -> None:
+        workers.submit(job).add_done_callback(log_failure)
+
+    return BadgeArt(
+        paint=painter,
+        store=make_file_badge_art_store(directory=settings.static_dir / "badge-art", new_name=lambda: uuid4().hex),
+        run_later=run_later,
+    )
+
+
+def log_failure(job: Future[None]) -> None:
+    error = job.exception()
+    if error is not None:
+        logging.getLogger("app.badges.art").error("badge art job failed", exc_info=error)
+
+
 def assemble_image_generator(settings: AppSettings) -> ImageGenerator:
     api_key = _openai_key(settings)
     if settings.image_provider == "none" or not api_key:
@@ -326,6 +369,13 @@ def practice_game(play: PlayService, game_id: str) -> PracticeGame | None:
     if rules is None:
         return None
     return PracticeGame(supports_practice_config=rules.supports_practice_config, max_level=rules.max_level)
+
+
+def avatar_mascot(profile: ProfileRecord | None) -> str | None:
+    """A word avatar ("fox") is a mascot for badge art; a photo path is not sent."""
+    if profile is None or not profile.avatar.isalpha():
+        return None
+    return profile.avatar
 
 
 def activity_of(play: SqlPlayRepository, pieces: SqlPieceRepository, events: SqlEventLog, profile_id: int) -> Activity:

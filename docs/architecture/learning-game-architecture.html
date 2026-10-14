@@ -123,7 +123,7 @@ code { font-family:var(--mono); font-size:.9em; }
     admin[&quot;admin/&lt;br/&gt;/admin/login + the admin password check&quot;]
     play[&quot;play/&lt;br/&gt;/games, /items/next, /attempts, /ratings, /verifications&lt;br/&gt;games/ (item generators, incl. zombie_horde), Loop A (pure)&quot;]
     events[&quot;events/&lt;br/&gt;the append-only event log&quot;]
-    badges[&quot;badges/&lt;br/&gt;/profiles/{id}/badges, /stats&lt;br/&gt;seeded badges, awarding, live stats&quot;]
+    badges[&quot;badges/&lt;br/&gt;/profiles/{id}/badges, /badges/new, /celebrated, /art, /stats&lt;br/&gt;seeded badges, awarding, live stats + day breakdown,&lt;br/&gt;personal badge art (worker pool)&quot;]
     pieces[&quot;pieces/&lt;br/&gt;/pieces, /illustrations, /revisions, /remixes, /turns&lt;br/&gt;illustration files&quot;]
     practice[&quot;practice/&lt;br/&gt;/api/practice-config&quot;]
     pathfinder[&quot;pathfinder/&lt;br/&gt;/completions, /maps, /published-maps&quot;]
@@ -133,7 +133,7 @@ code { font-family:var(--mono); font-size:.9em; }
   end
 
   sqlite[(&quot;SQLite&lt;br/&gt;same tables and columns as before&quot;)]
-  files[(&quot;static/&lt;br/&gt;profile-avatars/, illustrations/&quot;)]
+  files[(&quot;static/&lt;br/&gt;profile-avatars/, illustrations/, badge-art/&quot;)]
   openai[&quot;OpenAI Images API&quot;]
 
   main --&gt; comp
@@ -147,10 +147,11 @@ code { font-family:var(--mono); font-size:.9em; }
   practice -- &quot;game rules&quot; --&gt; play
   practice &amp; pathfinder &amp; pieces &amp; badges &amp; armory &amp; replays -- &quot;profile lookups&quot; --&gt; profiles
   todo &amp; profiles &amp; play &amp; events &amp; badges &amp; pieces &amp; practice &amp; pathfinder &amp; armory &amp; replays --&gt; sqlite
-  profiles &amp; pieces --&gt; files
+  profiles &amp; pieces &amp; badges --&gt; files
   profiles -- &quot;photo remix&quot; --&gt; openai
   armory -- &quot;art studio (via the photo remixer)&quot; --&gt; openai
   pieces -- &quot;illustrations&quot; --&gt; openai
+  badges -- &quot;badge art (low quality, WebP)&quot; --&gt; openai
 </pre></details>
 </section>
 <section>
@@ -184,7 +185,7 @@ code { font-family:var(--mono); font-size:.9em; }
     errors[&quot;errors/&lt;br/&gt;ReportError capability, bound ErrorBoundary,&lt;br/&gt;window error listeners (assembly)&quot;]
     timing[&quot;timing/&lt;br/&gt;Timers capability + useScheduled&quot;]
     library[&quot;story_library/&lt;br/&gt;shelf + reader + home entry card&lt;br/&gt;(bindStoryLibrary, injected confirm)&quot;]
-    badges[&quot;badges/&lt;br/&gt;Badges and prizes: BadgesView (pure) + bindBadges,&lt;br/&gt;reuses the Zombie Horde art gallery&quot;]
+    badges[&quot;badges/&lt;br/&gt;Badges and prizes: BadgesView (pure) + bindBadges,&lt;br/&gt;medals, badge + streak details, reuses the art gallery;&lt;br/&gt;bindBadgeCelebrations (polls for new badges)&quot;]
     speech[&quot;speech/&lt;br/&gt;Speech: word clips, falling back to speechSynthesis&quot;]
     ids[&quot;ids/&lt;br/&gt;v4 UUIDs from getRandomValues (works on http LAN)&quot;]
     boundary[&quot;boundary/&lt;br/&gt;AsyncBoundary (works inside a Canvas too)&quot;]
@@ -212,12 +213,12 @@ code { font-family:var(--mono); font-size:.9em; }
   library --&gt; writing &amp; query &amp; apiad &amp; den
   app -- &quot;assemble* once:&lt;br/&gt;picker, create, unlock, edit&quot; --&gt; profiles
   app -- &quot;assembleAdminPanel() once&quot; --&gt; admin
-  app -- &quot;assembleBadges() once&quot; --&gt; badges
+  app -- &quot;assembleBadges(),&lt;br/&gt;assembleBadgeCelebrations() once&quot; --&gt; badges
   app -- &quot;assembleSyllableBuilder(),&lt;br/&gt;assembleEquationBuilder() once&quot; --&gt; pgames
   pgames --&gt; practice &amp; tiles &amp; session &amp; speech
   practice --&gt; apiad &amp; ids
   tiles --&gt; den
-  badges --&gt; query &amp; apiad &amp; den &amp; horde
+  badges --&gt; query &amp; apiad &amp; den &amp; horde &amp; timing &amp; motion
   admin --&gt; profiles &amp; query &amp; apiad &amp; den
   app -. &quot;DEV, ?screen=&quot; .-&gt; dev
   dev --&gt; example

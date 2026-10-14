@@ -1,79 +1,49 @@
-import { useState, type CSSProperties, type ReactElement } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import type { ArtPieceRecord } from '@app/api/armory_schema.pure.lib.ts'
 import type { BadgeRecord, ProfileStatsRecord } from '@app/api/badges_schema.pure.lib.ts'
-import { ArrowLeftIcon, ArrowRightIcon, SparklesIcon } from '@app/den/icons.pure.ui.tsx'
+import { ArrowLeftIcon, ArrowRightIcon } from '@app/den/icons.pure.ui.tsx'
 import { ArtGallery } from '@app/horde/art_studio_view.pure.ui.tsx'
 import type { QueryState } from '@app/query/query_state.pure.lib.ts'
-import { badgeColors, formatAverageRating, formatEarnedDate, formatLastSession, formatProgress } from './badges_format.pure.lib.ts'
+import { BadgeDetail, type PaintState } from './badge_detail.pure.ui.tsx'
+import { BadgeMedal } from './badge_medal.pure.ui.tsx'
+import { CATEGORY_STYLES, formatAverageRating, formatEarnedDate, formatLastSession, formatMinutes, formatProgress, progressFraction, progressText, shelfSections } from './badges_format.pure.lib.ts'
+import { StreakDetail } from './streak_detail.pure.ui.tsx'
 
 /**
- * Badges & prizes, ported from the Claude Design handoff bundle
+ * Badges & prizes, from the Claude Design handoff bundle
  * (`Badges & Accomplishments.dc.html`), plus the art the kid made in Zombie
  * Horde's Art Studio. Props only: the badges, stats, and gallery arrive as
  * QueryStates from the bound screen (badges.effect.ui.tsx). A kid view and a
- * parent view, toggled in place.
+ * parent view, toggled in place. Every badge opens to say how to get it or why
+ * it was earned; the streak opens to a calendar of the days played.
  */
 
-function BadgeArt({ badge, width, height }: { readonly badge: BadgeRecord; readonly width: number | string; readonly height: number }): ReactElement {
-  const [broken, setBroken] = useState(false)
-  const colors = badgeColors(badge)
-  const boxStyle: CSSProperties = {
-    width,
-    height,
-    borderRadius: height / 4.5,
-    background: colors.bg,
-    border: `2px solid ${colors.border}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    opacity: badge.earned ? 1 : 0.5,
-    boxSizing: 'border-box',
-  }
-
-  if (broken) {
-    return (
-      <div style={boxStyle}>
-        <SparklesIcon size={height * 0.4} />
-      </div>
-    )
-  }
-
-  return (
-    <div style={boxStyle}>
-      <img
-        src={badge.art_url}
-        alt={badge.name}
-        onError={() => {
-          setBroken(true)
-        }}
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-      />
-    </div>
-  )
-}
-
 const GALLERY_EMPTY = 'No art yet. Spend Zombie Horde points in the Art Studio to make some!'
+const ALMOST_THERE = 3
+
+function Eyebrow({ children, marginBottom = 16 }: { readonly children: ReactNode; readonly marginBottom?: number }): ReactElement {
+  return <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom }}>{children}</div>
+}
 
 function PrizesSection({ gallery, marginBottom }: { readonly gallery: QueryState<readonly ArtPieceRecord[]>; readonly marginBottom: number }): ReactElement {
   return (
     <section aria-label="Zombie Horde art gallery">
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom }}>Zombie Horde art gallery</div>
+      <Eyebrow marginBottom={marginBottom}>Zombie Horde art gallery</Eyebrow>
       <ArtGallery gallery={gallery} emptyText={GALLERY_EMPTY} />
     </section>
   )
 }
 
-function BackButton({ onBack }: { readonly onBack: () => void }): ReactElement {
+function RoundButton({ label, onClick, children }: { readonly label: string; readonly onClick: () => void; readonly children: ReactNode }): ReactElement {
   return (
     <button
       type="button"
-      aria-label="Back"
-      title="Back"
-      onClick={onBack}
+      aria-label={label}
+      title={label}
+      onClick={onClick}
       style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
     >
-      <ArrowLeftIcon />
+      {children}
     </button>
   )
 }
@@ -86,17 +56,120 @@ function Avatar({ kidName }: { readonly kidName: string }): ReactElement {
   )
 }
 
-function ToggleButton({ isKidView, onToggle }: { readonly isKidView: boolean; readonly onToggle: () => void }): ReactElement {
+function Header({ eyebrow, title, isKidView, onBack, onToggle, kidName }: { readonly eyebrow: string; readonly title: string; readonly isKidView: boolean; readonly onBack: () => void; readonly onToggle: () => void; readonly kidName: string }): ReactElement {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-label={isKidView ? 'Switch to parent view' : 'Switch to kid view'}
-      title={isKidView ? 'Parent view' : 'Kid view'}
-      style={{ width: 56, height: 56, borderRadius: 9999, border: '2px solid #E7E2D6', background: '#FFFFFF', color: '#515E71', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
-    >
-      {isKidView ? <ArrowRightIcon size={26} /> : <ArrowLeftIcon size={26} />}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+        <RoundButton label="Back" onClick={onBack}>
+          <ArrowLeftIcon />
+        </RoundButton>
+        <Avatar kidName={kidName} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3' }}>{eyebrow}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, lineHeight: 1.1, color: '#2A2E37' }}>{title}</div>
+        </div>
+      </div>
+      <RoundButton label={isKidView ? 'Switch to parent view' : 'Switch to kid view'} onClick={onToggle}>
+        {isKidView ? <ArrowRightIcon size={26} /> : <ArrowLeftIcon size={26} />}
+      </RoundButton>
+    </div>
+  )
+}
+
+const TILE = { background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 20, padding: '16px 12px', textAlign: 'center', boxSizing: 'border-box', width: '100%' } as const
+
+function StatTile({ value, label, color, children }: { readonly value: string; readonly label: string; readonly color: string; readonly children?: ReactNode }): ReactElement {
+  return (
+    <div style={TILE}>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#8896AA', marginTop: 4 }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+/** The day streak, as a tile that opens the calendar. */
+function StreakTile({ streak, onOpen }: { readonly streak: number; readonly onOpen: () => void }): ReactElement {
+  return (
+    <button type="button" aria-label={`Day streak: ${String(streak)}. See the days you played`} onClick={onOpen} style={{ ...TILE, cursor: 'pointer', font: 'inherit', background: streak > 0 ? 'linear-gradient(180deg, #FFF3E0, #FFFFFF)' : '#FFFFFF', border: streak > 0 ? '2px solid #FFC170' : TILE.border }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#F0542B' }}>
+        <span aria-hidden="true">🔥 </span>
+        {streak}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#8896AA', marginTop: 4 }}>Day streak</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#F0542B', marginTop: 4 }}>See days ›</div>
     </button>
+  )
+}
+
+function MiniBar({ fraction }: { readonly fraction: number }): ReactElement {
+  return (
+    <div aria-hidden="true" style={{ height: 6, borderRadius: 9999, background: '#EFEAE0', overflow: 'hidden', marginTop: 6, width: '80%', marginLeft: 'auto', marginRight: 'auto' }}>
+      <div style={{ width: `${String(Math.round(fraction * 100))}%`, height: '100%', background: '#5BCC2D', borderRadius: 9999 }} />
+    </div>
+  )
+}
+
+function badgeButtonLabel(badge: BadgeRecord): string {
+  if (badge.earned) {
+    const date = formatEarnedDate(badge.awarded_at)
+    return `${badge.name}: earned${date === '' ? '' : ` ${date}`}`
+  }
+  const progress = progressText(badge)
+  return `${badge.name}: locked${progress === null ? '' : `, ${progress}`}`
+}
+
+function BadgeButton({ badge, size, animate, onOpen }: { readonly badge: BadgeRecord; readonly size: number; readonly animate: boolean; readonly onOpen: () => void }): ReactElement {
+  return (
+    <button type="button" aria-label={badgeButtonLabel(badge)} onClick={onOpen} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', border: 0, padding: '6px 2px', cursor: 'pointer', font: 'inherit', borderRadius: 18 }}>
+      <BadgeMedal badge={badge} size={size} animate={animate} />
+      <div style={{ marginTop: 8, textAlign: 'center', width: '100%' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, lineHeight: 1.15, color: badge.earned ? '#2A2E37' : '#8C846F' }}>{badge.name}</div>
+        {badge.earned ? <div style={{ fontSize: 12, color: '#3FA51B', fontWeight: 700, marginTop: 3 }}>{formatEarnedDate(badge.awarded_at)}</div> : <MiniBar fraction={progressFraction(badge)} />}
+      </div>
+    </button>
+  )
+}
+
+function BadgeGrid({ badges, size, animate, onOpen }: { readonly badges: readonly BadgeRecord[]; readonly size: number; readonly animate: boolean; readonly onOpen: (key: string) => void }): ReactElement {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${String(size + 16)}px, 1fr))`, gap: 8 }}>
+      {badges.map((b) => (
+        <BadgeButton
+          key={b.key}
+          badge={b}
+          size={size}
+          animate={animate}
+          onOpen={() => {
+            onOpen(b.key)
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** The locked badges closest to done. */
+function almostThere(badges: readonly BadgeRecord[]): readonly BadgeRecord[] {
+  return badges
+    .filter((b) => !b.earned && progressFraction(b) > 0)
+    .sort((a, b) => progressFraction(b) - progressFraction(a))
+    .slice(0, ALMOST_THERE)
+}
+
+function Insight({ title, value, tint, color, icon }: { readonly title: string; readonly value: string; readonly tint: string; readonly color: string; readonly icon: ReactNode }): ReactElement {
+  return (
+    <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: tint, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          {icon}
+        </svg>
+      </div>
+      <div>
+        <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>{title}</div>
+        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{value}</div>
+      </div>
+    </div>
   )
 }
 
@@ -110,15 +183,32 @@ export interface BadgesViewProps {
   /** Zombie Horde's art, loaded apart from the badges. */
   readonly gallery: QueryState<readonly ArtPieceRecord[]>
   readonly kidName: string
-  /** For "Today at …" on the last session. */
+  /** For "Today at …" on the last session, and the streak calendar. */
   readonly now: Date
   readonly onBack: () => void
+  /** Where painting each badge's art stands (by key); missing means idle. */
+  readonly painting: Readonly<Record<string, PaintState>>
+  readonly onPaint: (key: string) => void
+  /** Shine and sparkle; off when the player asked for reduced motion. */
+  readonly animate: boolean
 }
 
-export function BadgesView({ state, gallery, kidName, now, onBack }: BadgesViewProps): ReactElement {
+type Opened = { readonly kind: 'badge'; readonly key: string } | { readonly kind: 'streak' } | null
+
+export function BadgesView({ state, gallery, kidName, now, onBack, painting, onPaint, animate }: BadgesViewProps): ReactElement {
   const [isKidView, setIsKidView] = useState(true)
+  const [opened, setOpened] = useState<Opened>(null)
   const toggleView = (): void => {
     setIsKidView((v) => !v)
+  }
+  const openBadge = (key: string): void => {
+    setOpened({ kind: 'badge', key })
+  }
+  const openStreak = (): void => {
+    setOpened({ kind: 'streak' })
+  }
+  const close = (): void => {
+    setOpened(null)
   }
 
   if (state.kind === 'failed') {
@@ -138,58 +228,41 @@ export function BadgesView({ state, gallery, kidName, now, onBack }: BadgesViewP
   }
 
   const { badges, stats } = state.data
-  const totalBadges = badges.filter((b) => b.earned).length
+  const earned = badges.filter((b) => b.earned)
+  const openedBadge = opened?.kind === 'badge' ? badges.find((b) => b.key === opened.key) : undefined
+  const nextUp = almostThere(badges)
+  const card = { background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', boxSizing: 'border-box' } as const
 
   return (
-    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 24px' }}>
-      <div style={{ width: '100%', maxWidth: 820, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ minHeight: '100%', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', justifyContent: 'center', padding: '56px 16px' }}>
+      <div style={{ width: '100%', maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {isKidView ? (
-          <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '32px 24px 36px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <BackButton onBack={onBack} />
-                <Avatar kidName={kidName} />
-                <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3' }}>{kidName}</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, lineHeight: 1.1, color: '#2A2E37' }}>Badges &amp; prizes</div>
-                </div>
-              </div>
-              <ToggleButton isKidView={isKidView} onToggle={toggleView} />
+          <div style={{ ...card, padding: '28px 20px 36px' }}>
+            <Header eyebrow={kidName} title="Badges & prizes" isKidView onBack={onBack} onToggle={toggleView} kidName={kidName} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, margin: '24px 0 28px' }}>
+              <StatTile value={`${String(earned.length)}/${String(badges.length)}`} label="Badges earned" color="#3FA51B">
+                <MiniBar fraction={badges.length === 0 ? 0 : earned.length / badges.length} />
+              </StatTile>
+              <StreakTile streak={stats.day_streak} onOpen={openStreak} />
+              <StatTile value={String(stats.total_stars)} label="Total stars" color="#144FFF" />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
-              <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 20, padding: '18px 14px', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#5BCC2D' }}>{totalBadges}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Badges earned</div>
-              </div>
-              <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 20, padding: '18px 14px', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#144FFF' }}>{stats.total_stars}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Total stars</div>
-              </div>
-              <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 20, padding: '18px 14px', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#F7B23B' }}>{stats.day_streak}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Day streak</div>
-              </div>
-            </div>
+            {nextUp.length > 0 && (
+              <section aria-label="Almost there" style={{ background: 'linear-gradient(135deg, #EAF7FF, #F3ECFF)', borderRadius: 24, padding: '16px 16px 8px', marginBottom: 28 }}>
+                <Eyebrow marginBottom={8}>Almost there!</Eyebrow>
+                <BadgeGrid badges={nextUp} size={84} animate={animate} onOpen={openBadge} />
+              </section>
+            )}
 
-            <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 16 }}>Achievements</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {badges.map((b) => (
-                  <div key={b.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <BadgeArt badge={b} width={110} height={110} />
-                    <div style={{ marginTop: 12, textAlign: 'center' }}>
-                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, lineHeight: 1.1, color: '#2A2E37' }}>{b.name}</div>
-                      {b.earned ? (
-                        <div style={{ fontSize: 12, color: '#5BCC2D', fontWeight: 700, marginTop: 4 }}>{formatEarnedDate(b.awarded_at)}</div>
-                      ) : (
-                        <div style={{ fontSize: 12, color: '#B7AC96', fontWeight: 600, marginTop: 4 }}>Locked</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {shelfSections(badges).map((section) => (
+              <section key={section.category} aria-label={CATEGORY_STYLES[section.category].label} style={{ marginBottom: 24 }}>
+                <Eyebrow marginBottom={8}>
+                  {CATEGORY_STYLES[section.category].label} · {section.badges.filter((b) => b.earned).length}/{section.badges.length}
+                </Eyebrow>
+                <BadgeGrid badges={section.badges} size={96} animate={animate} onOpen={openBadge} />
+              </section>
+            ))}
 
             <div style={{ marginTop: 32 }}>
               <PrizesSection gallery={gallery} marginBottom={16} />
@@ -197,103 +270,57 @@ export function BadgesView({ state, gallery, kidName, now, onBack }: BadgesViewP
           </div>
         ) : (
           <>
-            <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: '36px 40px', boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <BackButton onBack={onBack} />
-                <Avatar kidName={kidName} />
-                <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#98A2B3' }}>{kidName}&apos;s achievements</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, lineHeight: 1.1, color: '#2A2E37' }}>Progress summary</div>
-                </div>
-              </div>
-              <ToggleButton isKidView={isKidView} onToggle={toggleView} />
+            <div style={{ ...card, padding: '32px 28px' }}>
+              <Header eyebrow={`${kidName}'s achievements`} title="Progress summary" isKidView={false} onBack={onBack} onToggle={toggleView} kidName={kidName} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-              <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 24, padding: '20px 14px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,13,51,0.08)', boxSizing: 'border-box' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#5BCC2D' }}>{totalBadges}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Badges earned</div>
-              </div>
-              <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 24, padding: '20px 14px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,13,51,0.08)', boxSizing: 'border-box' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#144FFF' }}>{stats.total_stars}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Total stars</div>
-              </div>
-              <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 24, padding: '20px 14px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,13,51,0.08)', boxSizing: 'border-box' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#F7B23B' }}>{stats.day_streak}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Day streak</div>
-              </div>
-              <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 24, padding: '20px 14px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,13,51,0.08)', boxSizing: 'border-box' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, color: '#9D57FA' }}>{stats.minutes_this_week}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#8896AA', marginTop: 6 }}>Min. this week</div>
-              </div>
+              <StatTile value={String(earned.length)} label="Badges earned" color="#5BCC2D" />
+              <StatTile value={String(stats.total_stars)} label="Total stars" color="#144FFF" />
+              <StreakTile streak={stats.day_streak} onOpen={openStreak} />
+              <StatTile value={String(stats.minutes_this_week)} label="Min. this week" color="#9D57FA" />
             </div>
 
-            <div style={{ background: '#FFF6EA', border: '1px solid #F1ECE0', borderRadius: 32, padding: 40, boxShadow: '0 22px 44px -16px rgba(0,13,51,0.14), 0 2px 0 rgba(0,13,51,0.03)' }}>
+            <div style={{ ...card, padding: 32 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                 <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 20 }}>Unlocked badges</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                    {badges.filter((b) => b.earned).map((b) => (
-                      <div key={b.key} style={{ flex: '0 0 calc(50% - 6px)', textAlign: 'center' }}>
-                        <BadgeArt badge={b} width="100%" height={70} />
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#2A2E37', lineHeight: 1.2, marginTop: 8 }}>{b.name}</div>
-                        <div style={{ fontSize: 11, color: '#5BCC2D', fontWeight: 700, marginTop: 2 }}>{formatEarnedDate(b.awarded_at)}</div>
-                      </div>
-                    ))}
-                  </div>
+                  <Eyebrow marginBottom={16}>Unlocked badges</Eyebrow>
+                  {earned.length === 0 ? <p style={{ color: '#8896AA', margin: 0 }}>No badges yet.</p> : <BadgeGrid badges={earned} size={72} animate={false} onOpen={openBadge} />}
                 </div>
 
                 <PrizesSection gallery={gallery} marginBottom={20} />
 
                 <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, color: '#A99F8B', marginBottom: 20 }}>Learning insights</div>
+                  <Eyebrow marginBottom={20}>Learning insights</Eyebrow>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#EBF4FF', color: '#144FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M6.75 15.25V18.25M12 9.75V18.25M17.25 12.75V18.25M4.75 19.25H19.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>Most played</div>
-                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{stats.most_played_game ?? 'No games yet'}</div>
-                      </div>
-                    </div>
-                    <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F0FFE8', color: '#5BCC2D', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M12 4.75L14.02 9.06L18.75 9.69L15.31 12.95L16.17 17.63L12 15.38L7.83 17.63L8.69 12.95L5.25 9.69L9.98 9.06L12 4.75Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>Avg. rating</div>
-                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{formatAverageRating(stats.avg_rating)}</div>
-                      </div>
-                    </div>
-                    <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#FFF0E8', color: '#F7B23B', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M12 8V12L14.75 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M19.25 12C19.25 16.0041 16.0041 19.25 12 19.25C7.99594 19.25 4.75 16.0041 4.75 12C4.75 7.99594 7.99594 4.75 12 4.75C16.0041 4.75 19.25 7.99594 19.25 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>Last session</div>
-                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{formatLastSession(stats.last_session_at, now)}</div>
-                      </div>
-                    </div>
-                    <div style={{ background: '#FFFFFF', border: '1px solid #F1ECE0', borderRadius: 18, padding: 16, display: 'flex', gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#F5E8FF', color: '#9D57FA', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M4.75 15.25L9.5 10.5L12.75 13.75L19.25 7.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M14.75 7.25H19.25V11.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#2A2E37', fontSize: 14 }}>Progress</div>
-                        <div style={{ fontSize: 13, color: '#8896AA', marginTop: 2 }}>{formatProgress(stats.progress_delta_pct)}</div>
-                      </div>
-                    </div>
+                    <Insight title="Most played" value={stats.most_played_game ?? 'No games yet'} tint="#EBF4FF" color="#144FFF" icon={<path d="M6.75 15.25V18.25M12 9.75V18.25M17.25 12.75V18.25M4.75 19.25H19.25" />} />
+                    <Insight title="Avg. rating" value={formatAverageRating(stats.avg_rating)} tint="#F0FFE8" color="#5BCC2D" icon={<path d="M12 4.75L14.02 9.06L18.75 9.69L15.31 12.95L16.17 17.63L12 15.38L7.83 17.63L8.69 12.95L5.25 9.69L9.98 9.06L12 4.75Z" />} />
+                    <Insight
+                      title="Last session"
+                      value={formatLastSession(stats.last_session_at, now)}
+                      tint="#FFF0E8"
+                      color="#F7B23B"
+                      icon={
+                        <>
+                          <path d="M12 8V12L14.75 14" />
+                          <path d="M19.25 12C19.25 16.0041 16.0041 19.25 12 19.25C7.99594 19.25 4.75 16.0041 4.75 12C4.75 7.99594 7.99594 4.75 12 4.75C16.0041 4.75 19.25 7.99594 19.25 12Z" />
+                        </>
+                      }
+                    />
+                    <Insight
+                      title="Progress"
+                      value={formatProgress(stats.progress_delta_pct)}
+                      tint="#F5E8FF"
+                      color="#9D57FA"
+                      icon={
+                        <>
+                          <path d="M4.75 15.25L9.5 10.5L12.75 13.75L19.25 7.25" />
+                          <path d="M14.75 7.25H19.25V11.75" />
+                        </>
+                      }
+                    />
+                    <Insight title="Time played" value={`${formatMinutes(stats.total_minutes)} in all · ${formatMinutes(stats.minutes_this_week)} this week`} tint="#EAF7FF" color="#1478B8" icon={<path d="M7 4.75h10M7 19.25h10M8 4.75c0 4 4 5 4 7.25S8 15.25 8 19.25M16 4.75c0 4-4 5-4 7.25s4 3.25 4 7.25" />} />
+                    <Insight title="Longest streak" value={`${String(stats.longest_streak)} ${stats.longest_streak === 1 ? 'day' : 'days'} in a row`} tint="#FFF0E8" color="#F0542B" icon={<path d="M12 4.75c.6 2.5 4.25 4.25 4.25 8.25a4.25 4.25 0 0 1-8.5 0c0-2 1.1-3.3 2.15-4.3.15 1.5.75 2.4 1.7 2.6-.15-2.5-.45-4.6.4-6.55Z" />} />
                   </div>
                 </div>
               </div>
@@ -301,6 +328,19 @@ export function BadgesView({ state, gallery, kidName, now, onBack }: BadgesViewP
           </>
         )}
       </div>
+
+      {openedBadge !== undefined && (
+        <BadgeDetail
+          badge={openedBadge}
+          paint={painting[openedBadge.key] ?? 'idle'}
+          onPaint={() => {
+            onPaint(openedBadge.key)
+          }}
+          onClose={close}
+          animate={animate}
+        />
+      )}
+      {opened?.kind === 'streak' && <StreakDetail stats={stats} today={now} onClose={close} />}
     </div>
   )
 }

@@ -10,7 +10,7 @@ flowchart TB
     admin["admin/<br/>/admin/login + the admin password check"]
     play["play/<br/>/games, /items/next, /attempts, /ratings, /verifications<br/>games/ (item generators, incl. zombie_horde), Loop A (pure)"]
     events["events/<br/>the append-only event log"]
-    badges["badges/<br/>/profiles/{id}/badges, /stats<br/>seeded badges, awarding, live stats"]
+    badges["badges/<br/>/profiles/{id}/badges, /badges/new, /celebrated, /art, /stats<br/>seeded badges, awarding, live stats + day breakdown,<br/>personal badge art (worker pool)"]
     pieces["pieces/<br/>/pieces, /illustrations, /revisions, /remixes, /turns<br/>illustration files"]
     practice["practice/<br/>/api/practice-config"]
     pathfinder["pathfinder/<br/>/completions, /maps, /published-maps"]
@@ -20,7 +20,7 @@ flowchart TB
   end
 
   sqlite[("SQLite<br/>same tables and columns as before")]
-  files[("static/<br/>profile-avatars/, illustrations/")]
+  files[("static/<br/>profile-avatars/, illustrations/, badge-art/")]
   openai["OpenAI Images API"]
 
   main --> comp
@@ -34,7 +34,8 @@ flowchart TB
   practice -- "game rules" --> play
   practice & pathfinder & pieces & badges & armory & replays -- "profile lookups" --> profiles
   todo & profiles & play & events & badges & pieces & practice & pathfinder & armory & replays --> sqlite
-  profiles & pieces --> files
+  profiles & pieces & badges --> files
   profiles -- "photo remix" --> openai
   armory -- "art studio (via the photo remixer)" --> openai
   pieces -- "illustrations" --> openai
+  badges -- "badge art (low quality, WebP)" --> openai

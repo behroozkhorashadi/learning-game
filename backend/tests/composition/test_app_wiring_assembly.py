@@ -3,6 +3,7 @@ startup seeding, and the flows that cross features through assembly."""
 
 import importlib
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType
 
@@ -12,7 +13,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from app.composition.app_wiring_assembly import TODO_ROUTE_PREFIX, assemble_app
+from app.badges.badges_reducers_pure import SEED_BADGES
+from app.composition.app_wiring_assembly import TODO_ROUTE_PREFIX, assemble_app, avatar_mascot, local_day
+from app.profiles.profiles_schemas_pure import ProfileRecord
 from tests.composition.test_app_settings_assembly import EnvOnlySettings as AppSettings
 
 ADMIN = MappingProxyType({"X-Admin-Password": "composition-test"})
@@ -77,7 +80,7 @@ def test_the_entry_point_serves_every_route_group(monkeypatch: pytest.MonkeyPatc
 def test_startup_seeds_the_demo_profile_and_the_badges(tmp_path: Path) -> None:
     with _client(_settings(tmp_path)) as client:
         assert [p["name"] for p in client.get("/api/profiles").json()] == ["Demo Kid"]
-        assert len(client.get("/api/profiles/1/badges").json()) == 6
+        assert len(client.get("/api/profiles/1/badges").json()) == len(SEED_BADGES)
 
 
 def test_attempts_and_pieces_award_badges_and_feed_the_stats(tmp_path: Path) -> None:
@@ -100,6 +103,10 @@ def test_attempts_and_pieces_award_badges_and_feed_the_stats(tmp_path: Path) -> 
 
         earned = {b["key"] for b in client.get(f"/api/profiles/{kid}/badges").json() if b["earned"]}
         assert earned == {"word-wizard", "quick-builder"}
+        new = {b["key"] for b in client.get(f"/api/profiles/{kid}/badges/new").json()}
+        assert new == {"word-wizard", "quick-builder"}
+        assert client.post(f"/api/profiles/{kid}/badges/word-wizard/celebrated").status_code == 204
+        assert {b["key"] for b in client.get(f"/api/profiles/{kid}/badges/new").json()} == {"quick-builder"}
         stats = client.get(f"/api/profiles/{kid}/stats").json()
         assert (stats["total_stars"], stats["most_played_game"], stats["day_streak"]) == (5, "Syllable Builder", 1)
 
@@ -138,3 +145,24 @@ def test_deleting_a_profile_removes_everything_other_features_keep_for_it(tmp_pa
         assert client.get(f"/api/profiles/{other}/stats").json()["total_stars"] == 0
         assert client.get(f"/api/profiles/{other}/armory").json()["earned"] == 0
         assert client.get(f"/api/profiles/{other}/horde/replays").json() == []
+
+
+def test_badge_art_gets_a_word_avatar_as_its_mascot_but_never_a_photo() -> None:
+    def kid(avatar: str) -> ProfileRecord:
+        return ProfileRecord(
+            id=1,
+            name="K",
+            avatar=avatar,
+            birth_year=2018,
+            reading_support=False,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+
+    assert avatar_mascot(kid("fox")) == "fox"
+    assert avatar_mascot(kid("/static/profile-avatars/abc.jpg")) is None
+    assert avatar_mascot(None) is None
+
+
+def test_local_day_reads_stored_naive_times_as_utc() -> None:
+    aware = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
+    assert local_day(aware.replace(tzinfo=None)) == local_day(aware)
