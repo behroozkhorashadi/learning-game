@@ -1,0 +1,640 @@
+<title>Starfort Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@400;700;800&display=swap">
+<style>
+/* Layout: game board left, control column right; stacks on narrow screens. Single dark arcade look by choice. */
+:root {
+  --bg: #0a0f2a; --panel: #141b42; --line: #2a3672; --fg: #eef1ff; --muted: #9ca6d8;
+  --accent: #ffc845; --good: #4ade80; --bad: #f87171; --ice: #7dd3fc;
+  --display: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+:root[data-skin="zombie"] { --bg: #141c12; --panel: #1f2a1b; --line: #3a4a33; --muted: #a9b89e; --accent: #f2c14e; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; max-width: 1280px; margin: 0 auto 12px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: .5px; color: var(--accent); }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px; display: flex; gap: 8px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.stat b { font-family: var(--display); font-weight: 400; font-size: 20px; }
+.stat span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.stat.core b { color: var(--bad); } .stat.pts b { color: var(--accent); }
+.skins { margin-left: auto; display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.skins button { background: transparent; border: 0; padding: 6px 12px; font-weight: 700; font-size: 13px; color: var(--muted); }
+.skins button[aria-pressed="true"] { background: var(--line); color: var(--fg); }
+.skins small { font-weight: 400; opacity: .8; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 14px; max-width: 1280px; margin: 0 auto; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+.board { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; touch-action: manipulation; }
+.side { display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; }
+.card h2 { font-family: var(--display); font-weight: 400; font-size: 19px; margin: 0; letter-spacing: .3px; }
+.hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.qbtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.qbtns button { background: var(--bg); border: 2px solid var(--line); border-radius: 10px; padding: 8px 4px; display: grid; gap: 2px; font-weight: 800; }
+.qbtns button span { color: var(--accent); font-family: var(--display); font-weight: 400; font-size: 18px; }
+.qbtns button:not(:disabled):hover { border-color: var(--accent); }
+.charge { height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+.charge div { height: 100%; width: 100%; background: var(--accent); transform-origin: left; }
+#chargeLabel { margin: 0; font-size: 12px; color: var(--muted); }
+.shop { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.shop button { background: var(--bg); border: 2px solid var(--line); border-radius: 10px; padding: 8px; text-align: left; display: grid; gap: 1px; }
+.shop button[aria-pressed="true"] { border-color: var(--accent); }
+.shop .nm { font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.shop .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.shop .cost { color: var(--accent); font-weight: 800; font-size: 13px; font-variant-numeric: tabular-nums; }
+.shop .ds { color: var(--muted); font-size: 12px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { background: var(--line); border: 0; border-radius: 10px; padding: 9px 14px; font-weight: 800; }
+.btn.primary { background: var(--accent); color: #1a1405; }
+.btn.grow { flex: 1; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5, 8, 25, .62); padding: 12px; }
+:root[data-skin="zombie"] .overlay { background: rgba(8, 12, 6, .62); }
+.qbox { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 18px 20px; width: min(460px, 100%); display: grid; gap: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.qhead { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
+.qtext { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 4vw, 40px); text-align: center; margin: 4px 0; text-wrap: balance; }
+.timer { height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.timer div { height: 100%; background: var(--ice); transform-origin: left; }
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.answers button { background: var(--bg); border: 2px solid var(--line); border-radius: 12px; padding: 12px; font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.answers button:not(:disabled):hover { border-color: var(--accent); }
+.answers button.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 25%, var(--bg)); opacity: 1; }
+.answers button.no { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 25%, var(--bg)); opacity: 1; }
+.answers kbd { font-family: var(--body); font-size: 11px; color: var(--muted); margin-right: 6px; vertical-align: middle; }
+.idk { background: transparent; border: 2px dashed var(--line); border-radius: 12px; padding: 8px; font-weight: 800; color: var(--muted); }
+.feedback { margin: 0; text-align: center; font-weight: 800; min-height: 1.4em; }
+.feedback.good { color: var(--good); } .feedback.bad { color: var(--bad); } .feedback.meh { color: var(--ice); }
+.over h2 { font-family: var(--display); font-weight: 400; font-size: 34px; margin: 0; text-align: center; color: var(--accent); }
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-variant-numeric: tabular-nums; }
+.summary dt { color: var(--muted); } .summary dd { margin: 0; text-align: right; font-weight: 800; }
+.note { max-width: 1280px; margin: 12px auto 0; color: var(--muted); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header>
+  <h1 id="title">Starfort</h1>
+  <div class="stats" aria-live="polite">
+    <div class="stat pts"><b id="sPts">50</b><span>points</span></div>
+    <div class="stat core"><b id="sCore">20</b><span id="sCoreLbl">core</span></div>
+    <div class="stat"><b id="sWave">0</b><span>wave</span></div>
+    <div class="stat"><b id="sStars">0</b><span>stars</span></div>
+  </div>
+  <div class="skins" role="group" aria-label="Theme">
+    <button id="skinSpace" aria-pressed="true">Starfort</button>
+    <button id="skinZombie" aria-pressed="false">Zombie Siege <small>· unlock</small></button>
+  </div>
+</header>
+
+<main>
+  <div class="board">
+    <canvas id="cv" aria-label="Game map. Pick a tower, then tap an empty square to build it."></canvas>
+    <div class="overlay" id="qOverlay" hidden>
+      <div class="qbox" role="dialog" aria-modal="true" aria-labelledby="qText">
+        <div class="qhead"><span id="qDiff">Medium · +20</span><span>Game paused</span></div>
+        <p class="qtext" id="qText">7 × 8</p>
+        <div class="timer"><div id="qTimer"></div></div>
+        <div class="answers" id="qAnswers"></div>
+        <button class="idk" id="qIdk"><kbd>0</kbd>I don't know</button>
+        <p class="feedback" id="qFeedback" aria-live="assertive"></p>
+      </div>
+    </div>
+    <div class="overlay over" id="overOverlay" hidden>
+      <div class="qbox">
+        <h2 id="overTitle">The core fell</h2>
+        <dl class="summary" id="overSummary"></dl>
+        <button class="btn primary" id="againBtn">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <section class="card">
+      <h2>Earn points</h2>
+      <p class="hint">Answer a question to earn points. Harder ones pay more. A wrong answer sends a big swarm, "I don't know" a small one.</p>
+      <div class="qbtns">
+        <button data-d="easy">Easy<span>+10</span></button>
+        <button data-d="medium">Medium<span>+20</span></button>
+        <button data-d="hard">Hard<span>+35</span></button>
+      </div>
+      <div class="charge"><div id="chargeBar"></div></div>
+      <p id="chargeLabel">Question ready</p>
+    </section>
+
+    <section class="card">
+      <h2>Build</h2>
+      <div class="shop" id="shop"></div>
+      <p class="hint" id="shopHint">Pick a tower, then tap an empty square.</p>
+    </section>
+
+    <section class="card" id="selCard" hidden>
+      <h2 id="selName">Blaster</h2>
+      <p class="hint" id="selInfo">Level 1</p>
+      <div class="row">
+        <button class="btn primary grow" id="upBtn">Upgrade</button>
+        <button class="btn" id="sellBtn">Sell</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <button class="btn primary grow" id="waveBtn">Start wave 1</button>
+        <button class="btn" id="speedBtn" aria-pressed="false">2×</button>
+        <button class="btn" id="pauseBtn" aria-pressed="false">Pause</button>
+      </div>
+      <p class="hint">Keys: 1–4 to answer, 0 for "I don't know", P to pause, Esc to cancel.</p>
+    </section>
+  </div>
+</main>
+<p class="note">A look-and-feel prototype. The numbers are first guesses, and stars would pay for unlocks such as the Zombie Siege theme (open here to preview).</p>
+
+<script>
+(() => {
+'use strict';
+const T = 60, COLS = 16, ROWS = 10, W = COLS * T, H = ROWS * T, TAU = Math.PI * 2;
+const CHARGE_S = 6, BREAK_S = 10;
+
+// ---------- map ----------
+const WP = [[-1,2],[3,2],[3,7],[7,7],[7,1],[11,1],[11,8],[14,8],[14,4],[15,4]];
+const PTS = WP.map(([c, r]) => ({ x: (c + .5) * T, y: (r + .5) * T }));
+const CUM = [0];
+for (let i = 1; i < PTS.length; i++) CUM.push(CUM[i - 1] + Math.hypot(PTS[i].x - PTS[i-1].x, PTS[i].y - PTS[i-1].y));
+const TOTAL = CUM[CUM.length - 1];
+const blocked = new Set();
+for (let i = 1; i < WP.length; i++) {
+  let [c, r] = WP[i - 1]; const [c2, r2] = WP[i];
+  const dc = Math.sign(c2 - c), dr = Math.sign(r2 - r);
+  while (true) { if (c >= 0) blocked.add(c + ',' + r); if (c === c2 && r === r2) break; c += dc; r += dr; }
+}
+const CORE = PTS[PTS.length - 1];
+function pointAt(d) {
+  for (let i = 1; i < PTS.length; i++) if (d <= CUM[i]) {
+    const a = PTS[i-1], b = PTS[i], f = (d - CUM[i-1]) / (CUM[i] - CUM[i-1]);
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, ang: Math.atan2(b.y - a.y, b.x - a.x) };
+  }
+  return { x: CORE.x, y: CORE.y, ang: 0 };
+}
+
+// ---------- content ----------
+const TOWERS = {
+  blaster: { cost: 30,  range: 2.3, dmg: 9,   rate: 2.2, color: '#ffc845', desc: 'Fast single shots' },
+  frost:   { cost: 45,  range: 2.0, dmg: 3,   rate: 1.3, color: '#7dd3fc', desc: 'Slows enemies', slow: .45 },
+  rocket:  { cost: 70,  range: 2.8, dmg: 24,  rate: .7,  color: '#fb923c', desc: 'Splash damage', splash: .9 },
+  laser:   { cost: 110, range: 3.0, dmg: 4.5, rate: 9,   color: '#f472b6', desc: 'Burns through armor' },
+};
+const ENEMIES = {
+  crawler: { hp: 30,  speed: 55,  armor: 0,  leak: 1, r: 12 },
+  runner:  { hp: 18,  speed: 105, armor: 0,  leak: 1, r: 9 },
+  tank:    { hp: 120, speed: 34,  armor: 6,  leak: 2, r: 16 },
+  boss:    { hp: 650, speed: 26,  armor: 10, leak: 5, r: 24 },
+};
+const DIFF = {
+  easy:   { pts: 10, time: 12, label: 'Easy' },
+  medium: { pts: 20, time: 12, label: 'Medium' },
+  hard:   { pts: 35, time: 18, label: 'Hard' },
+};
+const SKINS = {
+  space: { title: 'Starfort', base: 'core', fell: 'The Power Core fell', ground: '#0b1030', grid: 'rgba(130,150,255,.07)',
+    path: '#1a244e', pathEdge: '#34468e', pathLine: 'rgba(150,180,255,.35)', plate: '#232d63',
+    names: { blaster: 'Blaster', frost: 'Frost Ray', rocket: 'Rocket Pod', laser: 'Laser' },
+    foe: { crawler: '#a78bfa', runner: '#4ade80', tank: '#f59e0b', boss: '#e879f9' } },
+  zombie: { title: 'Zombie Siege', base: 'bunker', fell: 'The bunker fell', ground: '#2b4325', grid: 'rgba(0,0,0,.09)',
+    path: '#6e5638', pathEdge: '#4d3b25', pathLine: 'rgba(255,240,200,.14)', plate: '#3c4a36',
+    names: { blaster: 'Sentry Gun', frost: 'Ice Cannon', rocket: 'Mortar', laser: 'Laser' },
+    foe: { crawler: '#56688f', runner: '#8f5656', tank: '#474747', boss: '#3d2f52' } },
+};
+let skin = SKINS.space;
+const decor = Array.from({ length: 140 }, () => ({ x: Math.random() * W, y: Math.random() * H, s: Math.random() }));
+
+// ---------- questions ----------
+const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function numChoices(ans, extra = []) {
+  const set = new Set();
+  for (const c of [...extra, ans + 1, ans - 1, ans + 2, ans - 2, ans + 10, ans - 10, ans + 3])
+    if (c !== ans && c >= 0 && Number.isInteger(c)) set.add(c);
+  const wrong = shuffle([...set]).slice(0, 3);
+  return shuffle([ans, ...wrong]).map(String);
+}
+function makeQuestion(d) {
+  if (d === 'easy') {
+    if (Math.random() < .5) { const a = ri(1, 10), b = ri(1, 10); return { text: `${a} + ${b}`, answer: String(a + b), choices: numChoices(a + b, [a * b]) }; }
+    const a = ri(5, 20), b = ri(1, a); return { text: `${a} − ${b}`, answer: String(a - b), choices: numChoices(a - b, [a + b]) };
+  }
+  if (d === 'medium') {
+    const a = ri(2, 12), b = ri(2, 12);
+    if (Math.random() < .55) return { text: `${a} × ${b}`, answer: String(a * b), choices: numChoices(a * b, [a * (b + 1), (a - 1) * b, a + b]) };
+    return { text: `${a * b} ÷ ${a}`, answer: String(b), choices: numChoices(b, [a]) };
+  }
+  const kind = ri(0, 3);
+  if (kind === 0) { const a = ri(2, 9), b = ri(3, 9), c = ri(2, 20); const ans = a * b + c; return { text: `${a} × ${b} + ${c}`, answer: String(ans), choices: numChoices(ans, [a * (b + c), a * b - c]) }; }
+  if (kind === 1) {
+    const x = ri(2, 12), a = ri(2, 9);
+    if (Math.random() < .5) return { text: `${a} × x = ${a * x}`, answer: String(x), choices: numChoices(x, [a * x - a]) , solve: true };
+    return { text: `x − ${a} = ${x}`, answer: String(x + a), choices: numChoices(x + a, [x - a]), solve: true };
+  }
+  if (kind === 2) { const den = pick([2, 3, 4, 5, 10]), n = ri(1, den - 1), m = den * ri(2, 10); const ans = n * m / den; return { text: `${n}/${den} of ${m}`, answer: String(ans), choices: numChoices(ans, [m / den, m - ans]) }; }
+  const den = ri(5, 12), n1 = ri(1, Math.floor(den / 2)), n2 = ri(1, den - n1 - 1);
+  const ans = `${n1 + n2}/${den}`;
+  const wrong = new Set([`${n1 + n2}/${den * 2}`, `${n1 + n2 + 1}/${den}`, `${n1 * n2}/${den}`, `${Math.max(1, n1 + n2 - 1)}/${den}`]);
+  wrong.delete(ans);
+  return { text: `${n1}/${den} + ${n2}/${den}`, answer: ans, choices: shuffle([ans, ...shuffle([...wrong]).slice(0, 3)]) };
+}
+
+// ---------- state ----------
+let S, shopSel = null, selTower = null, hover = null, userPaused = false, speed = 1, Q = null, nextId = 1;
+function newGame() {
+  S = { points: 50, core: 20, wave: 0, stars: 0, phase: 'idle', breakT: 0, enemies: [], towers: [], shots: [], fx: [],
+        waveQ: [], waveT: 0, swarmQ: [], swarmT: 0, charge: 1, coreFlash: 0, time: 0,
+        stats: { right: 0, wrong: 0, skip: 0, kills: 0, spent: 0 } };
+  shopSel = null; selTower = null; Q = null;
+  $('qOverlay').hidden = true; $('overOverlay').hidden = true;
+}
+function buildWave(n) {
+  const list = [];
+  for (let i = 0; i < 6 + 2 * n; i++) list.push('crawler');
+  if (n >= 3) for (let i = 0; i < n - 1; i++) list.push('runner');
+  if (n >= 4) for (let i = 0; i < Math.floor((n - 2) / 2); i++) list.push('tank');
+  shuffle(list);
+  if (n % 5 === 0) for (let i = 0; i < n / 5; i++) list.push('boss');
+  return list;
+}
+function startWave() {
+  S.wave++; S.phase = 'wave'; S.waveQ = buildWave(S.wave); S.waveT = 0;
+  floatText(W / 2, H / 2 - 40, `Wave ${S.wave}`, '#ffffff', 34, 1.4);
+}
+function spawn(kind, level) {
+  const d = ENEMIES[kind], m = Math.pow(1.13, Math.max(0, level - 1));
+  const p = pointAt(0);
+  S.enemies.push({ id: nextId++, kind, d: 0, x: p.x, y: p.y, ang: p.ang, hp: d.hp * m, max: d.hp * m,
+    speed: d.speed * (1 + .015 * (level - 1)), armor: d.armor * (1 + .1 * (level - 1)), slowT: 0, slowF: 0, dead: false, leaked: false });
+}
+function addSwarm(size) {
+  const n = size === 'big' ? ['crawler','crawler','crawler','crawler','crawler','runner'] : ['crawler','crawler'];
+  S.swarmQ.push(...n);
+}
+function stats(t) {
+  const b = TOWERS[t.type], l = t.level - 1;
+  return { range: b.range * (1 + .12 * l) * T, dmg: b.dmg * (1 + .6 * l), rate: b.rate * (1 + .15 * l), slow: b.slow, splash: b.splash };
+}
+const upgradeCost = (t) => Math.round(TOWERS[t.type].cost * .9 * t.level);
+const sellValue = (t) => Math.round(t.spent * .6);
+function hit(e, dmg, pierce) {
+  if (e.dead) return;
+  e.hp -= pierce ? dmg : Math.max(dmg * .3, dmg - e.armor);
+  if (e.hp <= 0) { e.dead = true; S.stats.kills++; S.fx.push({ type: 'pop', x: e.x, y: e.y, r: ENEMIES[e.kind].r, t: 0, life: .35, color: skin.foe[e.kind] }); }
+}
+function floatText(x, y, text, color, size = 18, life = 1.1) { S.fx.push({ type: 'text', x, y, text, color, size, t: 0, life }); }
+
+// ---------- update ----------
+function update(dt) {
+  S.time += dt;
+  S.charge = Math.min(1, S.charge + dt / CHARGE_S);
+  S.coreFlash = Math.max(0, S.coreFlash - dt);
+  if (S.phase === 'break') { S.breakT -= dt; if (S.breakT <= 0) startWave(); }
+  if (S.waveQ.length) { S.waveT -= dt; if (S.waveT <= 0) { spawn(S.waveQ.shift(), S.wave); S.waveT = .65; } }
+  if (S.swarmQ.length) { S.swarmT -= dt; if (S.swarmT <= 0) { spawn(S.swarmQ.shift(), Math.max(1, S.wave)); S.swarmT = .3; } }
+
+  for (const e of S.enemies) {
+    if (e.slowT > 0) e.slowT -= dt;
+    e.d += e.speed * (e.slowT > 0 ? 1 - e.slowF : 1) * dt;
+    if (e.d >= TOTAL) {
+      e.leaked = true; S.core -= ENEMIES[e.kind].leak; S.coreFlash = .4;
+      if (S.core <= 0) { S.core = 0; gameOver(); return; }
+      continue;
+    }
+    const p = pointAt(e.d); e.x = p.x; e.y = p.y; e.ang = p.ang;
+  }
+
+  for (const t of S.towers) {
+    const st = stats(t); t.cd -= dt; t.beamT = Math.max(0, t.beamT - dt);
+    let target = null, best = -1;
+    for (const e of S.enemies) {
+      if (e.dead || e.leaked) continue;
+      const dx = e.x - t.x, dy = e.y - t.y;
+      if (dx * dx + dy * dy <= st.range * st.range && e.d > best) { best = e.d; target = e; }
+    }
+    if (!target) continue;
+    t.ang = Math.atan2(target.y - t.y, target.x - t.x);
+    if (t.cd > 0) continue;
+    t.cd = 1 / st.rate;
+    if (t.type === 'blaster') S.shots.push({ kind: 'bullet', x: t.x, y: t.y, target, tx: target.x, ty: target.y, speed: 640, dmg: st.dmg });
+    else if (t.type === 'rocket') S.shots.push({ kind: 'rocket', x: t.x, y: t.y, target, tx: target.x, ty: target.y, speed: 340, dmg: st.dmg, splash: st.splash * T });
+    else if (t.type === 'frost') { hit(target, st.dmg, false); target.slowT = 1.5; target.slowF = st.slow; t.beam = target; t.beamT = .15; }
+    else { hit(target, st.dmg, true); t.beam = target; t.beamT = .12; }
+  }
+
+  for (const s of S.shots) {
+    if (!s.target.dead && !s.target.leaked) { s.tx = s.target.x; s.ty = s.target.y; }
+    else if (s.kind === 'bullet') { s.done = true; continue; }
+    const dx = s.tx - s.x, dy = s.ty - s.y, dist = Math.hypot(dx, dy), step = s.speed * dt;
+    if (dist <= step) {
+      s.done = true;
+      if (s.kind === 'bullet') hit(s.target, s.dmg, false);
+      else {
+        for (const e of S.enemies) if (Math.hypot(e.x - s.tx, e.y - s.ty) <= s.splash) hit(e, s.dmg, false);
+        S.fx.push({ type: 'boom', x: s.tx, y: s.ty, r: s.splash, t: 0, life: .3 });
+      }
+    } else { s.x += dx / dist * step; s.y += dy / dist * step; }
+  }
+  S.shots = S.shots.filter(s => !s.done);
+  S.enemies = S.enemies.filter(e => !e.dead && !e.leaked);
+  for (const f of S.fx) f.t += dt;
+  S.fx = S.fx.filter(f => f.t < f.life);
+
+  if (S.phase === 'wave' && !S.waveQ.length && !S.swarmQ.length && !S.enemies.length) {
+    S.stars++; S.phase = 'break'; S.breakT = BREAK_S;
+    floatText(W / 2, H / 2 - 40, `Wave ${S.wave} cleared!  +1 star`, '#ffc845', 30, 1.8);
+  }
+}
+function gameOver() {
+  S.phase = 'over'; selTower = null; shopSel = null;
+  $('overTitle').textContent = skin.fell;
+  const rows = [['Waves survived', Math.max(0, S.wave - 1)], ['Stars earned', S.stars], ['Right answers', S.stats.right],
+    ['Wrong answers', S.stats.wrong], ["I don't know", S.stats.skip], ['Enemies stopped', S.stats.kills]];
+  $('overSummary').replaceChildren(...rows.flatMap(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd]; }));
+  $('overOverlay').hidden = false;
+  $('againBtn').focus();
+}
+
+// ---------- questions UI ----------
+function openQuestion(d) {
+  if (S.charge < 1 || Q || S.phase === 'over') return;
+  S.charge = 0;
+  Q = { d, q: makeQuestion(d), left: DIFF[d].time, done: false, closeIn: 0 };
+  $('qDiff').textContent = `${DIFF[d].label} · +${DIFF[d].pts}`;
+  $('qText').textContent = Q.q.solve ? `${Q.q.text}.  x = ?` : Q.q.text;
+  $('qFeedback').textContent = ''; $('qFeedback').className = 'feedback';
+  $('qAnswers').replaceChildren(...Q.q.choices.map((c, i) => {
+    const b = document.createElement('button'); b.dataset.v = c;
+    const k = document.createElement('kbd'); k.textContent = i + 1;
+    b.append(k, c); b.addEventListener('click', () => answer(c)); return b;
+  }));
+  $('qIdk').disabled = false;
+  $('qOverlay').hidden = false;
+  $('qAnswers').firstChild.focus();
+}
+function answer(choice) {
+  if (!Q || Q.done) return;
+  Q.done = true; Q.closeIn = choice === Q.q.answer ? 1.1 : 2.2;
+  const fb = $('qFeedback');
+  for (const b of $('qAnswers').children) {
+    b.disabled = true;
+    if (b.dataset.v === Q.q.answer) b.className = 'ok'; else if (b.dataset.v === choice) b.className = 'no';
+  }
+  $('qIdk').disabled = true;
+  if (choice === Q.q.answer) {
+    const p = DIFF[Q.d].pts; S.points += p; S.stats.right++;
+    fb.textContent = `Right! +${p} points`; fb.className = 'feedback good';
+  } else if (choice === null) {
+    S.stats.skip++; addSwarm('small');
+    fb.textContent = `The answer is ${Q.q.answer}. A small swarm is coming.`; fb.className = 'feedback meh';
+  } else {
+    S.stats.wrong++; addSwarm('big');
+    fb.textContent = `Not quite, it's ${Q.q.answer}. A big swarm is coming!`; fb.className = 'feedback bad';
+  }
+}
+function tickQuestion(dt) {
+  if (!Q.done) { Q.left -= dt; $('qTimer').style.transform = `scaleX(${Math.max(0, Q.left / DIFF[Q.d].time)})`; if (Q.left <= 0) answer(null); }
+  else { Q.closeIn -= dt; if (Q.closeIn <= 0) { Q = null; $('qOverlay').hidden = true; } }
+}
+
+// ---------- drawing ----------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() { const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+resize(); addEventListener('resize', resize);
+
+function drawMap() {
+  ctx.fillStyle = skin.ground; ctx.fillRect(0, 0, W, H);
+  if (skin === SKINS.space) {
+    for (const s of decor) { ctx.globalAlpha = .25 + .6 * s.s * (.6 + .4 * Math.sin(S.time * 2 + s.x)); ctx.fillStyle = '#cdd6ff'; ctx.fillRect(s.x, s.y, 1 + s.s * 1.6, 1 + s.s * 1.6); }
+  } else {
+    ctx.strokeStyle = 'rgba(20,40,15,.5)'; ctx.lineWidth = 2;
+    for (const s of decor) { ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + 3, s.y - 6); ctx.moveTo(s.x + 4, s.y); ctx.lineTo(s.x + 6, s.y - 5); ctx.stroke(); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = skin.grid; ctx.lineWidth = 1;
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) if (!blocked.has(c + ',' + r)) ctx.strokeRect(c * T + 3.5, r * T + 3.5, T - 7, T - 7);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const line = () => { ctx.beginPath(); ctx.moveTo(PTS[0].x, PTS[0].y); for (const p of PTS) ctx.lineTo(p.x, p.y); ctx.stroke(); };
+  ctx.strokeStyle = skin.pathEdge; ctx.lineWidth = 50; line();
+  ctx.strokeStyle = skin.path; ctx.lineWidth = 40; line();
+  ctx.setLineDash([10, 14]); ctx.lineDashOffset = -S.time * 20; ctx.strokeStyle = skin.pathLine; ctx.lineWidth = 2; line(); ctx.setLineDash([]);
+}
+function drawBase() {
+  const { x, y } = CORE, flash = S.coreFlash > 0;
+  ctx.save(); ctx.translate(x, y);
+  if (skin === SKINS.space) {
+    const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 48); g.addColorStop(0, flash ? 'rgba(255,90,90,.9)' : 'rgba(110,220,255,.85)'); g.addColorStop(1, 'rgba(110,220,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 48, 0, TAU); ctx.fill();
+    ctx.rotate(S.time * .6); ctx.fillStyle = flash ? '#ff7a7a' : '#8be9ff'; ctx.strokeStyle = '#e6fbff'; ctx.lineWidth = 2;
+    ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; ctx.lineTo(Math.cos(a) * 20, Math.sin(a) * 20); } ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else {
+    ctx.fillStyle = '#c8b27a'; for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; ctx.beginPath(); ctx.ellipse(Math.cos(a) * 26, Math.sin(a) * 26, 9, 6, a + Math.PI / 2, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = flash ? '#a14b4b' : '#5f6b5a'; ctx.fillRect(-19, -19, 38, 38);
+    ctx.fillStyle = '#2b2f29'; ctx.fillRect(-14, -4, 28, 6);
+  }
+  ctx.restore();
+}
+function drawEnemy(e) {
+  const d = ENEMIES[e.kind], r = d.r, col = skin.foe[e.kind];
+  ctx.save(); ctx.translate(e.x, e.y);
+  if (skin === SKINS.space) {
+    const w = Math.sin(S.time * 8 + e.id) * 1.6;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(0, 0, r + w * .4, r - w * .4, 0, 0, TAU); ctx.fill();
+    if (e.kind === 'tank' || e.kind === 'boss') { ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r * .72, .4, Math.PI - .4); ctx.stroke(); }
+    if (e.kind === 'runner') { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-3, -r); ctx.lineTo(-6, -r - 7); ctx.moveTo(3, -r); ctx.lineTo(6, -r - 7); ctx.stroke(); }
+    const eyes = e.kind === 'boss' ? [-.45, 0, .45] : [0];
+    for (const o of eyes) {
+      const ex = Math.cos(e.ang) * r * .3 + Math.cos(e.ang + Math.PI / 2) * r * o, ey = Math.sin(e.ang) * r * .3 + Math.sin(e.ang + Math.PI / 2) * r * o;
+      const er = e.kind === 'boss' ? r * .22 : r * .42;
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ex + Math.cos(e.ang) * er * .45, ey + Math.sin(e.ang) * er * .45, er * .45, 0, TAU); ctx.fill();
+    }
+  } else {
+    ctx.rotate(e.ang);
+    const sw = Math.sin(S.time * 7 + e.id) * r * .15;
+    ctx.strokeStyle = '#7fae64'; ctx.lineWidth = r * .32; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(r * .1, -r * .55); ctx.lineTo(r * 1.15 + sw, -r * .5); ctx.moveTo(r * .1, r * .55); ctx.lineTo(r * 1.15 - sw, r * .5); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(-r * .1, 0, r * .62, r * .95, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#86b86b'; ctx.beginPath(); ctx.arc(r * .12, 0, r * .55, 0, TAU); ctx.fill();
+    if (e.kind === 'tank') { ctx.fillStyle = '#6b6f73'; ctx.beginPath(); ctx.arc(r * .05, 0, r * .58, Math.PI / 2, Math.PI * 1.5); ctx.fill(); }
+    ctx.fillStyle = e.kind === 'boss' ? '#ff4040' : '#1d2a14';
+    ctx.beginPath(); ctx.arc(r * .4, -r * .2, r * .1, 0, TAU); ctx.arc(r * .4, r * .2, r * .1, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+  if (e.slowT > 0) { ctx.strokeStyle = 'rgba(125,211,252,.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, r + 4, 0, TAU); ctx.stroke(); }
+  if (e.hp < e.max) {
+    const bw = Math.max(20, r * 2);
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(e.x - bw / 2, e.y - r - 10, bw, 4);
+    ctx.fillStyle = e.hp / e.max > .4 ? '#4ade80' : '#f87171'; ctx.fillRect(e.x - bw / 2, e.y - r - 10, bw * e.hp / e.max, 4);
+  }
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function drawTower(t, ghost) {
+  const b = TOWERS[t.type];
+  ctx.save(); ctx.translate(t.x, t.y); if (ghost) ctx.globalAlpha = .55;
+  ctx.fillStyle = skin.plate; roundRect(-24, -24, 48, 48, 10); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.rotate(t.ang);
+  ctx.fillStyle = '#0d1020';
+  if (t.type === 'rocket') { ctx.fillRect(4, -11, 18, 8); ctx.fillRect(4, 3, 18, 8); }
+  else if (t.type === 'laser') { ctx.fillRect(0, -3, 24, 6); }
+  else if (t.type === 'frost') { ctx.fillRect(0, -5, 20, 10); }
+  else { ctx.fillRect(0, -4, 22, 8); }
+  ctx.fillStyle = b.color;
+  if (t.type === 'laser') { ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(0, -14); ctx.lineTo(-14, 0); ctx.lineTo(0, 14); ctx.closePath(); ctx.fill(); }
+  else { ctx.beginPath(); ctx.arc(0, 0, t.type === 'rocket' ? 15 : 13, 0, TAU); ctx.fill(); }
+  ctx.rotate(-t.ang);
+  for (let i = 0; i < t.level; i++) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-10 + i * 10, 18, 2.6, 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+function drawRange(x, y, r, ok) {
+  ctx.fillStyle = ok ? 'rgba(255,255,255,.07)' : 'rgba(248,113,113,.12)'; ctx.strokeStyle = ok ? 'rgba(255,255,255,.35)' : 'rgba(248,113,113,.6)';
+  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
+}
+function draw() {
+  drawMap(); drawBase();
+  if (selTower) drawRange(selTower.x, selTower.y, stats(selTower).range, true);
+  for (const t of S.towers) drawTower(t, false);
+  for (const t of S.towers) if (t.beamT > 0 && t.beam && !t.beam.dead) {
+    ctx.strokeStyle = t.type === 'laser' ? 'rgba(244,114,182,.9)' : 'rgba(125,211,252,.9)'; ctx.lineWidth = t.type === 'laser' ? 3 : 4;
+    ctx.beginPath(); ctx.moveTo(t.x + Math.cos(t.ang) * 20, t.y + Math.sin(t.ang) * 20); ctx.lineTo(t.beam.x, t.beam.y); ctx.stroke();
+  }
+  for (const e of S.enemies) drawEnemy(e);
+  for (const s of S.shots) {
+    ctx.fillStyle = s.kind === 'rocket' ? '#fb923c' : '#ffe9a8';
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.kind === 'rocket' ? 5 : 3, 0, TAU); ctx.fill();
+  }
+  for (const f of S.fx) {
+    const k = f.t / f.life;
+    if (f.type === 'boom') { ctx.strokeStyle = `rgba(251,146,60,${1 - k})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (.4 + .6 * k), 0, TAU); ctx.stroke(); }
+    else if (f.type === 'pop') { ctx.globalAlpha = 1 - k; ctx.fillStyle = f.color; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * f.r * (1 + k * 1.5), f.y + Math.sin(a) * f.r * (1 + k * 1.5), 3, 0, TAU); ctx.fill(); } ctx.globalAlpha = 1; }
+    else { ctx.globalAlpha = Math.min(1, (1 - k) * 2); ctx.fillStyle = f.color; ctx.font = `${f.size}px 'Lilita One', system-ui, sans-serif`; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 4; ctx.strokeText(f.text, f.x, f.y - k * 24); ctx.fillText(f.text, f.x, f.y - k * 24); ctx.globalAlpha = 1; }
+  }
+  if (shopSel && hover) {
+    const ok = canBuild(hover.c, hover.r) && S.points >= TOWERS[shopSel].cost;
+    const x = (hover.c + .5) * T, y = (hover.r + .5) * T;
+    drawRange(x, y, TOWERS[shopSel].range * T, ok);
+    drawTower({ type: shopSel, x, y, ang: 0, level: 1 }, true);
+  }
+  if (S.phase === 'break' || S.phase === 'idle') {
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; roundRect(W / 2 - 150, 12, 300, 34, 17); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = "16px 'Nunito', system-ui, sans-serif"; ctx.textAlign = 'center';
+    ctx.fillText(S.phase === 'idle' ? 'Build towers, then start wave 1' : `Next wave in ${Math.ceil(S.breakT)}s`, W / 2, 35);
+  }
+}
+
+// ---------- input ----------
+const $ = (id) => document.getElementById(id);
+function canBuild(c, r) { return c >= 0 && r >= 0 && c < COLS && r < ROWS && !blocked.has(c + ',' + r) && !S.towers.some(t => t.c === c && t.r === r); }
+function cellFrom(ev) { const b = cv.getBoundingClientRect(); return { c: Math.floor((ev.clientX - b.left) / b.width * COLS), r: Math.floor((ev.clientY - b.top) / b.height * ROWS) }; }
+cv.addEventListener('pointermove', (ev) => { hover = cellFrom(ev); });
+cv.addEventListener('pointerleave', () => { hover = null; });
+cv.addEventListener('pointerdown', (ev) => {
+  if (S.phase === 'over' || Q) return;
+  const { c, r } = cellFrom(ev); hover = { c, r };
+  if (shopSel) {
+    const cost = TOWERS[shopSel].cost;
+    if (canBuild(c, r) && S.points >= cost) {
+      S.points -= cost; S.stats.spent += cost;
+      const t = { type: shopSel, c, r, x: (c + .5) * T, y: (r + .5) * T, level: 1, cd: 0, ang: -Math.PI / 2, beam: null, beamT: 0, spent: cost };
+      S.towers.push(t); selTower = t; shopSel = null; renderShop();
+    }
+    return;
+  }
+  selTower = S.towers.find(t => t.c === c && t.r === r) || null;
+});
+function renderShop() {
+  $('shop').replaceChildren(...Object.entries(TOWERS).map(([k, b]) => {
+    const btn = document.createElement('button'); btn.dataset.t = k; btn.setAttribute('aria-pressed', String(shopSel === k));
+    const nm = document.createElement('span'); nm.className = 'nm'; const dot = document.createElement('i'); dot.className = 'dot'; dot.style.background = b.color; nm.append(dot, skin.names[k]);
+    const cost = document.createElement('span'); cost.className = 'cost'; cost.textContent = `${b.cost} points`;
+    const ds = document.createElement('span'); ds.className = 'ds'; ds.textContent = b.desc;
+    btn.append(nm, cost, ds);
+    btn.addEventListener('click', () => { shopSel = shopSel === k ? null : k; selTower = null; renderShop(); });
+    return btn;
+  }));
+}
+document.querySelectorAll('.qbtns button').forEach(b => b.addEventListener('click', () => openQuestion(b.dataset.d)));
+$('qIdk').addEventListener('click', () => answer(null));
+$('waveBtn').addEventListener('click', () => { if (S.phase === 'idle' || S.phase === 'break') startWave(); });
+$('pauseBtn').addEventListener('click', () => { userPaused = !userPaused; });
+$('speedBtn').addEventListener('click', () => { speed = speed === 1 ? 2 : 1; });
+$('upBtn').addEventListener('click', () => {
+  if (!selTower || selTower.level >= 3) return; const c = upgradeCost(selTower);
+  if (S.points < c) return; S.points -= c; S.stats.spent += c; selTower.spent += c; selTower.level++;
+  floatText(selTower.x, selTower.y - 26, `Level ${selTower.level}`, '#ffffff', 16, .9);
+});
+$('sellBtn').addEventListener('click', () => {
+  if (!selTower) return; S.points += sellValue(selTower); S.towers = S.towers.filter(t => t !== selTower); selTower = null;
+});
+$('againBtn').addEventListener('click', () => { newGame(); renderShop(); });
+function setSkin(name) {
+  skin = SKINS[name]; document.documentElement.dataset.skin = name;
+  $('skinSpace').setAttribute('aria-pressed', String(name === 'space')); $('skinZombie').setAttribute('aria-pressed', String(name === 'zombie'));
+  $('title').textContent = skin.title; $('sCoreLbl').textContent = skin.base; renderShop();
+  try { localStorage.setItem('starfort-skin', name); } catch (_) {}
+}
+$('skinSpace').addEventListener('click', () => setSkin('space'));
+$('skinZombie').addEventListener('click', () => setSkin('zombie'));
+addEventListener('keydown', (ev) => {
+  if (Q && !Q.done) {
+    if (ev.key >= '1' && ev.key <= '4') { const c = Q.q.choices[Number(ev.key) - 1]; if (c !== undefined) answer(c); ev.preventDefault(); }
+    else if (ev.key === '0') { answer(null); ev.preventDefault(); }
+    return;
+  }
+  if (ev.key === 'p' || ev.key === 'P') userPaused = !userPaused;
+  if (ev.key === 'Escape') { shopSel = null; selTower = null; renderShop(); }
+});
+
+// ---------- UI sync ----------
+const prev = {};
+function setText(id, v) { if (prev[id] !== v) { prev[id] = v; $(id).textContent = v; } }
+function syncUI() {
+  setText('sPts', String(S.points)); setText('sCore', String(S.core)); setText('sWave', String(S.wave)); setText('sStars', String(S.stars));
+  const ready = S.charge >= 1 && !Q && S.phase !== 'over';
+  document.querySelectorAll('.qbtns button').forEach(b => { b.disabled = !ready; });
+  $('chargeBar').style.transform = `scaleX(${S.charge})`;
+  setText('chargeLabel', S.charge >= 1 ? 'Question ready' : `Next question in ${Math.ceil((1 - S.charge) * CHARGE_S)}s`);
+  document.querySelectorAll('#shop button').forEach(b => { b.disabled = S.points < TOWERS[b.dataset.t].cost && shopSel !== b.dataset.t; });
+  setText('shopHint', shopSel ? `Tap an empty square to build a ${skin.names[shopSel]}.` : 'Pick a tower, then tap an empty square.');
+  const wb = $('waveBtn');
+  wb.disabled = !(S.phase === 'idle' || S.phase === 'break');
+  setText('waveBtn', S.phase === 'idle' ? 'Start wave 1' : S.phase === 'break' ? `Send wave ${S.wave + 1} now` : `Wave ${S.wave} in progress`);
+  setText('pauseBtn', userPaused ? 'Resume' : 'Pause'); $('pauseBtn').setAttribute('aria-pressed', String(userPaused));
+  setText('speedBtn', speed === 2 ? '1×' : '2×'); $('speedBtn').setAttribute('aria-pressed', String(speed === 2));
+  $('selCard').hidden = !selTower;
+  if (selTower) {
+    setText('selName', skin.names[selTower.type]);
+    const st = stats(selTower);
+    setText('selInfo', `Level ${selTower.level} of 3 · damage ${st.dmg.toFixed(1)} · range ${(st.range / T).toFixed(1)} squares`);
+    const max = selTower.level >= 3, c = upgradeCost(selTower);
+    setText('upBtn', max ? 'Fully upgraded' : `Upgrade · ${c} points`);
+    $('upBtn').disabled = max || S.points < c;
+    setText('sellBtn', `Sell · +${sellValue(selTower)}`);
+  }
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (Q) tickQuestion(dt);
+  for (let i = 0; i < speed; i++) if (!Q && !userPaused && S.phase !== 'over') update(dt);
+  draw(); syncUI();
+  requestAnimationFrame(frame);
+}
+newGame();
+let saved = 'space'; try { saved = localStorage.getItem('starfort-skin') || 'space'; } catch (_) {}
+setSkin(SKINS[saved] ? saved : 'space');
+requestAnimationFrame(frame);
+})();
+</script>
