@@ -25,6 +25,7 @@ describe('assembleDevScreens', () => {
     const ids = screens.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids[0]).toBe('todo-example')
+    expect(ids).toContain('starfort-prototype')
     expect(ids).toContain('zombie-hit-lab')
   })
 

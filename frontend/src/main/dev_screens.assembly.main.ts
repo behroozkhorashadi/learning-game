@@ -17,11 +17,19 @@ import { assembleZombieHitLab } from '@app/zombie_lab/zombie_hit_lab.assembly.ma
 import { ZombiePOCScene } from '@app/zombie_lab/zombie_poc_scene.pure.ui.tsx'
 import type { DevScreen } from './dev_screen_picker.pure.ui.tsx'
 import { bindDevScreens } from './dev_screens.effect.ui.tsx'
+import { bindStarfortPrototype } from './starfort_prototype.effect.ui.tsx'
 
 /** Every screen the dev picker can open (`?screen=`), bound to the real backend and browser. Dev builds only: app.assembly.main.ts calls this. */
 export function assembleDevScreens(): readonly DevScreen[] {
   return bindDevScreens({
-    standalone: [{ id: 'todo-example', label: 'Worked example: todos (add ?flags=examples_todo_backup for backup)', Screen: assembleTodos() }],
+    standalone: [
+      { id: 'todo-example', label: 'Worked example: todos (add ?flags=examples_todo_backup for backup)', Screen: assembleTodos() },
+      {
+        id: 'starfort-prototype',
+        label: 'Starfort tower defense prototype',
+        Screen: bindStarfortPrototype({ src: '/prototypes/starfort.html' }),
+      },
+    ],
     speech: assembleSpeech(),
     log: (event, ...details) => {
       console.log(event, ...details)
