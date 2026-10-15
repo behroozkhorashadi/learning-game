@@ -272,4 +272,5 @@ The real adaptive engine (promote/hold/support), the model-provider/LLM layer,
 writing games and rubric scoring, ratings sampling, variant assignment logic,
 the reward loop, the parent dashboard, audio, and all visual design. Fields and
 interfaces exist for these (e.g. `GameModule.score_attempt`, `Variant`,
-`Rating`) but carry no behavior yet — see PRD §16 for the intended order.
+`Rating`) but carry no behavior yet — see PRD §16 for the intended order. More
+to come.
