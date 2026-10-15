@@ -13,6 +13,7 @@ make install-frontend   # npm install in frontend/ + Playwright's Chromium (Node
 make install-hooks      # pre-commit hook: lint + format on staged files only
 
 make dev                # backend (:8000) + frontend (Vite) together. One command, Ctrl-C stops both
+make check              # the inner loop, seconds: typecheck, lint, tests touched by your changes
 make preflight          # every check CI runs, FE + BE + API contract
 make gen-api            # regenerate frontend/src/api/ types from the backend's OpenAPI
 make e2e                # on-demand Playwright happy paths (own temp DB, ports 8100/5174; not in CI)
@@ -186,7 +187,7 @@ const Todos = bindTodos({ repository: memoryRepository([]), createId: sequential
 
 ```
 Good: make dev → http://localhost:5173/?screen=todo-example&flags=examples_todo_backup → add, back up, watch it work.
-      Plus a story with a play function that does the same in CI.
+      Plus a feature test (todos.effect.ui.test.tsx) that does the same in jsdom.
 Poor: "tsc passes, ship it."
 ```
 

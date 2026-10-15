@@ -41,7 +41,7 @@ export const OUT_OF_ROUNDS_MS = 2500
 /** How long the earned-a-push-back banner stays up. */
 export const SHOVE_EARNED_MS = 2000
 /** The longest frame step the engine takes, so a backgrounded tab doesn't teleport the horde. */
-const MAX_STEP_MS = 50
+export const MAX_STEP_MS = 50
 
 export type HordePhase = 'ready' | 'loading' | 'intro' | 'playing' | 'over'
 

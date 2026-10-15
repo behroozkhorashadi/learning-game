@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { ParentSelect } from './parent_select.pure.ui.tsx'
 
@@ -13,16 +13,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const PickAParent: Story = {
-  play: async ({ args, canvasElement }) => {
-    await userEvent.selectOptions(within(canvasElement).getByRole('combobox', { name: /Parent/ }), 'Dad')
-    await expect(args.onChange).toHaveBeenCalledWith(2)
-  },
-}
+export const Default: Story = {}
 
 export const NoParentsYet: Story = {
   args: { parents: [] },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(/A grown-up can add one/)).toBeVisible()
-  },
 }

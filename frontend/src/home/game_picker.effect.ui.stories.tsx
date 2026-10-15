@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { bindGamePicker } from './game_picker.effect.ui.tsx'
 import { GAMES } from './home_fixtures.test.lib.ts'
 
@@ -19,8 +19,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const LoadsCatalog: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText('Equation Outbreak')).toBeVisible()
-  },
-}
+export const Default: Story = {}

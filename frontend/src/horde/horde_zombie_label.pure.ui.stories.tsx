@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, waitFor, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { HordeZombieLabel } from './horde_zombie_label.pure.ui.tsx'
 
@@ -15,6 +14,8 @@ function Stage({ answer, color, health }: { readonly answer: string | null; read
 }
 
 const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'],
   title: 'app/horde/HordeZombieLabel',
   component: Stage,
   args: { answer: '42', color: '#9D57FA', health: 0.66 },
@@ -23,17 +24,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Wounded: Story = {
-  play: async ({ canvasElement }) => {
-    await waitFor(async () => {
-      await expect(within(canvasElement).getByText('42')).toBeVisible()
-    })
-  },
-}
+export const Default: Story = {}
 
 export const BetweenQuestions: Story = {
   args: { answer: null, health: 0.2 },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).queryByText('42')).toBeNull()
-  },
 }

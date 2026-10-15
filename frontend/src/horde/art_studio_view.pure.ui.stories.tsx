@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { createRef } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { picture } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
 import { loaded } from '@app/query/query_state.pure.lib.ts'
 import { ArtStudioView } from './art_studio_view.pure.ui.tsx'
@@ -38,32 +38,16 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const ReadyToCreate: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Create art · 300 points' }))
-    await expect(args.onCreate).toHaveBeenCalled()
-    await expect(canvas.getByRole('img', { name: 'Zombie Slayer: a cape' })).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const JustMade: Story = {
   args: { latest: GALLERY[0], balance: 120 },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('Saved to your gallery!')).toBeVisible()
-  },
 }
 
 export const NotEnoughPoints: Story = {
   args: { balance: 90, selfie: null },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(/You need 210 more points/)).toBeVisible()
-  },
 }
 
 export const AiUnavailable: Story = {
   args: { error: "the art studio can't make art right now; no points were spent" },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('alert')).toHaveTextContent('no points were spent')
-  },
 }

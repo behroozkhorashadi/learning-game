@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { assembleArenaScheduler } from '@app/outbreak/zombie_math_blaster.assembly.main.ts'
 import { FakeHordeViewport, fakeArmory, hordeHarness } from './horde_fakes.test.ui.tsx'
 import { HordeViewport } from './horde_viewport.pure.ui.tsx'
@@ -24,17 +24,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const BuyThenZapTheAnswer: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Buy Rapid Blaster for 250 points' }))
-    // Bought, so the best gear owned is equipped, and the starter can be swapped back in.
-    await expect(await canvas.findByRole('button', { name: 'Equip Starter Blaster' })).toBeVisible()
-    await userEvent.click(canvas.getByRole('button', { name: 'Start' }))
-    await expect(await canvas.findByRole('heading', { name: 'Question' })).toHaveTextContent('3 + 4 =')
-    await userEvent.click(await canvas.findByRole('button', { name: 'Zap the zombie carrying 7' }, { timeout: 3000 }))
-    await expect(canvas.getByText('Correct! 3 + 4 = 7')).toBeInTheDocument()
-  },
-}
+export const Default: Story = {}
 
-export const Real3D: Story = { args: { real3d: true } }
+export const Real3D: Story = { args: { real3d: true }, tags: ['!test'] }

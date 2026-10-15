@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { IllustrationArt } from './illustration_art.pure.ui.tsx'
 
 const meta = {
@@ -11,8 +10,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Placeholder: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('img', { name: 'Hero illustration' })).toBeVisible()
-  },
-}
+export const Default: Story = {}

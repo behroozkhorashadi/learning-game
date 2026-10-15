@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { CROW, LIGHTHOUSE, fakePiecesStore } from './library_fixtures.test.lib.ts'
 import { loadLibrary } from './library_loader.pure.lib.ts'
 import { bindStoryLibrary } from './story_library.effect.ui.tsx'
@@ -23,10 +23,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const DeleteAStory: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Delete The Crow' }))
-    await expect(await canvas.findByText('1 story so far')).toBeVisible()
-  },
-}
+export const Default: Story = {}

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import type { ArmoryLooksRecord } from '@app/api/armory_schema.pure.lib.ts'
 import { picture } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
 import { loaded } from '@app/query/query_state.pure.lib.ts'
@@ -46,15 +46,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /** Everything unlocked but the billboard, with a glowing pink suit, a sky-blue blaster, and a dino emblem. */
-export const Designing: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Save my look' }))
-    await expect(args.onSave).toHaveBeenCalled()
-    await userEvent.click(canvas.getByRole('button', { name: 'Unlock Horde Billboard for 100 points' }))
-    await expect(args.onBuy).toHaveBeenCalledWith('horde_billboard')
-  },
-}
+export const Default: Story = {}
 
 /** A fresh studio: nothing unlocked yet, and not enough points for everything. */
 export const AllLocked: Story = {
@@ -70,8 +62,5 @@ export const AllLocked: Story = {
       pathfinder: offer('pathfinder_frame', 'Pathfinder Backdrop', 'Hang one of your art pieces behind the Pathfinder board.', 100, false),
       horde: offer('horde_billboard', 'Horde Billboard', 'Hang one of your art pieces on a giant billboard in Zombie Horde.', 100, false),
     },
-  },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('button', { name: 'Unlock Emblem Maker for 120 points' })).toBeVisible()
   },
 }

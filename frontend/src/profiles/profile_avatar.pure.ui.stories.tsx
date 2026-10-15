@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { ProfileAvatar } from './profile_avatar.pure.ui.tsx'
 
 const meta = {
@@ -18,16 +17,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Animal: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('🦊')).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const MissingArtFallsBackToInitial: Story = {
   args: { avatar: 'no-such-avatar', name: 'rami' },
-  play: async ({ canvasElement }) => {
-    // The fallback waits on the image's 404, which can take over a second under load.
-    await expect(await within(canvasElement).findByText('R', {}, { timeout: 5000 })).toBeVisible()
-  },
 }

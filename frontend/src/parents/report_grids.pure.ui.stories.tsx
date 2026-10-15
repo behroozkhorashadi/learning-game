@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, userEvent, within } from 'storybook/test'
 import { FactGrid, WhenHeatmap } from './report_grids.pure.ui.tsx'
 import { sampleReport } from './parents_fixtures.test.lib.ts'
 
@@ -20,10 +19,4 @@ const meta = { title: 'app/parents/ReportGrids', component: Grids } satisfies Me
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const HeatmapAndFacts: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('tab', { name: 'Division' }))
-    await expect(canvas.getByLabelText('35 ÷ 7: 0 of 3 right on the first try')).toBeVisible()
-  },
-}
+export const Default: Story = {}

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, waitFor, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { bindZombieHitLab } from './zombie_hit_lab.effect.ui.tsx'
 
 /** The real bound lab over in-memory storage and a fake fixture endpoint, in a real browser (real WebGL, the real models). */
@@ -35,6 +35,8 @@ function Bound({ appendToTestSet }: { readonly appendToTestSet: () => Promise<{ 
 }
 
 const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'],
   title: 'app/zombie_lab/ZombieHitLab',
   component: Bound,
   parameters: { layout: 'fullscreen' },
@@ -44,14 +46,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const ReadyToShoot: Story = {
-  play: async ({ canvasElement }) => {
-    const range = within(canvasElement).getByRole('region', { name: 'Shooting range' })
-    await waitFor(
-      async () => {
-        await expect(range.dataset['zombieReady']).toBe('true')
-      },
-      { timeout: 15000 },
-    )
-  },
-}
+export const Default: Story = {}

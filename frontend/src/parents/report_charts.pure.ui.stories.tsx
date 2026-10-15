@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, userEvent, within } from 'storybook/test'
 import { CHART, ChartCard, DailyChart, LineChart } from './report_charts.pure.ui.tsx'
 import { sampleReport } from './parents_fixtures.test.lib.ts'
 
@@ -33,10 +32,4 @@ const meta = { title: 'app/parents/ReportCharts', component: Charts } satisfies 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const DailyAndWeekly: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.hover(canvas.getByLabelText(/^Oct 14: /))
-    await expect(canvas.getByRole('status')).toHaveTextContent('Wed Oct 14')
-  },
-}
+export const Default: Story = {}

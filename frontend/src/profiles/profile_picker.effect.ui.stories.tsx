@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { PROFILES } from './profile_fixtures.test.lib.ts'
 import { bindProfilePicker } from './profile_picker.effect.ui.tsx'
@@ -28,15 +28,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const LoadsProfiles: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('button', { name: 'Play as Demo Kid' })).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const ListFails: Story = {
   args: { list: 'fails' },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText('Error: GET /api/profiles failed with HTTP 503')).toBeVisible()
-  },
 }

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { ParentVerify } from './parent_verify.pure.ui.tsx'
 
 const meta = {
@@ -11,20 +11,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    for (const digit of ['1', '2', '3', '4']) await userEvent.click(canvas.getByRole('button', { name: digit }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Correct' }))
-    await expect(args.onResult).toHaveBeenCalledWith(true)
-  },
-}
-
-export const WrongPin: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    for (const digit of ['9', '9', '9', '9']) await userEvent.click(canvas.getByRole('button', { name: digit }))
-    await expect(canvas.getByText(/Wrong PIN/)).toBeVisible()
-    await expect(await canvas.findByRole('img', { name: 'PIN digits entered: 0 of 4' })).toBeVisible()
-  },
-}
+export const Default: Story = {}

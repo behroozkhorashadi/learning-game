@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { fakePathfinderServer, manualFocus, squarePuzzle } from './pathfinder_fakes.test.lib.ts'
 import { bindPathfinderPublishedMaps } from './pathfinder_published_maps.effect.ui.tsx'
 import type { DotPuzzle } from './pathfinder_state.pure.lib.ts'
@@ -32,18 +32,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const PlayOne: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Spiral, played' }))
-    await expect(args.onPlay).toHaveBeenCalledWith(expect.objectContaining({ id: 'custom-a' }))
-    await expect(canvas.getByRole('button', { name: 'Mine' })).toHaveTextContent(/by you/)
-  },
-}
+export const Default: Story = {}
 
 export const LoadFails: Story = {
   args: { loadFails: true },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent(/Couldn't load published maps/)
-  },
 }

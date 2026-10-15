@@ -1,4 +1,4 @@
-.PHONY: help serve test e2e gen-api check-api check-docs architecture gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend install-hooks dev preflight preflight-backend preflight-frontend
+.PHONY: help serve test check storybook-test e2e gen-api check-api check-docs architecture gen-audio gen-images gen-game-assets gen-badge-assets frontend install-backend install-frontend install-hooks dev preflight preflight-backend preflight-frontend
 
 # Use frontend/.nvmrc's Node when nvm is available (CI sets Node up itself).
 NODE_ENV = if [ -s "$$NVM_DIR/nvm.sh" ]; then . "$$NVM_DIR/nvm.sh" && nvm use >/dev/null; fi
@@ -18,12 +18,16 @@ install-hooks: ## Install the pre-commit hook (lint on staged files only; CI run
 dev: ## Run backend (:8000) + frontend (Vite) together; Ctrl-C stops both
 	@trap 'kill 0' INT TERM EXIT; $(MAKE) --no-print-directory serve & $(MAKE) --no-print-directory frontend & wait
 
+check: ## Fast inner loop (seconds): typecheck, lint, the unit tests your uncommitted changes touch; backend checks if backend/ changed
+	cd frontend && $(NODE_ENV) && npm run check
+	@if ! git diff --quiet HEAD -- backend || [ -n "$$(git ls-files --others --exclude-standard backend)" ]; then backend/scripts/preflight.sh; fi
+
 preflight: preflight-backend preflight-frontend check-api check-docs ## Every check CI runs: backend, frontend, API contract, diagrams
 
 preflight-backend: ## Backend: ruff, pyright strict, import-linter, AST rules, cycles, pytest
 	backend/scripts/preflight.sh
 
-preflight-frontend: ## Frontend: typecheck, lint, cycles, lint-rule tests, unit tests, storybook browser tests
+preflight-frontend: ## Frontend: typecheck, lint, cycles, lint-rule tests, unit tests
 	cd frontend && $(NODE_ENV) && npm run preflight
 
 serve: ## Run the FastAPI server on the LAN (0.0.0.0:8000)
@@ -34,6 +38,9 @@ frontend: ## Run the Vite dev server (proxies /api to localhost:8000)
 
 test: ## Run the backend pytest suite (make preflight runs everything)
 	cd backend && .venv/bin/pytest -v
+
+storybook-test: ## Every story rendered in headless Chromium (on demand + nightly CI; not in preflight)
+	cd frontend && $(NODE_ENV) && npm run test:storybook
 
 e2e: ## Run the on-demand Playwright happy-path suite (own temp DB + ports 8100/5174; not in CI)
 	cd frontend && . "$$NVM_DIR/nvm.sh" && nvm use && npm run e2e

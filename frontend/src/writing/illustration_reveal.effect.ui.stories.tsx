@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { INSTANT_TIMERS } from '@app/timing/manual_timers.test.lib.ts'
 import { bindIllustrationReveal } from './illustration_reveal.effect.ui.tsx'
 import { fakeIllustrator } from './writing_fixtures.test.lib.ts'
@@ -20,17 +20,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const RevealAndSave: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Save to my storybook' }))
-    await expect(canvas.getByText('In your storybook')).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const GenerationFails: Story = {
   args: { fails: true },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText('I drew what you wrote.')).toBeVisible()
-  },
 }

@@ -36,7 +36,11 @@ same comment comes up again and again, propose a lint rule for it instead (see
   and its pending state tested.
 - **Tests come from the acceptance criteria**, not from reading the implementation. If a
   test would still pass with the feature's core logic deleted, it isn't testing the feature.
-- **New UI ships a story** with a `play` function for its main interaction and its error state.
+- **Tests sit where the logic is.** Don't ask for a test of markup-only UI or for a story
+  `play` function. Do ask for one when a component branches, formats, or handles a
+  failure. A story is welcome when a UI has visual states worth seeing, but optional.
+- **Tests stay fast.** Flag a test file that takes more than a few seconds; it usually
+  steps a game loop frame by frame through React or repeats a simulation.
 
 ## Rewrites
 

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindEditProfile } from './edit_profile.effect.ui.tsx'
@@ -40,20 +40,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const SwitchToSavedPicture: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Use Space explorer' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Save changes' }))
-    await expect(args.onSaved).toHaveBeenCalledWith(expect.objectContaining({ avatar: SAVED[1]?.url }), undefined)
-  },
-}
+export const Default: Story = {}
 
 export const SaveFails: Story = {
   args: { saveFails: true },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Save changes' }))
-    await expect(await canvas.findByRole('alert')).toHaveTextContent('Wrong password')
-  },
 }

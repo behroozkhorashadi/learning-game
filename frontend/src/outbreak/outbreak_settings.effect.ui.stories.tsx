@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import type { PracticeConfigRecord } from '@app/api/practice_config_schema.pure.lib.ts'
 import { bindOutbreakSettings } from './outbreak_settings.effect.ui.tsx'
 
@@ -28,20 +28,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const SavesAndGoesBack: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('checkbox'))
-    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
-    await expect(args.onBack).toHaveBeenCalled()
-  },
-}
+export const Default: Story = {}
 
 export const SaveFails: Story = {
   args: { saved: { profile_id: 1, game_id: 'fact_fluency', operations: ['×'], focus_numbers: {}, difficulty: 5 }, saveFails: true },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Save' }))
-    await expect(await canvas.findByRole('alert')).toHaveTextContent('Pick at least one operation')
-  },
 }

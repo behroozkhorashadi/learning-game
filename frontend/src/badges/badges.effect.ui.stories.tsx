@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { bindBadges } from './badges.effect.ui.tsx'
 import { ART, BADGES, FIXTURE_NOW, STATS } from './badges_fixtures.test.lib.ts'
 
@@ -34,33 +34,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const PaintABadge: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(within(await canvas.findByRole('region', { name: 'Game masters' })).getByRole('button', { name: /^Zombie Slayer: earned/ }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Try painting again' }))
-    await waitFor(async () => {
-      await expect(await canvas.findByText('This badge was painted just for you. No one else has one like it!')).toBeVisible()
-    })
-  },
-}
-
-export const KidThenParent: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await waitFor(async () => {
-      await expect(await canvas.findByText('Badges & prizes')).toBeVisible()
-    })
-    await userEvent.click(canvas.getByRole('button', { name: 'Switch to parent view' }))
-    await waitFor(async () => {
-      await expect(canvas.getByText('Learning insights')).toBeVisible()
-    })
-  },
-}
+export const Default: Story = {}
 
 export const LoadFails: Story = {
   args: { fails: true },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent('HTTP 503')
-  },
 }

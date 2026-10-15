@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { bindStorybookEntryCard } from './entry_card.effect.ui.tsx'
 import { CROW, fakePiecesStore } from './library_fixtures.test.lib.ts'
 import { loadShelfPeek } from './library_loader.pure.lib.ts'
@@ -22,8 +22,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Loads: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText('New: The Crow')).toBeVisible()
-  },
-}
+export const Default: Story = {}

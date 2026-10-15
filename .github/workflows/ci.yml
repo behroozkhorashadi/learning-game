@@ -1,7 +1,8 @@
 name: CI
 
 # The full preflight, split into parallel jobs so the slowest one sets the wall-clock.
-# Every job blocks the merge. Locally: `make preflight` runs the same checks, and the
+# Every job blocks the merge. Stories render in a real browser on their own schedule
+# (storybook.yml: nightly and on demand), not here. Locally: `make preflight` runs the same checks, and the
 # pre-commit hook (`make install-hooks`) catches lint on staged files first, so lint
 # should never fail for the first time here.
 
@@ -72,33 +73,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm test
-
-  frontend-storybook:
-    name: frontend (stories as browser tests)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # The 3D stories load the real GLB models, which live in Git LFS.
-          lfs: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:storybook
-      # Test evidence: on failure, attach the browser screenshots Vitest captured.
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: storybook-failure-screenshots
-          path: frontend/**/__screenshots__/
-          if-no-files-found: ignore
 
   api-contract:
     name: FE↔BE contract (OpenAPI → TS, fails on drift)

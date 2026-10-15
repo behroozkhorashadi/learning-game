@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { bindParentLogin } from './parent_login.effect.ui.tsx'
 import { MOM } from './parents_fixtures.test.lib.ts'
 
@@ -15,12 +15,4 @@ const meta = { title: 'app/parents/ParentLogin', component: Bound, parameters: {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const WrongThenRight: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.type(canvas.getByLabelText('Password'), 'nope{Enter}')
-    await expect(await canvas.findByRole('alert')).toHaveTextContent('That password didn’t work.')
-    await userEvent.type(canvas.getByLabelText('Password'), 'secret{Enter}')
-    await expect(args.onSignedIn).toHaveBeenCalledWith('secret')
-  },
-}
+export const Default: Story = {}

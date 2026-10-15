@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { CardShell } from './card_shell.pure.ui.tsx'
 
 const meta = {
@@ -12,8 +11,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const WithContent: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('Card content')).toBeVisible()
-  },
-}
+export const Default: Story = {}

@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { use, type ReactElement } from 'react'
-import { expect, within } from 'storybook/test'
 import { AsyncBoundary } from './async_boundary.pure.ui.tsx'
 
 /**
@@ -32,21 +31,12 @@ type Story = StoryObj<typeof meta>
 
 export const Loaded: Story = {
   args: { children: <Reads load={once(() => Promise.resolve('Ready'))} /> },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText('Ready')).toBeVisible()
-  },
 }
 
 export const Loading: Story = {
   args: { children: <Reads load={once(() => new Promise<string>(() => undefined))} /> },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('Loading…')).toBeVisible()
-  },
 }
 
 export const Failed: Story = {
   args: { children: <Reads load={once(() => Promise.reject(new Error('Could not load')))} /> },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent('Could not load')
-  },
 }

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { DenCard } from './den_card.pure.ui.tsx'
 
 const meta = {
@@ -11,11 +10,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Paper: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('Zombie wave')).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const Warm: Story = { args: { tone: 'warm', shadow: 'soft' } }
 

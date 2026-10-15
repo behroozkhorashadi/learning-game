@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, userEvent, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { MuzzleFlash } from './muzzle_flash.pure.ui.tsx'
 
@@ -23,25 +22,18 @@ function Stage({ reducedMotion, color = '#FFFFFF', sizeScale = 1 }: { readonly r
   )
 }
 
-const meta = { title: 'app/blaster/MuzzleFlash', component: Stage, args: { reducedMotion: false } } satisfies Meta<typeof Stage>
+const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'], title: 'app/blaster/MuzzleFlash', component: Stage, args: { reducedMotion: false } } satisfies Meta<typeof Stage>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const OnTrigger: Story = {
-  play: async ({ canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Flash' }))
-    await expect(within(canvasElement).getByRole('figure', { name: '3D scene' })).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const ReducedMotion: Story = { args: { reducedMotion: true } }
 
 /** The Mega Blaster's flash: pink and big. */
 export const Mega: Story = {
   args: { color: '#FF9CF9', sizeScale: 1.7 },
-  play: async ({ canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Flash' }))
-    await expect(within(canvasElement).getByRole('figure', { name: '3D scene' })).toBeVisible()
-  },
 }

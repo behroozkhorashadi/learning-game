@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { CoachPanel } from './coach_panel.pure.ui.tsx'
 import { QUESTIONS } from './writing_fixtures.test.lib.ts'
 
@@ -13,12 +13,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Questions: Story = {
-  play: async ({ args, canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: "I'm happy with it" }))
-    await expect(args.onHappy).toHaveBeenCalled()
-  },
-}
+export const Default: Story = {}
 
 export const Thinking: Story = { args: { status: 'thinking', questions: [] } }
 

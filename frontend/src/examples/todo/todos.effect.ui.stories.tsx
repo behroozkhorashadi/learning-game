@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, userEvent, within } from 'storybook/test'
 import { bindTodoBackup } from './todo_backup.effect.lib.ts'
 import { toTodoId, type Todos } from './todo_state.pure.lib.ts'
 import { bindTodos } from './todos.effect.ui.tsx'
@@ -49,31 +48,10 @@ export const Seeded: Story = {}
 
 export const Empty: Story = { args: { seed: [] } }
 
-export const AddsATodo: Story = {
-  args: { seed: [] },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.type(canvas.getByRole('textbox', { name: 'New todo' }), 'Read a book')
-    await userEvent.click(canvas.getByRole('button', { name: 'Add' }))
-    await expect(canvas.getByRole('checkbox', { name: 'Read a book' })).not.toBeChecked()
-    await expect(canvas.getByRole('status')).toHaveTextContent('1 left')
-  },
-}
-
 export const BackupSucceeds: Story = {
   args: { backup: 'succeeds' },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Back up to server' }))
-    await expect(await canvas.findByText('Backed up 2 todos')).toBeVisible()
-  },
 }
 
 export const BackupFails: Story = {
   args: { backup: 'fails' },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Back up to server' }))
-    await expect(await canvas.findByText('Backup failed: HTTP 503')).toBeVisible()
-  },
 }

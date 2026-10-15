@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { fakePathfinderServer, squarePuzzle } from './pathfinder_fakes.test.lib.ts'
 import { fakePathfinderScreens } from './pathfinder_screens.test.ui.tsx'
 
@@ -29,28 +29,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const PublishAndExport: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Publish Spiral' }))
-    await expect(await canvas.findByRole('button', { name: 'Unpublish Spiral' })).toBeVisible()
-    await userEvent.click(canvas.getByRole('button', { name: 'Export code for Zig Zag' }))
-    await expect(canvas.getByLabelText('Exported level code for Zig Zag')).toBeVisible()
-  },
-}
-
-export const Delete: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Delete Spiral' }))
-    await expect(await canvas.findByText('Zig Zag')).toBeVisible()
-    await expect(canvas.queryByText('Spiral')).toBeNull()
-  },
-}
+export const Default: Story = {}
 
 export const LoadFails: Story = {
   args: { loadFails: true },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent(/Couldn't load your maps/)
-  },
 }

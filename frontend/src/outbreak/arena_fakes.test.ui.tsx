@@ -48,13 +48,17 @@ export function rightAnswer(i: number): number {
 }
 
 export interface VirtualScheduler extends ArenaScheduler {
-  /** Moves virtual time forward in 16ms frames, firing frames and due timers in order, inside act(). */
+  /** Moves virtual time forward one frame at a time, firing frames and due timers in order, inside act(). */
   readonly advance: (ms: number) => Promise<void>
   readonly frameLoops: () => number
 }
 
-/** Timers and frames on a virtual clock the test moves by hand. */
-export function virtualScheduler(): VirtualScheduler {
+/**
+ * Timers and frames on a virtual clock the test moves by hand. `frameMs` is the gap
+ * between frames (16ms, a 60Hz screen, by default); a game whose engine clamps its step
+ * can pass that clamp to play long rounds with fewer renders and the same rules.
+ */
+export function virtualScheduler({ frameMs = 16 }: { readonly frameMs?: number } = {}): VirtualScheduler {
   let now = 0
   let nextId = 0
   const timers = new Map<number, { readonly at: number; readonly run: () => void }>()
@@ -95,7 +99,7 @@ export function virtualScheduler(): VirtualScheduler {
     advance: async (ms) => {
       const end = now + ms
       while (now < end) {
-        const to = Math.min(end, now + 16)
+        const to = Math.min(end, now + frameMs)
         await act(async () => {
           step(to)
           for (const onFrame of frames.values()) onFrame(now)

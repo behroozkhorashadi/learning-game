@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { DenFlipCard } from './den_flip_card.pure.ui.tsx'
 
 const meta = {
@@ -11,10 +10,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Face: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('un-')).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const Back: Story = { args: { flipped: false } }

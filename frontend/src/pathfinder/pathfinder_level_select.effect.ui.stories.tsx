@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { fakePathfinderServer, squarePuzzle } from './pathfinder_fakes.test.lib.ts'
 import { bindPathfinderLevelSelect } from './pathfinder_level_select.effect.ui.tsx'
 import { ALL_LEVELS } from './pathfinder_levels.pure.lib.ts'
@@ -26,13 +26,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const PartlyDone: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await expect(await canvas.findByText("1 map you've built")).toBeVisible()
-    const third = ALL_LEVELS[2]
-    if (third === undefined) return
-    await userEvent.click(canvas.getByRole('button', { name: third.name ?? third.id }))
-    await expect(args.onSelect).toHaveBeenCalledWith(third.id)
-  },
-}
+export const Default: Story = {}

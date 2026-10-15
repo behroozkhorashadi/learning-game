@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assemblePathfinder, assemblePathfinderLevelGallery, assemblePathfinderMapBuilder } from './pathfinder.assembly.main.ts'
 import { ALL_LEVELS } from './pathfinder_levels.pure.lib.ts'
@@ -22,7 +22,10 @@ describe('assemblePathfinder', () => {
     render(<Pathfinder profileId={4} onBack={vi.fn()} />)
     expect(await screen.findByText(`0 / ${String(ALL_LEVELS.length)} maps completed`)).toBeTruthy()
     expect(fetchFake).toHaveBeenCalledWith('/api/profiles/4/pathfinder/completions', expect.objectContaining({ method: 'GET' }))
-    expect(fetchFake).toHaveBeenCalledWith('/api/profiles/4/pathfinder/maps', expect.objectContaining({ method: 'GET' }))
+    // The saved maps load on their own request, which can land after the completions render.
+    await waitFor(() => {
+      expect(fetchFake).toHaveBeenCalledWith('/api/profiles/4/pathfinder/maps', expect.objectContaining({ method: 'GET' }))
+    })
   })
 
   it('shows a load failure when the API is down', async () => {

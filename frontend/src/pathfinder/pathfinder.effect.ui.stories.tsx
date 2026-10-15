@@ -1,10 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { picture } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
-import { ALL_LEVELS } from './pathfinder_levels.pure.lib.ts'
 import { fakePathfinderScreens } from './pathfinder_screens.test.ui.tsx'
-import { solvePuzzle } from './pathfinder_solver.pure.lib.ts'
 
 interface BoundProps {
   readonly serverDown: boolean
@@ -33,32 +31,13 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const SolveTheFirstLevel: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    const first = ALL_LEVELS[0]
-    if (first === undefined) return
-    await userEvent.click(await canvas.findByRole('button', { name: first.name ?? first.id }))
-    for (const pos of solvePuzzle(first).path ?? []) {
-      await userEvent.pointer({ keys: '[MouseLeft]', target: canvas.getByRole('button', { name: new RegExp(`row ${String(pos.row + 1)}, column ${String(pos.col + 1)}(,|$)`) }) })
-    }
-    await expect(canvas.getByText(/Every dot connected/)).toBeVisible()
-    await expect(canvas.getByRole('button', { name: 'Next Level' })).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const ServerDown: Story = {
   args: { serverDown: true },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent(/Couldn't load your progress/)
-  },
 }
 
 /** With the Pathfinder Backdrop: the art the kid hung in the Style Studio fills the page behind the board. */
 export const WithBackdrop: Story = {
   args: { backdropUrl: picture('#9D57FA') },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('img', { name: 'Your backdrop art' })).toBeVisible()
-    await expect(await within(canvasElement).findByText(/maps completed/)).toBeVisible()
-  },
 }

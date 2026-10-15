@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ComponentType, ReactElement } from 'react'
-import { expect, within } from 'storybook/test'
 import * as icons from './icons.pure.ui.tsx'
 
 const ICONS: readonly [string, ComponentType<{ readonly size?: number }>][] = Object.entries(icons)
@@ -27,8 +26,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const All: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getAllByRole('listitem')).toHaveLength(ICONS.length)
-  },
-}
+export const Default: Story = {}

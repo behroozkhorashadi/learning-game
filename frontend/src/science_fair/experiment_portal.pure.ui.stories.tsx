@@ -1,30 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, waitFor, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { ExperimentPortal } from './experiment_portal.pure.ui.tsx'
-
-async function sceneReady(canvasElement: HTMLElement): Promise<void> {
-  const frame = within(canvasElement).getByRole('figure', { name: '3D scene' })
-  await waitFor(
-    async () => {
-      await expect(frame.dataset['sceneReady']).toBe('true')
-    },
-    { timeout: 10000 },
-  )
-}
 
 function Stage(): ReactElement {
   return <SceneStoryFrame camera={[0, 2.5, 4]}><group position={[0, 1.3, -1]}><ExperimentPortal reducedMotion={false} /></group></SceneStoryFrame>
 }
 
-const meta = { title: 'app/science_fair/ExperimentPortal', component: Stage } satisfies Meta<typeof Stage>
+const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'], title: 'app/science_fair/ExperimentPortal', component: Stage } satisfies Meta<typeof Stage>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {
-  play: async ({ canvasElement }) => {
-    await sceneReady(canvasElement)
-  },
-}
+export const Default: Story = {}

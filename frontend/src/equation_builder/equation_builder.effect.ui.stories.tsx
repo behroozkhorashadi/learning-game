@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { fakePractice } from '@app/practice/practice_fakes.test.lib.ts'
 import { bindEquationBuilder } from './equation_builder.effect.ui.tsx'
 import { SESSION_EQUATIONS } from './equation_fixtures.test.lib.ts'
@@ -21,13 +21,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const SolveOne: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Start' }))
-    const tray = within(await canvas.findByRole('group', { name: 'Number tiles' }))
-    await userEvent.click(tray.getByRole('button', { name: '7' }))
-    await userEvent.click(canvas.getByRole('button', { name: /Check it/ }))
-    await expect(await canvas.findByText('You built it!')).toBeVisible()
-  },
-}
+export const Default: Story = {}

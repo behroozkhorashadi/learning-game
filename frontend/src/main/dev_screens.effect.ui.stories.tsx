@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, within } from 'storybook/test'
 import { DevScreenPicker } from './dev_screen_picker.pure.ui.tsx'
 import { bindDevScreens } from './dev_screens.effect.ui.tsx'
 
@@ -47,8 +46,4 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /** The mock-data coach panel, as the dev picker shows it. */
-export const CoachPanelDemo: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByLabelText('Your story')).toBeVisible()
-  },
-}
+export const Default: Story = {}

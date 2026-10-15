@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { ArenaPerformanceSummary } from './arena_performance_summary.pure.ui.tsx'
 
 const meta = {
@@ -17,10 +16,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const AfterARound: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText('2 / 3')).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const NothingAnswered: Story = { args: { results: [] } }

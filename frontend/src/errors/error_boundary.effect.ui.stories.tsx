@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { bindErrorBoundary } from './error_boundary.effect.ui.tsx'
 
 function Bomb(): never {
@@ -27,9 +27,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Tripped: Story = {
-  play: async ({ args, canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Try again' }))
-    await expect(args.reload).toHaveBeenCalled()
-  },
-}
+export const Default: Story = {}

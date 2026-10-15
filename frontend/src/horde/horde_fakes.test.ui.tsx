@@ -14,6 +14,7 @@ import type { Recording } from './horde_recording.pure.lib.ts'
 import type { HordeViewportProps } from './horde_viewport.pure.ui.tsx'
 import { bindStyleStudio } from './style_studio.effect.ui.tsx'
 import { bindZombieHorde, type ZombieHordeProps } from './zombie_horde.effect.ui.tsx'
+import { MAX_STEP_MS } from './use_horde_round.pure.hook.ts'
 
 /**
  * Fakes for Zombie Horde's tests and stories: arithmetic items, an in-memory
@@ -275,7 +276,8 @@ export interface HordeHarnessOptions {
 
 /** Zombie Horde bound over fakes: items cycle through FACTS, attempts are recorded, the roster is the first four characters, the seed is fixed. */
 export function hordeHarness({ approachMs = 60_000, travelMs = 600_000, armory = fakeArmory(), motion = NO_MOTION_PREFERENCE, Viewport = FakeHordeViewport, nextItemFails, scheduler: realScheduler }: HordeHarnessOptions = {}): HordeHarness {
-  const scheduler = virtualScheduler()
+  // Frames as long as the engine's own clamp: the same rules, a third of the renders.
+  const scheduler = virtualScheduler({ frameMs: MAX_STEP_MS })
   const audio = recordingAudio()
   const attempts: AttemptBody[] = []
   const replays: Recording[] = []

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { picture } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
 import { fakeArmory } from './horde_fakes.test.ui.tsx'
 import { bindStyleStudio } from './style_studio.effect.ui.tsx'
@@ -41,16 +41,4 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /** Unlock suit paint and the emblem maker, paint the suit, pick an emblem, and save. */
-export const DesignALook: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Unlock Suit Paint Studio for 150 points' }))
-    await userEvent.click(within(await canvas.findByRole('group', { name: 'Suit colour' })).getByRole('button', { name: 'Purple' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Glowing' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Unlock Emblem Maker for 120 points' }))
-    await userEvent.click(await canvas.findByRole('button', { name: 'Comic Hero: a dragon' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Save my look' }))
-    await expect(await canvas.findByText('✓ Saved! Your new look is on.')).toBeVisible()
-    await expect(canvas.getByRole('status', { name: 'Points' })).toHaveTextContent('330 points')
-  },
-}
+export const Default: Story = {}

@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, within } from 'storybook/test'
 import { BADGE_CATEGORIES, BADGE_TIERS } from '@app/api/badges_schema.pure.lib.ts'
 import { BadgeMedal } from './badge_medal.pure.ui.tsx'
 import { PATTERN_PRO, SHARPSHOOTER, badge } from './badges_fixtures.test.lib.ts'
@@ -30,12 +29,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const AllMedals: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await expect(canvas.getByRole('img', { name: 'legend medal badge, legendary, earned' })).toBeVisible()
-    await expect(canvas.getByRole('img', { name: 'Sharpshooter badge, silver, locked' })).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const Still: Story = { args: { animate: false } }

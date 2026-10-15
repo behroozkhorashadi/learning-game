@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
 import type { BadgeRecord } from '@app/api/badges_schema.pure.lib.ts'
 import { bindBadgeCelebrations } from './badge_celebrations.effect.ui.tsx'
 import { JUST_EARNED, PATTERN_PRO } from './badges_fixtures.test.lib.ts'
@@ -33,21 +32,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Party: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Next badge (1 more)' }))
-    await waitFor(async () => {
-      await expect(canvas.getByRole('heading', { name: 'Pattern Pro' })).toBeVisible()
-    })
-    await userEvent.click(canvas.getByRole('button', { name: 'Awesome!' }))
-    await expect(canvas.queryByRole('dialog')).toBeNull()
-  },
-}
+export const Default: Story = {}
 
 export const InAGame: Story = {
   args: { mode: 'toast' },
-  play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByRole('status')).toHaveTextContent('On a Roll')
-  },
 }

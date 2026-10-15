@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import type { ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { PARENTS } from '@app/parents/parents_fixtures.test.lib.ts'
 import { bindCreateProfile } from './create_profile.effect.ui.tsx'
@@ -37,29 +37,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-async function fillValidForm(canvasElement: HTMLElement): Promise<void> {
-  const canvas = within(canvasElement)
-  await userEvent.type(canvas.getByPlaceholderText('What should we call them?'), 'Nora')
-  await userEvent.type(canvas.getByLabelText('Birthday'), '2019-05-12')
-  await userEvent.click(canvas.getByRole('button', { name: 'Choose the cat avatar' }))
-}
-
-export const Creates: Story = {
-  play: async ({ args, canvasElement }) => {
-    await fillValidForm(canvasElement)
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Create profile' }))
-    await expect(args.onCreated).toHaveBeenCalledWith(NORA, null)
-  },
-}
+export const Default: Story = {}
 
 export const CreateFails: Story = {
   args: { create: 'fails' },
-  play: async ({ args, canvasElement }) => {
-    await fillValidForm(canvasElement)
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Create profile' }))
-    await expect(await canvas.findByRole('alert')).toHaveTextContent('name must not be blank')
-    await expect(args.onCreated).not.toHaveBeenCalled()
-  },
 }

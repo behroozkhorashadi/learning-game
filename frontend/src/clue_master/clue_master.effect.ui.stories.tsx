@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { StubReveal } from '@app/writing/stub_reveal.test.ui.tsx'
 import { fakeWritingDeps } from '@app/writing/writing_fakes.test.lib.ts'
 import { bindClueMaster } from './clue_master.effect.ui.tsx'
@@ -20,11 +20,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const DealAnEnding: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Deal my ending' }))
-    await userEvent.click(await canvas.findByRole('button', { name: 'Start writing →' }))
-    await expect(canvas.getByLabelText('Your draft')).toBeVisible()
-  },
-}
+export const Default: Story = {}

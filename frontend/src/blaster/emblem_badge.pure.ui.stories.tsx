@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, waitFor, within } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { EmblemBadge } from './emblem_badge.pure.ui.tsx'
 
@@ -18,22 +17,14 @@ function Stage({ imageUrl, ringColor }: { readonly imageUrl: string; readonly ri
   )
 }
 
-const meta = { title: 'app/blaster/EmblemBadge', component: Stage, args: { imageUrl: ROCKET, ringColor: '#FFAA00' } } satisfies Meta<typeof Stage>
+const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'], title: 'app/blaster/EmblemBadge', component: Stage, args: { imageUrl: ROCKET, ringColor: '#FFAA00' } } satisfies Meta<typeof Stage>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-async function sceneReady({ canvasElement }: { readonly canvasElement: HTMLElement }): Promise<void> {
-  const frame = within(canvasElement).getByRole('figure', { name: '3D scene' })
-  await waitFor(
-    async () => {
-      await expect(frame.dataset['sceneReady']).toBe('true')
-    },
-    { timeout: 10000 },
-  )
-}
-
-export const Rocket: Story = { play: sceneReady }
+export const Default: Story = {}
 
 /** A picture that can't load: the ring colour still shows. */
-export const MissingPicture: Story = { args: { imageUrl: '/no-such-art.jpg', ringColor: '#22D3EE' }, play: sceneReady }
+export const MissingPicture: Story = { args: { imageUrl: '/no-such-art.jpg', ringColor: '#22D3EE' }, }

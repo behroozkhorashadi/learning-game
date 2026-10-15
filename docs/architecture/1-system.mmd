@@ -33,7 +33,7 @@ flowchart LR
     felint["Frontend: oxlint + local plugin,<br/>tsc strict, cycle check, docs sync"]
     belint["Backend: ruff, pyright strict,<br/>import-linter, AST rules, cycles"]
     hook["pre-commit hook<br/>lint on staged files"]
-    ci["GitHub Actions CI, 5 parallel jobs<br/>backend, FE static, unit,<br/>Storybook in Chromium, API contract"]
+    ci["GitHub Actions CI, 4 parallel jobs<br/>backend, FE static, unit, API contract<br/>+ Storybook in Chromium, nightly"]
   end
 
   kid --> spa

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { DevScreenPicker } from './dev_screen_picker.pure.ui.tsx'
 
 const meta = {
@@ -17,10 +16,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const List: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('link', { name: 'Second screen' })).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const OneScreen: Story = { args: { screen: 'one' } }

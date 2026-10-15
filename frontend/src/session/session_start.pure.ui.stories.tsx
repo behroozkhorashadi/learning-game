@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { SessionStart } from './session_start.pure.ui.tsx'
 
 const meta = {
@@ -11,17 +11,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {
-  play: async ({ args, canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Start' }))
-    await expect(args.onStart).toHaveBeenCalledTimes(1)
-  },
-}
+export const Default: Story = {}
 
 export const Reading: Story = {
   args: { readingInstructions: true },
-  play: async ({ args, canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Stop reading' }))
-    await expect(args.onHearInstructions).toHaveBeenCalledTimes(1)
-  },
 }

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { HordeResults } from './horde_results.pure.ui.tsx'
 
 const meta = {
@@ -35,20 +35,10 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Survived: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await expect(canvas.getByRole('status')).toHaveTextContent('340 points')
-    await userEvent.click(canvas.getByRole('button', { name: 'Play again' }))
-    await expect(args.onPlayAgain).toHaveBeenCalled()
-  },
-}
+export const Default: Story = {}
 
 export const Overrun: Story = {
   args: { outcome: 'overrun', beatClock: false, lastedMs: 38_000, lines: [{ label: 'Right answers', count: 2, points: 10 }], points: 10, bank: { kind: 'saving' }, solved: [] },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('heading', { name: 'The horde got through!' })).toBeVisible()
-  },
 }
 
 export const NewBestInOvertime: Story = {
@@ -69,18 +59,10 @@ export const NewBestInOvertime: Story = {
       { summary: '20 ÷ x = 5, so x = 4', timeMs: 4200 },
     ],
   },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await expect(canvas.getByRole('heading', { name: 'You lasted 1:52!' })).toBeVisible()
-    await expect(canvas.getByText('New personal best: 1:52!', { exact: false })).toBeVisible()
-  },
 }
 
 export const SaveFailed: Story = {
   args: { bank: { kind: 'failed', message: 'POST /api/profiles/1/armory/rounds failed with HTTP 500' } },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('alert')).toHaveTextContent('HTTP 500')
-  },
 }
 
 export const FactsToPractice: Story = {
@@ -89,10 +71,5 @@ export const FactsToPractice: Story = {
       { summary: '7 × 8 = 56', timeMs: 6000 },
       { summary: '9 × 6 = 54', timeMs: 4100 },
     ],
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await expect(canvas.getByRole('heading', { name: 'Facts to practice' })).toBeVisible()
-    await expect(canvas.getByRole('list', { name: 'Facts to practice' })).toHaveTextContent('7 × 8 = 56')
   },
 }

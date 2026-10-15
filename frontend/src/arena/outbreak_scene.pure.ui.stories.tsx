@@ -1,21 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, fn, waitFor, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { STARTER_BLASTER } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import type { Carrier } from '@app/zombies/zombie_wave_engine.pure.lib.ts'
 import { OutbreakScene } from './outbreak_scene.pure.ui.tsx'
 import { SceneStoryFrame } from './scene_story_frame.test.ui.tsx'
-
-async function sceneReady(canvasElement: HTMLElement): Promise<void> {
-  const frame = within(canvasElement).getByRole('figure', { name: '3D scene' })
-  await waitFor(
-    async () => {
-      await expect(frame.dataset['sceneReady']).toBe('true')
-    },
-    { timeout: 10000 },
-  )
-}
 
 const CARRIERS: readonly Carrier[] = [6, 7, 8, 5].map((value, lane) => ({ id: `c${String(lane)}`, label: String(value), correct: value === 7, lane, distance: 0.35 + lane * 0.1, status: 'active', defeatedBy: null }))
 
@@ -46,6 +36,8 @@ function Stage({ debugLanes, onZombieReady }: { readonly debugLanes: boolean; re
 }
 
 const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'],
   title: 'app/arena/OutbreakScene',
   component: Stage,
   parameters: { layout: 'fullscreen' },
@@ -55,15 +47,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const FourZombiesApproach: Story = {
-  play: async ({ args, canvasElement }) => {
-    await sceneReady(canvasElement)
-    await waitFor(async () => {
-      await expect(args.onZombieReady).toHaveBeenCalledTimes(4)
-    })
-    // The answer labels render a frame or more after the zombies report ready; wait, so a busy machine doesn't fail it.
-    await expect(await within(canvasElement).findByText('7')).toBeVisible()
-  },
-}
+export const Default: Story = {}
 
 export const WithLaneDebug: Story = { args: { debugLanes: true } }

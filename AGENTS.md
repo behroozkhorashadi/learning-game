@@ -6,12 +6,17 @@ Read this first. The *why* is in [README.md](README.md). The import rules are in
 [backend/AGENTS.md](backend/AGENTS.md). Folders with their own contract have their own
 `AGENTS.md`; read it before editing there.
 
-## Preflight
+## Checks
 
 ```
-make preflight          # everything CI runs; must pass before you push
+make check              # the inner loop, seconds: typecheck, lint, the unit tests your uncommitted changes touch
+make preflight          # everything CI runs, about a minute; must pass before you push
 make dev                # start backend (:8000) + frontend (Vite) together, to see your change run
 ```
+
+While you work, run `make check` (or one file: `npx vitest run src/<feature>/<file>`). Run
+`make preflight` **once**, when the change is done, not after every edit. After a check
+passes, don't run it again until you've changed code.
 
 Narrower loops while iterating (from `frontend/`):
 
@@ -21,7 +26,7 @@ npm run lint            # oxlint --type-aware --deny-warnings + local plugin (sc
 npm run check:cycles    # value import cycles over src/
 npm run test:lint-rules # the lint plugin's own tests
 npm test                # unit tests (jsdom)
-npm run test:storybook  # every story, as a browser test (Chrome)
+npm run test:storybook  # every story rendered in Chrome (on demand + nightly CI; not in preflight)
 npm run check:api       # FE types match the backend's OpenAPI (make gen-api to regenerate)
 ```
 
@@ -49,7 +54,7 @@ Each of these fails the build. The rule that enforces it is in parentheses.
 10. **Suspense is always caught.** Use `<AsyncBoundary>` (`app/require-error-boundary-for-suspense`).
 11. **No value import cycles** (`npm run check:cycles`).
 12. **The API contract is generated.** Backend changes regenerate `src/api/openapi_schema.pure.lib.ts`; CI fails on drift (`npm run check:api`).
-13. **Every change ships with tests**, and every new UI file with a story.
+13. **Every change ships with tests where its logic lives**: reducers, adapters, async operations, hooks, feature components (see Testing). Markup-only UI needs no test of its own, and stories are optional.
 14. **The architecture diagrams track the code.** Every feature folder must be drawn in `docs/architecture/`, and the generated page must be fresh (`make check-docs`). When you change what depends on what, redraw it in the same PR. [`docs/architecture/AGENTS.md`](docs/architecture/AGENTS.md) lists when.
 
 ## Adding a feature (copy the example)
@@ -64,7 +69,7 @@ The worked example is [`frontend/src/examples/todo/`](frontend/src/examples/todo
 5. **Props-only UI:** `<x>.pure.ui.tsx`. Every control has an accessible name.
 6. **Feature component:** `<x>s.effect.ui.tsx`, where `bindXs({ repository, createId, ... })` returns a component that owns its state in `useState`.
 7. **Assembly:** `<x>.assembly.main.ts`, where `assembleXs()` reads globals and flags, picks implementations, and calls `bind*`. Register it in a composition root (`src/main/`).
-8. **Tests and stories:** one colocated `.test.ts(x)` per file, one `.stories.tsx` per UI file (see Testing).
+8. **Tests:** a colocated `.test.ts(x)` for each file with logic, and one composition test for the feature (see Testing). Add a `.stories.tsx` when the UI has visual states worth looking at.
 9. **Backend endpoint?** Add it in `backend/app/<feature>/`, then run `make gen-api` and write the zod adapter in `src/api/`.
 10. **Draw it:** add the feature's node and arrows to `docs/architecture/3-frontend.mmd` (or `2-backend.mmd`), then run `python3 docs/architecture/build.py`. `make check-docs` fails until a new folder is drawn.
 
@@ -78,11 +83,11 @@ codebase got here, and the patterns that came out of it, are in [MIGRATION.md](M
 | reducer | call the pure function, assert the snapshot | `todo_reducers.pure.lib.test.ts` |
 | adapter | bind it over a fake handle (a `Map` for storage, a fake `fetch`) | `todo_repository.effect.lib.test.ts`, `todos_api.effect.lib.test.ts` |
 | async operation | a remote whose promises settle when the test says; assert each state, the stale-result policy, and that results land on the right instance | `todo_backup.effect.lib.test.ts` |
-| pure UI | render with props and `vi.fn()`, query by role and name; for a `QueryState` prop, render each of `LOADING`, `loaded(...)`, `failed(...)` | `todo.pure.ui.test.tsx`, `profile_picker.pure.ui.test.tsx` |
+| pure UI | only when it has logic (branches, formatting, a `QueryState` prop): render with props and `vi.fn()`, query by role and name; for a `QueryState`, render each of `LOADING`, `loaded(...)`, `failed(...)`. Markup-only UI is covered by the feature test | `todo.pure.ui.test.tsx`, `profile_picker.pure.ui.test.tsx` |
 | hook | `renderHook` over a deferred promise; assert each state and that a late result after unmount is dropped | `use_query.pure.hook.test.ts` |
 | feature | `bindX` with in-memory fakes, drive it like a user, assert what is visible and what was saved | `todos.effect.ui.test.tsx` |
-| composition | one real-graph test of `assembleX()`; replace only the network edge | `todo.assembly.main.test.tsx` |
-| story | the real bound component with fake capabilities and seeded state, plus a `play` function; runs in Chrome in CI | `todos.effect.ui.stories.tsx` |
+| composition | one real-graph test of `assembleX()` per feature; replace only the network edge | `todo.assembly.main.test.tsx` |
+| story (optional) | the real bound component with fake capabilities and seeded state, one story per visual state, **no `play` function** (behavior is the unit tests' job). Rendered in Chrome nightly and by `make storybook-test`; WebGL stories carry `tags: ['!test']` and are looked at by hand | `todos.effect.ui.stories.tsx` |
 | backend | services with fakes (fixed clock, sequential ids, in-memory repo); one integration test boots `assemble_app` on SQLite | `backend/tests/todo/` |
 | e2e smoke | a few stable tests proving FE ↔ BE connect, against a throwaway backend (`make e2e`, on demand) | `frontend/e2e/todo-example.spec.ts` |
 
@@ -90,6 +95,7 @@ codebase got here, and the patterns that came out of it, are in [MIGRATION.md](M
 - Await observable changes (`findByText`), never fixed sleeps. No real network, no `Math.random`/`Date.now`, no `.only`, no order dependence (`app/no-unstable-scenario-test`).
 - **No `vi.mock` of our own modules, no `mock.patch` of first-party code.** Pass fakes through the bind/factory seam.
 - Assert observable behavior against the task's acceptance criteria, not against the implementation. A fake must not hide the transition under test: a constant hook hides updates, and an always-succeeding callback hides failures.
+- **Keep tests fast.** A test file over ~5s is a bug to fix: drive long game rounds in the engine's largest frame step (`virtualScheduler({ frameMs })`), share deterministic simulation runs, and test balance in the pure engine, not through React.
 - Prove it by running it: `make dev`, then open `?screen=todo-example` (dev builds) to drive the example in the real app.
 
 ## TypeScript
@@ -122,4 +128,4 @@ Output sinks are linted everywhere in `src/`:
 - Selectors and `useSyncExternalStore` snapshots return stable references (`app/no-unstable-selector`). A fresh object re-renders every consumer.
 - Derive during render instead of syncing with an effect. Most `useEffect` + `setState` pairs are a bug (`react/set-state-in-effect`).
 - `bind*` runs once per assembly, not per render. Keep construction out of components.
-- The 3D scenes (`react-three-fiber`, `arena/`, `zombies/`, `blaster/`, `science_fair/`) are perf-sensitive: keep `useFrame` hot paths allocation-free and per-frame work out of React state. Measure before and after when you touch them. Story files run one at a time (`fileParallelism: false` in the storybook project): dozens of live WebGL canvases in one test browser starve the CPU until tests hang.
+- The 3D scenes (`react-three-fiber`, `arena/`, `zombies/`, `blaster/`, `science_fair/`) are perf-sensitive: keep `useFrame` hot paths allocation-free and per-frame work out of React state. Measure before and after when you touch them. WebGL stories are tagged `!test`: dozens of live WebGL canvases in one test browser starve the CPU until tests hang (story files also run one at a time, `fileParallelism: false`).

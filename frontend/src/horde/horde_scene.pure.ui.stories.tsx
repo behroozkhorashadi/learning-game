@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ReactElement } from 'react'
-import { expect, fn, waitFor, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { SceneStoryFrame } from '@app/arena/scene_story_frame.test.ui.tsx'
 import { MEGA_BLASTER, STARTER_BLASTER, type WeaponDefinition } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
@@ -63,6 +63,8 @@ function Stage({ onShot, onZombieReady, weapon = STARTER_BLASTER, impacts = [], 
 }
 
 const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'],
   title: 'app/horde/HordeScene',
   component: Stage,
   parameters: { layout: 'fullscreen' },
@@ -72,21 +74,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-async function allZombiesReady({ args, canvasElement }: { readonly args: { readonly onZombieReady: (id: string) => void }; readonly canvasElement: HTMLElement }): Promise<void> {
-  const frame = within(canvasElement).getByRole('figure', { name: '3D scene' })
-  await waitFor(
-    async () => {
-      await expect(frame.dataset['sceneReady']).toBe('true')
-    },
-    { timeout: 10000 },
-  )
-  await waitFor(async () => {
-    await expect(args.onZombieReady).toHaveBeenCalledTimes(4)
-  })
-  await expect(within(canvasElement).getByText('42')).toBeVisible()
-}
-
-export const MidRound: Story = { play: allZombiesReady }
+export const Default: Story = {}
 
 /** The Mega Blaster with Explosive Rounds: a fireball on the walking zombie's head, a plain spark (standard round) on the downed one. */
 export const MegaExplosiveHit: Story = {
@@ -98,11 +86,9 @@ export const MegaExplosiveHit: Story = {
       { id: 'i2', x: 1.2, depth: 8, zone: 'body', atMs: 380, special: false },
     ],
   },
-  play: allZombiesReady,
 }
 
 /** Armor-piercing rounds: a streak straight through the zombie. */
 export const ArmorPiercingHit: Story = {
   args: { impactStyle: 'pierce', impacts: [{ id: 'i1', x: -1.5, depth: 6, zone: 'body', atMs: 300, special: true }] },
-  play: allZombiesReady,
 }

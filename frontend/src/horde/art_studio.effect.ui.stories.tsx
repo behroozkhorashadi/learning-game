@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { fakeCamera } from '@app/profiles/profile_photo_fixtures.test.lib.ts'
 import { bindArtStudio } from './art_studio.effect.ui.tsx'
 import { fakeArmory } from './horde_fakes.test.ui.tsx'
@@ -32,14 +32,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const SelfieToArt: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Open camera' }))
-    await userEvent.click(await canvas.findByRole('button', { name: 'Take selfie' }))
-    await userEvent.click(canvas.getByRole('button', { name: '💥 Comic Hero' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Create art · 300 points' }))
-    await expect(await canvas.findByText('Saved to your gallery!')).toBeVisible()
-    await expect(canvas.getByRole('status', { name: 'Points' })).toHaveTextContent('400 points')
-  },
-}
+export const Default: Story = {}

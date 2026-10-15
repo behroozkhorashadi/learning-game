@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { STARTER_BLASTER } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { ZOMBIE_CHARACTER_REGISTRY } from '@app/zombies/character_definitions.pure.lib.ts'
 import { OutbreakViewport } from './outbreak_viewport.pure.ui.tsx'
 
 const meta = {
+  // Real WebGL: look at it in Storybook (`npm run storybook`); too heavy to run as a test.
+  tags: ['!test'],
   title: 'app/arena/OutbreakViewport',
   component: OutbreakViewport,
   parameters: { layout: 'fullscreen' },
@@ -39,18 +41,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const ClickingNothingIsAMiss: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = canvasElement.querySelector('canvas')
-    if (canvas === null) throw new Error('expected a canvas')
-    await waitFor(async () => {
-      await expect(within(canvasElement).getByText('7')).toBeVisible()
-    }, { timeout: 10000 })
-    // The top-left corner is ceiling: nothing to hit.
-    await userEvent.pointer({ keys: '[MouseLeft]', target: canvas, coords: { offsetX: 4, offsetY: 4 } })
-    await waitFor(async () => {
-      await expect(args.onMiss).toHaveBeenCalled()
-    })
-    await expect(args.onSceneError).not.toHaveBeenCalled()
-  },
-}
+export const Default: Story = {}

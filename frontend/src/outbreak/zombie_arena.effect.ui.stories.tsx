@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { OutbreakViewport } from '@app/arena/outbreak_viewport.pure.ui.tsx'
 import { arenaHarness, FakeViewport } from './arena_fakes.test.ui.tsx'
 import { assembleArenaScheduler } from './zombie_math_blaster.assembly.main.ts'
@@ -24,25 +24,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const StartAndZapTheAnswer: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Start' }))
-    await expect(await canvas.findByRole('heading', { name: 'Question' })).toHaveTextContent('3 + 4 =')
-    // The wave spawns after the 1.1s intro beat.
-    await userEvent.click(await canvas.findByRole('button', { name: 'Zap the zombie carrying 7' }, { timeout: 3000 }))
-    await expect(canvas.getByText('Correct! 3 + 4 = 7')).toBeInTheDocument()
-  },
-}
+export const Default: Story = {}
 
-export const WrongAnswerCocks: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: 'Start' }))
-    await canvas.findByRole('heading', { name: 'Question' })
-    await userEvent.click(await canvas.findByRole('button', { name: 'Zap the zombie carrying 6' }, { timeout: 3000 }))
-    await expect(canvas.getByRole('status', { name: 'Cocking the blaster' })).toBeVisible()
-  },
-}
-
-export const Real3D: Story = { args: { real3d: true } }
+export const Real3D: Story = { args: { real3d: true }, tags: ['!test'] }

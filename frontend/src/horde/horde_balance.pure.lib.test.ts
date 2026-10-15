@@ -20,8 +20,20 @@ function question(n: number): HordeQuestion {
   return { id: `q${String(n)}`, text: '', summary: '', options: ['a', 'b', 'c', 'd'].map((label, i) => ({ label, correct: i === 0 })) }
 }
 
+/** Rounds already played, by their inputs: the tests share scenarios, and the engine is deterministic per seed. */
+const played = new Map<string, number>()
+
 /** How long a round lasts (ms), playing on into overtime when `overtime`; capped at 20 minutes. */
 function lasts(travelMs: number, answerMs: number, seed: number, overtime: boolean): number {
+  const key = `${String(travelMs)}/${String(answerMs)}/${String(seed)}/${String(overtime)}`
+  const known = played.get(key)
+  if (known !== undefined) return known
+  const ms = play(travelMs, answerMs, seed, overtime)
+  played.set(key, ms)
+  return ms
+}
+
+function play(travelMs: number, answerMs: number, seed: number, overtime: boolean): number {
   const config: HordeConfig = { durationMs: ROUND_MS, travelMs, power: shotPower(STARTER_LOADOUT), basePower: shotPower(STARTER_LOADOUT), cooldownMs: 700, grenade: GRENADE, cover: COVER, thornsDamage: 0 }
   let state: HordeState = setQuestion(createRound({ seed, lives: STARTING_LIVES, grenades: 0, shoves: SHOVES_PER_ROUND, ammo: 0, cover: COVER }), question(0))
   let asked = 0

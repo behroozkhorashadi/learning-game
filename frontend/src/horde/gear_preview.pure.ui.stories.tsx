@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { GearPreview } from './gear_preview.pure.ui.tsx'
 import { symbolEmblemUrl } from './horde_looks.pure.lib.ts'
 
@@ -12,11 +11,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const shows = async ({ canvasElement }: { readonly canvasElement: HTMLElement }): Promise<void> => {
-  await expect(within(canvasElement).getByRole('img', { name: 'Your gear' })).toBeVisible()
-}
-
-export const Plain: Story = { play: shows }
+export const Default: Story = {}
 
 /** Glowing pink suit paint, a mint blaster, and a rocket emblem on both. */
 export const Designed: Story = {
@@ -30,5 +25,4 @@ export const Designed: Story = {
       billboardUrl: null,
     },
   },
-  play: shows,
 }

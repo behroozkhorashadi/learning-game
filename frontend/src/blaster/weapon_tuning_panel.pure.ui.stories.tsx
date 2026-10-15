@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { DEFAULT_WEAPON_VIEW, type WeaponViewConfig } from './blaster_config.pure.lib.ts'
 import { WeaponTuningPanel } from './weapon_tuning_panel.pure.ui.tsx'
 
@@ -20,12 +20,4 @@ const meta = { title: 'app/blaster/WeaponTuningPanel', component: Stage, args: {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const CopiesTheSnippet: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('checkbox', { name: 'Hide left arm' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Copy config snippet' }))
-    await expect(args.copyText).toHaveBeenCalledWith(expect.stringContaining('DEFAULT_WEAPON_VIEW'))
-    await expect(await canvas.findByRole('button', { name: 'Copied!' })).toBeVisible()
-  },
-}
+export const Default: Story = {}

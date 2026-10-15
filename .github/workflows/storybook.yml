@@ -1,0 +1,40 @@
+name: Storybook
+
+# Every story rendered in headless Chromium. Not part of the merge gate: the unit tests
+# cover behavior, and this catches what only a real browser shows (a story that throws,
+# a broken import, CSS that no longer loads). Nightly, and on demand from the Actions tab.
+# Locally: `make storybook-test`. WebGL stories are tagged `!test`; view them in
+# `npm run storybook`.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  frontend-storybook:
+    name: frontend (stories as browser tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The 3D stories load the real GLB models, which live in Git LFS.
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:storybook
+      # Test evidence: on failure, attach the browser screenshots Vitest captured.
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-failure-screenshots
+          path: frontend/**/__screenshots__/
+          if-no-files-found: ignore

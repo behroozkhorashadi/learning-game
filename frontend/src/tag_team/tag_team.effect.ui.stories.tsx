@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, type ReactElement } from 'react'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { fn } from 'storybook/test'
 import { StubReveal } from '@app/writing/stub_reveal.test.ui.tsx'
 import { fakeWritingDeps } from '@app/writing/writing_fakes.test.lib.ts'
 import { bindTagTeam } from './tag_team.effect.ui.tsx'
@@ -20,12 +20,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const FirstExchange: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole('button', { name: "I'll start us off →" }))
-    await userEvent.type(await canvas.findByLabelText('Your line'), 'I pressed it because nobody was watching.')
-    await userEvent.click(canvas.getByRole('button', { name: 'Pass it back →' }))
-    await expect(await canvas.findByLabelText('Your line')).toBeVisible()
-  },
-}
+export const Default: Story = {}

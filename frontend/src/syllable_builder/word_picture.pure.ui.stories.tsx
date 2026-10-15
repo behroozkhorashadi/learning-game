@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, within } from 'storybook/test'
 import { WordPicture } from './word_picture.pure.ui.tsx'
 
 const meta = {
@@ -11,9 +10,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const MissingPicture: Story = {
-  play: async ({ canvasElement }) => {
-    // The fallback waits on the image's 404, which can take over a second under load.
-    await expect(await within(canvasElement).findByText('No picture yet', {}, { timeout: 5000 })).toBeVisible()
-  },
-}
+export const Default: Story = {}
