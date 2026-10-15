@@ -27,7 +27,7 @@ in-game shop, badges, and unlocks that come from playing more.
 - Decisions made:
   1. **2D top-down.** The user wanted to see an example before committing. A
      throwaway single-file HTML prototype was built in the 2026-10-14 session:
-     `ideas/tower-defense-prototype.html` (open it in a browser; also published
+     `frontend/public/prototypes/starfort.html` (open it in a browser; also published
      as a private Artifact). The user liked it at a high level. It is a
      look-and-feel sketch, not code to port.
   2. **A new theme (space: "Starfort", Glorps attacking a Power Core), plus a
