@@ -55,6 +55,7 @@ canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; touch
 .btn.primary { background: var(--accent); color: #1a1405; }
 .btn.grow { flex: 1; }
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5, 8, 25, .62); padding: 12px; }
+.overlay[hidden] { display: none; }
 :root[data-skin="zombie"] .overlay { background: rgba(8, 12, 6, .62); }
 .qbox { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 18px 20px; width: min(460px, 100%); display: grid; gap: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 .qhead { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
