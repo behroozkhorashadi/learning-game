@@ -5,6 +5,7 @@ import type { ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
 import type { components } from '@app/api/openapi_schema.pure.lib.ts'
 import type { OutbreakViewportProps } from '@app/arena/outbreak_viewport.pure.ui.tsx'
 import { STARTER_BLASTER } from '@app/blaster/weapon_definitions.pure.lib.ts'
+import type { GameVolume } from '@app/den/game_volume.pure.lib.ts'
 import type { MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { ZOMBIE_CHARACTER_REGISTRY, type CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
 import { bindFactFluencyBrain } from './fact_fluency_brain.effect.lib.ts'
@@ -115,7 +116,7 @@ export type AudioCall = keyof ArenaAudio
 
 export function recordingAudio(): ArenaAudio & { readonly calls: readonly AudioCall[]; readonly count: (call: AudioCall) => number } {
   const calls: AudioCall[] = []
-  let muted = false
+  let volume: GameVolume = 1
   const record =
     (call: AudioCall) =>
     (): void => {
@@ -124,11 +125,10 @@ export function recordingAudio(): ArenaAudio & { readonly calls: readonly AudioC
   return {
     calls,
     count: (call) => calls.filter((c) => c === call).length,
-    isMuted: () => muted,
-    toggleMuted: () => {
-      calls.push('toggleMuted')
-      muted = !muted
-      return muted
+    getVolume: () => volume,
+    setVolume: (next) => {
+      calls.push('setVolume')
+      volume = next
     },
     preloadWeapon: record('preloadWeapon'),
     preloadZombies: record('preloadZombies'),

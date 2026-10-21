@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   GAMEPLAY_MUSIC_URL,
-  MUTE_STORAGE_KEY,
+  VOLUME_STORAGE_KEY,
   RELOAD_SOUND_URL,
   SHOT_SOUND_URL,
   ZOMBIE_ATTACK_SOUND_URL,
@@ -16,7 +16,7 @@ import {
 
 /**
  * The audio plumbing over a fake Web Audio context and a fake file loader:
- * each file loads once, decoded buffers are cached and played, mute persists,
+ * each file loads once, decoded buffers are cached and played, volume persists,
  * and every failure (no context, a missing file, a bad decode, blocked
  * storage) degrades to silence, never a throw.
  */
@@ -110,32 +110,42 @@ async function settle(): Promise<void> {
   for (let i = 0; i < 10; i++) await Promise.resolve()
 }
 
-describe('mute', () => {
-  it('starts unmuted with no stored preference, and persists the toggle', () => {
+describe('volume', () => {
+  it('starts high with no stored preference and persists changes', () => {
     const stored = new Map<string, string>()
     const { audio } = audioOver({ stored })
-    expect(audio.isMuted()).toBe(false)
-    expect(audio.toggleMuted()).toBe(true)
-    expect(stored.get(MUTE_STORAGE_KEY)).toBe('1')
-    expect(audioOver({ stored }).audio.isMuted()).toBe(true)
-    expect(audio.toggleMuted()).toBe(false)
-    expect(stored.get(MUTE_STORAGE_KEY)).toBe('0')
+    expect(audio.getVolume()).toBe(1)
+    audio.setVolume(0.5)
+    expect(stored.get(VOLUME_STORAGE_KEY)).toBe('0.5')
+    expect(audioOver({ stored }).audio.getVolume()).toBe(0.5)
+    audio.setVolume(0)
+    expect(stored.get(VOLUME_STORAGE_KEY)).toBe('0')
   })
 
-  it('blocked storage neither throws nor mutes', () => {
+  it('blocked storage neither throws nor changes the default', () => {
     const { audio } = audioOver({ storageThrows: true })
-    expect(audio.isMuted()).toBe(false)
-    expect(audio.toggleMuted()).toBe(true)
+    expect(audio.getVolume()).toBe(1)
+    expect(() => audio.setVolume(0.5)).not.toThrow()
   })
 
   it('a muted cue loads nothing and plays nothing', async () => {
     const { context, played } = fakeContext()
     const { audio, loads } = audioOver({ context })
-    audio.toggleMuted()
+    audio.setVolume(0)
     audio.playShot()
     await settle()
     expect(loads).toEqual([])
     expect(played).toEqual([])
+  })
+
+  it('scales effect volume when set low', async () => {
+    const { context, played } = fakeContext()
+    const { audio } = audioOver({ context })
+    audio.preloadWeapon()
+    await settle()
+    audio.setVolume(0.5)
+    audio.playShot()
+    expect(played.map((p) => p.gain)).toEqual([0.2])
   })
 })
 
@@ -203,6 +213,16 @@ describe('music', () => {
     expect(played[0]?.stopped).toBe(true)
     audio.startMusic()
     expect(played).toHaveLength(2)
+  })
+
+  it('starts music at the selected volume', async () => {
+    const { context, played } = fakeContext()
+    const { audio } = audioOver({ context })
+    audio.preloadMusic()
+    await settle()
+    audio.setVolume(0.5)
+    audio.startMusic()
+    expect(played).toEqual([{ gain: 0.175, loop: true, stopped: false }])
   })
 
   it('is a silent no-op until its file has decoded', () => {

@@ -1,3 +1,4 @@
+import type { GameVolume } from '@app/den/game_volume.pure.lib.ts'
 import type { ArenaAudio } from './zombie_arena_state.pure.lib.ts'
 
 /**
@@ -15,7 +16,8 @@ import type { ArenaAudio } from './zombie_arena_state.pure.lib.ts'
  * spawn, or music, so the first cue of a session isn't silent while it loads.
  */
 
-export const MUTE_STORAGE_KEY = 'equationOutbreak:audioMuted'
+export const VOLUME_STORAGE_KEY = 'games:audioVolume'
+const LEGACY_MUTE_STORAGE_KEY = 'equationOutbreak:audioMuted'
 
 export const SHOT_SOUND_URL = '/audio/equation-outbreak/weapons/blaster-shot-01.wav'
 export const RELOAD_SOUND_URL = '/audio/equation-outbreak/weapons/blaster-reload-01.wav'
@@ -70,11 +72,15 @@ function safely(run: () => void): void {
 }
 
 export function bindGameAudio({ openAudioContext, loadArrayBuffer, storage }: GameAudioDeps): ArenaAudio {
-  let muted = false
+  let volume: GameVolume = 1
   try {
-    muted = storage.getItem(MUTE_STORAGE_KEY) === '1'
+    const stored = storage.getItem(VOLUME_STORAGE_KEY)
+    if (stored === '0') volume = 0
+    else if (stored === '0.5') volume = 0.5
+    else if (stored === '1') volume = 1
+    else if (storage.getItem(LEGACY_MUTE_STORAGE_KEY) === '1') volume = 0
   } catch {
-    muted = false
+    volume = 1
   }
   let context: GameAudioContext | null = null
   let contextTried = false
@@ -125,7 +131,7 @@ export function bindGameAudio({ openAudioContext, loadArrayBuffer, storage }: Ga
 
   /** Plays a decoded buffer through its own gain; starts loading it if nothing has yet (that play is silent, the next one isn't). */
   function playEffect(url: string, gain: number): void {
-    if (muted) return
+    if (volume === 0) return
     safely(() => {
       const ctx = audioContext()
       if (ctx === null) return
@@ -135,29 +141,26 @@ export function bindGameAudio({ openAudioContext, loadArrayBuffer, storage }: Ga
       const source = ctx.createBufferSource()
       source.buffer = buffer
       const gainNode = ctx.createGain()
-      gainNode.gain.value = gain
+      gainNode.gain.value = gain * volume
       source.connect(gainNode).connect(ctx.destination)
       source.start(ctx.currentTime)
     })
   }
 
-  function setMuted(value: boolean): void {
-    muted = value
+  function setVolume(value: GameVolume): void {
+    volume = value
     try {
-      storage.setItem(MUTE_STORAGE_KEY, value ? '1' : '0')
+      storage.setItem(VOLUME_STORAGE_KEY, String(value))
     } catch {
       // Losing the preference across reloads is fine; audio must not fail over it.
     }
-    // One-shot cues check `muted` when they fire; the music loop is long-running, so it changes live.
-    if (musicGain) musicGain.gain.value = value ? 0 : GAMEPLAY_MUSIC_VOLUME
+    // One-shot cues read `volume` when they fire; the music loop is long-running, so it changes live.
+    if (musicGain) musicGain.gain.value = GAMEPLAY_MUSIC_VOLUME * value
   }
 
   return {
-    isMuted: () => muted,
-    toggleMuted: () => {
-      setMuted(!muted)
-      return muted
-    },
+    getVolume: () => volume,
+    setVolume,
     preloadWeapon: () => {
       preload([SHOT_SOUND_URL, RELOAD_SOUND_URL, ZOMBIE_HIT_SOUND_URL, ZOMBIE_ATTACK_SOUND_URL])
     },
@@ -178,7 +181,7 @@ export function bindGameAudio({ openAudioContext, loadArrayBuffer, storage }: Ga
         source.buffer = buffer
         source.loop = true
         const gain = ctx.createGain()
-        gain.gain.value = muted ? 0 : GAMEPLAY_MUSIC_VOLUME
+        gain.gain.value = GAMEPLAY_MUSIC_VOLUME * volume
         source.connect(gain).connect(ctx.destination)
         source.start(ctx.currentTime)
         musicSource = source

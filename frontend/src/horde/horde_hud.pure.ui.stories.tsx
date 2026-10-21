@@ -29,7 +29,7 @@ const meta = {
     ammo: null,
     outOfRounds: false,
     armed: 'shot',
-    muted: false,
+    audioVolume: 1,
     answers: [
       { zombieId: 'z1', label: '42' },
       { zombieId: 'z2', label: '36' },
@@ -42,7 +42,7 @@ const meta = {
     onBack: fn(),
     onToggleGrenade: fn(),
     onPushBack: fn(),
-    onToggleMute: fn(),
+    onVolumeChange: fn(),
     onZap: fn(),
     flags: 1,
     onFlag: fn(),

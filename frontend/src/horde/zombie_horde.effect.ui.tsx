@@ -322,7 +322,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             ammo={round.loadout !== null && round.loadout.bullet.id !== STARTER_LOADOUT.bullet.id ? state.ammo : null}
             outOfRounds={round.outOfRounds}
             armed={round.armed}
-            muted={round.audioMuted}
+            audioVolume={round.audioVolume}
             answers={phase === 'playing' ? answers : []}
             feedback={round.feedback}
             aimNdc={aimNdc}
@@ -330,7 +330,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
             onBack={onBack}
             onToggleGrenade={round.toggleGrenade}
             onPushBack={round.pushBack}
-            onToggleMute={round.toggleMute}
+            onVolumeChange={round.setAudioVolume}
             onZap={(zombieId) => {
               round.shoot({ zombieId, zone: 'body' }, { aim: null, blockedBy: null, via: 'button' })
             }}

@@ -21,7 +21,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     ammo: null,
     outOfRounds: false,
     armed: 'shot',
-    muted: false,
+    audioVolume: 1,
     answers: [
       { zombieId: 'z1', label: '7' },
       { zombieId: 'z2', label: '8' },
@@ -32,7 +32,7 @@ function props(overrides: Partial<HordeHudProps> = {}): HordeHudProps {
     onBack: vi.fn(),
     onToggleGrenade: vi.fn(),
     onPushBack: vi.fn(),
-    onToggleMute: vi.fn(),
+    onVolumeChange: vi.fn(),
     onZap: vi.fn(),
     flags: 0,
     onFlag: vi.fn(),
@@ -108,14 +108,14 @@ describe('HordeHud', () => {
     expect(screen.getByRole('button', { name: 'Grenade (0 left)' }).hasAttribute('disabled')).toBe(true)
   })
 
-  it('back and mute', () => {
+  it('goes back and changes volume', () => {
     const onBack = vi.fn()
-    const onToggleMute = vi.fn()
-    render(<HordeHud {...props({ onBack, onToggleMute, muted: true })} />)
+    const onVolumeChange = vi.fn()
+    render(<HordeHud {...props({ onBack, onVolumeChange, audioVolume: 0.5 })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Unmute' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Volume low. Mute' }))
     expect(onBack).toHaveBeenCalledTimes(1)
-    expect(onToggleMute).toHaveBeenCalledTimes(1)
+    expect(onVolumeChange).toHaveBeenCalledWith(0)
   })
 
   it('flashes each kind of feedback', () => {

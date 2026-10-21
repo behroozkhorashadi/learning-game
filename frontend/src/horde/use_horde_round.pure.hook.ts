@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AttemptBody, ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
+import type { GameVolume } from '@app/den/game_volume.pure.lib.ts'
 import type { ArenaAudio, ArenaScheduler, Cancel } from '@app/outbreak/zombie_arena_state.pure.lib.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import type { CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
@@ -97,7 +98,7 @@ export interface HordeRound {
   readonly outOfRounds: boolean
   readonly recoilSignal: number
   readonly armed: ArmedMode
-  readonly audioMuted: boolean
+  readonly audioVolume: GameVolume
   readonly solved: readonly SolvedFact[]
   /** Facts answered with "I don't know", for the end screen's practice list. */
   readonly missed: readonly SolvedFact[]
@@ -133,7 +134,7 @@ export interface HordeRound {
   /** Stops in overtime and banks the round. */
   readonly endOvertime: () => void
   readonly throwGrenade: (at: { readonly x: number; readonly depth: number }) => void
-  readonly toggleMute: () => void
+  readonly setAudioVolume: (volume: GameVolume) => void
   readonly sceneFailed: (error: unknown) => void
 }
 
@@ -186,7 +187,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
   const [outOfRounds, setOutOfRounds] = useState(false)
   const [recoilSignal, setRecoilSignal] = useState(0)
   const [armed, setArmed] = useState<ArmedMode>('shot')
-  const [audioMuted, setAudioMuted] = useState(() => audio.isMuted())
+  const [audioVolume, setAudioVolumeState] = useState(() => audio.getVolume())
   const [solved, setSolved] = useState<readonly SolvedFact[]>([])
   const [missed, setMissed] = useState<readonly SolvedFact[]>([])
   const [shoveEarned, setShoveEarned] = useState(false)
@@ -559,7 +560,7 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
     outOfRounds,
     recoilSignal,
     armed,
-    audioMuted,
+    audioVolume,
     solved,
     missed,
     shoveEarned,
@@ -640,8 +641,9 @@ export function useHordeRound(deps: HordeRoundDeps, profileId: number): HordeRou
       if (next === current) setArmed('shot')
       else commit(next, true)
     },
-    toggleMute: () => {
-      setAudioMuted(audio.toggleMuted())
+    setAudioVolume: (volume) => {
+      audio.setVolume(volume)
+      setAudioVolumeState(volume)
     },
     sceneFailed: (err) => {
       setError(`The 3D scene couldn't load: ${errorMessage(err)}`)

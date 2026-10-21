@@ -3,6 +3,7 @@ import type { ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
 import type { components } from '@app/api/openapi_schema.pure.lib.ts'
 import { DEFAULT_WEAPON_VIEW, type WeaponViewConfig } from '@app/blaster/blaster_config.pure.lib.ts'
 import type { WeaponDefinition } from '@app/blaster/weapon_definitions.pure.lib.ts'
+import type { GameVolume } from '@app/den/game_volume.pure.lib.ts'
 import { errorMessage } from '@app/query/query_state.pure.lib.ts'
 import type { CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
 import { applyHit, canShoot, createWave, registerMiss, tick, type HitZone, type WaveConfig, type WaveState } from '@app/zombies/zombie_wave_engine.pure.lib.ts'
@@ -68,7 +69,7 @@ export interface ArenaSession {
   readonly liveMessage: string
   readonly waveCharacters: readonly CharacterDefinition[]
   readonly feedback: FeedbackEvent | null
-  readonly audioMuted: boolean
+  readonly audioVolume: GameVolume
   readonly weaponView: WeaponViewConfig
   readonly hideRightArm: boolean
   readonly hideLeftArm: boolean
@@ -79,7 +80,7 @@ export interface ArenaSession {
   readonly miss: () => void
   /** Aims at a pointer position inside the arena (a React pointer event fits). Touch doesn't aim: there's no hover. */
   readonly aim: (event: { readonly pointerType: string; readonly clientX: number; readonly clientY: number; readonly currentTarget: Element }) => void
-  readonly toggleMute: () => void
+  readonly setAudioVolume: (volume: GameVolume) => void
   readonly rate: (value: number) => void
   readonly dismissRating: () => void
   readonly sceneFailed: (error: unknown) => void
@@ -114,7 +115,7 @@ export function useArenaSession({ brain, weapon, nextItem, submitRating, schedul
   const [liveMessage, setLiveMessage] = useState('')
   const [waveCharacters, setWaveCharacters] = useState<readonly CharacterDefinition[]>([])
   const [feedback, setFeedback] = useState<FeedbackEvent | null>(null)
-  const [audioMuted, setAudioMuted] = useState(() => audio.isMuted())
+  const [audioVolume, setAudioVolumeState] = useState(() => audio.getVolume())
   const [weaponView, setWeaponView] = useState<WeaponViewConfig>(DEFAULT_WEAPON_VIEW)
   const [hideRightArm, setHideRightArm] = useState(false)
   const [hideLeftArm, setHideLeftArm] = useState(false)
@@ -347,7 +348,7 @@ export function useArenaSession({ brain, weapon, nextItem, submitRating, schedul
     liveMessage,
     waveCharacters,
     feedback,
-    audioMuted,
+    audioVolume,
     weaponView,
     hideRightArm,
     hideLeftArm,
@@ -375,8 +376,9 @@ export function useArenaSession({ brain, weapon, nextItem, submitRating, schedul
       if (event.pointerType === 'touch') return
       setAimNdc(aimFromPointer(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect()))
     },
-    toggleMute: () => {
-      setAudioMuted(audio.toggleMuted())
+    setAudioVolume: (volume) => {
+      audio.setVolume(volume)
+      setAudioVolumeState(volume)
     },
     rate: (value) => {
       setRatingHandled(true)

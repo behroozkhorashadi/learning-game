@@ -3,6 +3,7 @@ import type { OutbreakViewportProps } from '@app/arena/outbreak_viewport.pure.ui
 import { ChargeHud } from '@app/blaster/charge_hud.pure.ui.tsx'
 import { WeaponTuningPanel } from '@app/blaster/weapon_tuning_panel.pure.ui.tsx'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { GameVolumeControl } from '@app/den/game_volume_control.pure.ui.tsx'
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
@@ -44,8 +45,6 @@ export interface ZombieArenaDeps extends ArenaSessionDeps {
 }
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
-const MUTED_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 8.5L21 15.5M21 8.5L17 15.5']
-const SOUND_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 9C17.8 9.7 18.25 10.8 18.25 12C18.25 13.2 17.8 14.3 17 15']
 
 export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieArenaProps> {
   const { brain, weapon, Viewport, motion, debug, readAloud, copyText } = deps
@@ -157,7 +156,7 @@ export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieAren
                     {'❤️'.repeat(Math.max(session.lives, 0))}
                   </div>
                   <span style={{ pointerEvents: 'auto' }}>
-                    <DenButton label={session.audioMuted ? 'Unmute' : 'Mute'} variant="quiet" shape="pill" size="md" iconOnly boxSize={44} onClick={session.toggleMute} iconPaths={session.audioMuted ? MUTED_ICON : SOUND_ICON} />
+                    <GameVolumeControl volume={session.audioVolume} onChange={session.setAudioVolume} />
                   </span>
                 </div>
               </div>

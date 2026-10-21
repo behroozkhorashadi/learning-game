@@ -1,4 +1,5 @@
 import type { ItemRecord } from '@app/api/practice_schema.pure.lib.ts'
+import type { GameVolume } from '@app/den/game_volume.pure.lib.ts'
 import type { CharacterDefinition } from '@app/zombies/character_definitions.pure.lib.ts'
 import type { CarrierOption } from '@app/zombies/zombie_wave_engine.pure.lib.ts'
 
@@ -84,9 +85,8 @@ export interface ArenaScheduler {
 
 /** Everything the arena plays. In the app, game_audio.effect.lib.ts over Web Audio. */
 export interface ArenaAudio {
-  readonly isMuted: () => boolean
-  /** Flips mute and returns the new value. */
-  readonly toggleMuted: () => boolean
+  readonly getVolume: () => GameVolume
+  readonly setVolume: (volume: GameVolume) => void
   readonly preloadWeapon: () => void
   readonly preloadZombies: (groanUrls: readonly string[]) => void
   readonly preloadMusic: () => void

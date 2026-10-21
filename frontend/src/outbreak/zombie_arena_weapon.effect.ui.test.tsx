@@ -4,7 +4,7 @@ import { arenaHarness, rightAnswer, wrongAnswers, type ArenaHarness, type ArenaH
 
 /**
  * The two-shot blaster as the player sees it: the charge HUD, cocking between
- * shots (a click mid-cocking is ignored end to end), the mute control, and
+ * shots (a click mid-cocking is ignored end to end), the volume control, and
  * the dev tuning panel's production guard.
  */
 
@@ -62,13 +62,13 @@ describe('ZombieArena: charge HUD', () => {
   })
 })
 
-describe('ZombieArena: mute', () => {
-  it('toggles the audio and the button label', async () => {
+describe('ZombieArena: volume', () => {
+  it('reduces and then mutes the audio', async () => {
     const harness = await startArena()
-    fireEvent.click(screen.getByRole('button', { name: 'Mute' }))
-    expect(harness.audio.isMuted()).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Unmute' }))
-    expect(harness.audio.isMuted()).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Volume high. Set volume to low' }))
+    expect(harness.audio.getVolume()).toBe(0.5)
+    fireEvent.click(screen.getByRole('button', { name: 'Volume low. Mute' }))
+    expect(harness.audio.getVolume()).toBe(0)
   })
 })
 

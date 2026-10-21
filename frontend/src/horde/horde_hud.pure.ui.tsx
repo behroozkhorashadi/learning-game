@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { GameVolumeControl } from '@app/den/game_volume_control.pure.ui.tsx'
+import type { GameVolume } from '@app/den/game_volume.pure.lib.ts'
 import type { Armor, GemKind } from './horde_armory.pure.lib.ts'
 import { HEAL_STREAK } from './horde_engine.pure.lib.ts'
 import { formatTime } from './horde_scoring.pure.lib.ts'
@@ -60,7 +62,7 @@ export interface HordeHudProps {
   readonly outOfRounds: boolean
   /** What the next click does. */
   readonly armed: ArmedMode
-  readonly muted: boolean
+  readonly audioVolume: GameVolume
   readonly answers: readonly HudAnswer[]
   readonly feedback: { readonly kind: FeedbackKind; readonly id: number } | null
   readonly aimNdc: { readonly x: number; readonly y: number } | null
@@ -69,7 +71,7 @@ export interface HordeHudProps {
   readonly onToggleGrenade: () => void
   /** Pushes the closest zombie back (also the space bar). */
   readonly onPushBack: () => void
-  readonly onToggleMute: () => void
+  readonly onVolumeChange: (volume: GameVolume) => void
   /** Zaps a zombie's body from the answer buttons. */
   readonly onZap: (zombieId: string) => void
   /** Moments flagged so far this round. */
@@ -79,8 +81,6 @@ export interface HordeHudProps {
 }
 
 const BACK_ICON = ['M10.25 6.75L4.75 12L10.25 17.25M19.25 12H5']
-const MUTED_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 8.5L21 15.5M21 8.5L17 15.5']
-const SOUND_ICON = ['M4.75 9.75H8L13.25 5V19L8 14.25H4.75V9.75Z', 'M17 9C17.8 9.7 18.25 10.8 18.25 12C18.25 13.2 17.8 14.3 17 15']
 
 const FLASH: Record<FeedbackKind, string> = {
   correct: 'radial-gradient(ellipse at center, transparent 58%, rgba(34,197,94,0.6) 100%)',
@@ -133,7 +133,7 @@ function clockLabel(ms: number): string {
   return minutes === 0 ? rest : `${String(minutes)} minute${minutes === 1 ? '' : 's'} ${rest}`
 }
 
-export function HordeHud({ question, revealedAnswer, onDontKnow, intro, secondsLeft, overtime, onEndOvertime, lives, armor, streak, armorColor, grenades, shoves, shoveEarned, ammo, outOfRounds, armed, muted, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onToggleMute, onZap, flags, onFlag }: HordeHudProps): ReactElement {
+export function HordeHud({ question, revealedAnswer, onDontKnow, intro, secondsLeft, overtime, onEndOvertime, lives, armor, streak, armorColor, grenades, shoves, shoveEarned, ammo, outOfRounds, armed, audioVolume, answers, feedback, aimNdc, reducedMotion, onBack, onToggleGrenade, onPushBack, onVolumeChange, onZap, flags, onFlag }: HordeHudProps): ReactElement {
   const grenadeArmed = armed === 'grenade'
   const ring = ARMED_COLOR[armed]
   const newRecord = overtime !== null && overtime.bestMs > 0 && overtime.lastedMs > overtime.bestMs
@@ -232,7 +232,7 @@ export function HordeHud({ question, revealedAnswer, onDontKnow, intro, secondsL
             </button>
           </span>
           <span style={{ pointerEvents: 'auto' }}>
-            <DenButton label={muted ? 'Unmute' : 'Mute'} variant="quiet" shape="pill" size="md" iconOnly boxSize={44} onClick={onToggleMute} iconPaths={muted ? MUTED_ICON : SOUND_ICON} />
+            <GameVolumeControl volume={audioVolume} onChange={onVolumeChange} />
           </span>
         </div>
       </div>
