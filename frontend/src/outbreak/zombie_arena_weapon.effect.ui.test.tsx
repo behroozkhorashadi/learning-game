@@ -65,9 +65,11 @@ describe('ZombieArena: charge HUD', () => {
 describe('ZombieArena: volume', () => {
   it('reduces and then mutes the audio', async () => {
     const harness = await startArena()
-    fireEvent.click(screen.getByRole('button', { name: 'Volume high. Set volume to low' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Volume high. Choose volume' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Low volume' }))
     expect(harness.audio.getVolume()).toBe(0.5)
-    fireEvent.click(screen.getByRole('button', { name: 'Volume low. Mute' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Volume low. Choose volume' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Muted volume' }))
     expect(harness.audio.getVolume()).toBe(0)
   })
 })
