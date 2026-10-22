@@ -64,9 +64,9 @@ export interface SolveResult {
   unsolvableReason: UnsolvabilityReason | null
 }
 
-export interface UnsolvabilityHint {
+export interface UnsolvabilityExplanation {
   readonly message: string
-  readonly highlightedDots: readonly GridPosition[]
+  readonly flawDots: readonly GridPosition[]
 }
 
 const BASE_MAX_NODES = 200_000
@@ -144,52 +144,51 @@ function disconnectedDots(puzzle: DotPuzzle): readonly GridPosition[] {
 }
 
 /**
- * Turns a proof from the solver into actionable builder guidance. Locations
- * are returned only when the proof identifies specific dots; a fully
- * exhausted DFS can prove there is no full path but cannot honestly blame
- * one position.
+ * Explains the structural flaw in a map. Locations are returned only when
+ * the proof identifies specific dots; a fully exhausted DFS can prove there
+ * is no full path but cannot honestly blame one position.
  */
-export function explainUnsolvability(puzzle: DotPuzzle, result: SolveResult): UnsolvabilityHint | null {
+export function explainUnsolvability(puzzle: DotPuzzle, result: SolveResult): UnsolvabilityExplanation | null {
   if (result.solved) return null
   const neighborMap = buildNeighborMap(puzzle)
 
   if (result.unsolvableReason === 'disconnected') {
-    const highlightedDots = disconnectedDots(puzzle)
-    const noun = highlightedDots.length === 1 ? 'dot is' : 'dots are'
+    const flawDots = disconnectedDots(puzzle)
+    const noun = flawDots.length === 1 ? 'dot sits' : 'dots sit'
     return {
-      message: `The highlighted ${noun} cut off from the main group. Add dots to make one connected shape.`,
-      highlightedDots,
+      message: `The highlighted ${noun} in a separate group. The empty gap means one continuous path cannot reach every dot.`,
+      flawDots,
     }
   }
 
   if (result.unsolvableReason === 'too-many-leaf-dots') {
-    const highlightedDots = puzzle.dots.filter((dot) => (neighborMap.get(coordKey(dot)) ?? []).length === 1)
+    const flawDots = puzzle.dots.filter((dot) => (neighborMap.get(coordKey(dot)) ?? []).length === 1)
     return {
-      message: `The ${String(highlightedDots.length)} highlighted end dots each have only one way out. One path can have only two ends.`,
-      highlightedDots,
+      message: `The ${String(flawDots.length)} highlighted dots are forced endpoints because each has only one connection. One continuous path can have only two endpoints.`,
+      flawDots,
     }
   }
 
   if (result.unsolvableReason === 'unbalanced-coloring') {
     const evenDots = puzzle.dots.filter((dot) => (dot.row + dot.col) % 2 === 0)
     const oddDots = puzzle.dots.filter((dot) => (dot.row + dot.col) % 2 !== 0)
-    const highlightedDots = evenDots.length > oddDots.length ? evenDots : oddDots
+    const flawDots = evenDots.length > oddDots.length ? evenDots : oddDots
     return {
-      message: 'The highlighted checkerboard group has too many dots. Add or remove a dot to balance the two groups.',
-      highlightedDots,
+      message: `The highlighted checkerboard group has ${String(flawDots.length)} dots, while the other group has ${String(Math.min(evenDots.length, oddDots.length))}. A path must alternate groups, so their counts cannot differ by more than one.`,
+      flawDots,
     }
   }
 
   if (result.limitReached) {
     return {
-      message: "This puzzle is too complex to verify right now. Try simplifying a branch, then check it again.",
-      highlightedDots: [],
+      message: 'The validator reached its search limit, so it cannot prove whether this map is solvable.',
+      flawDots: [],
     }
   }
 
   return {
-    message: 'No single path can reach every dot. Look for a narrow branch or loop that traps the path, then move one nearby dot.',
-    highlightedDots: [],
+    message: 'The full search proved that every possible path gets trapped before reaching every dot. This is a whole-map conflict, so there is no single flawed dot to highlight.',
+    flawDots: [],
   }
 }
 

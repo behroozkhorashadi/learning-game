@@ -206,8 +206,8 @@ describe('explainUnsolvability', () => {
       ],
     }
     const hint = explainUnsolvability(puzzle, solvePuzzle(puzzle))
-    expect(hint?.message).toMatch(/cut off from the main group/)
-    expect(hint?.highlightedDots).toEqual([{ row: 2, col: 3 }])
+    expect(hint?.message).toMatch(/separate group/)
+    expect(hint?.flawDots).toEqual([{ row: 2, col: 3 }])
   })
 
   it('identifies every forced end when a board has more than two', () => {
@@ -225,9 +225,9 @@ describe('explainUnsolvability', () => {
       ],
     }
     const hint = explainUnsolvability(puzzle, solvePuzzle(puzzle))
-    expect(hint?.message).toMatch(/4 highlighted end dots/)
-    expect(hint?.highlightedDots).toHaveLength(4)
-    expect(hint?.highlightedDots).not.toContainEqual({ row: 1, col: 1 })
+    expect(hint?.message).toMatch(/4 highlighted dots are forced endpoints/)
+    expect(hint?.flawDots).toHaveLength(4)
+    expect(hint?.flawDots).not.toContainEqual({ row: 1, col: 1 })
   })
 
   it('highlights the larger checkerboard group when the colors cannot alternate', () => {
@@ -241,8 +241,8 @@ describe('explainUnsolvability', () => {
     const result = solvePuzzle(puzzle)
     expect(result.unsolvableReason).toBe('unbalanced-coloring')
     const hint = explainUnsolvability(puzzle, result)
-    expect(hint?.message).toMatch(/checkerboard group/)
-    expect(hint?.highlightedDots).toHaveLength(5)
+    expect(hint?.message).toMatch(/5 dots, while the other group has 3/)
+    expect(hint?.flawDots).toHaveLength(5)
   })
 
   it('returns no warning for a solved board', () => {

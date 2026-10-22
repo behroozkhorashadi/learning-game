@@ -5,7 +5,7 @@ import { PathfinderBoard } from './pathfinder_board.pure.ui.tsx'
 import { makeCustomMapId, nextDefaultMapName } from './pathfinder_custom_maps.pure.lib.ts'
 import { assessDifficulty } from './pathfinder_difficulty.pure.lib.ts'
 import { coordKey, parseCoordKey } from './pathfinder_rules.pure.lib.ts'
-import { explainUnsolvability, solvePuzzle, type UnsolvabilityHint } from './pathfinder_solver.pure.lib.ts'
+import { explainUnsolvability, solvePuzzle, type UnsolvabilityExplanation } from './pathfinder_solver.pure.lib.ts'
 import { MAX_BOARD_DIMENSION, type Dialogs, type Difficulty, type DotPuzzle, type GridPosition, type MapLibrary } from './pathfinder_state.pure.lib.ts'
 
 /**
@@ -48,7 +48,7 @@ interface CheckResult {
   readonly solution: readonly GridPosition[] | null
   readonly tier: Difficulty | null
   readonly score: number | null
-  readonly hint: UnsolvabilityHint | null
+  readonly explanation: UnsolvabilityExplanation | null
 }
 
 export interface PathfinderEditorProps {
@@ -130,7 +130,7 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
 
     const assessedPuzzle: DotPuzzle | null = checkResult?.tier == null ? null : { ...draftPuzzle, difficulty: checkResult.tier }
     const highlightedKeys = useMemo(
-      () => new Set(checkResult?.hint?.highlightedDots.map(coordKey) ?? []),
+      () => new Set(checkResult?.explanation?.flawDots.map(coordKey) ?? []),
       [checkResult],
     )
 
@@ -175,7 +175,7 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
         solution: solveResult.path,
         tier: assessment.tier,
         score: assessment.score,
-        hint: explainUnsolvability(draftPuzzle, solveResult),
+        explanation: explainUnsolvability(draftPuzzle, solveResult),
       })
       setSavedMessage(null)
     }
@@ -296,8 +296,8 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
             >
               <HelpCircleIcon size={22} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 14, fontWeight: 800 }}>Not solvable yet</span>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{checkResult.hint?.message ?? 'Try adding, removing, or rearranging dots.'}</span>
+                <span style={{ fontSize: 14, fontWeight: 800 }}>Why this map is not solvable</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{checkResult.explanation?.message ?? 'The validator could not find one continuous path through every dot.'}</span>
               </div>
             </div>
           )}
