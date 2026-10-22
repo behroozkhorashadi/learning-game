@@ -116,6 +116,8 @@ describe('PathfinderEditor', () => {
     fireEvent.click(gridCell(4, 4))
     checkPuzzle()
     expect(screen.getByText(/Not solvable yet/)).toBeTruthy()
+    expect(screen.getByText(/highlighted dot is cut off from the main group/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /row 4, column 4, dot placed, needs attention/ })).toBeTruthy()
     expect(screen.queryByText("Here's a solution:")).toBeNull()
     expect(screen.queryByRole('button', { name: 'Play' })).toBeNull()
   })

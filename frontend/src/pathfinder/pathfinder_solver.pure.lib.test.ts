@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findQuickUnsolvabilityProof, isPuzzleSolvable, solvePuzzle } from './pathfinder_solver.pure.lib.ts'
+import { explainUnsolvability, findQuickUnsolvabilityProof, isPuzzleSolvable, solvePuzzle } from './pathfinder_solver.pure.lib.ts'
 import { isOrthogonallyAdjacent } from './pathfinder_rules.pure.lib.ts'
 import type { DotPuzzle, GridPosition } from './pathfinder_state.pure.lib.ts'
 
@@ -188,5 +188,65 @@ describe('findQuickUnsolvabilityProof', () => {
   it('returns null for a board that passes all three checks', () => {
     const puzzle: DotPuzzle = { id: 'rect-3x3', difficulty: 'easy', rows: 3, columns: 3, dots: rectangle(3, 3) }
     expect(findQuickUnsolvabilityProof(puzzle)).toBeNull()
+  })
+})
+
+describe('explainUnsolvability', () => {
+  it('identifies the dots cut off from the largest connected group', () => {
+    const puzzle: DotPuzzle = {
+      id: 'island',
+      difficulty: 'easy',
+      rows: 3,
+      columns: 4,
+      dots: [
+        { row: 0, col: 0 },
+        { row: 0, col: 1 },
+        { row: 1, col: 1 },
+        { row: 2, col: 3 },
+      ],
+    }
+    const hint = explainUnsolvability(puzzle, solvePuzzle(puzzle))
+    expect(hint?.message).toMatch(/cut off from the main group/)
+    expect(hint?.highlightedDots).toEqual([{ row: 2, col: 3 }])
+  })
+
+  it('identifies every forced end when a board has more than two', () => {
+    const puzzle: DotPuzzle = {
+      id: 'plus',
+      difficulty: 'easy',
+      rows: 3,
+      columns: 3,
+      dots: [
+        { row: 1, col: 1 },
+        { row: 0, col: 1 },
+        { row: 2, col: 1 },
+        { row: 1, col: 0 },
+        { row: 1, col: 2 },
+      ],
+    }
+    const hint = explainUnsolvability(puzzle, solvePuzzle(puzzle))
+    expect(hint?.message).toMatch(/4 highlighted end dots/)
+    expect(hint?.highlightedDots).toHaveLength(4)
+    expect(hint?.highlightedDots).not.toContainEqual({ row: 1, col: 1 })
+  })
+
+  it('highlights the larger checkerboard group when the colors cannot alternate', () => {
+    const puzzle: DotPuzzle = {
+      id: 'unbalanced',
+      difficulty: 'easy',
+      rows: 3,
+      columns: 3,
+      dots: rectangle(3, 3).filter((dot) => !(dot.row === 0 && dot.col === 1)),
+    }
+    const result = solvePuzzle(puzzle)
+    expect(result.unsolvableReason).toBe('unbalanced-coloring')
+    const hint = explainUnsolvability(puzzle, result)
+    expect(hint?.message).toMatch(/checkerboard group/)
+    expect(hint?.highlightedDots).toHaveLength(5)
+  })
+
+  it('returns no warning for a solved board', () => {
+    const puzzle: DotPuzzle = { id: 'square', difficulty: 'easy', rows: 2, columns: 2, dots: rectangle(2, 2) }
+    expect(explainUnsolvability(puzzle, solvePuzzle(puzzle))).toBeNull()
   })
 })

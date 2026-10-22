@@ -1,10 +1,11 @@
 import { useMemo, useState, type ComponentType, type ReactElement } from 'react'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
+import { CircleCheckIcon, HelpCircleIcon } from '@app/den/icons.pure.ui.tsx'
 import { PathfinderBoard } from './pathfinder_board.pure.ui.tsx'
 import { makeCustomMapId, nextDefaultMapName } from './pathfinder_custom_maps.pure.lib.ts'
 import { assessDifficulty } from './pathfinder_difficulty.pure.lib.ts'
 import { coordKey, parseCoordKey } from './pathfinder_rules.pure.lib.ts'
-import { solvePuzzle } from './pathfinder_solver.pure.lib.ts'
+import { explainUnsolvability, solvePuzzle, type UnsolvabilityHint } from './pathfinder_solver.pure.lib.ts'
 import { MAX_BOARD_DIMENSION, type Dialogs, type Difficulty, type DotPuzzle, type GridPosition, type MapLibrary } from './pathfinder_state.pure.lib.ts'
 
 /**
@@ -47,6 +48,7 @@ interface CheckResult {
   readonly solution: readonly GridPosition[] | null
   readonly tier: Difficulty | null
   readonly score: number | null
+  readonly hint: UnsolvabilityHint | null
 }
 
 export interface PathfinderEditorProps {
@@ -127,6 +129,10 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
     const draftPuzzle = useMemo((): DotPuzzle => ({ id: 'draft', name: '', difficulty: 'easy', rows, columns, dots: [...dotKeys].map(parseCoordKey) }), [dotKeys, rows, columns])
 
     const assessedPuzzle: DotPuzzle | null = checkResult?.tier == null ? null : { ...draftPuzzle, difficulty: checkResult.tier }
+    const highlightedKeys = useMemo(
+      () => new Set(checkResult?.hint?.highlightedDots.map(coordKey) ?? []),
+      [checkResult],
+    )
 
     function toggleCell(row: number, col: number): void {
       setCheckResult(null)
@@ -164,7 +170,13 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
       // onClick), so there are at least MIN_DOTS_TO_CHECK dots.
       const solveResult = solvePuzzle(draftPuzzle)
       const assessment = assessDifficulty(draftPuzzle, solveResult)
-      setCheckResult({ solvable: solveResult.solved, solution: solveResult.path, tier: assessment.tier, score: assessment.score })
+      setCheckResult({
+        solvable: solveResult.solved,
+        solution: solveResult.path,
+        tier: assessment.tier,
+        score: assessment.score,
+        hint: explainUnsolvability(draftPuzzle, solveResult),
+      })
       setSavedMessage(null)
     }
 
@@ -229,11 +241,12 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
             Array.from({ length: columns }, (_, col) => {
               const key = coordKey({ row, col })
               const on = dotKeys.has(key)
+              const highlighted = highlightedKeys.has(key)
               return (
                 <button
                   key={key}
                   type="button"
-                  aria-label={`Grid cell row ${String(row + 1)}, column ${String(col + 1)}${on ? ', dot placed' : ', empty'}`}
+                  aria-label={`Grid cell row ${String(row + 1)}, column ${String(col + 1)}${on ? ', dot placed' : ', empty'}${highlighted ? ', needs attention' : ''}`}
                   onClick={() => {
                     toggleCell(row, col)
                   }}
@@ -241,8 +254,9 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
                     width: 36,
                     height: 36,
                     borderRadius: 8,
-                    border: `2px solid ${on ? 'var(--blue-800)' : 'var(--border-default)'}`,
-                    background: on ? 'var(--blue-600)' : 'var(--surface-default)',
+                    border: `2px solid ${highlighted ? 'var(--orange-700)' : on ? 'var(--blue-800)' : 'var(--border-default)'}`,
+                    background: highlighted ? 'var(--status-warning-bg)' : on ? 'var(--blue-600)' : 'var(--surface-default)',
+                    boxShadow: highlighted ? '0 0 0 3px var(--status-warning-border)' : undefined,
                     cursor: 'pointer',
                   }}
                 />
@@ -258,14 +272,34 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
           <DenButton label="Clear Grid" variant="quiet" onClick={clearGrid} disabled={dotCount === 0} />
         </div>
 
-        <div style={{ minHeight: 24, textAlign: 'center' }} aria-live="polite">
+        <div style={{ minHeight: 24, textAlign: 'center', width: '100%', maxWidth: 560 }} aria-live="polite">
           {checkResult?.solvable === true && checkResult.tier !== null && (
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--green-900)' }}>
-              ✅ Solvable! Assessed difficulty: {TIER_LABEL[checkResult.tier]} (score {checkResult.score})
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--green-900)' }}>
+              <CircleCheckIcon size={20} />
+              <span>Solvable! Assessed difficulty: {TIER_LABEL[checkResult.tier]} (score {checkResult.score})</span>
+            </div>
           )}
           {checkResult !== null && !checkResult.solvable && (
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-warning)' }}>❌ Not solvable yet — try adding, removing, or rearranging dots.</span>
+            <div
+              role="status"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                padding: '12px 14px',
+                borderRadius: 14,
+                border: '1px solid var(--status-warning-border)',
+                background: 'var(--status-warning-bg)',
+                color: 'var(--fg-warning)',
+                textAlign: 'left',
+              }}
+            >
+              <HelpCircleIcon size={22} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 14, fontWeight: 800 }}>Not solvable yet</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{checkResult.hint?.message ?? 'Try adding, removing, or rearranging dots.'}</span>
+              </div>
+            </div>
           )}
         </div>
 

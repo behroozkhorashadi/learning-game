@@ -64,6 +64,11 @@ export interface SolveResult {
   unsolvableReason: UnsolvabilityReason | null
 }
 
+export interface UnsolvabilityHint {
+  readonly message: string
+  readonly highlightedDots: readonly GridPosition[]
+}
+
 const BASE_MAX_NODES = 200_000
 /** Node budget scales with board size — generous for small boards, capped
  * so a huge board can't hang the caller indefinitely. */
@@ -109,6 +114,83 @@ export function findQuickUnsolvabilityProof(puzzle: DotPuzzle): UnsolvabilityRea
   if (Math.abs(color0 - color1) > 1) return 'unbalanced-coloring'
 
   return null
+}
+
+function disconnectedDots(puzzle: DotPuzzle): readonly GridPosition[] {
+  const neighborMap = buildNeighborMap(puzzle)
+  const keyToPosition = new Map(puzzle.dots.map((dot) => [coordKey(dot), dot]))
+  const unseen = new Set(keyToPosition.keys())
+  const components: string[][] = []
+
+  while (unseen.size > 0) {
+    const start = unseen.values().next().value
+    if (start === undefined) break
+    unseen.delete(start)
+    const component: string[] = []
+    const stack = [start]
+    for (let key = stack.pop(); key !== undefined; key = stack.pop()) {
+      component.push(key)
+      for (const neighbor of neighborMap.get(key) ?? []) {
+        if (!unseen.delete(neighbor)) continue
+        stack.push(neighbor)
+      }
+    }
+    components.push(component)
+  }
+
+  const largest = components.reduce((best, component) => (component.length > best.length ? component : best), components[0] ?? [])
+  const mainKeys = new Set(largest)
+  return puzzle.dots.filter((dot) => !mainKeys.has(coordKey(dot)))
+}
+
+/**
+ * Turns a proof from the solver into actionable builder guidance. Locations
+ * are returned only when the proof identifies specific dots; a fully
+ * exhausted DFS can prove there is no full path but cannot honestly blame
+ * one position.
+ */
+export function explainUnsolvability(puzzle: DotPuzzle, result: SolveResult): UnsolvabilityHint | null {
+  if (result.solved) return null
+  const neighborMap = buildNeighborMap(puzzle)
+
+  if (result.unsolvableReason === 'disconnected') {
+    const highlightedDots = disconnectedDots(puzzle)
+    const noun = highlightedDots.length === 1 ? 'dot is' : 'dots are'
+    return {
+      message: `The highlighted ${noun} cut off from the main group. Add dots to make one connected shape.`,
+      highlightedDots,
+    }
+  }
+
+  if (result.unsolvableReason === 'too-many-leaf-dots') {
+    const highlightedDots = puzzle.dots.filter((dot) => (neighborMap.get(coordKey(dot)) ?? []).length === 1)
+    return {
+      message: `The ${String(highlightedDots.length)} highlighted end dots each have only one way out. One path can have only two ends.`,
+      highlightedDots,
+    }
+  }
+
+  if (result.unsolvableReason === 'unbalanced-coloring') {
+    const evenDots = puzzle.dots.filter((dot) => (dot.row + dot.col) % 2 === 0)
+    const oddDots = puzzle.dots.filter((dot) => (dot.row + dot.col) % 2 !== 0)
+    const highlightedDots = evenDots.length > oddDots.length ? evenDots : oddDots
+    return {
+      message: 'The highlighted checkerboard group has too many dots. Add or remove a dot to balance the two groups.',
+      highlightedDots,
+    }
+  }
+
+  if (result.limitReached) {
+    return {
+      message: "This puzzle is too complex to verify right now. Try simplifying a branch, then check it again.",
+      highlightedDots: [],
+    }
+  }
+
+  return {
+    message: 'No single path can reach every dot. Look for a narrow branch or loop that traps the path, then move one nearby dot.',
+    highlightedDots: [],
+  }
 }
 
 /** Necessary-condition prune: are all still-unvisited dots reachable from
