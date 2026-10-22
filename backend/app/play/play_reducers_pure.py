@@ -21,7 +21,18 @@ VERIFICATION_COMPLETED = "verification_completed"
 class _ShownItem(BaseModel):
     """The part of an `item_shown` event payload the no-repeat rule reads."""
 
+    item_id: str = ""
     payload: dict[str, object] = Field(default_factory=dict)
+
+
+class _AttemptEvent(BaseModel):
+    item_id: str = ""
+    correct: bool | None = None
+    hints_used: int = 0
+
+
+_INITIAL_RETRY_GAP = 2
+_MAX_RETRY_GAP = 32
 
 
 def age_of(birth_year: int, current_year: int) -> int:
@@ -57,6 +68,42 @@ def shown_repeat_keys(game: GameModule, shown_payloads: Sequence[Mapping[str, ob
     item's own payload (where `repeat_key` looks) is one level deeper."""
     keys = (game.repeat_key(_ShownItem.model_validate(event).payload) for event in shown_payloads)
     return frozenset(key for key in keys if key is not None)
+
+
+def cooling_down_repeat_keys(
+    game: GameModule,
+    shown_payloads: Sequence[Mapping[str, object]],
+    attempt_payloads: Sequence[Mapping[str, object]],
+) -> frozenset[str]:
+    """Content temporarily withheld after incorrect or hinted attempts.
+
+    Repeated difficulty doubles the number of intervening attempts before the
+    content is eligible again; an unassisted success clears its streak.
+    """
+    key_by_item_id: dict[str, str] = {}
+    for raw in shown_payloads:
+        shown = _ShownItem.model_validate(raw)
+        key = game.repeat_key(shown.payload)
+        if shown.item_id and key is not None:
+            key_by_item_id[shown.item_id] = key
+
+    failure_streaks: dict[str, int] = {}
+    blocked_until: dict[str, int] = {}
+    attempt_count = 0
+    for raw in attempt_payloads:
+        attempt = _AttemptEvent.model_validate(raw)
+        key = key_by_item_id.get(attempt.item_id)
+        if key is not None:
+            if attempt.correct is True and attempt.hints_used == 0:
+                failure_streaks.pop(key, None)
+                blocked_until.pop(key, None)
+            else:
+                streak = failure_streaks.get(key, 0) + 1
+                failure_streaks[key] = streak
+                gap = min(_INITIAL_RETRY_GAP * 2 ** (streak - 1), _MAX_RETRY_GAP)
+                blocked_until[key] = attempt_count + gap
+        attempt_count += 1
+    return frozenset(key for key, until in blocked_until.items() if attempt_count <= until)
 
 
 def pending_confidence_item(latest: tuple[str, Mapping[str, object]] | None) -> bool:

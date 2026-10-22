@@ -40,6 +40,7 @@ from app.play.play_reducers_pure import (
     age_of,
     attempt_event,
     attempt_record,
+    cooling_down_repeat_keys,
     difficulty_changed_event,
     loop_config_for,
     pending_confidence_item,
@@ -57,6 +58,8 @@ from app.play.play_schemas_pure import (
     Verification,
     VerificationCreate,
 )
+
+_BACKOFF_HISTORY_LIMIT = 256
 
 
 @dataclass(frozen=True)
@@ -106,6 +109,21 @@ class _Play:
             )
             if session_id
             else frozenset[str]()
+        )
+        exclude |= cooling_down_repeat_keys(
+            game,
+            self.events.recent_payloads(
+                profile_id=profile_id,
+                game_id=game_id,
+                event_type=ITEM_SHOWN,
+                limit=_BACKOFF_HISTORY_LIMIT,
+            ),
+            self.events.recent_payloads(
+                profile_id=profile_id,
+                game_id=game_id,
+                event_type=ATTEMPT,
+                limit=_BACKOFF_HISTORY_LIMIT,
+            ),
         )
         # A parent-set practice config fully replaces the adaptive Level for this
         # profile/game, so Loop A's pacing isn't consulted at all.

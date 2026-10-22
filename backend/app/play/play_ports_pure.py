@@ -90,6 +90,12 @@ class PlayEvents(Protocol):
         """Payloads of one session's events of one type."""
         ...
 
+    def recent_payloads(
+        self, *, profile_id: int, game_id: str, event_type: str, limit: int
+    ) -> tuple[dict[str, object], ...]:
+        """The most recent payloads of one type across sessions, oldest first."""
+        ...
+
     def latest(
         self, *, profile_id: int, game_id: str, event_types: Sequence[str]
     ) -> tuple[str, dict[str, object]] | None:

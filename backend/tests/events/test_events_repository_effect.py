@@ -44,6 +44,11 @@ def test_session_payloads_latest_and_timestamps(tmp_path: Path) -> None:
     add("item_shown", {"n": 4}, profile_id=2)
 
     assert log.payloads(profile_id=1, game_id="g", session_id="s", event_type="item_shown") == ({"n": 1},)
+    assert log.recent_payloads(profile_id=1, game_id="g", event_type="item_shown", limit=2) == (
+        {"n": 1},
+        {"n": 2},
+    )
+    assert log.recent_payloads(profile_id=1, game_id="g", event_type="item_shown", limit=1) == ({"n": 2},)
     assert log.latest(profile_id=1, game_id="g", event_types=("difficulty_changed", "item_shown")) == (
         "item_shown",
         {"n": 2},

@@ -65,6 +65,22 @@ class SqlEventLog:
         )
         return tuple(event.payload for event in self._events(query))
 
+    def recent_payloads(
+        self, *, profile_id: int, game_id: str, event_type: str, limit: int
+    ) -> tuple[dict[str, object], ...]:
+        c = self.table.c
+        query = (
+            select(self.table)
+            .where(
+                c.profile_id == profile_id,
+                c.game_id == game_id,
+                c.event_type == EventType(event_type),
+            )
+            .order_by(c.timestamp.desc())
+            .limit(limit)
+        )
+        return tuple(event.payload for event in reversed(self._events(query)))
+
     def latest(
         self, *, profile_id: int, game_id: str, event_types: Sequence[str]
     ) -> tuple[str, dict[str, object]] | None:
