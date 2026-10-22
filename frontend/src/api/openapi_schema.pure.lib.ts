@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    readonly "/api/admin/engagement": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Engagement Summary */
+        readonly get: operations["engagement_summary_api_admin_engagement_get"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/admin/login": {
         readonly parameters: {
             readonly query?: never;
@@ -55,6 +72,23 @@ export interface paths {
         readonly put?: never;
         /** Post Client Error */
         readonly post: operations["post_client_error_api_client_errors_post"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/engagement": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Record Engagement */
+        readonly post: operations["record_engagement_api_engagement_post"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -1322,6 +1356,27 @@ export interface components {
             /** Symbol */
             readonly symbol?: ("star" | "bolt" | "heart" | "crown" | "flame" | "rocket" | "paw" | "smile" | "moon" | "rainbow" | "dino" | "zombie") | null;
         };
+        /** EngagementBatch */
+        readonly EngagementBatch: {
+            /** Spans */
+            readonly spans: readonly components["schemas"]["EngagementSpan"][];
+        };
+        /** EngagementSpan */
+        readonly EngagementSpan: {
+            /** Active Ms */
+            readonly active_ms: number;
+            /** Area */
+            readonly area: string;
+            /** Profile Id */
+            readonly profile_id?: number | null;
+        };
+        /** EngagementSummary */
+        readonly EngagementSummary: {
+            /** Active Ms */
+            readonly active_ms: number;
+            /** Area */
+            readonly area: string;
+        };
         /**
          * FactCell
          * @description How one arithmetic fact went in the period, for the facts grid.
@@ -2454,6 +2509,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    readonly engagement_summary_api_admin_engagement_get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                readonly "x-admin-password"?: string | null;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["EngagementSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     readonly admin_login_api_admin_login_post: {
         readonly parameters: {
             readonly query?: never;
@@ -2528,6 +2614,37 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": components["schemas"]["ClientErrorReport"];
+            };
+        };
+        readonly responses: {
+            /** @description Successful Response */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readonly record_engagement_api_engagement_post: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EngagementBatch"];
             };
         };
         readonly responses: {

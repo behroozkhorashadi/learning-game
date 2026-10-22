@@ -4,6 +4,9 @@ import type { BadgeCelebrationsProps } from '@app/badges/badge_celebrations.effe
 import type { BadgesProps } from '@app/badges/badges.effect.ui.tsx'
 import type { ClueMasterProps } from '@app/clue_master/clue_master.effect.ui.tsx'
 import type { EquationBuilderProps } from '@app/equation_builder/equation_builder.effect.ui.tsx'
+import { EngagementArea } from '@app/engagement/engagement_area.pure.ui.tsx'
+import type { EngagementTracker } from '@app/engagement/engagement_state.pure.lib.ts'
+import { useEngagementTracking } from '@app/engagement/use_engagement_tracking.pure.hook.ts'
 import type { GamePickerProps } from '@app/home/game_picker.pure.ui.tsx'
 import type { ZombieHordeProps } from '@app/horde/zombie_horde.effect.ui.tsx'
 import type { OutbreakSettingsProps } from '@app/outbreak/outbreak_settings.effect.ui.tsx'
@@ -27,6 +30,7 @@ import {
   created,
   editFromHome,
   editFromPicker,
+  engagementArea,
   go,
   parentCreated,
   parentSignedIn,
@@ -67,20 +71,24 @@ export interface AppScreens {
 
 export interface AppDeps {
   readonly screens: AppScreens
+  readonly engagement: EngagementTracker
   /** Rendered over every screen (the dev builds' "Dev screens" link), or null. */
   readonly Overlay: ComponentType | null
 }
 
 /** The app shell: one navigation state (app_navigation.pure.lib.ts) and the screen it names. */
-export function bindApp({ screens: s, Overlay }: AppDeps): ComponentType {
+export function bindApp({ screens: s, engagement, Overlay }: AppDeps): ComponentType {
   function App(): ReactElement {
     const [state, setState] = useState<AppState>(START)
+    useEngagementTracking(engagement)
     const update = (next: (current: AppState) => AppState): void => {
       setState(next)
     }
     return (
       <>
-        <Screen state={state} update={update} />
+        <EngagementArea area={engagementArea(state.screen)} profileId={state.player?.profile.id ?? null}>
+          <Screen state={state} update={update} />
+        </EngagementArea>
         {Overlay !== null && <Overlay />}
       </>
     )

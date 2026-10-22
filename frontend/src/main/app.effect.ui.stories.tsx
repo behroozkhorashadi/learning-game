@@ -5,7 +5,7 @@ import { STUB_SCREENS } from './app_stub_screens.test.ui.tsx'
 
 /** The real router over stand-in screens: shows the navigation, not the screens. */
 function Bound(): ReactElement {
-  const [App] = useState(() => bindApp({ screens: STUB_SCREENS, Overlay: null }))
+  const [App] = useState(() => bindApp({ screens: STUB_SCREENS, engagement: { start: () => () => undefined }, Overlay: null }))
   return <App />
 }
 

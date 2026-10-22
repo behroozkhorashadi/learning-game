@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import Engine, create_engine
 
+from app.admin.admin_ports_pure import AdminService
 from app.admin.admin_routes_effect import bind_admin_routes
 from app.admin.admin_service_effect import make_admin_service
 from app.armory.armory_ports_pure import ArtMaker
@@ -45,6 +46,9 @@ from app.composition.app_settings_assembly import AppSettings
 from app.crash_reports.crash_reports_repository_effect import make_file_client_error_log
 from app.crash_reports.crash_reports_routes_effect import bind_crash_reports_routes
 from app.crash_reports.crash_reports_service_effect import make_crash_reports_service
+from app.engagement.engagement_repository_effect import SqlEngagementRepository, make_sql_engagement_repository
+from app.engagement.engagement_routes_effect import bind_engagement_routes
+from app.engagement.engagement_service_effect import make_engagement_service
 from app.events.events_repository_effect import SqlEventLog, make_sql_event_log
 from app.parents.parents_ports_pure import ParentNeighbors
 from app.parents.parents_repository_effect import make_sql_parent_repository
@@ -145,6 +149,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
 
     admin = make_admin_service(admin_password=settings.admin_password.get_secret_value())
     app.include_router(bind_admin_routes(service=admin))
+    engagement_repository = assemble_engagement(app, engine, admin)
 
     events = make_sql_event_log(engine=engine, clock=utc_now, new_id=lambda: str(uuid4()))
     practice_configs = make_sql_practice_config_repository(engine=engine)
@@ -176,6 +181,7 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
             play_repository.delete_for_profile,
             badge_repository.delete_for_profile,
             events.delete_for_profile,
+            engagement_repository.delete_for_profile,
             practice_configs.delete_for_profile,
             pathfinder.delete_for_profile,
             armory_repository.delete_for_profile,
@@ -300,9 +306,16 @@ def assemble_features(app: FastAPI, settings: AppSettings) -> tuple[Callable[[],
 
     crash_reports = make_crash_reports_service(log=make_file_client_error_log(log_dir=settings.log_dir))
     app.include_router(bind_crash_reports_routes(service=crash_reports))
-
     local_seed = assemble_local_seed(settings)
     return (lambda: profiles.seed(local_seed), badges.seed)
+
+
+def assemble_engagement(app: FastAPI, engine: Engine, admin: AdminService) -> SqlEngagementRepository:
+    repository = make_sql_engagement_repository(engine=engine)
+    repository.create_schema()
+    service = make_engagement_service(repository=repository, clock=utc_now, verify_admin=admin.verify)
+    app.include_router(bind_engagement_routes(service=service))
+    return repository
 
 
 def assemble_todo_example(app: FastAPI, settings: AppSettings, engine: Engine) -> None:

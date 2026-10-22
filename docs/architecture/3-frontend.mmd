@@ -7,12 +7,13 @@ flowchart TB
     app["main/<br/>bindApp: one Screen union (app_navigation),<br/>every screen injected; assembleRoot picks app or dev"]
     dev["main/ dev screens (DEV, ?screen=)<br/>bindDevScreens: mock-data demos + live screens"]
     profiles["profiles/<br/>picker, create, unlock, edit screens (bind* + assemble*),<br/>photo panel (camera + remix), form &amp; password fields,<br/>CardShell, ProfileAvatar, AVATAR_OPTIONS"]
-    admin["admin/<br/>AdminLogin + AdminPanel<br/>(X-Admin-Password, a UX gate)"]
+    admin["admin/<br/>AdminLogin + AdminPanel<br/>(players + active-time summary,<br/>X-Admin-Password UX gate)"]
     pathfinder["pathfinder/<br/>game, level select, map builder (editor, My Maps,<br/>play-test), published maps, dev level gallery (bind* + assemble*),<br/>backdrop art from the armory looks;<br/>pure engine: rules, solver, difficulty, generator, levels"]
     session["session/<br/>session shell: SessionStart, SessionComplete,<br/>RatingPrompt, ParentVerify, HandoffPencil, ProgressBar"]
     den["den/<br/>DenButton, DenCard, DenChip, DenFlipCard,<br/>DenJar, DenTile, icons, icon_paths"]
     query["query/<br/>useQuery, useReloadableQuery + QueryState (server state)"]
-    apiad["api/<br/>profiles, parents, admin, pathfinder, practice, pieces, badges,<br/>practice_config, armory, todos (zod at the door)<br/>openapi_schema (generated), http types"]
+    apiad["api/<br/>profiles, parents, admin, engagement, pathfinder, practice, pieces,<br/>badges, practice_config, armory, todos (zod at the door)<br/>openapi_schema (generated), http types"]
+    engagement["engagement/<br/>semantic area markers + active-time tracker;<br/>visible, recently interactive time only,<br/>batched every 30 seconds"]
     flags["flags/<br/>feature flags, read in assembly only"]
     practice["practice/<br/>usePracticeSession: next item → attempt →<br/>handoff/verify → rating (api/practice_api)"]
     pgames["syllable_builder/, equation_builder/<br/>bind* games over practice/"]
@@ -42,6 +43,9 @@ flowchart TB
   assets[("public/ GLB models, images, audio")]
 
   app -- "assembleGamePicker() once" --> home
+  app --> engagement
+  engagement --> apiad
+  engagement -- "visibility, activity,<br/>monotonic clock + intervals" --> webapis
   home --> query & apiad & den
   errors --> apiad & den
   app -- "assemblePathfinder() once" --> pathfinder

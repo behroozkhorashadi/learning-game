@@ -37,6 +37,12 @@ export interface AppState {
 
 export const START: AppState = { player: null, screen: { kind: 'picker' } }
 
+export function engagementArea(screen: Screen): string {
+  if (screen.kind === 'game') return `game:${screen.gameId}`
+  if (screen.kind === 'practice-settings') return `practice-settings:${screen.gameId}`
+  return screen.kind
+}
+
 const at = (state: AppState, screen: Screen): AppState => ({ ...state, screen })
 
 /** Picking a profile on the picker: a protected one asks for its password first. */

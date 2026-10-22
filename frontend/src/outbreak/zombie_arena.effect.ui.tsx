@@ -4,6 +4,7 @@ import { ChargeHud } from '@app/blaster/charge_hud.pure.ui.tsx'
 import { WeaponTuningPanel } from '@app/blaster/weapon_tuning_panel.pure.ui.tsx'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import { GameVolumeControl } from '@app/den/game_volume_control.pure.ui.tsx'
+import { EngagementArea } from '@app/engagement/engagement_area.pure.ui.tsx'
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
 import { RatingPrompt } from '@app/session/rating_prompt.pure.ui.tsx'
 import { SessionComplete } from '@app/session/session_complete.pure.ui.tsx'
@@ -56,9 +57,11 @@ export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieAren
     const inputEnabled = phase === 'playing'
     const wavePhase = phase === 'intro' ? 'intro' : 'playing'
     const gameView = isGamePhase(phase)
+    const engagementArea = phase === 'start' ? 'equation_outbreak:start' : phase === 'complete' || phase === 'game_over' ? 'equation_outbreak:results' : 'equation_outbreak:gameplay'
     const instructions = useReadAloud(readAloud, brain.copy.subtitle, phase === 'start')
 
     return (
+      <EngagementArea area={engagementArea} profileId={profileId}>
       <div style={{ width: '100%', height: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', overflow: 'hidden', display: 'flex' }}>
         <div
           style={{
@@ -322,6 +325,7 @@ export function bindZombieArena(deps: ZombieArenaDeps): ComponentType<ZombieAren
           )}
         </div>
       </div>
+      </EngagementArea>
     )
   }
   return ZombieArena

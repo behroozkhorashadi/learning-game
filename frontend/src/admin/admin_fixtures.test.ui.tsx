@@ -25,6 +25,10 @@ export function fakeAdminPanel(server: FakeProfilesServer = fakeProfilesServer({
   const AdminPanel = bindAdminPanel({
     listProfiles: server.list,
     removeProfile: server.remove,
+    engagementSummary: () => Promise.resolve([
+      { area: 'zombie_horde:gameplay', active_ms: 372_000 },
+      { area: 'zombie_horde:style_studio', active_ms: 75_000 },
+    ]),
     AdminLogin: bindAdminLogin({
       login: (password) => {
         logins.push(password)

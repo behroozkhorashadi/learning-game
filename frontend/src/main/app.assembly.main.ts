@@ -4,6 +4,8 @@ import { assembleBadgeCelebrations } from '@app/badges/badge_celebrations.assemb
 import { assembleBadges } from '@app/badges/badges.assembly.main.ts'
 import { assembleClueMaster } from '@app/clue_master/clue_master.assembly.main.ts'
 import { assembleEquationBuilder } from '@app/equation_builder/equation_builder.assembly.main.ts'
+import { bindEngagementApi } from '@app/api/engagement_api.effect.lib.ts'
+import { bindEngagementTracker } from '@app/engagement/engagement_tracker.effect.lib.ts'
 import { assembleGamePicker } from '@app/home/game_picker.assembly.main.ts'
 import { assembleZombieHorde } from '@app/horde/zombie_horde.assembly.main.ts'
 import { assembleOutbreakSettings } from '@app/outbreak/outbreak_settings.assembly.main.ts'
@@ -65,5 +67,29 @@ export function assembleRoot(): ComponentType {
     const screens = assembleDevScreens()
     return () => createElement(DevScreenPicker, { screens, screen })
   }
-  return bindApp({ screens: assembleAppScreens(), Overlay: dev ? DevScreenLink : null })
+  const engagementApi = bindEngagementApi({ fetch: async (url, init) => fetch(url, init), baseUrl: '' })
+  const activityEvents = ['keydown', 'pointerdown', 'pointermove', 'scroll', 'touchstart'] as const
+  const engagement = bindEngagementTracker({
+    now: () => performance.now(),
+    isVisible: () => document.visibilityState === 'visible',
+    currentLocation: () => {
+      const areas = document.querySelectorAll<HTMLElement>('[data-engagement-area]')
+      if (areas.length === 0) return null
+      const current = areas.item(areas.length - 1)
+      const profile = current.dataset.engagementProfile
+      return { area: current.dataset.engagementArea ?? '', profileId: profile === undefined ? null : Number(profile) }
+    },
+    subscribeActivity: (onActivity) => {
+      for (const event of activityEvents) document.addEventListener(event, onActivity, { passive: true })
+      return () => {
+        for (const event of activityEvents) document.removeEventListener(event, onActivity)
+      }
+    },
+    every: (ms, run) => {
+      const id = window.setInterval(run, ms)
+      return () => window.clearInterval(id)
+    },
+    record: engagementApi.record,
+  })
+  return bindApp({ screens: assembleAppScreens(), engagement, Overlay: dev ? DevScreenLink : null })
 }

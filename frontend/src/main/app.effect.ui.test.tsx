@@ -5,8 +5,10 @@ import { STUB_SCREENS } from './app_stub_screens.test.ui.tsx'
 
 afterEach(cleanup)
 
+const ENGAGEMENT = { start: () => () => undefined }
+
 function renderApp(): void {
-  const App = bindApp({ screens: STUB_SCREENS, Overlay: null })
+  const App = bindApp({ screens: STUB_SCREENS, engagement: ENGAGEMENT, Overlay: null })
   render(<App />)
 }
 
@@ -100,7 +102,7 @@ describe('the app shell', () => {
   })
 
   it('renders the overlay over every screen', () => {
-    const App = bindApp({ screens: STUB_SCREENS, Overlay: () => <a href="?screen=index">Dev screens</a> })
+    const App = bindApp({ screens: STUB_SCREENS, engagement: ENGAGEMENT, Overlay: () => <a href="?screen=index">Dev screens</a> })
     render(<App />)
     expect(screen.getByRole('link', { name: 'Dev screens' })).toBeTruthy()
   })

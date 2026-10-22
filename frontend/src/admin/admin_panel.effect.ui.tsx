@@ -1,4 +1,5 @@
 import { useState, type ComponentType, type ReactElement } from 'react'
+import type { EngagementSummaryRecord } from '@app/api/engagement_api.effect.lib.ts'
 import type { ProfileAuth, ProfileRecord } from '@app/api/profiles_schema.pure.lib.ts'
 import { DenButton } from '@app/den/den_button.pure.ui.tsx'
 import type { EditProfileProps } from '@app/profiles/edit_profile.effect.ui.tsx'
@@ -27,13 +28,14 @@ export interface AdminPanelProps {
 export interface AdminPanelDeps {
   readonly listProfiles: () => Promise<readonly ProfileRecord[]>
   readonly removeProfile: (id: number, auth: ProfileAuth) => Promise<void>
+  readonly engagementSummary: (adminPassword: string) => Promise<readonly EngagementSummaryRecord[]>
   readonly AdminLogin: ComponentType<AdminLoginProps>
   readonly EditProfile: ComponentType<EditProfileProps>
   /** Today as `YYYY-MM-DD`, for the ages shown. */
   readonly today: () => string
 }
 
-export function bindAdminPanel({ listProfiles, removeProfile, AdminLogin, EditProfile, today }: AdminPanelDeps): ComponentType<AdminPanelProps> {
+export function bindAdminPanel({ listProfiles, removeProfile, engagementSummary, AdminLogin, EditProfile, today }: AdminPanelDeps): ComponentType<AdminPanelProps> {
   function PlayerRow({ profile, auth, currentYear, onEdit, onDeleted }: { readonly profile: ProfileRecord; readonly auth: ProfileAuth; readonly currentYear: number; readonly onEdit: () => void; readonly onDeleted: () => void }): ReactElement {
     const [confirming, setConfirming] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -137,9 +139,10 @@ export function bindAdminPanel({ listProfiles, removeProfile, AdminLogin, EditPr
   }
 
   /** The logged-in screen. Mounted only after login, so the list is never read without the admin password. */
-  function Players({ auth, onClose }: { readonly auth: ProfileAuth; readonly onClose: () => void }): ReactElement {
+  function Players({ auth, onClose }: { readonly auth: { readonly kind: 'admin'; readonly password: string }; readonly onClose: () => void }): ReactElement {
     const [currentYear] = useState(() => yearOf(today()))
     const players = useReloadableQuery(listProfiles)
+    const engagement = useReloadableQuery(() => engagementSummary(auth.password))
     const [editing, setEditing] = useState<ProfileRecord | null>(null)
 
     if (editing !== null) {
@@ -164,6 +167,23 @@ export function bindAdminPanel({ listProfiles, removeProfile, AdminLogin, EditPr
         <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 32, color: 'var(--fg-primary)', textAlign: 'center' }}>Players</h1>
         <div style={{ marginTop: 8, fontSize: 16, color: 'var(--fg-tertiary)', textAlign: 'center' }}>Edit or remove a player.</div>
 
+        <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', border: 'thin solid var(--border-default)', borderRadius: 'var(--radius-lg)', background: 'var(--surface-subtle)' }}>
+          <div role="heading" aria-level={2} style={{ fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--fg-primary)' }}>Active time by area</div>
+          <div style={{ marginTop: 'var(--space-1)', color: 'var(--fg-tertiary)' }}>Hidden tabs and periods without interaction are excluded.</div>
+          {engagement.state.kind === 'failed' && <div role="alert" style={{ marginTop: 'var(--space-3)', color: 'var(--fg-warning)' }}>{engagement.state.message}</div>}
+          {engagement.state.kind === 'loaded' && (
+            <ul aria-label="Active time by area" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', margin: 'var(--space-4) 0 0', padding: 0 }}>
+              {engagement.state.data.map((item) => (
+                <li key={item.area} style={{ listStyle: 'none', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-4)', color: 'var(--fg-secondary)' }}>
+                  <span>{item.area.replaceAll('_', ' ').replaceAll(':', ' · ')}</span>
+                  <strong>{formatActiveTime(item.active_ms)}</strong>
+                </li>
+              ))}
+              {engagement.state.data.length === 0 && <li style={{ listStyle: 'none', color: 'var(--fg-tertiary)' }}>No active time recorded yet.</li>}
+            </ul>
+          )}
+        </div>
+
         <PlayerList state={players.state} auth={auth} currentYear={currentYear} onEdit={setEditing} onChanged={players.reload} />
 
         <div style={{ marginTop: 32 }}>
@@ -174,7 +194,7 @@ export function bindAdminPanel({ listProfiles, removeProfile, AdminLogin, EditPr
   }
 
   function AdminPanel({ onClose }: AdminPanelProps): ReactElement {
-    const [auth, setAuth] = useState<ProfileAuth | null>(null)
+    const [auth, setAuth] = useState<{ readonly kind: 'admin'; readonly password: string } | null>(null)
     if (auth === null) {
       return (
         <AdminLogin
@@ -188,4 +208,13 @@ export function bindAdminPanel({ listProfiles, removeProfile, AdminLogin, EditPr
     return <Players auth={auth} onClose={onClose} />
   }
   return AdminPanel
+}
+
+function formatActiveTime(ms: number): string {
+  if (ms < 60_000) return `${String(Math.max(1, Math.round(ms / 1000)))} sec`
+  const minutes = Math.round(ms / 60_000)
+  if (minutes < 60) return `${String(minutes)} min`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest === 0 ? `${String(hours)} hr` : `${String(hours)} hr ${String(rest)} min`
 }

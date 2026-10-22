@@ -73,6 +73,8 @@ def test_the_entry_point_serves_every_route_group(monkeypatch: pytest.MonkeyPatc
         "/api/profiles/{profile_id}/armory",
         "/api/profiles/{profile_id}/horde/replays",
         "/api/client-errors",
+        "/api/engagement",
+        "/api/admin/engagement",
         "/api/parents/{parent_id}/kids/{profile_id}/report",
     ):
         assert path in paths

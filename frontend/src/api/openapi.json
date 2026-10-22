@@ -950,6 +950,79 @@
         "title": "Emblem",
         "type": "object"
       },
+      "EngagementBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/EngagementSpan"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Spans",
+            "type": "array"
+          }
+        },
+        "required": [
+          "spans"
+        ],
+        "title": "EngagementBatch",
+        "type": "object"
+      },
+      "EngagementSpan": {
+        "additionalProperties": false,
+        "properties": {
+          "active_ms": {
+            "maximum": 60000.0,
+            "minimum": 1.0,
+            "title": "Active Ms",
+            "type": "integer"
+          },
+          "area": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9:_-]*$",
+            "title": "Area",
+            "type": "string"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          }
+        },
+        "required": [
+          "area",
+          "active_ms"
+        ],
+        "title": "EngagementSpan",
+        "type": "object"
+      },
+      "EngagementSummary": {
+        "properties": {
+          "active_ms": {
+            "title": "Active Ms",
+            "type": "integer"
+          },
+          "area": {
+            "title": "Area",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "active_ms"
+        ],
+        "title": "EngagementSummary",
+        "type": "object"
+      },
       "FactCell": {
         "description": "How one arithmetic fact went in the period, for the facts grid.",
         "properties": {
@@ -3659,6 +3732,59 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/engagement": {
+      "get": {
+        "operationId": "engagement_summary_api_admin_engagement_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-admin-password",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Password"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EngagementSummary"
+                  },
+                  "title": "Response Engagement Summary Api Admin Engagement Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Engagement Summary",
+        "tags": [
+          "engagement"
+        ]
+      }
+    },
     "/api/admin/login": {
       "post": {
         "description": "Lets the admin screen check a password before showing itself \u2014 a UX\nnicety, not the actual gate. `require_admin` (checked per-request on the\nadmin-only endpoints below) is what actually protects anything; this\nendpoint holds no session state of its own.",
@@ -3758,6 +3884,40 @@
           }
         },
         "summary": "Post Client Error"
+      }
+    },
+    "/api/engagement": {
+      "post": {
+        "operationId": "record_engagement_api_engagement_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Engagement",
+        "tags": [
+          "engagement"
+        ]
       }
     },
     "/api/examples/todos": {

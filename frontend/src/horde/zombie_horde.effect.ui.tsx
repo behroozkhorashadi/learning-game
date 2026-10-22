@@ -1,5 +1,6 @@
 import { useMemo, useState, type ComponentType, type ReactElement, type ReactNode } from 'react'
 import type { ArmoryLooksRecord, ArmoryLooksStateRecord, ArmoryStateRecord } from '@app/api/armory_schema.pure.lib.ts'
+import { EngagementArea } from '@app/engagement/engagement_area.pure.ui.tsx'
 import { aimFromPointer } from '@app/outbreak/arena_session.pure.lib.ts'
 import { STARTER_BLASTER, weaponDefinitionFor } from '@app/blaster/weapon_definitions.pure.lib.ts'
 import { usePrefersReducedMotion, type MotionPreference } from '@app/motion/use_prefers_reduced_motion.pure.hook.ts'
@@ -131,7 +132,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
     if (studio === 'art' && armoryData !== null && artPrice !== null) {
       return (
-        <Page>
+        <Page area="zombie_horde:art_studio" profileId={profileId}>
           <ArtStudio profileId={profileId} balance={armoryData.balance} price={artPrice} onSpent={armoryQuery.reload} onBack={closeStudio} />
         </Page>
       )
@@ -139,7 +140,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
     if (studio === 'style' && armoryData !== null) {
       return (
-        <Page>
+        <Page area="zombie_horde:style_studio" profileId={profileId}>
           <StyleStudio
             profileId={profileId}
             armory={armoryData}
@@ -156,7 +157,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
     if (phase === 'ready' || phase === 'loading') {
       return (
-        <Page>
+        <Page area="zombie_horde:armory" profileId={profileId}>
           {round.error !== null && <ErrorBanner message={round.error} />}
           <HordeStart
             starting={phase === 'loading'}
@@ -216,7 +217,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     if (phase === 'over' && round.result !== null) {
       const { result } = round
       return (
-        <Page>
+        <Page area="zombie_horde:results" profileId={profileId}>
           <LiveRegion message={round.liveMessage} />
           <HordeResults
             outcome={state?.outcome === 'survived' ? 'survived' : 'overrun'}
@@ -239,7 +240,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
       )
     }
 
-    if (!inRound) return <Page>{round.error !== null && <ErrorBanner message={round.error} />}</Page>
+    if (!inRound) return <Page area="zombie_horde:loading" profileId={profileId}>{round.error !== null && <ErrorBanner message={round.error} />}</Page>
 
     const answers = state.zombies.flatMap((zombie) => {
       const answer = answerFor(state, zombie)
@@ -249,6 +250,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
     const weapon = weaponDefinitionFor(round.loadout?.weapon.id ?? STARTER_BLASTER.id)
 
     return (
+      <EngagementArea area="zombie_horde:gameplay" profileId={profileId}>
       <div style={{ width: '100%', height: '100vh', background: 'var(--surface-app)', overflow: 'hidden', display: 'flex' }}>
         <LiveRegion message={round.liveMessage} />
         <div
@@ -339,6 +341,7 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
           />
         </div>
       </div>
+      </EngagementArea>
     )
   }
 
@@ -347,8 +350,12 @@ export function bindZombieHorde(deps: ZombieHordeDeps): ComponentType<ZombieHord
 
 const NO_BESTS: Readonly<Record<Difficulty, number>> = { easy: 0, medium: 0, hard: 0, insane: 0 }
 
-function Page({ children }: { readonly children: ReactNode }): ReactElement {
-  return <div style={{ minHeight: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '32px 16px 56px' }}>{children}</div>
+function Page({ area, profileId, children }: { readonly area: string; readonly profileId: number; readonly children: ReactNode }): ReactElement {
+  return (
+    <EngagementArea area={area} profileId={profileId}>
+      <div style={{ minHeight: '100vh', boxSizing: 'border-box', background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '32px 16px 56px' }}>{children}</div>
+    </EngagementArea>
+  )
 }
 
 function ErrorBanner({ message }: { readonly message: string }): ReactElement {

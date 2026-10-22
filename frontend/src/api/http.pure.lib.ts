@@ -14,7 +14,7 @@ export interface HttpResponse {
 
 export type HttpFetch = (
   url: string,
-  init: { readonly method: 'GET' | 'PUT' | 'POST' | 'PATCH' | 'DELETE'; readonly headers: Readonly<Record<string, string>>; readonly body?: string },
+  init: { readonly method: 'GET' | 'PUT' | 'POST' | 'PATCH' | 'DELETE'; readonly headers: Readonly<Record<string, string>>; readonly body?: string; readonly keepalive?: boolean },
 ) => Promise<HttpResponse>
 
 const errorBodySchema = z.object({ detail: z.string() })

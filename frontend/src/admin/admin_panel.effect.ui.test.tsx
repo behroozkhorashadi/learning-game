@@ -33,6 +33,8 @@ describe('AdminPanel login', () => {
     expect(screen.getByRole('heading', { name: 'Players' })).toBeTruthy()
     expect(screen.getByText('Age 6')).toBeTruthy()
     expect(screen.getByText(/Age 7 · 🔒 Has a password/)).toBeTruthy()
+    expect(screen.getByText('zombie horde · gameplay')).toBeTruthy()
+    expect(screen.getByText('6 min')).toBeTruthy()
   })
 
   it('submits on Enter, and Back closes the screen', async () => {
