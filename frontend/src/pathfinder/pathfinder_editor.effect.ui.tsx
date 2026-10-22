@@ -233,6 +233,8 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
             gridTemplateColumns: `repeat(${String(columns)}, 36px)`,
             gridTemplateRows: `repeat(${String(rows)}, 36px)`,
             gap: 6,
+            // Room for a flagged cell's ring, which `overflow: auto` would clip on edge cells.
+            padding: 6,
             maxWidth: '100%',
             overflow: 'auto',
           }}
@@ -254,9 +256,11 @@ export function bindPathfinderEditor({ maps, dialogs, randomId }: PathfinderEdit
                     width: 36,
                     height: 36,
                     borderRadius: 8,
+                    // A flagged dot keeps its dot fill and gains an orange ring;
+                    // replacing the fill made highlighted dots look like empty cells.
                     border: `2px solid ${highlighted ? 'var(--orange-700)' : on ? 'var(--blue-800)' : 'var(--border-default)'}`,
-                    background: highlighted ? 'var(--status-warning-bg)' : on ? 'var(--blue-600)' : 'var(--surface-default)',
-                    boxShadow: highlighted ? '0 0 0 3px var(--status-warning-border)' : undefined,
+                    background: on ? 'var(--blue-600)' : 'var(--surface-default)',
+                    boxShadow: highlighted ? '0 0 0 4px var(--orange-400)' : undefined,
                     cursor: 'pointer',
                   }}
                 />
